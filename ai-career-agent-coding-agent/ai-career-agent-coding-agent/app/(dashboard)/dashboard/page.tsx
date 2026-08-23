@@ -102,6 +102,7 @@ export default async function Dashboard() {
           <div className="dashboard-links">
             <Link href="/jobs" className="inline-link">Browse jobs →</Link>
             <Link href="/match" className="inline-link">Find matches →</Link>
+            <Link href="/generate" className="inline-link">Generate documents →</Link>
             <Link href="/applications" className="inline-link">Track applications →</Link>
             <Link href="/billing" className="inline-link">View plans and limits →</Link>
           </div>

@@ -11,7 +11,7 @@ export async function GET() {
   const user = await requireUser();
   const { data, error } = await supabaseAdmin
     .from('generated_documents')
-    .select('id,kind,title,version,is_active,created_at,application_id')
+    .select('id,kind,title,version,is_active,created_at,application_id,content,source_facts')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(50);

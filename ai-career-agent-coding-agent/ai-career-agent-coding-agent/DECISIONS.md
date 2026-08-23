@@ -61,3 +61,28 @@ React components (`components/site/*`). Revisit if the team standardizes on Tail
   in a later cleanup.
 - **No migration.** Reuses `ai_credentials`, `consume_ai_credit`, `usage_daily`, `jobs`, `applications`.
 
+## D-007 — Application intelligence: deterministic truthfulness gate + immutable versioning
+
+Phase 7 (CV / cover-letter / answer generation). Key decisions:
+
+- **Truthfulness is deterministic, not AI-judged** (ARCHITECTURE §2: the AI is never the sole authority for
+  truthfulness). `lib/truthfulness/verify.ts` checks: (a) every claimed employer/school exists in the profile
+  (fuzzy bidirectional match — hard fail if not); (b) every percentage/multiplier/currency amount in the text
+  appears in the profile's source text (catches fabricated metrics like "grew revenue 45%"); (c) coarse
+  credential detection (`certified` / known acronyms) grounded in the profile; (d) unknown skills are
+  *suspicious*, not a hard fail (skill synonyms are legitimate). A document is persisted only if
+  `report.passed` is true; otherwise it is rejected (422) and the credit is refunded.
+- **Structured/manifest output enables deterministic verification.** The CV task returns structured
+  `experiences[].company` / `education[].institution` (verified exactly); cover-letter/answer tasks return a
+  `references` manifest of every entity used (verified against the profile). Accepted limitation: no full NER,
+  so a fabricated proper noun hidden in prose and omitted from the manifest could slip — mitigated by the
+  truthful prompt + structured CV + metric scan. Documented for a future NER pass.
+- **Migration 008** adds `content` (and `model`) to `generated_documents` — the table had `content_hash` but no
+  content column, so real versioning required storing the text. Append-only preserved (column written on INSERT
+  only). Each generation is a new immutable row; `version` = max(existing for user+kind+application)+1;
+  `source_facts` stores the full truthfulness report for traceability.
+- **Credit policy:** one credit per generation, refunded on AI/provider failure AND on truthfulness rejection
+  (a model that fabricates is not the user's fault). Session-level metering at the route, like matching.
+- **Old `/api/ai/resume` route left in place** (it works); new generation goes through the gateway + truthfulness
+  gate at `/api/documents/generate`. Resume should migrate/remove in a later cleanup.
+
