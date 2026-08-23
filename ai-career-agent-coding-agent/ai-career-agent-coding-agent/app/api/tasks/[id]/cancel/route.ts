@@ -1,0 +1,2 @@
+import { NextResponse } from 'next/server'; import { requireUser } from '@/lib/auth'; import { supabaseAdmin } from '@/lib/supabase';
+export async function POST(_:Request,{params}:{params:Promise<{id:string}>}){const user=await requireUser();const {id}=await params;const {data,error}=await supabaseAdmin.rpc('cancel_agent_task',{p_task_id:id,p_user_id:user.id});if(error)return NextResponse.json({error:'TASK_CANCEL_FAILED'},{status:500});return NextResponse.json({cancelled:data});}
