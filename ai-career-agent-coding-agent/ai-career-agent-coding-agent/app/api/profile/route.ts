@@ -1,7 +1,78 @@
 import { NextResponse } from 'next/server';
-import { z } from 'zod';
+import type { ZodError } from 'zod';
+import { profileSchema } from '@/lib/schemas/profile';
 import { requireUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
-const profileSchema=z.object({full_name:z.string().trim().min(2).max(100),target_roles:z.array(z.string().trim().min(2).max(80)).min(1).max(6),headline:z.string().trim().max(160).optional(),summary:z.string().trim().max(3000).optional(),skills:z.array(z.string().trim().min(1).max(60)).max(40).default([]),experience:z.array(z.object({company:z.string().trim().min(1).max(120),title:z.string().trim().min(1).max(120),description:z.string().trim().max(1500).optional()})).max(20).default([]),education:z.array(z.object({institution:z.string().trim().min(1).max(160),qualification:z.string().trim().min(1).max(160)})).max(10).default([]),links:z.object({portfolio:z.string().url().optional().or(z.literal(''))}).default({})});
-export async function GET(){const user=await requireUser();const [{data:profile},{data:career}]=await Promise.all([supabaseAdmin.from('profiles').select('full_name,email,target_roles,workspace_id,account_status').eq('user_id',user.id).single(),supabaseAdmin.from('career_profiles').select('headline,summary,skills,experience,education,projects,links').eq('user_id',user.id).maybeSingle()]);return NextResponse.json({profile,career});}
-export async function PUT(request:Request){const user=await requireUser();const body=profileSchema.parse(await request.json());const {error:profileError}=await supabaseAdmin.from('profiles').update({full_name:body.full_name,target_roles:body.target_roles,updated_at:new Date().toISOString()}).eq('user_id',user.id);if(profileError) return NextResponse.json({error:'PROFILE_UPDATE_FAILED'},{status:500});const {error:careerError}=await supabaseAdmin.from('career_profiles').upsert({user_id:user.id,headline:body.headline||null,summary:body.summary||null,skills:body.skills,experience:body.experience,education:body.education,links:body.links,updated_at:new Date().toISOString()},{onConflict:'user_id'});if(careerError)return NextResponse.json({error:'CAREER_PROFILE_UPDATE_FAILED'},{status:500});return NextResponse.json({ok:true});}
+
+export async function GET() {
+  const user = await requireUser();
+  const [profileRes, careerRes] = await Promise.all([
+    supabaseAdmin
+      .from('profiles')
+      .select('full_name,email,application_email,target_roles,workspace_id,account_status')
+      .eq('user_id', user.id)
+      .single(),
+    supabaseAdmin
+      .from('career_profiles')
+      .select('headline,summary,skills,experience,education,projects,links')
+      .eq('user_id', user.id)
+      .maybeSingle(),
+  ]);
+  return NextResponse.json({ profile: profileRes.data, career: careerRes.data });
+}
+
+export async function PUT(request: Request) {
+  const user = await requireUser();
+
+  let body;
+  try {
+    body = profileSchema.parse(await request.json());
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'VALIDATION_FAILED', issues: (error as ZodError).flatten() },
+      { status: 400 },
+    );
+  }
+
+  const { error: profileError } = await supabaseAdmin
+    .from('profiles')
+    .update({
+      full_name: body.full_name,
+      target_roles: body.target_roles,
+      application_email: body.application_email ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', user.id);
+  if (profileError) return NextResponse.json({ error: 'PROFILE_UPDATE_FAILED' }, { status: 500 });
+
+  const { error: careerError } = await supabaseAdmin
+    .from('career_profiles')
+    .upsert(
+      {
+        user_id: user.id,
+        headline: body.headline || null,
+        summary: body.summary || null,
+        skills: body.skills,
+        experience: body.experience,
+        education: body.education,
+        links: body.links,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id' },
+    );
+  if (careerError) return NextResponse.json({ error: 'CAREER_PROFILE_UPDATE_FAILED' }, { status: 500 });
+
+  return NextResponse.json({ ok: true });
+}
+
+/**
+ * Clears the user's structured career profile (headline, summary, skills,
+ * experience, education, projects, links). Does NOT delete the account or the
+ * auth-tied `profiles` row — see DECISIONS.md D-003.
+ */
+export async function DELETE() {
+  const user = await requireUser();
+  const { error } = await supabaseAdmin.from('career_profiles').delete().eq('user_id', user.id);
+  if (error) return NextResponse.json({ error: 'CAREER_PROFILE_DELETE_FAILED' }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
