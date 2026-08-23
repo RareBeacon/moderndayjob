@@ -1,0 +1,2 @@
+import {chromium} from 'playwright';
+export async function runBrowserTask(url:string){const browser=await chromium.launch({headless:true});try{const context=await browser.newContext();const page=await context.newPage();const parsed=new URL(url);if(['localhost','127.0.0.1'].includes(parsed.hostname)||parsed.hostname.startsWith('169.254.'))throw new Error('SSRF_BLOCKED');await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});return {title:await page.title(),url:page.url()};}finally{await browser.close()}}

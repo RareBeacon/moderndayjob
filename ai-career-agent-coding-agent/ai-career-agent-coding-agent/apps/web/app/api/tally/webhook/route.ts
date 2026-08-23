@@ -1,0 +1,2 @@
+import crypto from 'node:crypto';import {supabaseAdmin} from '@/lib/supabase';
+export async function POST(req:Request){const raw=await req.text();const secret=process.env.TALLY_WEBHOOK_SECRET;if(secret){const sig=req.headers.get('tally-signature')||'';const expected=crypto.createHmac('sha256',secret).update(raw).digest('hex');if(sig!==expected)return new Response('invalid',{status:401})}const event=JSON.parse(raw);await supabaseAdmin.from('security_events').insert({event_type:'TALLY_EVENT',severity:'INFO',metadata:event});return Response.json({ok:true})}

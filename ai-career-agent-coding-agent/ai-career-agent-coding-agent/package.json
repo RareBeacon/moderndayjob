@@ -1,0 +1,38 @@
+{
+  "name": "ai-career-agent",
+  "private": true,
+  "scripts": {
+    "dev": "next dev apps/web",
+    "build": "next build apps/web",
+    "start": "next start apps/web",
+    "typecheck": "tsc --noEmit",
+    "lint": "next lint",
+    "test": "vitest run",
+    "agent": "tsx workers/agent/index.ts",
+    "browser": "tsx workers/browser/index.ts",
+    "scheduler": "tsx workers/scheduler/index.ts"
+  },
+  "dependencies": {
+    "@supabase/ssr": "latest",
+    "@supabase/supabase-js": "latest",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "zod": "latest",
+    "playwright": "latest",
+    "pdf-lib": "latest",
+    "@upstash/ratelimit": "latest",
+    "@upstash/redis": "latest"
+  },
+  "devDependencies": {
+    "typescript": "latest",
+    "vitest": "latest",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "tsx": "latest"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

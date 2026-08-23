@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: ai-career-agent-web
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+  - type: worker
+    name: ai-career-agent-worker
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm run agent
+  - type: worker
+    name: ai-career-agent-browser
+    runtime: node
+    buildCommand: npm install && npx playwright install --with-deps chromium
+    startCommand: npm run browser
+  - type: worker
+    name: ai-career-agent-scheduler
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm run scheduler

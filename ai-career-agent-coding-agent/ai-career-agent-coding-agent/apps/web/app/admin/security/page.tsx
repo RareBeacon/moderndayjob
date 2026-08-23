@@ -1,0 +1,3 @@
+'use client';
+import {useEffect,useState} from 'react';
+export default function Security(){const [users,setUsers]=useState<any[]>([]);useEffect(()=>{fetch('/api/admin/users').then(r=>r.json()).then(setUsers)},[]);return <main className="shell"><h1>Admin • Security</h1><p className="muted">Review duplicate-risk signals and account status. Use server-side termination endpoints for enforcement.</p><div className="grid">{users.map(u=><div className="card" key={u.user_id}><strong>{u.email}</strong><p>{u.full_name} • {u.plan} • {u.account_status}</p><span className="badge">risk {u.risk_score??0}</span></div>)}</div></main>}

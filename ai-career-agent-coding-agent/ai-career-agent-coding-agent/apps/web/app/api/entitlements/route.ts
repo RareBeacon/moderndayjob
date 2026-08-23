@@ -1,0 +1,1 @@
+import {requireUser} from '../../../lib/auth';import {getEntitlement} from '@packages/security/entitlements';export async function GET(){const u=await requireUser();return Response.json(await getEntitlement(u.id))}
