@@ -1,3 +1,81 @@
-'use client'; import {useEffect,useState} from 'react'; import Link from 'next/link';
-type Document={id:string;kind:string;original_name:string;byte_size:number;created_at:string};
-export default function Documents(){const [docs,setDocs]=useState<Document[]>([]);const [status,setStatus]=useState('');const [busy,setBusy]=useState(false);async function load(){const r=await fetch('/api/documents');if(r.ok){const x=await r.json();setDocs(x.documents)}}useEffect(()=>{load()},[]);async function upload(e:React.ChangeEvent<HTMLInputElement>){const file=e.target.files?.[0];if(!file)return;setBusy(true);setStatus('Uploading securely…');const f=new FormData();f.append('file',file);const r=await fetch('/api/documents',{method:'POST',body:f});const x=await r.json();setBusy(false);if(!r.ok){setStatus(x.error==='PDF_REQUIRED'?'Please choose a PDF file.':'Upload could not be completed.');return;}setStatus('Your CV is stored privately.');e.target.value='';load();}async function download(id:string){const r=await fetch(`/api/documents/${id}/download`);const x=await r.json();if(r.ok)window.location.assign(x.url);else setStatus('Download link is unavailable. Please try again.')}return <main className="workspace"><header className="workspace-header"><Link href="/dashboard" className="brand">modernjob</Link><Link href="/dashboard" className="text-button">Back to workspace</Link></header><section className="workspace-hero"><p className="eyebrow">PRIVATE DOCUMENTS</p><h1>Your career documents.</h1><p>Upload your master CV as a PDF. It remains private to your account and is the source material for future, reviewable career tools.</p><label className={`upload-card ${busy?'is-busy':''}`}><input type="file" accept="application/pdf,.pdf" onChange={upload} disabled={busy}/><strong>{busy?'Uploading…':'Upload your master CV'}</strong><span>PDF only · maximum 5 MB</span></label>{status&&<p className="form-status">{status}</p>}</section><section className="document-list">{docs.length===0?<article className="card"><h2>No documents uploaded yet.</h2><p className="muted">Your uploaded CV will appear here. Modern Job will never invent its content.</p></article>:docs.map(d=><article className="card document-row" key={d.id}><div><p className="eyebrow">{d.kind.replace('_',' ')}</p><h2>{d.original_name}</h2><p className="muted">{Math.ceil(d.byte_size/1024)} KB · Added {new Date(d.created_at).toLocaleDateString()}</p></div><button className="text-button" onClick={()=>download(d.id)}>Download</button></article>)}</section></main>}
+'use client';
+import { useEffect, useState } from 'react';
+import { AppShell } from '@/components/site/AppShell';
+
+type Document = { id: string; kind: string; original_name: string; byte_size: number; created_at: string };
+
+export default function Documents() {
+  const [docs, setDocs] = useState<Document[]>([]);
+  const [status, setStatus] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function load() {
+    const r = await fetch('/api/documents');
+    if (r.ok) {
+      const x = await r.json();
+      setDocs(x.documents);
+    }
+  }
+  useEffect(() => { load(); }, []);
+
+  async function upload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBusy(true);
+    setStatus('Uploading securely…');
+    const f = new FormData();
+    f.append('file', file);
+    const r = await fetch('/api/documents', { method: 'POST', body: f });
+    const x = await r.json();
+    setBusy(false);
+    if (!r.ok) {
+      setStatus(x.error === 'PDF_REQUIRED' ? 'Please choose a PDF file.' : 'Upload could not be completed.');
+      return;
+    }
+    setStatus('Your CV is stored privately.');
+    e.target.value = '';
+    load();
+  }
+
+  async function download(id: string) {
+    const r = await fetch(`/api/documents/${id}/download`);
+    const x = await r.json();
+    if (r.ok) window.location.assign(x.url);
+    else setStatus('Download link is unavailable. Please try again.');
+  }
+
+  return (
+    <AppShell active="documents" title="Documents">
+      <section className="workspace-hero">
+        <p className="eyebrow">PRIVATE DOCUMENTS</p>
+        <h1>Your career documents.</h1>
+        <p>Upload your master CV as a PDF. It remains private to your account and is the source material for future, reviewable career tools.</p>
+        <label className={`upload-card ${busy ? 'is-busy' : ''}`}>
+          <input type="file" accept="application/pdf,.pdf" onChange={upload} disabled={busy} />
+          <strong>{busy ? 'Uploading…' : 'Upload your master CV'}</strong>
+          <span>PDF only · maximum 5 MB</span>
+        </label>
+        {status && <p className="form-status">{status}</p>}
+      </section>
+      <section className="document-list">
+        {docs.length === 0 ? (
+          <article className="card">
+            <h2>No documents uploaded yet.</h2>
+            <p className="muted">Your uploaded CV will appear here. Modern Job will never invent its content.</p>
+          </article>
+        ) : (
+          docs.map((d) => (
+            <article className="card document-row" key={d.id}>
+              <div>
+                <p className="eyebrow">{d.kind.replace('_', ' ')}</p>
+                <h2>{d.original_name}</h2>
+                <p className="muted">{Math.ceil(d.byte_size / 1024)} KB · Added {new Date(d.created_at).toLocaleDateString()}</p>
+              </div>
+              <button className="text-button" onClick={() => download(d.id)}>Download</button>
+            </article>
+          ))
+        )}
+      </section>
+    </AppShell>
+  );
+}

@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
-import Link from 'next/link';
+import { AppShell } from '@/components/site/AppShell';
 
 type Experience = { company: string; title: string; description?: string };
 type Education = { institution: string; qualification: string };
@@ -156,12 +156,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="workspace">
-      <header className="workspace-header">
-        <Link href="/dashboard" className="brand">modernjob</Link>
-        <Link href="/dashboard" className="text-button">Back to workspace</Link>
-      </header>
-
+    <AppShell active="profile" title="Profile">
       <section className="workspace-hero">
         <p className="eyebrow">PROFILE</p>
         <h1>Your verified career story.</h1>
@@ -293,6 +288,6 @@ export default function ProfilePage() {
 
         {status && <p className="form-status">{status}</p>}
       </form>
-    </main>
+    </AppShell>
   );
 }
