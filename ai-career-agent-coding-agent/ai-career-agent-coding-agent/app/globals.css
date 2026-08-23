@@ -1057,3 +1057,48 @@ h1, h2, h3, h4 { font-family: var(--font-display, "Satoshi", system-ui, sans-ser
 .ready-list span { font-size: 13px; color: var(--muted); }
 .ready-list b { font-size: 14px; color: var(--ink); font-weight: 700; text-align: right; }
 .ready-note { margin-top: 18px; font-size: 13.5px; color: var(--brand-strong); background: var(--brand-soft); border: 1px solid var(--brand-line); border-radius: var(--radius-md); padding: 12px 14px; }
+
+/* ============================================================
+   Dashboard — career command center (Phase 5)
+   One connected momentum composition (not four identical cards).
+   ============================================================ */
+.dm { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 24px; box-shadow: var(--shadow-1); }
+.dm-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.dm-head h2 { font-size: 22px; color: var(--brand-ink); margin: 4px 0 0; }
+.dm-plan { display: inline-flex; align-items: center; gap: 8px; background: var(--surface-sunken); border: 1px solid var(--line); border-radius: var(--radius-pill); padding: 7px 14px; font-size: 13px; font-weight: 700; color: var(--ink-2); white-space: nowrap; }
+.dm-track { position: relative; padding-top: 8px; }
+.dm-line { position: absolute; top: 0; left: 0; right: 0; height: 90px; width: 100%; opacity: 0.5; pointer-events: none; }
+.dm-stats { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 26px; }
+.dm-stat { background: var(--surface-sunken); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 16px; }
+.dm-stat b { display: block; font-size: 28px; font-weight: 800; color: var(--brand-ink); line-height: 1; }
+.dm-stat span { font-size: 12.5px; color: var(--muted); margin-top: 8px; display: block; }
+
+.dash-cols { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 16px; margin-top: 16px; }
+.dash-col { display: flex; flex-direction: column; }
+.dash-feed { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 12px; }
+.dash-feed li { display: flex; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line-2); }
+.dash-feed li:last-child { border-bottom: 0; padding-bottom: 0; }
+.dash-feed-main { min-width: 0; flex: 1; }
+.dash-feed-main b { display: block; font-size: 14.5px; color: var(--ink); font-weight: 700; }
+.dash-feed-main span { font-size: 13px; color: var(--muted); }
+.dash-feed-status { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--brand-strong); background: var(--brand-soft); border-radius: var(--radius-xs); padding: 4px 8px; flex: none; }
+.dash-suggest { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 12px; }
+.dash-suggest li { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; }
+.dash-suggest .inline-link { font-size: 14px; }
+
+.dash-empty { margin-top: 14px; display: grid; gap: 8px; }
+.dash-empty .muted { margin: 0; }
+
+.dash-jobs { display: grid; gap: 10px; margin-top: 14px; }
+.dash-job { display: flex; align-items: center; gap: 14px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius-md); text-decoration: none; color: inherit; transition: border-color 0.15s var(--ease), transform 0.15s var(--ease); }
+.dash-job:hover { border-color: var(--brand-line); transform: translateY(-1px); }
+.dash-job-co { width: 40px; height: 40px; border-radius: 11px; background: linear-gradient(135deg, var(--cobalt), var(--brand)); color: #fff; display: grid; place-items: center; font-weight: 800; flex: none; }
+.dash-job-main { flex: 1; min-width: 0; }
+.dash-job-main b { display: block; font-size: 14.5px; color: var(--ink); font-weight: 700; }
+.dash-job-main span { font-size: 13px; color: var(--muted); }
+.dash-job-arrow { color: var(--brand); font-weight: 800; flex: none; }
+
+@media (max-width: 760px) {
+  .dm-stats { grid-template-columns: 1fr 1fr; }
+  .dash-cols { grid-template-columns: 1fr; }
+}

@@ -7,9 +7,13 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { getEntitlement } from '@packages/security/entitlements';
 import { getProfileCompleteness } from '@/lib/profile-completeness';
 
-function stepHref(label: string) {
-  return label.toLowerCase().includes('cv') ? '/documents' : '/profile';
-}
+type RecentApp = {
+  id: string;
+  status: string;
+  created_at: string;
+  jobs: { company: string | null; title: string | null; url: string | null; location: string | null } | null;
+};
+type FreshJob = { id: string; title: string | null; company: string | null; location: string | null };
 
 export default async function Dashboard() {
   const user = await requireUser();
@@ -29,10 +33,20 @@ export default async function Dashboard() {
 
   if (!profile?.target_roles?.length) redirect('/onboarding');
 
-  const [{ count: applicationCount }, { count: taskCount }] = await Promise.all([
+  const [{ count: applicationCount }, { count: submittedCount }, { count: interviewCount }, { count: taskCount }, { data: recentApps }, { data: freshJobs }] = await Promise.all([
     supabaseAdmin.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+    supabaseAdmin.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).in('status', ['SUBMITTED', 'INTERVIEW']),
+    supabaseAdmin.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'INTERVIEW'),
     supabaseAdmin.from('agent_tasks').select('*', { count: 'exact', head: true }).eq('user_id', user.id).in('status', ['QUEUED', 'RUNNING']),
+    supabaseAdmin.from('applications').select('id,status,created_at,jobs(company,title,url,location)').eq('user_id', user.id).order('created_at', { ascending: false }).limit(5),
+    supabaseAdmin.from('jobs').select('id,title,company,location').order('created_at', { ascending: false }).limit(3),
   ]);
+
+  const apps = (recentApps ?? []) as unknown as RecentApp[];
+  const jobs = (freshJobs ?? []) as unknown as FreshJob[];
+  const interviews = interviewCount ?? 0;
+  const submitted = submittedCount ?? 0;
+  const responseRate = submitted > 0 ? Math.round((interviews / submitted) * 100) : 0;
 
   const prefSummary = [
     prefs?.remote_types?.length ? prefs.remote_types.slice(0, 2).join('/') : null,
@@ -43,12 +57,44 @@ export default async function Dashboard() {
 
   const firstName = (profile.full_name || 'there').split(' ')[0];
 
+  // Deterministic, real-derived next steps (no fabricated suggestions)
+  const suggestions: { text: string; href: string }[] = [];
+  if (completeness.percent < 100) suggestions.push({ text: `Finish your profile — ${completeness.percent}% complete for stronger matches.`, href: '/onboarding' });
+  if ((applicationCount ?? 0) === 0) suggestions.push({ text: 'Track your first application to start your history.', href: '/applications' });
+  if (entitlement.automation_enabled && (taskCount ?? 0) === 0) suggestions.push({ text: 'Your agent is ready. Find matches to begin automation.', href: '/match' });
+  suggestions.push({ text: 'Refresh your CV and run an ATS check for your next role.', href: '/generate' });
+
   return (
     <AppShell active="dashboard" title={`Welcome back, ${firstName}`}>
       <section className="workspace-hero">
         <p className="eyebrow">YOUR WORKSPACE</p>
         <h1>Good to see you, {firstName}.</h1>
         <p>{career?.headline || 'Your private career workspace is ready. Build your profile, choose your tools, and move at your own pace.'}</p>
+        <span className="dm-plan">Plan · {entitlement.plan} · {entitlement.ai_credits_remaining} credits today</span>
+      </section>
+
+      {/* Career momentum — one connected composition, not four identical cards */}
+      <section className="dm">
+        <div className="dm-head">
+          <div>
+            <p className="eyebrow">CAREER MOMENTUM</p>
+            <h2>Your momentum, at a glance.</h2>
+          </div>
+        </div>
+        <div className="dm-track">
+          <svg className="dm-line" viewBox="0 0 400 90" preserveAspectRatio="none" aria-hidden="true">
+            <polyline points="10,78 120,60 230,40 340,16 390,8" fill="none" stroke="var(--brand)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+            {[[120, 60], [230, 40], [340, 16]].map(([x, y], i) => (
+              <circle key={i} cx={x} cy={y} r="4.5" fill="var(--brand)" />
+            ))}
+          </svg>
+          <div className="dm-stats">
+            <div className="dm-stat"><b>{applicationCount ?? 0}</b><span>Applications</span></div>
+            <div className="dm-stat"><b>{interviews}</b><span>Interviews</span></div>
+            <div className="dm-stat"><b>{responseRate}%</b><span>Response rate</span></div>
+            <div className="dm-stat"><b>{completeness.percent}%</b><span>Profile strength</span></div>
+          </div>
+        </div>
       </section>
 
       <section className="completeness">
@@ -56,54 +102,73 @@ export default async function Dashboard() {
         <ProfileReadiness />
       </section>
 
-      {completeness.percent < 100 ? (
-        <section className="card next-steps">
+      {/* Two-column: recent applications + next steps */}
+      <section className="dash-cols">
+        <article className="card dash-col">
           <div className="section-title">
-            <h2>{completeness.percent}% ready — a few quick wins</h2>
-            <Link href="/onboarding" className="inline-link">Open wizard →</Link>
+            <h2>Recent applications</h2>
+            <Link href="/applications" className="inline-link">View all →</Link>
           </div>
-          <p className="muted">A complete profile means stronger matches and truthful applications. Finish these to get the most out of your agent:</p>
-          <ul className="step-list">
-            {completeness.next.slice(0, 5).map((s) => (
-              <li key={s}>
+          {apps.length === 0 ? (
+            <div className="dash-empty">
+              <p className="muted">No applications tracked yet.</p>
+              <Link className="inline-link" href="/applications">Track your first →</Link>
+            </div>
+          ) : (
+            <ul className="dash-feed">
+              {apps.map((a) => (
+                <li key={a.id}>
+                  <span className={`dot-mini ${a.status}`} aria-hidden="true" />
+                  <div className="dash-feed-main">
+                    <b>{a.jobs?.title || 'Untitled role'}</b>
+                    <span>{a.jobs?.company || 'Unknown company'}</span>
+                  </div>
+                  <span className="dash-feed-status">{a.status}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </article>
+
+        <article className="card dash-col">
+          <div className="section-title"><h2>Next steps</h2></div>
+          <ul className="dash-suggest">
+            {suggestions.map((s, i) => (
+              <li key={i}>
                 <span className="dot-mini" aria-hidden="true" />
-                <Link href={stepHref(s)} className="inline-link">{s}</Link>
+                <Link href={s.href} className="inline-link">{s.text}</Link>
               </li>
             ))}
           </ul>
-        </section>
-      ) : null}
-
-      <section className="metrics">
-        <article><p>Plan</p><strong>{entitlement.plan}</strong><span>{entitlement.automation_enabled ? 'Automation available' : 'Automation locked'}</span></article>
-        <article><p>AI credits today</p><strong>{entitlement.ai_credits_remaining}</strong><span>Available now</span></article>
-        <article><p>Applications</p><strong>{applicationCount || 0}</strong><span>Real records only</span></article>
-        <article><p>Agent tasks</p><strong>{taskCount || 0}</strong><span>Queued or running</span></article>
+        </article>
       </section>
 
-      <section className="workspace-grid">
-        <article className="card">
-          <p className="eyebrow">YOUR DIRECTION</p>
-          <h2>{profile.target_roles.join(' · ')}</h2>
-          <p className="muted">{career?.skills?.length ? `${career.skills.length} skills in your verified profile.` : 'Add skills and experience to improve future recommendations.'}</p>
-          {prefSummary ? <p className="muted pref-line">{prefSummary}</p> : null}
-          <div className="dashboard-links">
-            <Link href="/onboarding" className="inline-link">Update profile →</Link>
-            <Link href="/documents" className="inline-link">Upload CV →</Link>
+      {/* Fresh opportunities (real, not "recommended" unless matched) */}
+      <section className="card">
+        <div className="section-title">
+          <h2>Fresh opportunities</h2>
+          <Link href="/match" className="inline-link">Find your matches →</Link>
+        </div>
+        {jobs.length === 0 ? (
+          <div className="dash-empty">
+            <p className="muted">No opportunities synced yet.</p>
+            <Link className="inline-link" href="/jobs">Browse jobs →</Link>
           </div>
-        </article>
-        <article className="card">
-          <p className="eyebrow">NEXT STEP</p>
-          <h2>Build your career foundation.</h2>
-          <p className="muted">CV upload, free AI career tools, and job matching are connected to this workspace. Nothing is submitted automatically.</p>
-          <div className="dashboard-links">
-            <Link href="/jobs" className="inline-link">Browse jobs →</Link>
-            <Link href="/match" className="inline-link">Find matches →</Link>
-            <Link href="/generate" className="inline-link">Generate documents →</Link>
-            <Link href="/applications" className="inline-link">Track applications →</Link>
-            <Link href="/billing" className="inline-link">View plans and limits →</Link>
+        ) : (
+          <div className="dash-jobs">
+            {jobs.map((j) => (
+              <Link className="dash-job" key={j.id} href="/jobs">
+                <span className="dash-job-co">{(j.company || '?').slice(0, 1)}</span>
+                <span className="dash-job-main">
+                  <b>{j.title || 'Untitled role'}</b>
+                  <span>{j.company || 'Unknown'}{j.location ? ` · ${j.location}` : ''}</span>
+                </span>
+                <span className="dash-job-arrow">→</span>
+              </Link>
+            ))}
           </div>
-        </article>
+        )}
+        {prefSummary ? <p className="muted pref-line" style={{ marginTop: 16 }}>{prefSummary}</p> : null}
       </section>
     </AppShell>
   );
