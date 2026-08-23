@@ -34,3 +34,30 @@ The implemented codebase uses a hand-written, design-token CSS system (`app/glob
 and already drives the whole app. Migrating to Tailwind now would be a large, risky refactor with little
 functional benefit. The accessible-component-system intent is honored via reusable classes plus shared
 React components (`components/site/*`). Revisit if the team standardizes on Tailwind.
+
+## D-006 — AI gateway: unified OpenAI-compatible transport, prompt-versioned tasks, consume-before metering
+
+`packages/ai/gateway.ts` is the central AIService (ARCHITECTURE §7/§13). Design choices:
+
+- **One transport, many providers.** OpenRouter and Hugging Face both expose the OpenAI
+  `/chat/completions` contract, so a single `OpenAICompatProvider` (bound to a credential:
+  name/model/baseUrl/decrypted-key/priority) serves both. The fallback chain is just the ordered
+  provider list; on provider failure *or* malformed/schema-invalid output the gateway falls through to
+  the next provider (§13), throwing `AI_ALL_PROVIDERS_FAILED` only when all fail.
+- **Prompt versioning + schema validation.** Each `AITask` carries an `id`, integer `version`, a Zod
+  `schema`, and a `buildMessages` builder. The gateway parses model output (handling raw/fenced/prose-
+  wrapped JSON via `parseJsonContent`) and `safeParse`s it; malformed output is rejected (Phase 5
+  acceptance). `JOB_MATCH_TASK` (v1) is the first task (Phase 6).
+- **Quota: consume-before, refund-on-total-failure.** A `UsageMeter` (`reserve`/`refund`) wraps a run.
+  `reserve` calls the atomic `consume_ai_credit` RPC (FOR UPDATE locking) so the daily limit can never
+  be exceeded even under concurrency; `refund` is a best-effort decrement used only when every provider
+  fails, so users are not charged for outages. Matching meters at the **session** level (one credit per
+  match run regardless of jobs scored); single-call tasks meter per call via `run(task,input,{meter})`.
+- **Purity/testability.** The gateway + providers + tasks import no env/crypto/supabase, so they are
+  fully unit-tested with mock providers/gateway. Server wiring (load+decrypt `ai_credentials`, the RPC
+  meter, DB loaders) lives in `lib/ai/*` and is the only place that touches secrets/DB.
+- **Existing `resume` route left as-is.** It works and predates the gateway; rewriting it is out of
+  scope and risks a working surface. New AI surfaces (matching) use the gateway; `resume` should migrate
+  in a later cleanup.
+- **No migration.** Reuses `ai_credentials`, `consume_ai_credit`, `usage_daily`, `jobs`, `applications`.
+

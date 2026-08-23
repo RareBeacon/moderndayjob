@@ -101,6 +101,7 @@ export default async function Dashboard() {
           <p className="muted">CV upload, free AI career tools, and job matching are being connected to this workspace next. Nothing is submitted automatically.</p>
           <div className="dashboard-links">
             <Link href="/jobs" className="inline-link">Browse jobs →</Link>
+            <Link href="/match" className="inline-link">Find matches →</Link>
             <Link href="/applications" className="inline-link">Track applications →</Link>
             <Link href="/billing" className="inline-link">View plans and limits →</Link>
           </div>
