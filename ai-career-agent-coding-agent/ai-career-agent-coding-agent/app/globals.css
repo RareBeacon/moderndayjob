@@ -992,3 +992,68 @@ h1, h2, h3, h4 { font-family: var(--font-display, "Satoshi", system-ui, sans-ser
   .mk-agent-rail .ar.live .nd { animation: none !important; }
   .mk-tool:hover { transform: none !important; }
 }
+
+/* ============================================================
+   App shell (Phase 2) — receding warm sidebar + mobile bottom tabs.
+   Sidebar recedes (dimmer than content) so the work area leads.
+   Mobile uses a CSS-only drawer (checkbox) + fixed bottom tab bar.
+   ============================================================ */
+.app-shell { display: flex; min-height: 100vh; background: var(--bg); }
+.app-nav-toggle { display: none; }
+
+.app-sidebar { width: 250px; flex: none; background: var(--surface-sunken); border-right: 1px solid var(--line); display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; }
+.app-side-top { padding: 20px 18px 16px; border-bottom: 1px solid var(--line); }
+.app-logo { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: 19px; color: var(--brand-ink); font-family: var(--font-display, "Satoshi", system-ui, sans-serif); }
+.app-logo .mark { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, var(--brand), var(--mint)); display: grid; place-items: center; color: #fff; }
+
+.app-nav { display: flex; flex-direction: column; gap: 2px; padding: 14px 12px; flex: 1; overflow-y: auto; }
+.app-link { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--radius-sm); color: var(--muted); font-weight: 600; font-size: 14.5px; text-decoration: none; transition: background 0.15s var(--ease), color 0.15s; }
+.app-link:hover { background: rgba(20,32,31,0.04); color: var(--ink); }
+.app-link.active { background: var(--card); color: var(--brand-ink); box-shadow: var(--shadow-1); }
+.app-link.active .app-ico { color: var(--brand); }
+.app-ico { display: grid; place-items: center; color: var(--muted-2); flex: none; }
+.app-ico.sm { width: 22px; height: 22px; }
+
+.app-side-foot { padding: 12px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+.app-foot-card { display: flex; gap: 10px; align-items: flex-start; background: var(--brand-soft); border: 1px solid var(--brand-line); border-radius: var(--radius-md); padding: 12px; }
+.app-foot-card .app-ico.sm { color: var(--brand); }
+.app-foot-card strong { display: block; font-size: 13px; color: var(--brand-ink); }
+.app-foot-card span { font-size: 12px; color: var(--brand-strong); }
+.app-signout { width: 100%; border: 1px solid var(--line); background: var(--card); color: var(--muted); font-weight: 700; font-size: 13px; padding: 9px; border-radius: var(--radius-sm); cursor: pointer; font-family: inherit; }
+.app-signout:hover { border-color: var(--brand-line); color: var(--brand-ink); }
+
+.app-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.app-topbar { display: flex; align-items: center; gap: 14px; height: 64px; padding: 0 28px; border-bottom: 1px solid var(--line); background: rgba(250,248,243,0.82); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); position: sticky; top: 0; z-index: 20; }
+.app-title { font-size: 18px; font-weight: 800; color: var(--brand-ink); font-family: var(--font-display, "Satoshi", system-ui, sans-serif); margin: 0; }
+.app-top-cta { margin-left: auto; border: 1px solid var(--line); background: var(--card); color: var(--brand-ink); font-weight: 700; font-size: 13.5px; padding: 9px 16px; border-radius: var(--radius-pill); text-decoration: none; }
+.app-top-cta:hover { border-color: var(--brand-line); }
+.app-burger { display: none; width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; flex: none; }
+.app-burger span { display: block; width: 18px; height: 2px; background: var(--ink); border-radius: 2px; }
+.app-content { padding: 28px; max-width: 1080px; width: 100%; }
+.app-bottom { display: none; }
+
+@media (max-width: 860px) {
+  .app-sidebar { position: fixed; top: 0; left: 0; z-index: 60; transform: translateX(-100%); transition: transform 0.25s var(--ease); box-shadow: var(--shadow-3); }
+  .app-nav-toggle:checked ~ .app-sidebar { transform: none; }
+  .app-nav-toggle:checked ~ .app-main::before { content: ""; position: fixed; inset: 0; background: rgba(20,32,31,0.35); z-index: 55; }
+  .app-burger { display: flex; }
+  .app-top-cta { display: none; }
+  .app-content { padding: 20px 16px 92px; }
+  .app-bottom { display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: var(--card); border-top: 1px solid var(--line); padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); }
+  .app-tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; color: var(--muted); font-weight: 700; text-decoration: none; border-radius: var(--radius-sm); }
+  .app-tab.active { color: var(--brand); }
+  .app-tab .app-lbl { font-size: 11px; }
+}
+
+/* ============================================================
+   Onboarding v2 — celebratory "ready" review (step 6)
+   ============================================================ */
+.ready-card { text-align: center; padding: 8px 8px 4px; }
+.ready-check { width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 16px; background: var(--brand-soft); color: var(--brand); display: grid; place-items: center; border: 1px solid var(--brand-line); }
+.ready-card h2 { font-size: 24px; color: var(--brand-ink); }
+.ready-list { list-style: none; margin: 22px 0 0; display: grid; gap: 10px; text-align: left; background: var(--surface-sunken); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 16px 20px; }
+.ready-list li { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; border-bottom: 1px solid var(--line-2); padding-bottom: 10px; }
+.ready-list li:last-child { border-bottom: 0; padding-bottom: 0; }
+.ready-list span { font-size: 13px; color: var(--muted); }
+.ready-list b { font-size: 14px; color: var(--ink); font-weight: 700; text-align: right; }
+.ready-note { margin-top: 18px; font-size: 13.5px; color: var(--brand-strong); background: var(--brand-soft); border: 1px solid var(--brand-line); border-radius: var(--radius-md); padding: 12px 14px; }

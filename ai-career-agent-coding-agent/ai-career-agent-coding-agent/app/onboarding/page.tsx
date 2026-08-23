@@ -42,7 +42,8 @@ const MODES: { value: Mode; label: string; desc: string }[] = [
   { value: 'approval', label: 'Approval (recommended)', desc: 'Prepare complete applications. You approve each one before it is sent.' },
   { value: 'auto', label: 'Auto', desc: 'Submit eligible applications within your rules. Still stops on CAPTCHA or unsupported sites.' },
 ];
-const STEPS = ['You', 'Background', 'Targets', 'Applications', 'CV & finish'];
+// 6 steps per design plan §6.2 (Gmail removed per D-001)
+const STEPS = ['You', 'Targets', 'Where & how', 'Your CV', 'Experience', 'Ready'];
 
 const EMPTY: FormState = {
   full_name: '', target_roles: '', headline: '', summary: '', skills: '', application_email: '',
@@ -106,8 +107,10 @@ export default function OnboardingPage() {
   }
 
   function canProceed(s: number): boolean {
-    if (s === 0) return form.full_name.trim().length >= 2 && split(form.target_roles).length >= 1;
-    if (s === 3) {
+    if (s === 0) return form.full_name.trim().length >= 2;
+    if (s === 1) return split(form.target_roles).length >= 1;
+    if (s === 2) return form.remote_types.length >= 1;
+    if (s === 4) {
       const email = form.application_email.trim();
       const emailOk = email === '' || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
       const dt = Number(form.daily_target);
@@ -184,13 +187,14 @@ export default function OnboardingPage() {
 
   const isLast = step === STEPS.length - 1;
   const progress = ((step + 1) / STEPS.length) * 100;
+  const modeLabel = MODES.find((m) => m.value === form.application_mode)?.label ?? 'Approval';
 
   return (
     <main className="auth-page">
       <section className="onboarding-card wizard-card">
         <p className="eyebrow">SET UP YOUR CAREER WORKSPACE</p>
         <h1>Let’s tailor your agent.</h1>
-        <p className="step-sub">A few quick steps. Your profile is the source of facts we use — we never invent.</p>
+        <p className="step-sub">Six quick steps. Your profile is the source of facts we use — we never invent.</p>
 
         <div className="stepper" role="list">
           {STEPS.map((label, i) => (
@@ -209,16 +213,53 @@ export default function OnboardingPage() {
           <div className="wizard-body">
             {step === 0 && (
               <div className="form-stack">
-                <label>Full name<input value={form.full_name} onChange={field('full_name')} placeholder="Your name" /></label>
-                <label>What roles are you targeting?<span>Comma-separated, e.g. Product Designer, UX Researcher</span><input value={form.target_roles} onChange={field('target_roles')} placeholder="e.g. Product Designer, UX Researcher" /></label>
-                <label>Professional headline<input value={form.headline} onChange={field('headline')} placeholder="What you do, in your own words" /></label>
+                <label>What’s your name?<input value={form.full_name} onChange={field('full_name')} placeholder="Your name" /></label>
+                <label>What do you do?<span>A headline in your own words — any profession.</span><input value={form.headline} onChange={field('headline')} placeholder="e.g. Senior Product Designer" /></label>
+                <label>Short professional summary<span>The experience you want your agent to understand.</span><textarea value={form.summary} onChange={field('summary')} rows={3} placeholder="A few lines about your work and strengths." /></label>
               </div>
             )}
 
             {step === 1 && (
               <div className="form-stack">
-                <label>Short professional summary<textarea value={form.summary} onChange={field('summary')} rows={3} placeholder="The experience you want your agent to understand." /></label>
-                <label>Skills<span>Comma-separated</span><input value={form.skills} onChange={field('skills')} placeholder="e.g. Figma, research, strategy" /></label>
+                <label>Which roles are you targeting?<span>Comma-separated, e.g. Product Designer, UX Researcher</span><input value={form.target_roles} onChange={field('target_roles')} placeholder="e.g. Product Designer, UX Researcher" /></label>
+                <label>Your key skills<span>Comma-separated — these power matching and truthful applications.</span><input value={form.skills} onChange={field('skills')} placeholder="e.g. Figma, research, strategy" /></label>
+              </div>
+            )}
+
+            {step === 2 && (
+              <div className="form-stack">
+                <label>Work arrangement</label>
+                <div className="chip-group">
+                  {REMOTE_OPTIONS.map((o) => (
+                    <button type="button" key={o.value} className="chip" aria-pressed={form.remote_types.includes(o.value)} onClick={() => toggle('remote_types', o.value)}>{o.label}</button>
+                  ))}
+                </div>
+                <label>Locations<span>Comma-separated, e.g. Lagos, Nigeria; Remote</span><input value={form.locations} onChange={field('locations')} placeholder="Lagos, Nigeria" /></label>
+                <label>Employment type</label>
+                <div className="chip-group">
+                  {EMP_OPTIONS.map((o) => (
+                    <button type="button" key={o.value} className="chip" aria-pressed={form.employment_types.includes(o.value)} onClick={() => toggle('employment_types', o.value)}>{o.label}</button>
+                  ))}
+                </div>
+                <label>Salary floor (optional, NGN)<input type="number" min={0} value={form.salary_min} onChange={field('salary_min')} placeholder="e.g. 250000" /></label>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="form-stack">
+                <p className="muted">Optional: upload your master CV (PDF, max 5 MB). It stays private to your account and is the source for future materials.</p>
+                <label className={`upload-card${upload.busy ? ' is-busy' : ''}`}>
+                  <input type="file" accept="application/pdf,.pdf" onChange={onUpload} disabled={upload.busy} />
+                  <strong>{upload.busy ? 'Uploading…' : cvUploaded ? 'Upload another CV' : 'Upload your master CV'}</strong>
+                  <span>PDF only · maximum 5 MB</span>
+                </label>
+                {upload.status ? <p className="form-status">{upload.status}</p> : null}
+                <p className="muted">You can skip this and upload later from Documents.</p>
+              </div>
+            )}
+
+            {step === 4 && (
+              <div className="form-stack">
                 <div>
                   <div className="section-title"><h2>Experience</h2><button type="button" className="text-button" onClick={() => setForm((f) => ({ ...f, experience: [...f.experience, { company: '', title: '', description: '' }] }))}>Add</button></div>
                   {form.experience.map((x, i) => (
@@ -238,30 +279,6 @@ export default function OnboardingPage() {
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-
-            {step === 2 && (
-              <div className="form-stack">
-                <label>Work arrangement</label>
-                <div className="chip-group">
-                  {REMOTE_OPTIONS.map((o) => (
-                    <button type="button" key={o.value} className="chip" aria-pressed={form.remote_types.includes(o.value)} onClick={() => toggle('remote_types', o.value)}>{o.label}</button>
-                  ))}
-                </div>
-                <label>Locations<span>Comma-separated, e.g. Lagos, Nigeria; Remote</span><input value={form.locations} onChange={field('locations')} placeholder="Lagos, Nigeria" /></label>
-                <label>Employment type</label>
-                <div className="chip-group">
-                  {EMP_OPTIONS.map((o) => (
-                    <button type="button" key={o.value} className="chip" aria-pressed={form.employment_types.includes(o.value)} onClick={() => toggle('employment_types', o.value)}>{o.label}</button>
-                  ))}
-                </div>
-                <label>Salary floor (optional, {`NGN`})<input type="number" min={0} value={form.salary_min} onChange={field('salary_min')} placeholder="e.g. 250000" /></label>
-              </div>
-            )}
-
-            {step === 3 && (
-              <div className="form-stack">
                 <label>Application email<span>The address used when you apply. No inbox access — just a contact email.</span><input type="email" value={form.application_email} onChange={field('application_email')} placeholder="you@example.com" /></label>
                 <label>How much control should your agent have?</label>
                 <div className="mode-cards">
@@ -284,16 +301,23 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {step === 4 && (
+            {step === 5 && (
               <div className="form-stack">
-                <p className="muted">Optional: upload your master CV (PDF, max 5 MB). It stays private to your account and is the source for future materials.</p>
-                <label className={`upload-card${upload.busy ? ' is-busy' : ''}`}>
-                  <input type="file" accept="application/pdf,.pdf" onChange={onUpload} disabled={upload.busy} />
-                  <strong>{upload.busy ? 'Uploading…' : cvUploaded ? 'Upload another CV' : 'Upload your master CV'}</strong>
-                  <span>PDF only · maximum 5 MB</span>
-                </label>
-                {upload.status ? <p className="form-status">{upload.status}</p> : null}
-                <p className="muted">You can skip this and upload later from Documents.</p>
+                <div className="ready-card">
+                  <div className="ready-check" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" width="26" height="26"><path d="M5 12.5 L10 17 L19 7" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  </div>
+                  <h2>Your agent is ready to work.</h2>
+                  <p className="muted">Here’s what we’ll use. You can change anything later.</p>
+                  <ul className="ready-list">
+                    <li><span>Name</span><b>{form.full_name || '—'}</b></li>
+                    <li><span>Target roles</span><b>{split(form.target_roles).join(', ') || '—'}</b></li>
+                    <li><span>Arrangement</span><b>{form.remote_types.length ? form.remote_types.join(', ') : '—'}{form.locations ? ` · ${form.locations}` : ''}</b></li>
+                    <li><span>Control</span><b>{modeLabel}</b></li>
+                    <li><span>Daily target</span><b>{form.daily_target || '—'} applications/day</b></li>
+                  </ul>
+                  <p className="ready-note">Approval mode keeps you in charge. Your agent prepares — you review and release.</p>
+                </div>
               </div>
             )}
           </div>
@@ -306,7 +330,7 @@ export default function OnboardingPage() {
           <div className="right">
             {!isLast ? <span className="muted" style={{ fontSize: 13 }}>Step {step + 1} of {STEPS.length}</span> : null}
             <button type="button" className="btn" onClick={next} disabled={!canProceed(step) || saving || loading}>
-              {isLast ? (saving ? 'Saving…' : 'Finish & go to dashboard') : 'Continue'}
+              {isLast ? (saving ? 'Saving…' : 'Finish & open dashboard') : 'Continue'}
             </button>
           </div>
         </div>

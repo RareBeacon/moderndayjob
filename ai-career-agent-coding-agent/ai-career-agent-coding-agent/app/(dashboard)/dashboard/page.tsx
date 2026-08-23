@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import ProfileReadiness from '@/components/ProfileReadiness';
+import { AppShell } from '@/components/site/AppShell';
 import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
@@ -40,18 +41,14 @@ export default async function Dashboard() {
     prefs?.daily_target ? `${prefs.daily_target}/day` : null,
   ].filter(Boolean).join(' · ');
 
-  return (
-    <main className="workspace">
-      <header className="workspace-header">
-        <Link href="/" className="brand">modernjob</Link>
-        <form action="/api/auth/signout" method="post"><button className="text-button">Sign out</button></form>
-      </header>
+  const firstName = (profile.full_name || 'there').split(' ')[0];
 
+  return (
+    <AppShell active="dashboard" title={`Welcome back, ${firstName}`}>
       <section className="workspace-hero">
         <p className="eyebrow">YOUR WORKSPACE</p>
-        <h1>Welcome, {profile.full_name}.</h1>
+        <h1>Good to see you, {firstName}.</h1>
         <p>{career?.headline || 'Your private career workspace is ready. Build your profile, choose your tools, and move at your own pace.'}</p>
-        <Link className="btn" href="/onboarding">Edit profile</Link>
       </section>
 
       <section className="completeness">
@@ -98,7 +95,7 @@ export default async function Dashboard() {
         <article className="card">
           <p className="eyebrow">NEXT STEP</p>
           <h2>Build your career foundation.</h2>
-          <p className="muted">CV upload, free AI career tools, and job matching are being connected to this workspace next. Nothing is submitted automatically.</p>
+          <p className="muted">CV upload, free AI career tools, and job matching are connected to this workspace. Nothing is submitted automatically.</p>
           <div className="dashboard-links">
             <Link href="/jobs" className="inline-link">Browse jobs →</Link>
             <Link href="/match" className="inline-link">Find matches →</Link>
@@ -108,6 +105,6 @@ export default async function Dashboard() {
           </div>
         </article>
       </section>
-    </main>
+    </AppShell>
   );
 }
