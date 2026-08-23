@@ -1,0 +1,9 @@
+.vercel
+.env*
+node_modules
+.next
+**/.next
+coverage
+dist
+playwright/.auth
+*.tsbuildinfo

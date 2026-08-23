@@ -1,38 +1,39 @@
 {
-  "name": "ai-career-agent",
+  "name": "modern-job",
   "private": true,
+  "version": "1.0.0",
   "scripts": {
-    "dev": "next dev apps/web",
-    "build": "next build apps/web",
-    "start": "next start apps/web",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "typecheck": "tsc --noEmit",
-    "lint": "next lint",
     "test": "vitest run",
+    "lint": "tsc --noEmit",
     "agent": "tsx workers/agent/index.ts",
     "browser": "tsx workers/browser/index.ts",
     "scheduler": "tsx workers/scheduler/index.ts"
   },
   "dependencies": {
-    "@supabase/ssr": "latest",
-    "@supabase/supabase-js": "latest",
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "zod": "latest",
-    "playwright": "latest",
-    "pdf-lib": "latest",
-    "@upstash/ratelimit": "latest",
-    "@upstash/redis": "latest"
+    "@supabase/ssr": "0.5.2",
+    "@supabase/supabase-js": "2.49.4",
+    "@upstash/ratelimit": "^2.0.5",
+    "@upstash/redis": "^1.34.3",
+    "next": "15.5.9",
+    "pdf-lib": "^1.17.1",
+    "playwright": "^1.51.1",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
-    "typescript": "latest",
-    "vitest": "latest",
-    "@types/node": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "tsx": "latest"
+    "@types/node": "^22.15.3",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "tsx": "^4.19.3",
+    "typescript": "5.7.3",
+    "vitest": "^3.1.1"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20 <23"
   }
 }

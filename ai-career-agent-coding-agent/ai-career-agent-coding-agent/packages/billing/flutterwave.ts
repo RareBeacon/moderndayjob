@@ -1,3 +1,3 @@
-import {env} from '../../apps/web/lib/env';
+import {env} from '../../lib/env';
 export async function verifyFlutterwaveTransaction(id:string){const r=await fetch(`https://api.flutterwave.com/v3/transactions/${encodeURIComponent(id)}/verify`,{headers:{Authorization:`Bearer ${env.FLW_SECRET_KEY}`},cache:'no-store'});if(!r.ok)throw new Error('FLW_VERIFY_FAILED');return r.json()}
 export async function createFlutterwaveTransaction(payload:Record<string,unknown>){const r=await fetch('https://api.flutterwave.com/v3/payments',{method:'POST',headers:{Authorization:`Bearer ${env.FLW_SECRET_KEY}`,'Content-Type':'application/json'},body:JSON.stringify(payload)});if(!r.ok)throw new Error('FLW_CREATE_FAILED');return r.json()}

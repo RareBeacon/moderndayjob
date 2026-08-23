@@ -1,3 +1,3 @@
-import {env} from '../../apps/web/lib/env';import {decryptSecret} from '../security/crypto';
+import {env} from '../../lib/env';import {decryptSecret} from '../security/crypto';
 export async function chat(secretCiphertext:string,baseUrl:string,model:string,messages:{role:'system'|'user';content:string}[]){const key=decryptSecret(secretCiphertext);const r=await fetch(`${baseUrl}/chat/completions`,{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify({model,messages,temperature:.2})});if(!r.ok)throw new Error(`AI_PROVIDER_${r.status}`);return r.json()}
 export const defaults={openrouter:env.OPENROUTER_BASE_URL,huggingface:env.HUGGINGFACE_BASE_URL};
