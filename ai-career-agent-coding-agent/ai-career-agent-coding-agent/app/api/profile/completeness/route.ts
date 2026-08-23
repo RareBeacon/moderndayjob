@@ -1,2 +1,8 @@
-import { NextResponse } from 'next/server'; import { requireUser } from '@/lib/auth'; import { supabaseAdmin } from '@/lib/supabase';
-export async function GET(){const u=await requireUser();const [{data:p},{data:c},{count:d}]=await Promise.all([supabaseAdmin.from('profiles').select('full_name,target_roles').eq('user_id',u.id).single(),supabaseAdmin.from('career_profiles').select('headline,summary,skills,experience,education,links').eq('user_id',u.id).maybeSingle(),supabaseAdmin.from('documents').select('*',{count:'exact',head:true}).eq('user_id',u.id)]);const checks=[['name',!!p?.full_name,'Add your name'],['roles',!!p?.target_roles?.length,'Add target roles'],['headline',!!c?.headline,'Add a headline'],['summary',!!c?.summary,'Add a professional summary'],['skills',!!c?.skills?.length,'Add skills'],['experience',!!c?.experience?.length,'Add work experience'],['education',!!c?.education?.length,'Add education'],['portfolio',!!c?.links?.portfolio,'Add a portfolio link'],['cv',!!d,'Upload a master CV']];const done=checks.filter(x=>x[1]).length;return NextResponse.json({percent:Math.round(done/checks.length*100),next:checks.filter(x=>!x[1]).map(x=>x[2]),checks});}
+import { NextResponse } from 'next/server';
+import { requireUser } from '@/lib/auth';
+import { getProfileCompleteness } from '@/lib/profile-completeness';
+
+export async function GET() {
+  const u = await requireUser();
+  return NextResponse.json(await getProfileCompleteness(u.id));
+}
