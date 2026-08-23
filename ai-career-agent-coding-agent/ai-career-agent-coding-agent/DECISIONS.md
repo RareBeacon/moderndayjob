@@ -27,8 +27,10 @@ policy covers the new column.
 experience, education, projects, links). It does **not** delete the auth account or the
 `profiles` row. This keeps the action safe and re-enterable, and is clearly labelled in the UI.
 
-## D-004 — Build and verify before any push, deploy, or migration
-
-Per `docs/CODING_AGENT.md` §16, production deployment requires `npm run build`, migrations,
-and verification to pass first. Locally we run typecheck + unit tests + production build
-before any code is pushed or any migration is applied to the hosted database.
+## D-005 — UI styling: hand-written CSS, not Tailwind (deviation from TECHNICAL_REQUIREMENTS)
+`docs/TECHNICAL_REQUIREMENTS.md` §1 specifies "UI: Tailwind CSS + accessible component system".
+The implemented codebase uses a hand-written, design-token CSS system (`app/globals.css`) instead.
+**Decision:** Keep the token CSS. It is accessible (WCAG AA focus/contrast), responsive, tokenized,
+and already drives the whole app. Migrating to Tailwind now would be a large, risky refactor with little
+functional benefit. The accessible-component-system intent is honored via reusable classes plus shared
+React components (`components/site/*`). Revisit if the team standardizes on Tailwind.

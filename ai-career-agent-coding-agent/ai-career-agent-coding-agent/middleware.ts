@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 /** Pages that require an authenticated session. */
-const PROTECTED = ['/dashboard', '/onboarding', '/profile', '/documents', '/applications', '/billing'];
+const PROTECTED = ['/dashboard', '/onboarding', '/profile', '/documents', '/applications', '/billing', '/jobs'];
 /** Auth pages an already-signed-in user should not see. */
 const AUTH_PAGES = ['/login', '/signup'];
 
@@ -47,5 +47,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/onboarding', '/profile', '/documents', '/applications', '/billing', '/login', '/signup'],
+  matcher: ['/dashboard/:path*', '/onboarding', '/profile', '/documents', '/applications', '/billing', '/jobs', '/login', '/signup'],
 };
