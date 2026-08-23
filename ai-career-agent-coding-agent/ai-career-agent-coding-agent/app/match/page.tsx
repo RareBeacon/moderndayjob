@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { AppShell } from '@/components/site/AppShell';
 
 type Verdict = 'strong' | 'moderate' | 'weak';
 
@@ -87,7 +88,7 @@ export default function MatchPage() {
   }
 
   return (
-    <div className="workspace">
+    <AppShell active="match" title="Matches">
       <div className="workspace-hero" style={{ paddingBottom: 8 }}>
         <p className="eyebrow">Matching engine</p>
         <h1>Job matches</h1>
@@ -150,7 +151,7 @@ export default function MatchPage() {
           )}
         </>
       )}
-    </div>
+    </AppShell>
   );
 }
 

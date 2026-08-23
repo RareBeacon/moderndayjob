@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { AppShell } from '@/components/site/AppShell';
 
 type JobMeta = {
   remote_type?: string;
@@ -44,16 +45,12 @@ export default function JobsPage() {
   }, []);
 
   return (
-    <main className="workspace">
-      <header className="workspace-header">
-        <Link href="/dashboard" className="brand">modernjob</Link>
-        <Link href="/dashboard" className="text-button">Back to workspace</Link>
-      </header>
-
+    <AppShell active="jobs" title="Jobs">
       <section className="workspace-hero">
         <p className="eyebrow">OPPORTUNITIES</p>
         <h1>Discovered jobs.</h1>
         <p>Jobs are normalized from supported public sources, de-duplicated, and ready for matching. Every listing links to a real source — never fabricated.</p>
+        <Link className="btn" href="/match">Score these for fit →</Link>
       </section>
 
       <section className="job-list">
@@ -95,6 +92,6 @@ export default function JobsPage() {
         )}
         {status ? <p className="form-status">{status}</p> : null}
       </section>
-    </main>
+    </AppShell>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { AppShell } from '@/components/site/AppShell';
 
 type Kind = 'CV' | 'COVER_LETTER' | 'ANSWERS';
 
@@ -109,10 +110,10 @@ export default function GeneratePage() {
   }
 
   return (
-    <div className="workspace">
+    <AppShell active="generate" title="Generate">
       <div className="workspace-hero" style={{ paddingBottom: 8 }}>
         <p className="eyebrow">Application intelligence</p>
-        <h1>Generate documents</h1>
+        <h1>Resume studio</h1>
         <p style={{ color: 'var(--muted)', fontSize: 17, margin: '14px 0 0' }}>
           CVs, cover letters, and application answers — built only from your verified profile facts and
           checked for truthfulness before they’re saved. Each generation is an immutable version.
@@ -218,7 +219,7 @@ export default function GeneratePage() {
           </div>
         </section>
       )}
-    </div>
+    </AppShell>
   );
 }
 
