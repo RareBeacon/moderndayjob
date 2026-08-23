@@ -1,13 +1,29 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
-import { Plus_Jakarta_Sans } from 'next/font/google';
+import { Inter } from 'next/font/google';
+import localFont from 'next/font/local';
 
 const SITE_URL = 'https://modernjob.vercel.app';
 
-const jakarta = Plus_Jakarta_Sans({
+/* Satoshi — self-hosted display face (free, commercial-use via Fontshare).
+   The "differentiated choice" to escape the Inter-as-default AI tell.
+   next/font/local hashes + preloads these woff2 files at build time. */
+const satoshi = localFont({
+  src: [
+    { path: '../fonts/satoshi-400.woff2', weight: '400', style: 'normal' },
+    { path: '../fonts/satoshi-500.woff2', weight: '500', style: 'normal' },
+    { path: '../fonts/satoshi-700.woff2', weight: '700', style: 'normal' },
+    { path: '../fonts/satoshi-900.woff2', weight: '900', style: 'normal' },
+  ],
+  variable: '--font-display',
+  display: 'swap',
+});
+
+/* Inter — clean, legible body/UI face (well-supported, loads fast). */
+const inter = Inter({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
-  variable: '--font-jakarta-override',
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-body',
   display: 'swap',
 });
 
@@ -37,7 +53,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={jakarta.variable}>
+    <html lang="en" className={`${satoshi.variable} ${inter.variable}`}>
       <body>
         <a href="#main" className="skip-link">Skip to content</a>
         {children}

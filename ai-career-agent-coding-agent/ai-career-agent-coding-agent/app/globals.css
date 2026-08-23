@@ -834,3 +834,161 @@ ul { margin: 0; }
   .mk-step, .mk-rail .fill, .mk-meter .bar i, .mk-floats .chip, .mk-eyebrow .pulse { animation: none !important; opacity: 1 !important; transform: none !important; }
   .mk-meter .bar i { width: var(--w, 80%) !important; }
 }
+
+/* ============================================================
+   Design system v2 (research-grounded) — override layer.
+   Appended LAST so it wins the cascade for equal-specificity rules.
+   Implements: warm grays (no cool/warm mix), Satoshi display face,
+   varied radius, 4px spacing grid, soft warm elevation, and the
+   structured-grid / trajectory / flow-rail motif. Supersedes the
+   cool neutrals & radial "glow" of the interim system.
+   ============================================================ */
+:root {
+  /* Warm neutrals — cohesive WARM temperature (was partly cool) */
+  --ink: #14201f;        /* deep warm petrol — primary text */
+  --ink-2: #3c4a45;      /* warm slate */
+  --muted: #57524a;      /* warm gray — secondary text */
+  --muted-2: #8a8378;    /* warm muted — tertiary text */
+  --line: #e7e1d4;       /* warm hairline (was cool #e4eceb) */
+  --line-2: #efe9dd;     /* warm faint */
+  --bg: #faf8f3;         /* warm ivory */
+
+  /* Brand — refined turquoise (the ONE accent) */
+  --brand: #0ba5a0;
+  --brand-strong: #067a7c;
+  --brand-ink: #14201f;
+  --brand-soft: #e4f4f2;
+  --brand-softer: #cdeae6;
+  --brand-line: #aee0db;
+
+  /* Warm section tint (was cool #f1f5f4) + sunken surface */
+  --background-secondary: #f3efe6;
+  --surface-sunken: #f6f2ea;
+
+  /* Spacing — strict 4px grid */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+  --space-12: 48px; --space-16: 64px; --space-20: 80px; --space-24: 96px;
+
+  /* Radius — varied scale + xs/pill */
+  --radius-xs: 6px; --radius-pill: 999px;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 0.14s; --dur-slow: 0.42s;
+
+  /* Elevation — soft, low, warm-tinted */
+  --shadow-1: 0 1px 2px #14201f0d;
+  --shadow-2: 0 8px 24px -10px #14201f26;
+  --shadow-3: 0 28px 60px -30px #14201f40;
+}
+
+/* Headings on Satoshi (display); body stays Inter via --font-body */
+h1, h2, h3, h4 { font-family: var(--font-display, "Satoshi", system-ui, sans-serif); letter-spacing: -0.025em; }
+.mk-stat b, .mk-plan .price, .mk-pipe-stage .cnt, .mk-spark-card .big,
+.mk-ring .inner, .mock-stats strong, .stat .num, .mk-doc .score-tag {
+  font-family: var(--font-display, "Satoshi", system-ui, sans-serif);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Hero: replace radial "glow" with a structured warm
+   gradient edge + a masked trajectory grid (motif, felt not loud) ---------- */
+.mk-hero::before {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    linear-gradient(115deg, rgba(10,169,166,0.07), transparent 40%),
+    linear-gradient(115deg, transparent 58%, rgba(47,76,255,0.05) 100%);
+}
+.mk-hero::after {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(20,32,31,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20,32,31,0.04) 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(820px 560px at 82% 8%, #000, transparent 72%);
+          mask-image: radial-gradient(820px 560px at 82% 8%, #000, transparent 72%);
+}
+
+/* ---------- CTA: structured warm gradient edge (no orb) ---------- */
+.mk-cta::before {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(120deg, rgba(10,169,166,0.10), transparent 46%), linear-gradient(120deg, transparent 54%, rgba(255,106,77,0.08) 100%);
+}
+
+/* ---------- §6.1 #6  ATS intelligence — editorial ruled grid ---------- */
+.mk-ats { display: grid; grid-template-columns: 0.82fr 1.18fr; gap: 48px; align-items: center; }
+.mk-jd { background: var(--surface-sunken); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 22px; }
+.mk-jd .jd-head { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 14px; }
+.mk-jd .jd-head .dl { width: 8px; height: 8px; border-radius: 50%; background: var(--brand); }
+.mk-jd .dl-line { height: 9px; border-radius: 4px; background: var(--line-2); margin: 7px 0; }
+.mk-jd .dl-line .kw { display: inline-block; height: 9px; background: var(--brand-soft); border-radius: 3px; }
+.mk-jd .dl-line.w60 { width: 60%; } .mk-jd .dl-line.w85 { width: 85%; } .mk-jd .dl-line.w45 { width: 45%; }
+.mk-ats-break { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-2); overflow: hidden; }
+.mk-ats-row { display: grid; grid-template-columns: 130px 1fr; gap: 16px; align-items: center; padding: 15px 20px; border-top: 1px solid var(--line-2); }
+.mk-ats-row:first-child { border-top: 0; }
+.mk-ats-row .k { font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.mk-ats-row .v { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
+.mk-ats-row .chip { font-size: 12.5px; font-weight: 600; padding: 4px 10px; border-radius: var(--radius-pill); display: inline-flex; gap: 5px; align-items: center; }
+.mk-ats-row .chip.ok { color: #0b6b54; background: var(--success-bg); border: 1px solid #c4e9d8; }
+.mk-ats-row .chip.no { color: #9a4a18; background: var(--warning-bg); border: 1px solid #efd9b6; }
+
+/* ---------- §6.1 #7  Automation — sophisticated staged agent rail ---------- */
+.mk-agent-rail { position: relative; display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; margin-top: 44px; }
+.mk-agent-rail::before { content: ""; position: absolute; top: 18px; left: 6%; right: 6%; height: 2px; background: var(--line); border-radius: 2px; }
+.mk-agent-rail::after { content: ""; position: absolute; top: 18px; left: 6%; width: var(--rail, 62%); height: 2px; background: linear-gradient(90deg, var(--brand-line), var(--brand)); border-radius: 2px; }
+.mk-agent-rail .ar { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 9px; }
+.mk-agent-rail .ar .nd { width: 38px; height: 38px; border-radius: 50%; background: var(--card); border: 2px solid var(--line); display: grid; place-items: center; font-size: 14px; font-weight: 800; color: var(--muted-2); }
+.mk-agent-rail .ar.done .nd { background: var(--brand); border-color: var(--brand); color: #fff; }
+.mk-agent-rail .ar.live .nd { border-color: var(--brand); color: var(--brand); animation: arpulse 2.1s var(--ease) infinite; }
+.mk-agent-rail .ar .lbl { font-size: 12px; font-weight: 700; color: var(--ink-2); line-height: 1.25; max-width: 12ch; }
+.mk-agent-rail .ar.todo .lbl { color: var(--muted-2); }
+@keyframes arpulse { 0% { box-shadow: 0 0 0 0 rgba(10,169,166,0.5); } 70% { box-shadow: 0 0 0 9px rgba(10,169,166,0); } 100% { box-shadow: 0 0 0 0 rgba(10,169,166,0); } }
+@media (max-width: 760px) { .mk-agent-rail { grid-template-columns: repeat(2, 1fr); gap: 22px 10px; } .mk-agent-rail::before, .mk-agent-rail::after { display: none; } }
+
+/* ---------- §6.1 #8  Application activity — pipeline snapshot + sparkline ---------- */
+.mk-activity { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 22px; align-items: stretch; }
+.mk-pipe-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.mk-pipe-stage { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 18px; }
+.mk-pipe-stage .cnt { font-size: 30px; font-weight: 800; color: var(--brand-ink); }
+.mk-pipe-stage .nm { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.mk-pipe-stage .px { height: 5px; border-radius: var(--radius-pill); background: var(--line-2); margin-top: 14px; overflow: hidden; }
+.mk-pipe-stage .px i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--brand-line), var(--brand)); }
+.mk-spark-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 22px; display: flex; flex-direction: column; gap: 6px; box-shadow: var(--shadow-1); }
+.mk-spark-card .head { display: flex; justify-content: space-between; align-items: baseline; }
+.mk-spark-card .big { font-size: 34px; font-weight: 800; color: var(--brand-ink); }
+.mk-spark-card .delta { font-size: 12.5px; font-weight: 800; color: #0b6b54; }
+.mk-spark-card .cap { font-size: 12px; color: var(--muted-2); margin-top: 4px; }
+.mk-spark-card svg { width: 100%; height: 60px; display: block; margin-top: 8px; }
+@media (max-width: 760px) { .mk-activity { grid-template-columns: 1fr; } .mk-pipe-grid { grid-template-columns: 1fr 1fr; } }
+
+/* ---------- §6.1 #9  Free tools — asymmetric bento ---------- */
+.mk-bento { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; margin-top: 44px; }
+.mk-tool { grid-column: span 4; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 22px; display: flex; flex-direction: column; gap: 9px; text-decoration: none; color: inherit; transition: transform 0.18s var(--ease), box-shadow 0.2s var(--ease), border-color 0.2s; }
+.mk-tool:hover { transform: translateY(-3px); box-shadow: var(--shadow-2); border-color: var(--brand-line); }
+.mk-tool.wide { grid-column: span 6; }
+.mk-tool .tag { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--brand); }
+.mk-tool h3 { font-size: 16.5px; }
+.mk-tool p { font-size: 13.5px; color: var(--muted); line-height: 1.5; margin: 0; }
+.mk-tool .arrow { margin-top: auto; font-size: 13px; font-weight: 800; color: var(--brand-strong); display: inline-flex; gap: 6px; align-items: center; }
+.mk-bento-note { text-align: center; color: var(--muted); font-size: 14px; margin-top: 26px; }
+@media (max-width: 760px) { .mk-tool, .mk-tool.wide { grid-column: span 12; } }
+
+/* ---------- §6.1 #11  Security & privacy — trust rail ---------- */
+.mk-trust-rail { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--card); overflow: hidden; box-shadow: var(--shadow-2); }
+.mk-trust { padding: 26px 22px; border-left: 1px solid var(--line-2); }
+.mk-trust:first-child { border-left: 0; }
+.mk-trust .ic { width: 38px; height: 38px; border-radius: 11px; background: var(--brand-soft); color: var(--brand-strong); display: grid; place-items: center; }
+.mk-trust .ic svg { width: 19px; height: 19px; }
+.mk-trust h3 { font-size: 15px; margin: 15px 0 6px; }
+.mk-trust p { font-size: 13px; color: var(--muted); margin: 0; line-height: 1.55; }
+@media (max-width: 860px) { .mk-trust-rail { grid-template-columns: 1fr 1fr; } .mk-trust:nth-child(odd) { border-left: 0; } .mk-trust:nth-child(n+3) { border-top: 1px solid var(--line-2); } }
+@media (max-width: 540px) { .mk-trust-rail { grid-template-columns: 1fr; } .mk-trust { border-left: 0; border-top: 1px solid var(--line-2); } .mk-trust:first-child { border-top: 0; } }
+
+/* ---------- §6.1 #12  Pricing — Premium coral accent ---------- */
+.mk-plan.premium { position: relative; border-color: #f3c9bd; box-shadow: var(--shadow-2); }
+.mk-plan.premium::before { content: "Best value"; position: absolute; top: -13px; left: 30px; background: #d94a30; color: #fff; font-size: 11px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; padding: 5px 12px; border-radius: var(--radius-pill); }
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-agent-rail .ar.live .nd { animation: none !important; }
+  .mk-tool:hover { transform: none !important; }
+}

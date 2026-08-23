@@ -2,6 +2,15 @@ import Link from 'next/link';
 import type { CSSProperties } from 'react';
 import { FAQ } from '@/components/site/FAQ';
 
+/* small inline check glyph for the security rail (meaningful, not decorative sparkle) */
+function Check() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M5 12.5 L10 17 L19 7" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function Logo() {
   return (
     <span className="mk-logo">
@@ -16,16 +25,48 @@ function Logo() {
   );
 }
 
+const agentStages = [
+  { n: '01', label: 'Discovering', state: 'done' },
+  { n: '02', label: 'Analyzing', state: 'done' },
+  { n: '03', label: 'Tailoring', state: 'done' },
+  { n: '04', label: 'Answering', state: 'done' },
+  { n: '05', label: 'Filling', state: 'live' },
+  { n: '06', label: 'Verifying', state: 'todo' },
+  { n: '07', label: 'Submitting', state: 'todo' },
+  { n: '08', label: 'Completed', state: 'todo' },
+];
+
+const pipeStages = [
+  { cnt: '18', nm: 'Saved', p: '100%' },
+  { cnt: '12', nm: 'Applied', p: '67%' },
+  { cnt: '4', nm: 'Interview', p: '22%' },
+  { cnt: '1', nm: 'Offer', p: '6%' },
+];
+
+const tools = [
+  { tag: 'Free', title: 'ATS Resume Scanner', body: 'See exactly how your CV reads to applicant tracking systems.', href: '/generate' },
+  { tag: 'Free', title: 'Cover Letter Writer', body: 'Draft a tailored letter from your verified facts.', href: '/generate' },
+  { tag: 'Free', title: 'Job Description Analyzer', body: 'Break any listing into skills, gaps, and keywords.', href: '/jobs' },
+  { tag: 'Free', title: 'Skills Matcher', body: 'See which of your skills a job actually rewards.', href: '/match' },
+  { tag: 'Free', title: 'Interview Question Generator', body: 'Practice role-specific questions with model answers.', href: '/signup' },
+  { tag: 'Free', title: 'Career Path Explorer', body: 'Map realistic next steps from your real profile.', href: '/signup' },
+  { tag: 'Free', title: 'Salary Insights', body: 'Estimate pay bands for your role and region.', href: '/signup' },
+  { tag: 'Free', title: 'Resume Summary Generator', body: 'A sharp two-line intro, grounded in your work.', href: '/generate' },
+  { tag: 'Free', title: 'Follow-up Email Writer', body: 'A polite, timely nudge to a recruiter.', href: '/signup' },
+  { tag: 'Free', title: 'LinkedIn Headline Builder', body: 'A headline that earns the right clicks.', href: '/signup' },
+];
+
 export default function HomePage() {
   return (
     <>
-      {/* Header */}
+      {/* 1 · Header */}
       <header className="mk-header">
         <div className="mk-shell bar">
           <Link href="/"><Logo /></Link>
           <nav className="mk-nav" aria-label="Primary">
             <span className="links">
               <Link href="/#how">How it works</Link>
+              <Link href="/#tools">Free tools</Link>
               <Link href="/#pricing">Pricing</Link>
               <Link href="/#faq">FAQ</Link>
             </span>
@@ -38,7 +79,7 @@ export default function HomePage() {
       </header>
 
       <main id="main">
-        {/* Hero */}
+        {/* 2 · Hero — asymmetric: outcome copy + living agent workspace */}
         <section className="mk-hero">
           <div className="mk-shell grid">
             <div>
@@ -71,7 +112,7 @@ export default function HomePage() {
                 </div>
                 <div className="mk-rail">
                   <span className="fill" aria-hidden="true" />
-                  <div className="mk-step done"><span className="node">✓</span><span className="label">Job found</span><span className="meta">Senior Engineer · Remote</span></div>
+                  <div className="mk-step done"><span className="node">✓</span><span className="label">Job found</span><span className="meta">Senior Designer · Remote</span></div>
                   <div className="mk-step done"><span className="node">✓</span><span className="label">Matched · 92%</span><span className="meta">7 of 8 skills</span></div>
                   <div className="mk-step done"><span className="node">✓</span><span className="label">CV tailored</span><span className="meta">ATS-ready</span></div>
                   <div className="mk-step active"><span className="node">•</span><span className="label">Application ready</span><span className="meta">Awaiting you</span></div>
@@ -89,7 +130,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Career identity */}
+        {/* 3 · Career identity — asymmetric copy + profile-strength card */}
         <section className="mk-section">
           <div className="mk-shell mk-identity">
             <div className="copy">
@@ -125,7 +166,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Resume transformation */}
+        {/* 4 · Resume studio — split: document mock + copy */}
         <section className="mk-section" style={{ background: 'var(--background-secondary)' }}>
           <div className="mk-shell mk-studio">
             <div className="mk-doc" aria-hidden="true">
@@ -158,7 +199,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Job matching */}
+        {/* 5 · Job matching — split: copy + match card with ring + "why" */}
         <section className="mk-section">
           <div className="mk-shell mk-match-wrap">
             <div>
@@ -194,25 +235,127 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Automation workflow */}
+        {/* 6 · ATS intelligence — editorial: JD paste → structured ruled grid */}
         <section className="mk-section" style={{ background: 'var(--background-secondary)' }}>
-          <div className="mk-shell">
-            <div className="mk-sec-head center">
-              <span className="mk-kicker">Application automation</span>
-              <h2>Meet your AI career employee.</h2>
-              <p>From discovery to submission, the agent moves your applications forward — and pauses for your approval at every step that matters.</p>
+          <div className="mk-shell mk-ats">
+            <div className="mk-jd" aria-hidden="true">
+              <div className="jd-head"><span className="dl" /> Pasted job description</div>
+              <div className="dl-line w85"><span className="kw" style={{ width: '22%' }} /></div>
+              <div className="dl-line w60"><span className="kw" style={{ width: '30%' }} /></div>
+              <div className="dl-line w85" />
+              <div className="dl-line w45"><span className="kw" style={{ width: '55%' }} /></div>
+              <div className="dl-line w60" />
+              <div className="dl-line w85"><span className="kw" style={{ width: '18%' }} /></div>
+              <div className="dl-line w45" />
             </div>
-            <div className="mk-flow">
-              <div className="stage done"><span className="badge">Done</span><div className="num">01</div><h3>Discovering</h3><p>Scans job sources for roles that fit your targets.</p></div>
-              <div className="stage done"><span className="badge">Done</span><div className="num">02</div><h3>Analyzing</h3><p>Scores fit and flags gaps against your real profile.</p></div>
-              <div className="stage live"><span className="badge">Live</span><div className="num">03</div><h3>Tailoring</h3><p>Drafts a truthful CV, cover letter, and answers.</p></div>
-              <div className="stage"><span className="badge" style={{ background: 'var(--line-2)', color: 'var(--muted)' }}>You</span><div className="num">04</div><h3>Submitting</h3><p>You review, approve, and we submit — verifiably.</p></div>
+            <div>
+              <span className="mk-kicker">ATS intelligence</span>
+              <h2 style={{ fontSize: 'var(--fs-h2)', letterSpacing: '-0.03em', fontWeight: 800, color: 'var(--brand-ink)', margin: '14px 0 0' }}>
+                Every listing, broken into a plan.
+              </h2>
+              <p style={{ color: 'var(--muted)', fontSize: 17, lineHeight: 1.6, margin: '16px 0 24px', maxWidth: '52ch' }}>
+                Paste a job description and get a structured breakdown — required skills you have, the ones
+                you’re missing, the keywords that matter, and where you’re strong. A ruled grid you can scan
+                in seconds.
+              </p>
+              <div className="mk-ats-break" role="group" aria-label="Example analysis (illustrative)">
+                <div className="mk-ats-row"><span className="k">Required skills</span><span className="v"><span className="chip ok">✓ React</span><span className="chip ok">✓ TypeScript</span><span className="chip ok">✓ GraphQL</span><span className="chip no">× Rust</span></span></div>
+                <div className="mk-ats-row"><span className="k">Keywords</span><span className="v"><span className="chip ok">✓ Senior</span><span className="chip ok">✓ Remote</span><span className="chip ok">✓ Startup</span></span></div>
+                <div className="mk-ats-row"><span className="k">Gaps</span><span className="v"><span className="chip no">× Rust experience</span><span className="chip no">× Fintech domain</span></span></div>
+                <div className="mk-ats-row"><span className="k">Strengths</span><span className="v"><span className="chip ok">✓ 8+ yrs frontend</span><span className="chip ok">✓ Design systems</span></span></div>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* How it works */}
-        <section className="mk-section" id="how">
+        {/* 7 · Automation — sophisticated staged agent rail (not identical cards) */}
+        <section className="mk-section">
+          <div className="mk-shell">
+            <div className="mk-sec-head center">
+              <span className="mk-kicker">Application automation</span>
+              <h2>Meet your AI career employee.</h2>
+              <p>From discovery to submission, the agent moves your applications through every stage — and pauses for your approval before anything sends.</p>
+            </div>
+            <div className="mk-agent-rail" style={{ '--rail': '56%' } as CSSProperties}>
+              {agentStages.map((s) => (
+                <div className={`ar ${s.state}`} key={s.n}>
+                  <span className="nd">{s.state === 'done' ? '✓' : s.state === 'live' ? '●' : s.n}</span>
+                  <span className="lbl">{s.label}</span>
+                </div>
+              ))}
+            </div>
+            <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 14, marginTop: 28 }}>
+              <b style={{ color: 'var(--brand-strong)' }}>Approval mode is the default.</b> The agent prepares; you review and release. Nothing is ever sent without you.
+            </p>
+          </div>
+        </section>
+
+        {/* 8 · Application activity — pipeline snapshot + response sparkline */}
+        <section className="mk-section" style={{ background: 'var(--background-secondary)' }}>
+          <div className="mk-shell">
+            <div className="mk-sec-head center">
+              <span className="mk-kicker">Full tracking</span>
+              <h2>Every application, in one calm pipeline.</h2>
+              <p>See where each application stands, your live response rate, and what to follow up on — never a scattered spreadsheet again.</p>
+            </div>
+            <div className="mk-activity" style={{ marginTop: 40 }}>
+              <div className="mk-pipe-grid">
+                {pipeStages.map((s) => (
+                  <div className="mk-pipe-stage" key={s.nm}>
+                    <div className="cnt">{s.cnt}</div>
+                    <div className="nm">{s.nm}</div>
+                    <div className="px"><i style={{ width: s.p }} /></div>
+                  </div>
+                ))}
+              </div>
+              <div className="mk-spark-card">
+                <div className="head">
+                  <div>
+                    <div className="big">28%</div>
+                    <div style={{ fontSize: 13, color: 'var(--muted)' }}>Response rate</div>
+                  </div>
+                  <div className="delta">↑ 6 pts / mo</div>
+                </div>
+                <svg viewBox="0 0 200 60" preserveAspectRatio="none" role="img" aria-label="Response rate trend over 30 days, illustrative">
+                  <defs>
+                    <linearGradient id="mkspark" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0" stopColor="#0ba5a0" />
+                      <stop offset="1" stopColor="#0ba5a0" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <polyline points="0,50 28,46 52,48 78,38 104,40 128,30 158,22 200,12 200,60 0,60" fill="url(#mkspark)" />
+                  <polyline points="0,50 28,46 52,48 78,38 104,40 128,30 158,22 200,12" fill="none" stroke="#0ba5a0" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+                </svg>
+                <div className="cap">30-day trend · illustrative preview of your future dashboard</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 9 · Free tools — asymmetric bento */}
+        <section className="mk-section" id="tools">
+          <div className="mk-shell">
+            <div className="mk-sec-head center">
+              <span className="mk-kicker">Free career tools</span>
+              <h2>Real tools. No paywall to start.</h2>
+              <p>Ten focused tools to move your search forward. Free to use — your account unlocks each one.</p>
+            </div>
+            <div className="mk-bento">
+              {tools.map((t, i) => (
+                <Link className={`mk-tool${i === 0 || i === 4 ? ' wide' : ''}`} href={t.href} key={t.title}>
+                  <span className="tag">{t.tag}</span>
+                  <h3>{t.title}</h3>
+                  <p>{t.body}</p>
+                  <span className="arrow">Open tool →</span>
+                </Link>
+              ))}
+            </div>
+            <p className="mk-bento-note">These tools are rolling out — your <b style={{ color: 'var(--brand-strong)' }}>free account</b> unlocks each as it lands.</p>
+          </div>
+        </section>
+
+        {/* 10 · How it works — three airy numbered steps */}
+        <section className="mk-section" id="how" style={{ background: 'var(--background-secondary)' }}>
           <div className="mk-shell">
             <div className="mk-sec-head center">
               <span className="mk-kicker">How it works</span>
@@ -226,7 +369,24 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Pricing */}
+        {/* 11 · Security & privacy — trust rail (reinforces differentiators + D-001) */}
+        <section className="mk-section">
+          <div className="mk-shell">
+            <div className="mk-sec-head center">
+              <span className="mk-kicker">Built on trust</span>
+              <h2>Honest by design. Private by default.</h2>
+              <p>We earn your trust with limits, not promises. Four commitments built into how ModernJob works.</p>
+            </div>
+            <div className="mk-trust-rail" style={{ marginTop: 40 }}>
+              <div className="mk-trust"><span className="ic"><Check /></span><h3>Only your verified facts</h3><p>Nothing is invented. Generators draw solely from the profile you build.</p></div>
+              <div className="mk-trust"><span className="ic"><Check /></span><h3>You approve everything</h3><p>Approval mode is the default. No application sends without your say-so.</p></div>
+              <div className="mk-trust"><span className="ic"><Check /></span><h3>Immutable receipts</h3><p>Every generation and submission is a permanent, traceable record.</p></div>
+              <div className="mk-trust"><span className="ic"><Check /></span><h3>No inbox access</h3><p>You bring an application email. We never read your mailbox or Gmail.</p></div>
+            </div>
+          </div>
+        </section>
+
+        {/* 12 · Pricing — Free / Basic (featured) / Premium (coral) */}
         <section className="mk-section" id="pricing" style={{ background: 'var(--background-secondary)' }}>
           <div className="mk-shell">
             <div className="mk-sec-head center">
@@ -257,7 +417,7 @@ export default function HomePage() {
                 </ul>
                 <Link className="mk-btn-accent" href="/signup" style={{ textAlign: 'center' }}>Choose Basic</Link>
               </div>
-              <div className="mk-plan">
+              <div className="mk-plan premium">
                 <h3>Premium</h3>
                 <div className="price">₦10,000<small> /month</small></div>
                 <ul>
@@ -266,14 +426,14 @@ export default function HomePage() {
                   <li>Advanced intelligence</li>
                   <li>Priority processing</li>
                 </ul>
-                <Link className="mk-btn-ghost" href="/signup" style={{ textAlign: 'center' }}>Choose Premium</Link>
+                <Link className="mk-btn-primary" href="/signup" style={{ textAlign: 'center' }}>Choose Premium</Link>
               </div>
             </div>
             <p className="mk-trial"><b>7-day automation trial</b> on every new account — try Basic features free, no card required.</p>
           </div>
         </section>
 
-        {/* FAQ */}
+        {/* 13 · FAQ */}
         <section className="mk-section tight" id="faq">
           <div className="mk-shell" style={{ maxWidth: 820 }}>
             <div className="mk-sec-head center">
@@ -284,13 +444,13 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Final CTA */}
+        {/* 14 · Final CTA */}
         <section className="mk-section tight">
           <div className="mk-shell">
             <div className="mk-cta">
               <h2>Your career agent is ready when you are.</h2>
               <p>Build your free CV in minutes. No card, no commitment — just momentum.</p>
-              <div className="actions" style={{ marginTop: 28 }}>
+              <div className="actions" style={{ marginTop: 28, display: 'flex', flexWrap: 'wrap' }}>
                 <Link className="mk-btn-accent" href="/signup">Build My Free CV</Link>
                 <Link className="mk-btn-ghost" href="/login">I already have an account</Link>
               </div>
@@ -299,7 +459,7 @@ export default function HomePage() {
         </section>
       </main>
 
-      {/* Footer */}
+      {/* 15 · Footer */}
       <footer className="mk-footer">
         <div className="mk-shell">
           <div className="top">
@@ -314,17 +474,17 @@ export default function HomePage() {
                 <h4>Product</h4>
                 <ul>
                   <li><Link href="/#how">How it works</Link></li>
+                  <li><Link href="/#tools">Free tools</Link></li>
                   <li><Link href="/#pricing">Pricing</Link></li>
                   <li><Link href="/signup">Sign up</Link></li>
-                  <li><Link href="/login">Sign in</Link></li>
                 </ul>
               </div>
               <div>
-                <h4>Company</h4>
+                <h4>Account</h4>
                 <ul>
-                  <li><Link href="/">About</Link></li>
-                  <li><Link href="/">Privacy</Link></li>
-                  <li><Link href="/">Terms</Link></li>
+                  <li><Link href="/login">Sign in</Link></li>
+                  <li><Link href="/signup">Start free</Link></li>
+                  <li><Link href="/#faq">Help</Link></li>
                 </ul>
               </div>
             </div>
