@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   description:
     'Draft a short, polite follow-up email after a job application — built only from the facts you provide. No invented names, dates, or conversations. Free.',
   openGraph: {
-    title: 'Free Follow-up Email Writer — ModernJob',
+    title: 'Free Follow-up Email Writer — Jobiest',
     description: 'A polite follow-up drafted from your facts — nothing invented. Free to use.',
   },
 };

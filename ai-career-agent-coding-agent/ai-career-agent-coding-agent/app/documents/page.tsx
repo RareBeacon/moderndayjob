@@ -61,7 +61,7 @@ export default function Documents() {
         {docs.length === 0 ? (
           <article className="card">
             <h2>No documents uploaded yet.</h2>
-            <p className="muted">Your uploaded CV will appear here. Modern Job will never invent its content.</p>
+            <p className="muted">Your uploaded CV will appear here. Jobiest will never invent its content.</p>
           </article>
         ) : (
           docs.map((d) => (

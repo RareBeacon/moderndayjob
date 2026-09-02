@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   description:
     'Three career directions worth exploring, based only on the skills in your verified profile — each citing the exact skills it builds on. Checked, grounded, free.',
   openGraph: {
-    title: 'Free Career Path Explorer — ModernJob',
+    title: 'Free Career Path Explorer — Jobiest',
     description: 'Exploratory career directions from your verified skills — nothing invented. Free to use.',
   },
 };

@@ -30,7 +30,7 @@ export default function LoginPage() {
   }
 
   return (
-    <AuthShell title="Welcome back" subtitle="Sign in to your ModernJob workspace.">
+    <AuthShell title="Welcome back" subtitle="Sign in to your Jobiest workspace.">
       <form onSubmit={submit} className="auth-form" noValidate>
         {error ? <div className="auth-error" role="alert">{error}</div> : null}
         <label>
@@ -68,7 +68,7 @@ export default function LoginPage() {
         </button>
       </form>
       <p className="auth-foot">
-        New to ModernJob? <Link href="/signup">Create a free account</Link>
+        New to Jobiest? <Link href="/signup">Create a free account</Link>
       </p>
     </AuthShell>
   );

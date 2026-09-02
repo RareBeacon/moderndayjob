@@ -6,14 +6,14 @@ export function Footer() {
     <footer className="site-footer">
       <div className="container row">
         <div className="footer-brand">
-          <Link href="/" className="logo" aria-label="ModernJob home">
+          <Link href="/" className="logo" aria-label="Jobiest home">
             <span className="dot" aria-hidden="true">M</span>
-            ModernJob
+            Jobiest
           </Link>
           <p className="muted" style={{ marginTop: 12, maxWidth: '36ch', fontSize: 14 }}>
             Your AI career agent. Find roles, prepare truthful applications, and track every application in one place.
           </p>
-          <p className="muted" style={{ marginTop: 14, fontSize: 13 }}>© {year} ModernJob. All rights reserved.</p>
+          <p className="muted" style={{ marginTop: 14, fontSize: 13 }}>© {year} Jobiest. All rights reserved.</p>
         </div>
         <div className="cols">
           <div>

@@ -1,4 +1,4 @@
-# Deploy procedure — ModernJob
+# Deploy procedure — Jobiest
 
 Credentials do **not** survive between agent sessions (`.git/config`, env vars
 and netrc are excluded from workspace snapshots). Tokens must be re-supplied
@@ -10,7 +10,7 @@ each session; everything else needed is recorded here.
 |---|---|
 | GitHub repo | `RareBeacon/moderndayjob` (numeric repoId: `1343740800`) |
 | Vercel project | `modernjob` — `prj_KUiFqgCmdOSKrkc4K1q1Ycgoh72f` (personal scope, no team) |
-| Production URL | https://modernjob.vercel.app |
+| Production URL | https://jobiest.com (was modernjob.vercel.app) |
 | Git repo root in workspace | `moderndayjob/ai-career-agent-coding-agent/ai-career-agent-coding-agent` |
 
 ## Steps
@@ -63,7 +63,7 @@ not deployed anywhere.
 Manual trigger (same thing the cron does):
 
 ```
-curl -H "Authorization: Bearer $CRON_SECRET" https://modernjob.vercel.app/api/cron/daily-pipeline
+curl -H "Authorization: Bearer $CRON_SECRET" https://jobiest.com (was modernjob.vercel.app)/api/cron/daily-pipeline
 ```
 
 ## Held items

@@ -14,7 +14,7 @@ function Logo() {
           <circle cx="20" cy="5" r="2.1" fill="currentColor" />
         </svg>
       </span>
-      ModernJob
+      Jobiest
     </span>
   );
 }

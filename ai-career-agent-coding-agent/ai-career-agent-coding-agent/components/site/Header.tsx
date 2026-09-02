@@ -13,9 +13,9 @@ export function Header() {
   return (
     <header className="site-header">
       <div className="container bar">
-        <Link href="/" className="logo" aria-label="ModernJob home" onClick={() => setOpen(false)}>
+        <Link href="/" className="logo" aria-label="Jobiest home" onClick={() => setOpen(false)}>
           <span className="dot" aria-hidden="true">M</span>
-          ModernJob
+          Jobiest
         </Link>
         <nav className="site-nav" aria-label="Primary">
           <div className="links">

@@ -13,9 +13,9 @@ export function AuthShell({
   return (
     <main className="auth-page">
       <div className="auth-card">
-        <Link href="/" className="logo center" aria-label="ModernJob home">
+        <Link href="/" className="logo center" aria-label="Jobiest home">
           <span className="dot" aria-hidden="true">M</span>
-          ModernJob
+          Jobiest
         </Link>
         <h1>{title}</h1>
         {subtitle ? <p className="sub">{subtitle}</p> : null}

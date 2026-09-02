@@ -20,7 +20,7 @@ function Logo() {
           <circle cx="20" cy="5" r="2.1" fill="currentColor" />
         </svg>
       </span>
-      ModernJob
+      Jobiest
     </span>
   );
 }
@@ -88,7 +88,7 @@ export default function HomePage() {
                 Your next role, <em>found and applied</em> — while you do something else.
               </h1>
               <p className="lead">
-                ModernJob discovers jobs that genuinely fit, scores them against your real profile,
+                Jobiest discovers jobs that genuinely fit, scores them against your real profile,
                 tailors a truthful CV and cover letter, and prepares every application for your approval.
                 You stay in control. The busywork disappears.
               </p>
@@ -375,7 +375,7 @@ export default function HomePage() {
             <div className="mk-sec-head center">
               <span className="mk-kicker">Built on trust</span>
               <h2>Honest by design. Private by default.</h2>
-              <p>We earn your trust with limits, not promises. Four commitments built into how ModernJob works.</p>
+              <p>We earn your trust with limits, not promises. Four commitments built into how Jobiest works.</p>
             </div>
             <div className="mk-trust-rail" style={{ marginTop: 40 }}>
               <div className="mk-trust"><span className="ic"><Check /></span><h3>Only your verified facts</h3><p>Nothing is invented. Generators draw solely from the profile you build.</p></div>
@@ -490,7 +490,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="bottom">
-            <span>© {new Date().getFullYear()} ModernJob. All rights reserved.</span>
+            <span>© {new Date().getFullYear()} Jobiest. All rights reserved.</span>
             <span>Built in Lagos.</span>
           </div>
         </div>

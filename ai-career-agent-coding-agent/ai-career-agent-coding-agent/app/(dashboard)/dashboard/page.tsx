@@ -100,7 +100,7 @@ export default async function Dashboard() {
     <AppShell active="dashboard" title="Daily digest">
       {/* Trust banner — statements about us, provably true */}
       <div className="dd-banner" role="note">
-        Your application is free. ModernJob never asks candidates for money, and nothing is ever sent
+        Your application is free. Jobiest never asks candidates for money, and nothing is ever sent
         without your approval.
       </div>
 

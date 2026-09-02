@@ -13,7 +13,7 @@ function Logo() {
           <circle cx="20" cy="5" r="2.1" fill="currentColor" />
         </svg>
       </span>
-      ModernJob
+      Jobiest
     </span>
   );
 }
@@ -90,7 +90,7 @@ export function FreeToolShell({
             </div>
           </div>
           <div className="bottom">
-            <span>© {new Date().getFullYear()} ModernJob. All rights reserved.</span>
+            <span>© {new Date().getFullYear()} Jobiest. All rights reserved.</span>
             <span>Built in Lagos.</span>
           </div>
         </div>

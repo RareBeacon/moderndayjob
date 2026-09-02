@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   description:
     'Three professional resume summary options written only from your verified profile facts, checked by a truthfulness gate before you see them. Free.',
   openGraph: {
-    title: 'Free Resume Summary Generator — ModernJob',
+    title: 'Free Resume Summary Generator — Jobiest',
     description: 'Truthful resume summaries from your verified facts — never invented employers or metrics. Free to use.',
   },
 };

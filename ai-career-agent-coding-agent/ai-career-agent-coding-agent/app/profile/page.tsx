@@ -125,7 +125,7 @@ export default function ProfilePage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'modernjob-profile.json';
+    a.download = 'jobiest-profile.json';
     a.click();
     URL.revokeObjectURL(url);
   }
