@@ -2,8 +2,7 @@ import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import localFont from 'next/font/local';
-
-const SITE_URL = 'https://modernjob.vercel.app';
+import { SITE_URL } from '@/lib/site';
 
 /* Newsreader — self-hosted variable display face (Google Fonts, OFL).
    "The Broadstreet Journal" direction (v3): high-legibility editorial serif
