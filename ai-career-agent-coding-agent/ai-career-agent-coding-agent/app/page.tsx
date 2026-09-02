@@ -45,9 +45,9 @@ const pipeStages = [
 
 const tools = [
   { tag: 'Free', title: 'ATS Resume Scanner', body: 'See exactly how your CV reads to applicant tracking systems.', href: '/generate' },
-  { tag: 'Free', title: 'Cover Letter Writer', body: 'Draft a tailored letter from your verified facts.', href: '/generate' },
-  { tag: 'Free', title: 'Job Description Analyzer', body: 'Break any listing into skills, gaps, and keywords.', href: '/jobs' },
-  { tag: 'Free', title: 'Skills Matcher', body: 'See which of your skills a job actually rewards.', href: '/match' },
+  { tag: 'Live', title: 'Cover Letter Writer', body: 'Draft a tailored letter from your verified facts.', href: '/free-cover-letter-writer' },
+  { tag: 'Live', title: 'Job Description Analyzer', body: 'Break any listing into skills, gaps, and keywords.', href: '/free-job-description-analyzer' },
+  { tag: 'Live', title: 'Skills Matcher', body: 'See which of your skills a job actually rewards.', href: '/free-skills-matcher' },
   { tag: 'Free', title: 'Interview Question Generator', body: 'Practice role-specific questions with model answers.', href: '/signup' },
   { tag: 'Free', title: 'Career Path Explorer', body: 'Map realistic next steps from your real profile.', href: '/signup' },
   { tag: 'Free', title: 'Salary Insights', body: 'Estimate pay bands for your role and region.', href: '/signup' },
@@ -350,7 +350,7 @@ export default function HomePage() {
                 </Link>
               ))}
             </div>
-            <p className="mk-bento-note">These tools are rolling out — your <b style={{ color: 'var(--brand-strong)' }}>free account</b> unlocks each as it lands.</p>
+            <p className="mk-bento-note">Three tools are <b style={{ color: 'var(--brand-strong)' }}>live today</b> — the rest roll out to your free account as they land.</p>
           </div>
         </section>
 
