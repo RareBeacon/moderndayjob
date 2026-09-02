@@ -424,22 +424,33 @@ company metrics.
 | Phase | Deliverable | Status |
 |---|---|---|
 | 0 | Research + this plan | ✅ done |
-| 1 | **Design system v2** — warm tokens, Satoshi+Inter type, spacing/radius/motion/z-index, base components | 🔜 refine (current v2 is interim) |
-| 2 | App shell: receding sidebar nav + mobile bottom tabs | 🔜 |
-| 3 | **Landing page (well-detailed, 13 sections)** | 🔜 rebuild per §6.1 |
-| 4 | Auth + 6-step onboarding (no Gmail) | 🔜 |
-| 5 | Dashboard "career command center" + momentum viz | 🔜 |
-| 6 | Resume studio + JD analyzer | 🔜 |
-| 7 | Job discovery ("Why this job") | 🔜 |
-| 8 | Application automation (activity stream) | 🔜 |
-| 9 | Application tracker (pipeline + intelligence) | 🔜 |
-| 10 | Billing/pricing (in-app) | 🔜 |
-| 11 | Admin dashboard (dense, bright) | 🔜 |
-| 12 | 10 SEO free-tool pages | 🔜 |
-| 13 | Responsive refinement (360→1920) | 🔜 |
-| 14 | Accessibility (WCAG 2.2 AA) pass | 🔜 |
-| 15 | Performance (fonts, lazy, images) | 🔜 |
-| 16 | Visual QA (anti-slop checklist) | 🔜 |
+| 1 | **Design system** — tokens, type, spacing/radius/motion/z-index, base components | ✅ v1+v2 shipped → **v3 "Broadstreet Journal" live** (Newsreader display + Inter body, rust accent, 0px radius, hairlines) |
+| 2 | App shell: sidebar nav + authed chrome | ✅ all 8 authed pages wrapped |
+| 3 | **Landing page (well-detailed)** | ✅ live, restyled under v3 |
+| 4 | Auth + 6-step onboarding (no Gmail) | ✅ live |
+| 5 | Dashboard "career command center" | ✅ v1 live · 🔜 rebuild as **Daily Digest** under v3 (needs truthful scan-count backend) |
+| 6 | Resume studio + JD analyzer | ✅ live (JD analyzer real backend + free SEO page) |
+| 7 | Job discovery ("Why this job") | ✅ live (jobs + explainable matching) |
+| 8 | Application automation (activity stream) | 🟡 tracker + approval gates live; activity-stream UX polish pending |
+| 9 | Application tracker (pipeline) | ✅ live |
+| 10 | Billing/pricing (in-app) | 🟡 **HELD** — FLW create/webhook + entitlements built; charge/verify blocked on `FLW_SECRET_KEY` retrieval |
+| 11 | Admin dashboard (dense, bright) | ⬜ APIs exist; UI restyle pending |
+| 12 | 10 SEO free-tool pages | 🟡 **3/10 live** (real-backends-only policy: JD analyzer, cover letter, skills matcher) |
+| 13 | Responsive refinement (360→1920) | ⬜ |
+| 14 | Accessibility (WCAG 2.2 AA) pass | ⬜ (foundation laid: focus contract, AA-corrected palette) |
+| 15 | Performance (fonts, lazy, images) | ⬜ (fonts already self-hosted + preloaded) |
+| 16 | Visual QA (anti-slop checklist) | ⬜ |
+
+**v3 rollout queue (Broadstreet Journal, post-foundation):** Daily Digest dashboard
+(+ scan-stats backend so "we discarded N" is truthful) → editorial job cards →
+de-gamified match display (verdict-first; product decision) → anti-scam banner
+(shippable now — it's a statement about us, not a per-employer claim) → admin
+restyle (Phase 11) → hardening 13–16.
+
+**Parked/external:** billing completion (FLW secret), Render workers (gated on
+adapters + tests), 7 remaining free tools (need real backends), Greenhouse/Lever/
+Ashby source adapters (real job pool), employer-verification pipeline (prereq for
+any "verified" badge — never shown until true).
 
 **Build order:** Phase 1 (tokens/type) → 3 (landing, detailed) → 2 (app shell) →
 4 (onboarding) → 5 (dashboard) → 6–9 (core product) → 10–12 → 13–16 hardening.
