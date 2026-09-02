@@ -10,7 +10,7 @@ each session; everything else needed is recorded here.
 |---|---|
 | GitHub repo | `RareBeacon/moderndayjob` (numeric repoId: `1343740800`) |
 | Vercel project | `modernjob` — `prj_KUiFqgCmdOSKrkc4K1q1Ycgoh72f` (personal scope, no team) |
-| Production URL | https://jobiest.com (was modernjob.vercel.app) |
+| Production URL | https://jobiest.com (custom domain; legacy URL https://modernjob.vercel.app still serves) |
 | Git repo root in workspace | `moderndayjob/ai-career-agent-coding-agent/ai-career-agent-coding-agent` |
 
 ## Steps
@@ -63,10 +63,24 @@ not deployed anywhere.
 Manual trigger (same thing the cron does):
 
 ```
-curl -H "Authorization: Bearer $CRON_SECRET" https://jobiest.com (was modernjob.vercel.app)/api/cron/daily-pipeline
+curl -H "Authorization: Bearer $CRON_SECRET" https://jobiest.com/api/cron/daily-pipeline
 ```
 
 ## Held items
 
 - Payments: FLW key not supplied.
 - Employer verification: parked.
+
+## Custom domain — jobiest.com (2026-09-02)
+
+- Registered at Truehost (₦10,000 first year, ₦20,000/yr renewal).
+- Added to the Vercel project: apex + www (www 301 → apex).
+- Registrar nameservers should point to `ns1.vercel-dns.com` /
+  `ns2.vercel-dns.com` (set in Truehost → Domains → jobiest.com →
+  Nameservers → custom). Vercel then manages apex A / www CNAME / SSL
+  automatically.
+- Brand rebranded ModernJob → Jobiest across all user surfaces.
+- `NEXT_PUBLIC_APP_URL` = `https://jobiest.com` (drives canonicals, sitemap,
+  robots, billing redirect). `lib/site.ts` falls back to the vercel.app URL.
+- NOTE: `.git/config` (and thus the remote) is wiped by sandbox restarts —
+  re-add it per the steps above before pushing.
