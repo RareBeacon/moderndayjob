@@ -1,55 +1,25 @@
 import http from 'node:http';
 import { supabaseAdmin } from '../../lib/supabase';
+import { claimTasks, completeTask, failTask, processAgentTask, type AgentTask } from '../../lib/agent/pipeline';
 import { defaultAdapters } from '../../lib/jobsources/boards';
-import { runIngestion } from '../../lib/jobsources/ingest';
 import { supabaseJobStore } from '../../lib/jobsources/store';
 
-type Task = { id: string; user_id: string; type: string; lease_token: string; attempts: number; payload: Record<string, unknown> };
+/**
+ * Always-on agent worker (optional — local dev / a future paid host).
+ * Production runs the same logic daily via Vercel Cron:
+ * /api/cron/daily-pipeline. Both use lib/agent/pipeline.
+ */
+
 const POLL_MS = 5000;
-/** Ingest at most once per window across all users' discovery tasks (upserts are idempotent anyway). */
-const INGEST_FRESHNESS_MS = 6 * 60 * 60 * 1000;
-
-async function complete(task: Task, status: string, result: Record<string, unknown>) {
-  await supabaseAdmin.from('agent_tasks').update({ status, result, completed_at: new Date().toISOString(), lease_token: null, lease_expires_at: null, updated_at: new Date().toISOString() }).eq('id', task.id).eq('lease_token', task.lease_token);
-}
-async function fail(task: Task, error: unknown) {
-  const message = error instanceof Error ? error.message : 'TASK_FAILED';
-  const retry = task.attempts < 3;
-  await supabaseAdmin.from('agent_tasks').update({ status: retry ? 'QUEUED' : 'FAILED', last_error: message, next_attempt_at: new Date(Date.now() + Math.min(60_000, 1000 * 2 ** task.attempts)).toISOString(), lease_token: null, lease_expires_at: null, updated_at: new Date().toISOString() }).eq('id', task.id).eq('lease_token', task.lease_token);
-}
-
-/** True when the pool was ingested recently (skip duplicate work). */
-async function poolIsFresh(): Promise<boolean> {
-  const { data } = await supabaseAdmin.from('jobs').select('created_at').order('created_at', { ascending: false }).limit(1);
-  const latest = (data ?? [])[0]?.created_at;
-  return !!latest && Date.now() - new Date(latest).getTime() < INGEST_FRESHNESS_MS;
-}
-
-async function processTask(task: Task) {
-  if (task.type === 'JOB_DISCOVERY') {
-    if (await poolIsFresh()) {
-      await complete(task, 'SUCCEEDED', { skipped: 'pool_already_fresh' });
-      return;
-    }
-    const report = await runIngestion({ adapters: defaultAdapters(), store: supabaseJobStore });
-    await complete(task, 'SUCCEEDED', { ingested: report.totalUpserted, sources: report.sources });
-    return;
-  }
-  if (task.type === 'APPLICATION') {
-    // Autonomous submission stays OFF until an approved site adapter,
-    // browser isolation and the full security gate exist. Nothing sends
-    // without explicit user approval.
-    await complete(task, 'WAITING_APPROVAL', { reason: 'Automation is disabled until an approved site adapter and user approval are available.' });
-    return;
-  }
-  await complete(task, 'SUCCEEDED', { message: 'No operation required.' });
-}
+const deps = { db: supabaseAdmin, adapters: defaultAdapters(), store: supabaseJobStore };
 
 async function tick() {
-  const { data, error } = await supabaseAdmin.rpc('claim_agent_tasks', { p_limit: 5, p_lease_seconds: 120 });
-  if (error) throw error;
-  for (const task of (data ?? []) as Task[]) {
-    try { await processTask(task) } catch (error) { await fail(task, error) }
+  const tasks = await claimTasks(supabaseAdmin, 5, 120);
+  for (const task of tasks as AgentTask[]) {
+    try {
+      const { status, result } = await processAgentTask(task, deps);
+      await completeTask(supabaseAdmin, task, status, result);
+    } catch (error) { await failTask(supabaseAdmin, task, error) }
   }
 }
 

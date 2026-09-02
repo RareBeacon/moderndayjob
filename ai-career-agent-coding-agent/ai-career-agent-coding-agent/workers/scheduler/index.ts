@@ -1,6 +1,12 @@
 import http from 'node:http';
 import { supabaseAdmin } from '../../lib/supabase';
 
+/**
+ * Always-on scheduler (optional — local dev / a future paid host).
+ * Production enqueues via the daily Vercel Cron pipeline instead:
+ * /api/cron/daily-pipeline calls the same enqueue_daily_discovery RPC.
+ */
+
 const INTERVAL_MS = 60_000;
 let running = false;
 

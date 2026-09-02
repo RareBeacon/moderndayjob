@@ -33,12 +33,38 @@ each session; everything else needed is recorded here.
    production alias — expect 200 for pages, 401 for auth-gated POST APIs
    (404 would mean the route is missing from the build).
 
-## Workers (Render) — still gated
+## Workers — free architecture (Vercel Cron, $0)
 
-`render.yaml` at the repo root defines web + agent + browser + scheduler
-services. Deploying to Render is a **paid cloud resource** and stays blocked on
-an explicit user go. Local equivalents: `npm run agent` / `npm run scheduler`
-(health endpoints on `WORKER_PORT` 8081 / 8080).
+**Decision (2026-09): no paid worker host.** The product's background work is
+a *daily* pipeline, not a 5-second poll — so it runs on Vercel Cron, which is
+free on the Hobby plan (2 jobs, once-per-day, GET, UTC).
+
+- `vercel.json` schedules `GET /api/cron/daily-pipeline` daily at 06:30 UTC
+  (07:30 Lagos — digest fresh before the workday).
+- The route is gated by `CRON_SECRET`; Vercel sends `Authorization: Bearer
+  $CRON_SECRET` automatically. Without the header it 401s.
+- Pipeline order (idempotent, safe to re-run): enqueue daily discovery →
+  refresh job pool if stale (>6h) → claim + drain tasks. Logic lives in
+  `lib/agent/pipeline.ts` — the single source of truth.
+- Function `maxDuration = 60` (Hobby limit); the full 6-board ingest measures
+  ~4s, so ~15× headroom.
+- The pool refresh runs even with zero active users — the free tools (Salary
+  Insights, Skills Matcher) read the same `jobs` table.
+- The daily cron traffic also keeps the free-tier Supabase project from
+  hitting the 7-day inactivity pause (it was found PAUSED on 2026-09-02 and
+  restored via the Management API).
+
+`workers/agent` and `workers/scheduler` remain runnable locally
+(`npm run agent` / `npm run scheduler`) using the same shared pipeline lib —
+useful for dev, and a ready-made path if a paid always-on host is ever wanted.
+`workers/browser` exports SSRF-safe helpers only; it has no run loop and is
+not deployed anywhere.
+
+Manual trigger (same thing the cron does):
+
+```
+curl -H "Authorization: Bearer $CRON_SECRET" https://modernjob.vercel.app/api/cron/daily-pipeline
+```
 
 ## Held items
 
