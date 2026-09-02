@@ -1165,3 +1165,134 @@ h1, h2, h3, h4 { font-family: var(--font-display, "Satoshi", system-ui, sans-ser
   .ft-related { grid-template-columns: 1fr; }
   .ft-hero { padding: 44px 0 4px; }
 }
+
+/* ============================================================
+   v3 — "The Broadstreet Journal" editorial direction
+   Source: Gemini Phase 2 Direction 1 + Phase 3 system, with two
+   engineering contrast corrections:
+   - Accent #D94526 on white = 4.35:1 (fails AA for normal text)
+     → darkened to #C63F20 (5.08:1). Same character, passes.
+   - Warning #ED6C02 on white = 3.10:1 → replaced with #B45309
+     (5.02:1). Success/danger also tightened for small chip text.
+   Ink-and-paper metaphor: alabaster ground, near-black ink,
+   editorial rust accent, 0px radius, hairlines over shadows,
+   Newsreader display + Inter body. Appended LAST: overrides
+   v1 tokens and v2 refinements by cascade.
+   ============================================================ */
+:root {
+  /* Ground & ink */
+  --bg: #f9f8f6;
+  --card: #ffffff;
+  --background-secondary: #f0efea;
+  --surface-sunken: #f0efea;
+  --ink: #1a1a1a;
+  --ink-2: #404040;
+  --muted: #4d4d4d;
+  --muted-2: #6b6b6b;
+  --line: #e5e4e0;
+  --line-2: #eeece8;
+
+  /* Accent — editorial rust (AA-corrected) */
+  --brand: #c63f20;
+  --brand-strong: #a93318;
+  --brand-ink: #1a1a1a;
+  --brand-soft: #fbece9;
+  --brand-softer: #f6ddd7;
+  --brand-line: #e7b8ad;
+
+  /* Semantic (small-text safe on white/tints) */
+  --success: #2e7d32;
+  --success-bg: #e8f5e9;
+  --success-line: #c5e3c6;
+  --warning: #b45309;
+  --warning-bg: #fff4e5;
+  --danger: #b3261e;
+  --danger-bg: #fce8e8;
+  --danger-line: #f3c6c3;
+
+  /* Legacy accent slots repointed to the single-accent discipline */
+  --cobalt: #404040;
+  --mint: #2e7d32;
+  --coral: #c63f20;
+
+  /* Structure: sharp corners, hairlines, no decorative shadow */
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-pill: 0px;
+  --shadow-sm: none;
+  --shadow: 0 12px 40px -12px rgba(26, 26, 26, 0.14);   /* modals/drawers only */
+  --shadow-lg: 0 24px 64px -24px rgba(26, 26, 26, 0.18); /* elevation only */
+  --ring: 0 0 0 2px var(--brand);
+
+  /* Motion: crisp, mechanical, decisive */
+  --ease: cubic-bezier(0, 0, 0.2, 1);
+  --dur: 0.25s;
+}
+
+/* Focus contract: 2px rust outline, 2px offset (inputs keep their ring) */
+a:focus-visible, button:focus-visible, summary:focus-visible,
+[role="button"]:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* ---------- Header: solid paper, hairline, serif wordmark ---------- */
+.mk-header {
+  background: var(--bg);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.mk-logo {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.mk-logo .mark {
+  border-radius: 0;
+  background: var(--brand);
+  box-shadow: none;
+}
+.mk-nav a { font-size: 13.5px; letter-spacing: 0.01em; }
+
+/* ---------- Buttons: square, 44px, instant ink-snap hover ---------- */
+.mk-btn-primary, .mk-btn-accent, .mk-btn-ghost {
+  border-radius: 0;
+  min-height: 44px;
+  box-shadow: none;
+  transition: background-color 0.1s linear, border-color 0.1s linear, color 0.1s linear;
+}
+.mk-btn-primary:hover { background: #333333; transform: none; }
+.mk-btn-accent:hover { background: var(--brand-strong); transform: none; }
+.mk-btn-ghost:hover { border-color: var(--ink); background: var(--bg); transform: none; }
+
+/* ---------- Kicker/eyebrow: tracked uppercase overline ---------- */
+.mk-kicker, .mk-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+/* ---------- Hero: flat paper, serif headline, true italic emphasis ---------- */
+.mk-hero::before { content: none; }
+.mk-hero h1 {
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.08;
+}
+.mk-hero h1 em {
+  font-style: italic;
+  color: var(--brand);
+}
+.mk-hero h1 em::after { content: none; }
+
+/* ---------- Panels: hairline structure, no elevation ---------- */
+.mk-panel { box-shadow: none; }
+.mk-panel-head .dot { background: var(--brand); box-shadow: 0 0 0 4px var(--brand-soft); }
+
+/* Free-tool heroes share the serif discipline */
+.ft-hero h1 { font-weight: 600; letter-spacing: -0.015em; }

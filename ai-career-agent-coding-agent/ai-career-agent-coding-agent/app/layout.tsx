@@ -5,15 +5,14 @@ import localFont from 'next/font/local';
 
 const SITE_URL = 'https://modernjob.vercel.app';
 
-/* Satoshi — self-hosted display face (free, commercial-use via Fontshare).
-   The "differentiated choice" to escape the Inter-as-default AI tell.
-   next/font/local hashes + preloads these woff2 files at build time. */
-const satoshi = localFont({
+/* Newsreader — self-hosted variable display face (Google Fonts, OFL).
+   "The Broadstreet Journal" direction (v3): high-legibility editorial serif
+   with true italics (the signature emphasis move) and an optical-size axis.
+   Variable weight 200–800; next/font/local hashes + preloads at build time. */
+const newsreader = localFont({
   src: [
-    { path: '../fonts/satoshi-400.woff2', weight: '400', style: 'normal' },
-    { path: '../fonts/satoshi-500.woff2', weight: '500', style: 'normal' },
-    { path: '../fonts/satoshi-700.woff2', weight: '700', style: 'normal' },
-    { path: '../fonts/satoshi-900.woff2', weight: '900', style: 'normal' },
+    { path: '../fonts/newsreader-var.woff2', weight: '200 800', style: 'normal' },
+    { path: '../fonts/newsreader-italic-var.woff2', weight: '200 800', style: 'italic' },
   ],
   variable: '--font-display',
   display: 'swap',
@@ -46,14 +45,14 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#faf8f3',
+  themeColor: '#f9f8f6',
   width: 'device-width',
   initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${satoshi.variable} ${inter.variable}`}>
+    <html lang="en" className={`${newsreader.variable} ${inter.variable}`}>
       <body>
         <a href="#main" className="skip-link">Skip to content</a>
         {children}
