@@ -1579,13 +1579,9 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--brand); outline
   .story-captions { inset: auto 0 5vh 0; }
 }
 @media (max-width: 760px) {
-  .story { height: 280vh; }
-  .story-sticky { padding-top: 60px; }
-  .story-sticky .city-viewport { height: 52vh; }
-  .city-stage { width: 620px; height: 620px; margin: -70px 0 0 -310px; }
+  /* the pinned story-desktop no longer renders on mobile (v4.1);
+     keep reel + case + plate polish here */
   .city-tower.minor { display: none; }
-  .city-billboard { width: 120px; margin: -60px 0 0 -60px; }
-  .city-billboard b { font-size: 13px; }
   .reel-stage { height: 340px; }
   .rs { gap: 13px; padding: 20px; }
   .rs-job { grid-template-columns: auto 1fr auto; }
@@ -1593,12 +1589,8 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--brand); outline
   .reel-caption { flex-direction: column; align-items: flex-start; }
   .mk-case-steps li { grid-template-columns: 44px 1fr; }
   .plate figcaption { padding: 22px 20px 26px; }
-  .story-hint { display: none; }
 }
 @media (max-width: 560px) {
-  .city-billboard { display: none; }
-  .city-viewport { height: 46vh; min-height: 300px; }
-  .story { height: 250vh; }
   .rs-avatar { width: 52px; height: 52px; font-size: 18px; }
   .rs-board { width: 82%; }
   .mk-case-tag { top: 10px; left: 10px; }
@@ -1619,4 +1611,50 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--brand); outline
   .rs-sweepline { display: none; }
   .mk-tool, .mk-trust, .mk-btn-accent, .mk-btn-ghost { transition: none; }
   .mk-nav .links a::after { display: none; }
+}
+
+/* ============================================================
+   v4.1 · Mobile scroll-trap fix: variant switching for the story
+   Desktop keeps the pinned cinematic track; mobile gets an
+   unpinned composition (compact city + swipeable scene cards).
+   ============================================================ */
+.story-mobile { display: none; }
+@media (max-width: 760px) {
+  .story-desktop { display: none; }
+  .story-mobile { display: block; padding: 40px 0 8px; }
+  .story-mobile-head { text-align: center; margin-bottom: 18px; }
+  .story-mobile-head h2 { font-family: var(--font-display); font-size: clamp(24px, 6vw, 30px); font-weight: 600; letter-spacing: -0.01em; color: var(--ink); margin: 10px 0 0; }
+  .story-mobile .city-viewport { height: 46vh; min-height: 300px; max-height: 420px; border-radius: var(--radius); margin: 0 16px; }
+  .story-mobile .city-hint { display: none; }
+  .story-mobile-hint { display: block; margin: 12px 16px 0; }
+  .story-strip {
+    display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch; padding: 18px 16px 6px; scrollbar-width: none;
+  }
+  .story-strip::-webkit-scrollbar { display: none; }
+  .story-strip-card {
+    scroll-snap-align: center; flex: 0 0 min(78vw, 330px);
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 18px 20px 20px; box-shadow: var(--shadow-sm);
+  }
+  .story-strip-card .story-kicker { display: block; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--brand-strong); font-weight: 700; margin-bottom: 8px; }
+  .story-strip-card h3 { font-family: var(--font-display); font-size: 19px; font-weight: 600; color: var(--ink); margin: 0 0 8px; letter-spacing: -0.01em; }
+  .story-strip-card p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--ink-2); }
+}
+
+/* Additional mobile fitting polish (v4.1) */
+@media (max-width: 760px) {
+  .mk-hero { padding: 56px 0 44px; }
+  .mk-hero .grid { gap: 34px; }
+  .mk-floats .chip.f1, .mk-floats .chip.f2 { display: none; }  /* floating chips overlapped the panel on narrow screens */
+  .mk-hero .lead { font-size: 16px; }
+  .mk-hero .trust { gap: 10px 16px; font-size: 12.5px; }
+}
+@media (max-width: 560px) {
+  .reel-stage { height: 320px; }
+  .rs { gap: 12px; padding: 16px; }
+  .reel-chrome .reel-url { font-size: 10.5px; }
+  .mk-btn-accent, .mk-btn-ghost { font-size: 14.5px; }
+  .plate { height: min(64vw, 340px); }
+  .story-mobile .city-viewport { height: 42vh; }
 }

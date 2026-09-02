@@ -133,6 +133,9 @@ export function CityStage({ market, scrollProgressRef, hint = true }: {
     let driftT = 0;
     const tick = (t: number) => {
       const stage = stageRef.current;
+      // Variant hidden by CSS (e.g. the mobile/desktop story swap):
+      // keep the loop alive but do no work until it is visible again.
+      if (stage && stage.offsetParent === null) { raf = requestAnimationFrame(tick); return; }
       if (stage) {
         const p = scrollProgressRef ? Math.min(1, Math.max(0, scrollProgressRef.current ?? 0)) : 0;
         if (Math.abs(p - lastProgress.current) > 0.0005) { dirty.current = true; lastProgress.current = p; }

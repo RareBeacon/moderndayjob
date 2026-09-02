@@ -9,8 +9,12 @@ import { CityStage, type MarketData } from './CityStage';
  * scenes narrate what Jobiest actually does. Every claim in the captions is
  * backed by real system behavior.
  *
- * Reduced motion: the pin dissolves (CSS) into a static, fully readable
- * section; the scroll listener becomes a no-op.
+ * Mobile: the pin would trap scrolling (the page appears stuck for ~2.5
+ * screens), so below 761px a second, unpinned composition renders instead:
+ * a compact draggable city plus the scenes as a native swipeable card strip.
+ * CSS switches the variants (no hydration flash); the scroll listener no-ops
+ * while the desktop track is hidden. Reduced motion: the pin dissolves into
+ * a static, fully readable section.
  */
 export function ScrollStory({ market }: { market: MarketData }) {
   const trackRef = useRef<HTMLElement>(null);
@@ -29,12 +33,13 @@ export function ScrollStory({ market }: { market: MarketData }) {
     const bar = barRef.current;
 
     const update = () => {
+      // hidden on mobile (CSS switches variants) or reduced motion: no work
+      if (track.offsetParent === null) return;
       const rect = track.getBoundingClientRect();
       const total = rect.height - window.innerHeight;
       const p = total > 0 ? Math.min(1, Math.max(0, -rect.top / total)) : 0;
       progressRef.current = p;
 
-      // caption crossfade by segment
       const seg = p * 4;
       for (let i = 0; i < captions.length; i++) {
         const el = captions[i];
@@ -86,31 +91,53 @@ export function ScrollStory({ market }: { market: MarketData }) {
   ];
 
   return (
-    <section className="story" ref={trackRef} aria-label="How Jobiest meets the market, a scroll-driven story">
-      <div className="story-sticky">
-        <CityStage market={market} scrollProgressRef={progressRef} hint={false} />
-        <div className="story-captions" aria-live="off">
-          {scenes.map((s, i) => (
-            <div className="story-cap" ref={(el) => { capRefs.current[i] = el; }} key={i} aria-hidden={false}>
+    <>
+      {/* Desktop + large tablets: the pinned cinematic track */}
+      <section className="story story-desktop" ref={trackRef} aria-label="How Jobiest meets the market, a scroll-driven story">
+        <div className="story-sticky">
+          <CityStage market={market} scrollProgressRef={progressRef} hint={false} />
+          <div className="story-captions" aria-live="off">
+            {scenes.map((s, i) => (
+              <div className="story-cap" ref={(el) => { capRefs.current[i] = el; }} key={i}>
+                <span className="story-kicker">{s.kicker}</span>
+                <h3>{s.title}</h3>
+                <p>{s.body}</p>
+              </div>
+            ))}
+          </div>
+          <ol className="story-rail" aria-hidden="true">
+            {scenes.map((_, i) => (
+              <li key={i} ref={(el) => { railRefs.current[i] = el; }}><span>{String(i + 1).padStart(2, '0')}</span></li>
+            ))}
+            <span className="story-rail-bar" ref={barRef as never} />
+          </ol>
+          <p className="city-hint muted story-hint">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ verticalAlign: '-2px' }}>
+              <path d="M3 12h18M8 7l-5 5 5 5M16 7l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>{' '}
+            Drag to look around · keep scrolling to fly in
+          </p>
+        </div>
+      </section>
+
+      {/* Mobile: no pin, no scroll trap. Compact city + swipeable scene cards */}
+      <section className="story story-mobile" aria-label="How Jobiest meets the market">
+        <div className="mk-shell story-mobile-head">
+          <span className="mk-kicker">The market, live</span>
+          <h2>Your market, this morning.</h2>
+        </div>
+        <CityStage market={market} />
+        <div className="story-strip" role="list">
+          {scenes.map((s) => (
+            <article className="story-strip-card" role="listitem" key={s.kicker}>
               <span className="story-kicker">{s.kicker}</span>
               <h3>{s.title}</h3>
               <p>{s.body}</p>
-            </div>
+            </article>
           ))}
         </div>
-        <ol className="story-rail" aria-hidden="true">
-          {scenes.map((_, i) => (
-            <li key={i} ref={(el) => { railRefs.current[i] = el; }}><span>{String(i + 1).padStart(2, '0')}</span></li>
-          ))}
-          <span className="story-rail-bar" ref={barRef as never} />
-        </ol>
-        <p className="city-hint muted story-hint">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ verticalAlign: '-2px' }}>
-            <path d="M3 12h18M8 7l-5 5 5 5M16 7l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>{' '}
-          Drag to look around · keep scrolling to fly in
-        </p>
-      </div>
-    </section>
+        <p className="city-hint muted story-mobile-hint">Swipe the story · drag the city to look around</p>
+      </section>
+    </>
   );
 }
