@@ -161,14 +161,11 @@ function MatchCard({ m }: { m: JobMatch }) {
   return (
     <article className="card match-card">
       <div className="match-head">
-        <div className="match-score" style={{ borderColor: v.color, color: v.color }}>
-          <strong>{Math.round(m.score)}</strong>
-          <span>/100</span>
-        </div>
         <div className="match-id" style={{ flex: 1, minWidth: 0 }}>
-          <span className="badge" style={{ background: 'transparent', color: v.color, border: `1px solid ${v.color}` }}>
-            {v.label}
-          </span>
+          <div className="match-verdictline">
+            <span className={`vchip ${m.verdict}`}>{v.label}</span>
+            <span className="vscore">{Math.round(m.score)}% alignment</span>
+          </div>
           <h2 style={{ fontSize: 18, margin: '8px 0 2px' }}>{m.title || 'Untitled role'}</h2>
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>
             {m.company || 'Unknown company'}
@@ -208,7 +205,8 @@ function MatchCard({ m }: { m: JobMatch }) {
             <ul>{m.reasons.map((s, i) => <li key={i}>{s}</li>)}</ul>
           </div>
           <p className="muted" style={{ fontSize: 12, gridColumn: '1 / -1' }}>
-            Scored by {m.provider}.
+            Scored by {m.provider}. % alignment compares your verified profile to this listing&apos;s stated
+            requirements — it never guarantees an interview.
           </p>
         </div>
       )}

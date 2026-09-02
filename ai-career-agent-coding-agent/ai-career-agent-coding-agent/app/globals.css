@@ -1351,3 +1351,90 @@ a:focus-visible, button:focus-visible, summary:focus-visible,
   .ad-main { padding: 20px 16px 56px; }
   .ad-bar, .ad-subnav { padding: 0 16px; }
 }
+
+/* ============================================================
+   Daily Digest — the "morning paper" dashboard (Broadstreet v3).
+   Editorial: date masthead, double rule, ruled stat strip,
+   article-style job entries. Every number is a real count.
+   ============================================================ */
+.dd-banner {
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-line, #f0d9b8);
+  padding: 10px 16px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+  text-align: center;
+  margin-bottom: 26px;
+}
+.dd-head h1 {
+  font-family: var(--font-display);
+  font-size: clamp(26px, 4vw, 40px);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+  margin: 6px 0 0;
+  color: var(--brand-ink);
+}
+.dd-head p { font-size: 16.5px; line-height: 1.6; color: var(--muted); margin: 12px 0 0; max-width: 62ch; }
+.dd-over {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--brand);
+}
+.dd-meta { display: inline-block; margin-top: 14px; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted-2); border: 1px solid var(--line); padding: 4px 10px; }
+.dd-rule { border-top: 2px solid var(--ink); border-bottom: 1px solid var(--line); height: 4px; margin: 22px 0 0; }
+
+.dd-stats { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); background: var(--card); margin-top: 22px; }
+.dd-stat { padding: 18px 20px; border-left: 1px solid var(--line); }
+.dd-stat:first-child { border-left: 0; }
+.dd-stat b { display: block; font-family: var(--font-display); font-size: 30px; font-weight: 600; color: var(--ink); line-height: 1.1; }
+.dd-stat span { display: block; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin-top: 6px; }
+
+.dd-cols { display: grid; grid-template-columns: 1.25fr 0.75fr; gap: 36px; margin-top: 34px; align-items: start; }
+.dd-sec { margin-bottom: 34px; }
+.dd-sec > .dd-over { margin-bottom: 12px; }
+
+.dd-rows { list-style: none; padding: 0; margin: 0; }
+.dd-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 14px;
+  padding: 14px 16px; background: var(--card); border: 1px solid var(--line); border-top: 0;
+}
+.dd-row:first-child { border-top: 1px solid var(--line); }
+.dd-row b { display: block; font-size: 15px; color: var(--ink); font-weight: 600; }
+.dd-row span { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+.dd-articles { border-top: 1px solid var(--line); }
+.dd-article { padding: 18px 2px; border-bottom: 1px solid var(--line); }
+.dd-art-over { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
+.dd-article h2 {
+  font-family: var(--font-display); font-size: 22px; font-weight: 600; letter-spacing: -0.01em;
+  color: var(--ink); margin: 6px 0 2px; line-height: 1.25;
+}
+.dd-art-meta { font-size: 14px; color: var(--muted); margin: 0; }
+.dd-note { font-size: 13.5px; margin-top: 12px; line-height: 1.55; }
+.dd-empty { background: var(--card); border: 1px solid var(--line); padding: 22px; }
+.dd-suggest { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.dd-suggest li { padding-bottom: 10px; border-bottom: 1px solid var(--line-2); font-size: 14.5px; }
+.dd-suggest li:last-child { border-bottom: 0; padding-bottom: 0; }
+
+/* Verdict-first match chips (de-gamified: verdict leads, score is secondary) */
+.vchip {
+  display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; padding: 3px 9px; border: 1px solid var(--line); color: var(--muted); background: var(--card);
+}
+.vchip.strong { color: var(--success); border-color: var(--success-line); background: var(--success-bg); }
+.vchip.moderate { color: var(--warning); border-color: var(--warning-line, #f0d9b8); background: var(--warning-bg); }
+.vchip.weak { color: var(--danger); border-color: var(--danger-line); background: var(--danger-bg); }
+.vscore { font-size: 12px; color: var(--muted-2); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.match-verdictline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+@media (max-width: 900px) {
+  .dd-cols { grid-template-columns: 1fr; gap: 24px; }
+  .dd-stats { grid-template-columns: 1fr 1fr; }
+  .dd-stat:nth-child(3) { border-left: 0; }
+  .dd-stat:nth-child(n+3) { border-top: 1px solid var(--line); }
+}

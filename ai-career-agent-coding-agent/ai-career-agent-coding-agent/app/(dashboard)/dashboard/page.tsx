@@ -7,14 +7,20 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { getEntitlement } from '@packages/security/entitlements';
 import { getProfileCompleteness } from '@/lib/profile-completeness';
 
-type RecentApp = {
+type DraftApp = {
   id: string;
-  status: string;
   created_at: string;
-  jobs: { company: string | null; title: string | null; url: string | null; location: string | null } | null;
+  jobs: { company: string | null; title: string | null; url: string | null } | null;
 };
-type FreshJob = { id: string; title: string | null; company: string | null; location: string | null };
+type FreshJob = { id: string; title: string | null; company: string | null; location: string | null; source: string | null; created_at: string | null };
 
+/**
+ * Daily Digest — the "morning paper" dashboard (Broadstreet Journal, v3).
+ * Every number on this page is a real count from the database: drafts awaiting
+ * approval, applications in flight, listings synced in the last 24h. We never
+ * claim scans or "discarded" totals we do not track — the trust banner states
+ * what WE guarantee (free to apply, approval-gated), nothing more.
+ */
 export default async function Dashboard() {
   const user = await requireUser();
   const [
@@ -33,20 +39,34 @@ export default async function Dashboard() {
 
   if (!profile?.target_roles?.length) redirect('/onboarding');
 
-  const [{ count: applicationCount }, { count: submittedCount }, { count: interviewCount }, { count: taskCount }, { data: recentApps }, { data: freshJobs }] = await Promise.all([
+  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const [
+    { count: applicationCount },
+    { count: submittedCount },
+    { count: interviewCount },
+    { count: taskCount },
+    { count: draftCount },
+    { count: newJobsCount },
+    { data: drafts },
+    { data: freshJobs },
+  ] = await Promise.all([
     supabaseAdmin.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
     supabaseAdmin.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).in('status', ['SUBMITTED', 'INTERVIEW']),
     supabaseAdmin.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'INTERVIEW'),
     supabaseAdmin.from('agent_tasks').select('*', { count: 'exact', head: true }).eq('user_id', user.id).in('status', ['QUEUED', 'RUNNING']),
-    supabaseAdmin.from('applications').select('id,status,created_at,jobs(company,title,url,location)').eq('user_id', user.id).order('created_at', { ascending: false }).limit(5),
-    supabaseAdmin.from('jobs').select('id,title,company,location').order('created_at', { ascending: false }).limit(3),
+    supabaseAdmin.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'DRAFT'),
+    supabaseAdmin.from('jobs').select('*', { count: 'exact', head: true }).gt('created_at', since24h),
+    supabaseAdmin.from('applications').select('id,created_at,jobs(company,title,url)').eq('user_id', user.id).eq('status', 'DRAFT').order('created_at', { ascending: false }).limit(4),
+    supabaseAdmin.from('jobs').select('id,title,company,location,source,created_at').order('created_at', { ascending: false }).limit(4),
   ]);
 
-  const apps = (recentApps ?? []) as unknown as RecentApp[];
+  const draftApps = (drafts ?? []) as unknown as DraftApp[];
   const jobs = (freshJobs ?? []) as unknown as FreshJob[];
+  const draftsWaiting = draftCount ?? 0;
+  const inFlight = submittedCount ?? 0;
+  const newToday = newJobsCount ?? 0;
   const interviews = interviewCount ?? 0;
-  const submitted = submittedCount ?? 0;
-  const responseRate = submitted > 0 ? Math.round((interviews / submitted) * 100) : 0;
+  const responseRate = inFlight > 0 ? Math.round((interviews / inFlight) * 100) : 0;
 
   const prefSummary = [
     prefs?.remote_types?.length ? prefs.remote_types.slice(0, 2).join('/') : null,
@@ -56,6 +76,18 @@ export default async function Dashboard() {
   ].filter(Boolean).join(' · ');
 
   const firstName = (profile.full_name || 'there').split(' ')[0];
+  const dateLine = new Date().toLocaleDateString('en-GB', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Africa/Lagos',
+  });
+
+  // Honest digest sentence — only real counts, never scan totals we don't track.
+  const parts: string[] = [];
+  if (draftsWaiting > 0) parts.push(`${draftsWaiting} draft${draftsWaiting === 1 ? '' : 's'} waiting for your approval`);
+  if (inFlight > 0) parts.push(`${inFlight} application${inFlight === 1 ? '' : 's'} in flight`);
+  if (newToday > 0) parts.push(`${newToday} listing${newToday === 1 ? '' : 's'} synced to your pool since yesterday`);
+  const summary = parts.length
+    ? `${parts.join(', ')}. Nothing is sent until you approve it.`
+    : 'A quiet day — your pool is ready when you are. Nothing is ever sent without your approval.';
 
   // Deterministic, real-derived next steps (no fabricated suggestions)
   const suggestions: { text: string; href: string }[] = [];
@@ -65,111 +97,102 @@ export default async function Dashboard() {
   suggestions.push({ text: 'Refresh your CV and run an ATS check for your next role.', href: '/generate' });
 
   return (
-    <AppShell active="dashboard" title={`Welcome back, ${firstName}`}>
-      <section className="workspace-hero">
-        <p className="eyebrow">YOUR WORKSPACE</p>
-        <h1>Good to see you, {firstName}.</h1>
-        <p>{career?.headline || 'Your private career workspace is ready. Build your profile, choose your tools, and move at your own pace.'}</p>
-        <span className="dm-plan">Plan · {entitlement.plan} · {entitlement.ai_credits_remaining} credits today</span>
+    <AppShell active="dashboard" title="Daily digest">
+      {/* Trust banner — statements about us, provably true */}
+      <div className="dd-banner" role="note">
+        Your application is free. ModernJob never asks candidates for money, and nothing is ever sent
+        without your approval.
+      </div>
+
+      <header className="dd-head">
+        <span className="dd-over">Daily digest</span>
+        <h1>{dateLine}</h1>
+        <p>{summary}</p>
+        <span className="dd-meta">Plan · {entitlement.plan} · {entitlement.ai_credits_remaining} AI credits today</span>
+      </header>
+      <div className="dd-rule" aria-hidden="true" />
+
+      <section className="dd-stats" aria-label="Your numbers">
+        <div className="dd-stat"><b>{applicationCount ?? 0}</b><span>Applications</span></div>
+        <div className="dd-stat"><b>{interviews}</b><span>Interviews</span></div>
+        <div className="dd-stat"><b>{responseRate}%</b><span>Response rate</span></div>
+        <div className="dd-stat"><b>{completeness.percent}%</b><span>Profile strength</span></div>
       </section>
 
-      {/* Career momentum — one connected composition, not four identical cards */}
-      <section className="dm">
-        <div className="dm-head">
-          <div>
-            <p className="eyebrow">CAREER MOMENTUM</p>
-            <h2>Your momentum, at a glance.</h2>
-          </div>
+      <div className="dd-cols">
+        <div className="dd-main">
+          {draftApps.length > 0 && (
+            <section className="dd-sec" aria-label="Awaiting your approval">
+              <span className="dd-over">Awaiting your approval</span>
+              <ul className="dd-rows">
+                {draftApps.map((a) => (
+                  <li key={a.id} className="dd-row">
+                    <div>
+                      <b>{a.jobs?.title || 'Untitled role'}</b>
+                      <span>{a.jobs?.company || 'Unknown company'}</span>
+                    </div>
+                    <Link className="inline-link" href="/applications">Review →</Link>
+                  </li>
+                ))}
+              </ul>
+              <p className="muted dd-note">Drafts are prepared from your verified facts only. Approve, edit, or reject — your call, every time.</p>
+            </section>
+          )}
+
+          <section className="dd-sec" aria-label="New in your pool">
+            <span className="dd-over">New in your pool</span>
+            {jobs.length === 0 ? (
+              <div className="dd-empty">
+                <p className="muted">No listings synced yet.</p>
+                <Link className="inline-link" href="/jobs">Browse jobs →</Link>
+              </div>
+            ) : (
+              <>
+                <div className="dd-articles">
+                  {jobs.map((j) => (
+                    <article className="dd-article" key={j.id}>
+                      <span className="dd-art-over">
+                        {(j.source || 'Synced').toLowerCase()} · {j.created_at ? j.created_at.slice(0, 10) : 'recent'}
+                      </span>
+                      <h2>{j.title || 'Untitled role'}</h2>
+                      <p className="dd-art-meta">
+                        {j.company || 'Unknown company'}{j.location ? ` · ${j.location}` : ''}
+                      </p>
+                    </article>
+                  ))}
+                </div>
+                <p className="muted dd-note">
+                  Latest listings, as synced.{' '}
+                  <Link href="/match" className="inline-link">Run matching →</Link> to see which ones actually fit.
+                </p>
+              </>
+            )}
+          </section>
         </div>
-        <div className="dm-track">
-          <svg className="dm-line" viewBox="0 0 400 90" preserveAspectRatio="none" aria-hidden="true">
-            <polyline points="10,78 120,60 230,40 340,16 390,8" fill="none" stroke="var(--brand)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-            {[[120, 60], [230, 40], [340, 16]].map(([x, y], i) => (
-              <circle key={i} cx={x} cy={y} r="4.5" fill="var(--brand)" />
-            ))}
-          </svg>
-          <div className="dm-stats">
-            <div className="dm-stat"><b>{applicationCount ?? 0}</b><span>Applications</span></div>
-            <div className="dm-stat"><b>{interviews}</b><span>Interviews</span></div>
-            <div className="dm-stat"><b>{responseRate}%</b><span>Response rate</span></div>
-            <div className="dm-stat"><b>{completeness.percent}%</b><span>Profile strength</span></div>
-          </div>
-        </div>
-      </section>
 
-      <section className="completeness">
-        <p className="eyebrow">PROFILE READINESS</p>
-        <ProfileReadiness />
-      </section>
-
-      {/* Two-column: recent applications + next steps */}
-      <section className="dash-cols">
-        <article className="card dash-col">
-          <div className="section-title">
-            <h2>Recent applications</h2>
-            <Link href="/applications" className="inline-link">View all →</Link>
-          </div>
-          {apps.length === 0 ? (
-            <div className="dash-empty">
-              <p className="muted">No applications tracked yet.</p>
-              <Link className="inline-link" href="/applications">Track your first →</Link>
-            </div>
-          ) : (
-            <ul className="dash-feed">
-              {apps.map((a) => (
-                <li key={a.id}>
-                  <span className={`dot-mini ${a.status}`} aria-hidden="true" />
-                  <div className="dash-feed-main">
-                    <b>{a.jobs?.title || 'Untitled role'}</b>
-                    <span>{a.jobs?.company || 'Unknown company'}</span>
-                  </div>
-                  <span className="dash-feed-status">{a.status}</span>
+        <aside className="dd-side">
+          <section className="dd-sec">
+            <span className="dd-over">Next steps</span>
+            <ul className="dd-suggest">
+              {suggestions.map((s, i) => (
+                <li key={i}>
+                  <Link href={s.href} className="inline-link">{s.text}</Link>
                 </li>
               ))}
             </ul>
+          </section>
+
+          <section className="dd-sec">
+            <span className="dd-over">Profile readiness</span>
+            <ProfileReadiness />
+          </section>
+
+          {prefSummary && (
+            <p className="muted dd-note" style={{ marginTop: 18 }}>{prefSummary}</p>
           )}
-        </article>
-
-        <article className="card dash-col">
-          <div className="section-title"><h2>Next steps</h2></div>
-          <ul className="dash-suggest">
-            {suggestions.map((s, i) => (
-              <li key={i}>
-                <span className="dot-mini" aria-hidden="true" />
-                <Link href={s.href} className="inline-link">{s.text}</Link>
-              </li>
-            ))}
-          </ul>
-        </article>
-      </section>
-
-      {/* Fresh opportunities (real, not "recommended" unless matched) */}
-      <section className="card">
-        <div className="section-title">
-          <h2>Fresh opportunities</h2>
-          <Link href="/match" className="inline-link">Find your matches →</Link>
-        </div>
-        {jobs.length === 0 ? (
-          <div className="dash-empty">
-            <p className="muted">No opportunities synced yet.</p>
-            <Link className="inline-link" href="/jobs">Browse jobs →</Link>
-          </div>
-        ) : (
-          <div className="dash-jobs">
-            {jobs.map((j) => (
-              <Link className="dash-job" key={j.id} href="/jobs">
-                <span className="dash-job-co">{(j.company || '?').slice(0, 1)}</span>
-                <span className="dash-job-main">
-                  <b>{j.title || 'Untitled role'}</b>
-                  <span>{j.company || 'Unknown'}{j.location ? ` · ${j.location}` : ''}</span>
-                </span>
-                <span className="dash-job-arrow">→</span>
-              </Link>
-            ))}
-          </div>
-        )}
-        {prefSummary ? <p className="muted pref-line" style={{ marginTop: 16 }}>{prefSummary}</p> : null}
-      </section>
+          {career?.headline && <p className="muted dd-note">{career.headline}</p>}
+        </aside>
+      </div>
     </AppShell>
   );
 }

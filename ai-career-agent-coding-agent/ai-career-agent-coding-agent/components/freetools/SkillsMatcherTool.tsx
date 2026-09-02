@@ -23,11 +23,6 @@ interface Outcome {
   scoredCount: number;
 }
 
-const VERDICT_COLOR: Record<Verdict, string> = {
-  strong: 'var(--success)',
-  moderate: 'var(--warning)',
-  weak: 'var(--danger)',
-};
 const VERDICT_LABEL: Record<Verdict, string> = {
   strong: 'Strong fit',
   moderate: 'Moderate fit',
@@ -132,12 +127,12 @@ export function SkillsMatcherTool({ signedIn }: { signedIn: boolean }) {
               {data.matches.slice(0, 5).map((m) => (
                 <article className="card match-card" key={m.jobId}>
                   <div className="match-head">
-                    <div className="match-score" style={{ borderColor: VERDICT_COLOR[m.verdict], color: VERDICT_COLOR[m.verdict] }}>
-                      <strong>{Math.round(m.score)}</strong>
-                      <span>/100</span>
-                    </div>
                     <div className="match-id" style={{ flex: 1, minWidth: 0 }}>
-                      <h2 style={{ fontSize: 17, margin: '0 0 2px' }}>{m.title || 'Untitled role'}</h2>
+                      <div className="match-verdictline">
+                        <span className={`vchip ${m.verdict}`}>{VERDICT_LABEL[m.verdict]}</span>
+                        <span className="vscore">{Math.round(m.score)}% alignment</span>
+                      </div>
+                      <h2 style={{ fontSize: 17, margin: '8px 0 2px' }}>{m.title || 'Untitled role'}</h2>
                       <p className="muted" style={{ fontSize: 13.5, margin: 0 }}>
                         {m.company || 'Unknown company'}{m.location ? ` · ${m.location}` : ''}
                       </p>
@@ -162,6 +157,9 @@ export function SkillsMatcherTool({ signedIn }: { signedIn: boolean }) {
                         <h3>Gaps</h3>
                         <ul>{m.gaps.length ? m.gaps.map((s, i) => <li key={i}>{s}</li>) : <li>None noted</li>}</ul>
                       </div>
+                      <p className="muted" style={{ fontSize: 12, gridColumn: '1 / -1' }}>
+                        % alignment compares your verified profile to this listing&apos;s stated requirements — it never guarantees an interview.
+                      </p>
                     </div>
                   )}
                 </article>
