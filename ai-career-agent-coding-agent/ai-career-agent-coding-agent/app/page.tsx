@@ -44,15 +44,15 @@ const pipeStages = [
 ];
 
 const tools = [
-  { tag: 'Free', title: 'ATS Resume Scanner', body: 'See exactly how your CV reads to applicant tracking systems.', href: '/generate' },
+  { tag: 'Live', title: 'ATS Resume Scanner', body: 'See exactly how your CV reads to applicant tracking systems.', href: '/free-ats-resume-scanner' },
   { tag: 'Live', title: 'Cover Letter Writer', body: 'Draft a tailored letter from your verified facts.', href: '/free-cover-letter-writer' },
   { tag: 'Live', title: 'Job Description Analyzer', body: 'Break any listing into skills, gaps, and keywords.', href: '/free-job-description-analyzer' },
   { tag: 'Live', title: 'Skills Matcher', body: 'See which of your skills a job actually rewards.', href: '/free-skills-matcher' },
   { tag: 'Live', title: 'Interview Question Generator', body: 'Practice role-specific questions with model answers.', href: '/free-interview-question-generator' },
-  { tag: 'Free', title: 'Career Path Explorer', body: 'Map realistic next steps from your real profile.', href: '/signup' },
-  { tag: 'Free', title: 'Salary Insights', body: 'Estimate pay bands for your role and region.', href: '/signup' },
+  { tag: 'Live', title: 'Career Path Explorer', body: 'Map realistic next steps from your real profile.', href: '/free-career-path-explorer' },
+  { tag: 'Live', title: 'Salary Insights', body: 'Only the pay that real listings state — never estimates.', href: '/free-salary-insights' },
   { tag: 'Live', title: 'Resume Summary Generator', body: 'A sharp two-line intro, grounded in your work.', href: '/free-resume-summary-generator' },
-  { tag: 'Free', title: 'Follow-up Email Writer', body: 'A polite, timely nudge to a recruiter.', href: '/signup' },
+  { tag: 'Live', title: 'Follow-up Email Writer', body: 'A polite, timely nudge to a recruiter.', href: '/free-follow-up-email-writer' },
   { tag: 'Live', title: 'LinkedIn Headline Builder', body: 'A headline that earns the right clicks.', href: '/free-linkedin-headline-builder' },
 ];
 
@@ -350,7 +350,7 @@ export default function HomePage() {
                 </Link>
               ))}
             </div>
-            <p className="mk-bento-note">Six tools are <b style={{ color: 'var(--brand-strong)' }}>live today</b> — the rest roll out to your free account as they land.</p>
+            <p className="mk-bento-note">All ten tools are <b style={{ color: 'var(--brand-strong)' }}>live</b> — every one truthful, every one free to start.</p>
           </div>
         </section>
 

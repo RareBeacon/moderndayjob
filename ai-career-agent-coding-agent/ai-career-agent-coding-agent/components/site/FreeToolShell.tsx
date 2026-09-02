@@ -75,6 +75,8 @@ export function FreeToolShell({
                   <li><Link href="/free-job-description-analyzer">JD Analyzer</Link></li>
                   <li><Link href="/free-cover-letter-writer">Cover Letter Writer</Link></li>
                   <li><Link href="/free-skills-matcher">Skills Matcher</Link></li>
+                  <li><Link href="/free-ats-resume-scanner">ATS Scanner</Link></li>
+                  <li><Link href="/free-salary-insights">Salary Insights</Link></li>
                 </ul>
               </div>
               <div>
@@ -106,6 +108,10 @@ export function RelatedTools({ exclude }: { exclude: string }) {
     { href: '/free-interview-question-generator', name: 'Interview Question Generator', desc: 'Practice questions from the real listing.' },
     { href: '/free-resume-summary-generator', name: 'Resume Summary Generator', desc: 'Three truthful summary options, facts only.' },
     { href: '/free-linkedin-headline-builder', name: 'LinkedIn Headline Builder', desc: 'Honest, buzzword-free headline options.' },
+    { href: '/free-ats-resume-scanner', name: 'ATS Resume Scanner', desc: 'Deterministic parseability checks, no credits.' },
+    { href: '/free-follow-up-email-writer', name: 'Follow-up Email Writer', desc: 'A polite nudge from facts you provide.' },
+    { href: '/free-career-path-explorer', name: 'Career Path Explorer', desc: 'Directions grown from your real skills.' },
+    { href: '/free-salary-insights', name: 'Salary Insights', desc: 'Only what listings actually state.' },
   ].filter((t) => t.href !== exclude);
   return (
     <div className="ft-related">

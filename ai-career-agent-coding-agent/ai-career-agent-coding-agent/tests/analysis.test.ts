@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { AITask } from '../packages/ai/types';
-import { analyzeJob, compareSkills, generateInterviewQuestions, generateProfileCopy } from '../lib/analysis/service';
+import { analyzeJob, compareSkills, generateCareerPaths, generateFollowupEmail, generateInterviewQuestions, generateProfileCopy, generateSalaryInsights } from '../lib/analysis/service';
 import {
   ANALYZE_JOB_TASK,
   INTERVIEW_QUESTIONS_TASK,
@@ -202,5 +202,69 @@ describe('generateProfileCopy — truthful summaries & headlines', () => {
       expect(msgs[0].content).toContain('guru');
       expect(msgs[1].content).toContain('verified facts');
     }
+  });
+});
+
+describe('career paths — deterministic skill-citation guard', () => {
+  const gw = (paths: unknown) => mockGateway(() => paths);
+
+  it('passes when buildingOn cites only profile skills', async () => {
+    const res = await generateCareerPaths({
+      gateway: gw({ paths: [
+        { direction: 'Analytics engineering', why: 'Your SQL and reporting background transfers directly.', buildingOn: ['Salesforce', 'Onboarding'], explore: ['dbt', 'warehouse tooling'] },
+        { direction: 'Operations consulting', why: 'You have run teams and vendors.', buildingOn: ['Customer success'], explore: ['case studies'] },
+      ], summary: 'Two grounded directions based on your verified skills.' }),
+      profile,
+    });
+    expect(res.verified).toBe(true);
+    expect(res.paths).toHaveLength(2);
+  });
+
+  it('fails when the model invents a skill the profile lacks', async () => {
+    const res = await generateCareerPaths({
+      gateway: gw({ paths: [
+        { direction: 'ML engineering', why: 'You know Python.', buildingOn: ['Python', 'deep learning'], explore: ['courses'] },
+      ], summary: 'Direction based on skills.' }),
+      profile, // profile.skills = Customer success, Salesforce, Onboarding
+    });
+    expect(res.verified).toBe(false);
+    expect(res.unsupportedSkills.length).toBeGreaterThan(0);
+  });
+});
+
+describe('salary insights — citation guard', () => {
+  const jobs = [
+    { id: 'j1', title: 'Designer', company: 'Acme', description: 'We pay ₦300,000 – ₦400,000 monthly.' },
+    { id: 'j2', title: 'Designer', company: 'Globex', description: 'No pay stated.' },
+  ];
+
+  it('passes when every cited job is in the scanned set', async () => {
+    const res = await generateSalaryInsights({
+      gateway: mockGateway(() => ({ statedRanges: [{ jobId: 'j1', min: 300000, max: 400000, exact: null, currency: 'NGN', period: 'month' }], notes: '1 of 2 listings stated pay.' })),
+      jobs,
+    });
+    expect(res.verified).toBe(true);
+    expect(res.ranges[0].jobId).toBe('j1');
+  });
+
+  it('fails when a cited job was never scanned (fabrication)', async () => {
+    const res = await generateSalaryInsights({
+      gateway: mockGateway(() => ({ statedRanges: [{ jobId: 'ghost-9', min: 1, max: 2, exact: null, currency: 'NGN', period: 'month' }], notes: 'x' })),
+      jobs,
+    });
+    expect(res.verified).toBe(false);
+  });
+});
+
+describe('follow-up email task — prompt framing', () => {
+  it('includes the user-supplied facts and bars invention', async () => {
+    const { FOLLOWUP_EMAIL_TASK, CAREER_PATHS_TASK, SALARY_INSIGHTS_TASK } = await import('../lib/analysis/task');
+    const msgs = FOLLOWUP_EMAIL_TASK.buildMessages({ company: 'PayStack', role: 'Analyst', daysSinceApplied: 7 });
+    expect(msgs[1].content).toContain('PayStack');
+    expect(msgs[1].content).toContain('7 day(s) ago');
+    expect(msgs[1].content).toContain('no invented details');
+    // smoke: new tasks exist with schemas
+    expect(CAREER_PATHS_TASK.id).toBe('career_paths');
+    expect(SALARY_INSIGHTS_TASK.id).toBe('salary_insights');
   });
 });
