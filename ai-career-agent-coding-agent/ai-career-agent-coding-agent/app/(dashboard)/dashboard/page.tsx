@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import ProfileReadiness from '@/components/ProfileReadiness';
+import { DashboardSetup } from '@/components/site/DashboardSetup';
 import { AppShell } from '@/components/site/AppShell';
-import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getEntitlement } from '@packages/security/entitlements';
@@ -36,8 +36,6 @@ export default async function Dashboard() {
     getProfileCompleteness(user.id),
     supabaseAdmin.from('job_preferences').select('remote_types,locations,application_mode,daily_target').eq('user_id', user.id).maybeSingle(),
   ]);
-
-  if (!profile?.target_roles?.length) redirect('/onboarding');
 
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const [
@@ -75,7 +73,7 @@ export default async function Dashboard() {
     prefs?.daily_target ? `${prefs.daily_target}/day` : null,
   ].filter(Boolean).join(' · ');
 
-  const firstName = (profile.full_name || 'there').split(' ')[0];
+  const firstName = (profile?.full_name || 'there').split(' ')[0];
   const dateLine = new Date().toLocaleDateString('en-GB', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Africa/Lagos',
   });
@@ -91,7 +89,7 @@ export default async function Dashboard() {
 
   // Deterministic, real-derived next steps (no fabricated suggestions)
   const suggestions: { text: string; href: string }[] = [];
-  if (completeness.percent < 100) suggestions.push({ text: `Finish your profile, ${completeness.percent}% complete for stronger matches.`, href: '/onboarding' });
+  if (completeness.percent < 100) suggestions.push({ text: `Finish your profile, ${completeness.percent}% complete for stronger matches.`, href: '/profile' });
   if ((applicationCount ?? 0) === 0) suggestions.push({ text: 'Track your first application to start your history.', href: '/applications' });
   if (entitlement.automation_enabled && (taskCount ?? 0) === 0) suggestions.push({ text: 'Your agent is ready. Find matches to begin automation.', href: '/match' });
   suggestions.push({ text: 'Refresh your CV and run an ATS check for your next role.', href: '/generate' });
@@ -111,6 +109,9 @@ export default async function Dashboard() {
         <span className="dd-meta">Plan · {entitlement.plan} · {entitlement.ai_credits_remaining} AI credits today</span>
       </header>
       <div className="dd-rule" aria-hidden="true" />
+
+      {/* setup questions live here now: invited, never forced (no redirect) */}
+      <DashboardSetup needsSetup={!profile?.target_roles?.length} />
 
       <section className="dd-stats" aria-label="Your numbers">
         <div className="dd-stat"><b>{applicationCount ?? 0}</b><span>Applications</span></div>

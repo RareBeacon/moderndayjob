@@ -52,7 +52,7 @@ export default function SignupPage() {
         return;
       }
       if (data.session) {
-        router.push('/onboarding');
+        router.push('/dashboard');
         router.refresh();
         return;
       }
@@ -68,7 +68,7 @@ export default function SignupPage() {
       setBusy(false);
       return;
     }
-    router.push('/onboarding');
+    router.push('/dashboard');
     router.refresh();
   }
 
