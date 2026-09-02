@@ -141,7 +141,7 @@ export function SkillsMatcherTool({ signedIn }: { signedIn: boolean }) {
                   <p style={{ marginTop: 12, color: 'var(--ink-2)', fontSize: 14.5 }}>{m.summary}</p>
                   <button
                     className="text-button"
-                    style={{ color: 'var(--brand)', marginTop: 8, padding: 0, fontSize: 13.5 }}
+                    style={{ color: 'var(--brand)', marginTop: 8, fontSize: 13.5 }}
                     onClick={() => setOpen(open === m.jobId ? null : m.jobId)}
                     aria-expanded={open === m.jobId}
                   >

@@ -183,7 +183,7 @@ function MatchCard({ m }: { m: JobMatch }) {
 
       <button
         className="text-button"
-        style={{ color: 'var(--brand)', marginTop: 10, padding: 0, fontSize: 14 }}
+        style={{ color: 'var(--brand)', marginTop: 10, fontSize: 14 }}
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
       >
