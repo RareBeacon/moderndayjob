@@ -1296,3 +1296,58 @@ a:focus-visible, button:focus-visible, summary:focus-visible,
 
 /* Free-tool heroes share the serif discipline */
 .ft-hero h1 { font-weight: 600; letter-spacing: -0.015em; }
+
+/* ============================================================
+   Free tools — question list + copyable option rows (Phase 12b)
+   ============================================================ */
+.ft-qlist { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 10px; }
+.ft-qlist li { display: grid; grid-template-columns: 30px 1fr; gap: 12px; padding: 14px 16px; background: var(--card); border: 1px solid var(--line); }
+.ft-qlist .n { font-family: var(--font-display); font-weight: 600; font-size: 19px; color: var(--brand); line-height: 1.2; }
+.ft-qlist b { display: block; font-size: 15px; color: var(--ink); font-weight: 600; line-height: 1.45; }
+.ft-qlist span { color: var(--muted); font-size: 13px; margin-top: 3px; display: block; }
+.ft-opt { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; background: var(--surface-sunken); border: 1px solid var(--line); padding: 14px 16px; }
+.ft-opt p { margin: 0; font-size: 15px; line-height: 1.55; color: var(--ink-2); }
+.ft-copy { border: 1px solid var(--line-strong); background: var(--card); color: var(--ink); padding: 7px 13px; font-size: 12.5px; font-weight: 700; cursor: pointer; flex: none; transition: border-color 0.1s linear; }
+.ft-copy:hover { border-color: var(--ink); }
+
+/* ============================================================
+   Admin — internal chrome, denser than the user app (§6.10).
+   Ruled rows, tracked overlines, mono values.
+   ============================================================ */
+.ad-header { position: sticky; top: 0; z-index: 40; background: var(--bg); border-bottom: 1px solid var(--line); }
+.ad-bar { max-width: 1240px; margin: 0 auto; padding: 0 24px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+.ad-tag { font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; background: var(--brand-ink); color: #fff; padding: 3px 8px; }
+.ad-back { font-size: 13.5px; font-weight: 600; color: var(--muted); }
+.ad-back:hover { color: var(--ink); }
+.ad-sub { border-bottom: 1px solid var(--line); background: var(--card); }
+.ad-subnav { max-width: 1240px; margin: 0 auto; padding: 0 24px; display: flex; gap: 4px; }
+.ad-subnav a { padding: 12px 14px; font-size: 13.5px; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; }
+.ad-subnav a:hover { color: var(--ink); }
+.ad-subnav a.on { color: var(--ink); border-bottom-color: var(--brand); }
+.ad-main { max-width: 1240px; margin: 0 auto; padding: 28px 24px 64px; }
+.ad-h1 { font-family: var(--font-display); font-size: 28px; font-weight: 600; margin: 0; color: var(--brand-ink); letter-spacing: -0.01em; }
+.ad-lede { color: var(--muted); font-size: 14px; margin: 6px 0 22px; max-width: 72ch; }
+.ad-scroll { overflow-x: auto; }
+.ad-table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); }
+.ad-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); padding: 10px 14px; border-bottom: 1px solid var(--line-strong); background: var(--surface-sunken); font-weight: 700; white-space: nowrap; }
+.ad-table td { padding: 11px 14px; border-bottom: 1px solid var(--line); font-size: 13.5px; color: var(--ink-2); vertical-align: top; }
+.ad-table tbody tr:last-child td { border-bottom: 0; }
+.ad-table tbody tr:hover td { background: var(--bg); }
+.ad-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+.ad-chip { display: inline-block; font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 9px; border: 1px solid var(--line); color: var(--muted); background: var(--bg); }
+.ad-chip.ok { color: var(--success); border-color: var(--success-line); background: var(--success-bg); }
+.ad-chip.warn { color: var(--warning); border-color: var(--warning-line, #f3d9b3); background: var(--warning-bg); }
+.ad-risk { display: inline-block; min-width: 34px; text-align: center; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; font-weight: 700; padding: 2px 6px; border: 1px solid var(--line); color: var(--muted); }
+.ad-risk.high { color: var(--danger); border-color: var(--danger-line); background: var(--danger-bg); }
+.ad-empty { text-align: center; color: var(--muted); padding: 28px 14px !important; }
+.ad-form { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; max-width: 760px; background: var(--card); border: 1px solid var(--line); padding: 22px; }
+.ad-form label { display: block; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 7px; }
+.ad-form input, .ad-form select { width: 100%; padding: 10px 12px; border: 1px solid var(--line-strong); background: var(--bg); font: inherit; font-size: 14px; color: var(--ink); }
+.ad-form input:focus, .ad-form select:focus { outline: 2px solid var(--brand); outline-offset: 0; border-color: var(--brand); }
+.ad-forbidden { max-width: 520px; margin: 80px auto; text-align: center; background: var(--card); border: 1px solid var(--line); padding: 40px 32px; }
+
+@media (max-width: 860px) {
+  .ad-form { grid-template-columns: 1fr; }
+  .ad-main { padding: 20px 16px 56px; }
+  .ad-bar, .ad-subnav { padding: 0 16px; }
+}

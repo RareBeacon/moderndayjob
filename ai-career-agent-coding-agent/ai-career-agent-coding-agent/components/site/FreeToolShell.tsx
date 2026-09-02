@@ -103,10 +103,13 @@ export function RelatedTools({ exclude }: { exclude: string }) {
     { href: '/free-job-description-analyzer', name: 'Job Description Analyzer', desc: 'Break any listing into skills, keywords, and gaps.' },
     { href: '/free-cover-letter-writer', name: 'Cover Letter Writer', desc: 'A truthful letter from your verified profile facts.' },
     { href: '/free-skills-matcher', name: 'Skills Matcher', desc: 'See which of your skills a job actually rewards.' },
+    { href: '/free-interview-question-generator', name: 'Interview Question Generator', desc: 'Practice questions from the real listing.' },
+    { href: '/free-resume-summary-generator', name: 'Resume Summary Generator', desc: 'Three truthful summary options, facts only.' },
+    { href: '/free-linkedin-headline-builder', name: 'LinkedIn Headline Builder', desc: 'Honest, buzzword-free headline options.' },
   ].filter((t) => t.href !== exclude);
   return (
     <div className="ft-related">
-      {tools.map((t) => (
+      {tools.slice(0, 4).map((t) => (
         <Link className="ft-rel" href={t.href} key={t.href}>
           <b>{t.name}</b>
           <span>{t.desc}</span>
