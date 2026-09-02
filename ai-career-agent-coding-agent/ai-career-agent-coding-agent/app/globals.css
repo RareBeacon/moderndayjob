@@ -1374,112 +1374,6 @@ a:focus-visible, button:focus-visible, summary:focus-visible,
 a:focus-visible, button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 4px; }
 
 /* ============================================================
-   The 3D market city (CityStage.tsx)
-   ============================================================ */
-.city-root { position: relative; }
-.city-viewport {
-  position: relative; height: clamp(360px, 58vh, 560px); overflow: hidden;
-  perspective: 1150px; perspective-origin: 50% 38%;
-  background: radial-gradient(120% 90% at 50% 8%, #fdfcf8 0%, var(--bg) 55%, #f3efe4 100%);
-  border-radius: var(--radius-lg); border: 1px solid var(--line);
-  user-select: none; -webkit-user-select: none;
-  cursor: grab;
-}
-.city-viewport:active { cursor: grabbing; }
-.city-stage {
-  position: absolute; left: 50%; top: 56%; width: 760px; height: 760px;
-  transform-style: preserve-3d;
-  transform: rotateX(var(--rx, 62deg)) rotateZ(var(--rz, 42deg)) translateZ(var(--dz, 0px));
-  will-change: transform;
-}
-.city-ground {
-  position: absolute; inset: 0;
-  background:
-    linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 76px 76px,
-    linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0 / 76px 76px,
-    linear-gradient(180deg, #f6f2e9, #efe9db);
-  border: 1px solid var(--line-strong, var(--line));
-  box-shadow: 0 0 0 12px rgba(12, 42, 46, 0.028), 0 0 0 26px rgba(12, 42, 46, 0.016);
-}
-.city-ave { position: absolute; background: var(--brand-soft); opacity: 0.55; }
-.city-ave.a { left: 300px; top: 0; width: 34px; height: 100%; }
-.city-ave.b { left: 0; top: 320px; width: 100%; height: 34px; }
-.city-tower { position: absolute; transform-style: preserve-3d; }
-.city-roof {
-  position: absolute; inset: 0; transform: translateZ(var(--h));
-  background: linear-gradient(135deg, var(--brand-softer), var(--brand-soft));
-  border: 1px solid var(--brand-line);
-}
-.city-face {
-  position: absolute; left: 0; top: 0; width: 100%; height: 300px; /* height overridden per-face below */
-  transform-origin: 0 0;
-  background:
-    repeating-linear-gradient(0deg, rgba(250, 248, 243, 0.14) 0 7px, transparent 7px 16px),
-    repeating-linear-gradient(90deg, rgba(250, 248, 243, 0.10) 0 10px, transparent 10px 22px),
-    linear-gradient(180deg, var(--ink-2), var(--brand-ink));
-  backface-visibility: visible;
-}
-.city-tower .f-n { width: 100%; height: var(--h); transform: rotateX(90deg); }
-.city-tower .f-e { left: 100%; top: 0; width: 100%; height: var(--h); transform: rotateZ(90deg) rotateX(90deg); }
-.city-tower.minor .city-face { background: repeating-linear-gradient(0deg, rgba(250,248,243,0.10) 0 6px, transparent 6px 13px), linear-gradient(180deg, #3d565a, #2c4348); }
-.city-tower.minor .city-roof { background: #e3ede9; border-color: #d3e2dc; }
-/* spotlight towers light up as the story reaches them */
-.city-stage[data-scene="2"] .city-tower[data-spotlight="match"] .city-face,
-.city-stage[data-scene="3"] .city-tower[data-spotlight="match"] .city-face {
-  background:
-    repeating-linear-gradient(0deg, rgba(233, 253, 250, 0.35) 0 7px, transparent 7px 16px),
-    linear-gradient(180deg, #0aa9a6, #067a7c);
-}
-.city-stage[data-scene="2"] .city-tower[data-spotlight="match"] .city-roof,
-.city-stage[data-scene="3"] .city-tower[data-spotlight="match"] .city-roof { background: var(--brand); border-color: var(--brand-strong); }
-.city-stage[data-scene="3"] .city-tower[data-spotlight="apply"] .city-face {
-  background:
-    repeating-linear-gradient(0deg, rgba(255, 240, 235, 0.32) 0 7px, transparent 7px 16px),
-    linear-gradient(180deg, #ff8a6b, #e04e2e);
-}
-.city-stage[data-scene="3"] .city-tower[data-spotlight="apply"] .city-roof { background: var(--coral); border-color: #d64a2c; }
-/* billboards counter-rotate to face the camera */
-.city-billboard {
-  position: absolute; left: 50%; top: 50%; width: 150px; margin: -75px 0 0 -75px; text-align: center;
-  transform: translateZ(calc(var(--h) + 46px)) rotateZ(calc(var(--rz, 42deg) * -1)) rotateX(calc(var(--rx, 62deg) * -1));
-  pointer-events: none;
-}
-.city-billboard b { display: block; font-family: var(--font-display); font-size: 15.5px; font-weight: 600; letter-spacing: 0.01em; color: var(--brand-ink); }
-.city-billboard i { display: block; font-style: normal; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
-.city-billboard::after { content: ""; display: block; width: 1px; height: 26px; background: var(--line-strong, var(--line)); margin: 6px auto 0; }
-/* protagonist markers */
-.city-marker { position: absolute; left: 372px; top: 330px; transform: translateZ(340px); opacity: 0; transition: opacity 0.5s var(--ease); pointer-events: none; }
-.city-marker span { display: block; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; border: 3px solid var(--brand); background: rgba(255,255,255,0.9); box-shadow: 0 0 0 8px rgba(10, 169, 166, 0.16); }
-.city-marker.m-apply { left: 522px; top: 330px; }
-.city-marker.m-apply span { border-color: var(--coral); box-shadow: 0 0 0 8px rgba(255, 106, 77, 0.14); }
-.city-stage[data-scene="2"] .m-match, .city-stage[data-scene="3"] .m-match { opacity: 1; }
-.city-stage[data-scene="3"] .m-apply { opacity: 1; }
-.city-fog { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(90% 60% at 50% 42%, transparent 55%, rgba(250, 248, 243, 0.9) 100%); }
-.city-hint { font-size: 12.5px; margin: 10px 0 0; text-align: center; letter-spacing: 0.01em; }
-
-/* ============================================================
-   ScrollStory · the pinned cinematic track
-   ============================================================ */
-.story { position: relative; height: 340vh; }
-.story-sticky { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; justify-content: center; overflow: hidden; padding: 72px 0 40px; }
-.story-sticky .city-viewport { height: min(62vh, 620px); border-radius: 0; border-left: 0; border-right: 0; border-top: 0; }
-.story-captions { position: absolute; inset: auto 0 8vh 0; display: grid; place-items: center; padding: 0 20px; pointer-events: none; }
-.story-cap {
-  grid-area: 1 / 1; max-width: 620px; text-align: center; opacity: 0; transform: translateY(14px);
-  background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(6px);
-  border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 20px 26px 22px;
-}
-.story-cap .story-kicker { display: block; font-size: 11.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--brand-strong); font-weight: 700; margin-bottom: 8px; }
-.story-cap h3 { font-family: var(--font-display); font-size: clamp(21px, 3vw, 30px); font-weight: 600; letter-spacing: -0.01em; color: var(--ink); margin: 0 0 8px; }
-.story-cap p { margin: 0; font-size: 15px; line-height: 1.6; color: var(--ink-2); }
-.story-rail { position: absolute; left: max(18px, calc(50% - 620px)); top: 50%; transform: translateY(-50%); list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 18px; }
-.story-rail li { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line-strong, var(--line)); background: var(--card); display: grid; place-items: center; font-size: 10.5px; font-weight: 700; color: var(--muted-2); transition: all 0.35s var(--ease); }
-.story-rail li.on { border-color: var(--brand); color: var(--brand-strong); box-shadow: 0 0 0 5px var(--brand-soft); }
-.story-rail-bar { position: absolute; left: 14px; top: 34px; bottom: 34px; width: 2px; background: var(--line); }
-.story-rail-bar::before { content: ""; position: absolute; inset: 0; background: var(--brand); }
-.story-hint { margin-top: 14px; }
-
-/* ============================================================
    DemoReel · the animated walkthrough (homepage video)
    ============================================================ */
 .reel { max-width: 860px; margin: 0 auto; }
@@ -1572,16 +1466,10 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--brand); outline
    ============================================================ */
 @media (max-width: 900px) {
   .mk-case { grid-template-columns: 1fr; }
-  .story { height: 300vh; }
-  .story-cap { max-width: 92vw; padding: 16px 18px 18px; }
-  .story-rail { left: 10px; }
-  .story-rail li { width: 24px; height: 24px; font-size: 9.5px; }
-  .story-captions { inset: auto 0 5vh 0; }
 }
 @media (max-width: 760px) {
   /* the pinned story-desktop no longer renders on mobile (v4.1);
      keep reel + case + plate polish here */
-  .city-tower.minor { display: none; }
   .reel-stage { height: 340px; }
   .rs { gap: 13px; padding: 20px; }
   .rs-job { grid-template-columns: auto 1fr auto; }
@@ -1601,12 +1489,6 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--brand); outline
    ============================================================ */
 @media (prefers-reduced-motion: reduce) {
   .reveal { opacity: 1; transform: none; transition: none; }
-  .story { height: auto; }
-  .story-sticky { position: static; height: auto; padding: 24px 0; }
-  .story-sticky .city-viewport { height: 400px; border-radius: var(--radius-lg); border: 1px solid var(--line); }
-  .story-captions { position: static; display: flex; flex-direction: column; gap: 14px; padding: 20px; }
-  .story-cap { position: static; opacity: 1; transform: none; }
-  .story-rail, .story-hint { display: none; }
   .rs > *, .rs-lines i, .rs-meter div i, .rs-sweepline, .rs-actions .yes, .reel-text h3, .reel-text p { animation: none !important; }
   .rs-sweepline { display: none; }
   .mk-tool, .mk-trust, .mk-btn-accent, .mk-btn-ghost { transition: none; }
@@ -1618,30 +1500,6 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--brand); outline
    Desktop keeps the pinned cinematic track; mobile gets an
    unpinned composition (compact city + swipeable scene cards).
    ============================================================ */
-.story-mobile { display: none; }
-@media (max-width: 760px) {
-  .story-desktop { display: none; }
-  .story-mobile { display: block; padding: 40px 0 8px; }
-  .story-mobile-head { text-align: center; margin-bottom: 18px; }
-  .story-mobile-head h2 { font-family: var(--font-display); font-size: clamp(24px, 6vw, 30px); font-weight: 600; letter-spacing: -0.01em; color: var(--ink); margin: 10px 0 0; }
-  .story-mobile .city-viewport { height: 46vh; min-height: 300px; max-height: 420px; border-radius: var(--radius); margin: 0 16px; }
-  .story-mobile .city-hint { display: none; }
-  .story-mobile-hint { display: block; margin: 12px 16px 0; }
-  .story-strip {
-    display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch; padding: 18px 16px 6px; scrollbar-width: none;
-  }
-  .story-strip::-webkit-scrollbar { display: none; }
-  .story-strip-card {
-    scroll-snap-align: center; flex: 0 0 min(78vw, 330px);
-    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
-    padding: 18px 20px 20px; box-shadow: var(--shadow-sm);
-  }
-  .story-strip-card .story-kicker { display: block; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--brand-strong); font-weight: 700; margin-bottom: 8px; }
-  .story-strip-card h3 { font-family: var(--font-display); font-size: 19px; font-weight: 600; color: var(--ink); margin: 0 0 8px; letter-spacing: -0.01em; }
-  .story-strip-card p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--ink-2); }
-}
-
 /* Additional mobile fitting polish (v4.1) */
 @media (max-width: 760px) {
   .mk-hero { padding: 56px 0 44px; }
@@ -1656,5 +1514,113 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--brand); outline
   .reel-chrome .reel-url { font-size: 10.5px; }
   .mk-btn-accent, .mk-btn-ghost { font-size: 14.5px; }
   .plate { height: min(64vw, 340px); }
-  .story-mobile .city-viewport { height: 42vh; }
+}
+
+/* ============================================================
+   v5 · MarketStory (3D-free), mobile chip nav, thumb-zone CTA,
+   research-based mobile fixes (44-48px targets, 16px body,
+   visible nav, overflow safety, safe-area insets)
+   ============================================================ */
+
+/* ---- Global mobile safety ---- */
+html, body { overflow-x: clip; }
+
+/* ---- MarketStory ---- */
+.mstory { padding: 72px 0; }
+.mstory-band {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 28px; align-items: center;
+  background: var(--brand-ink); color: #eafaf8; border-radius: var(--radius-lg);
+  padding: 30px 36px; position: relative; overflow: hidden;
+}
+.mstory-band::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(60% 120% at 85% 0%, rgba(10, 169, 166, 0.28), transparent 60%);
+}
+.mstat { display: flex; flex-direction: column; gap: 4px; min-width: 150px; }
+.mlive { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: #8fe3dd; }
+.mlive i { width: 7px; height: 7px; border-radius: 50%; background: #2fd9a8; animation: mpulse 2.2s ease-in-out infinite; }
+@keyframes mpulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(47, 217, 168, 0.5); } 60% { box-shadow: 0 0 0 8px rgba(47, 217, 168, 0); } }
+.mnum { font-family: var(--font-display); font-size: clamp(44px, 6vw, 64px); font-weight: 600; line-height: 1; color: #fff; letter-spacing: -0.02em; }
+.mlbl { font-size: 13px; color: #9fc9c5; }
+.msrcs { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.msrc { font-size: 13.5px; color: #cfe9e6; }
+.msrc b { color: #fff; font-weight: 700; margin-right: 4px; }
+.mwhen { display: flex; flex-direction: column; gap: 4px; text-align: right; font-size: 12.5px; color: #9fc9c5; }
+.mstory-scenes { margin-top: 64px; display: flex; flex-direction: column; gap: 0; }
+.mscene {
+  display: grid; grid-template-columns: 130px 1fr; gap: 26px; align-items: start;
+  padding: 40px 0; border-top: 1px solid var(--line);
+}
+.mscene.alt { grid-template-columns: 1fr 130px; }
+.mscene.alt .mscene-n { order: 2; text-align: right; }
+.mscene-n { font-family: var(--font-display); font-size: clamp(40px, 5vw, 58px); font-weight: 200; line-height: 0.9; color: var(--brand-softer); -webkit-text-stroke: 1px var(--brand-line); }
+.mscene h3 { font-family: var(--font-display); font-size: clamp(22px, 2.6vw, 29px); font-weight: 600; letter-spacing: -0.01em; color: var(--ink); margin: 8px 0 10px; }
+.mscene p { margin: 0; font-size: 15.5px; line-height: 1.65; color: var(--ink-2); max-width: 56ch; }
+
+/* ---- Mobile chip nav (visible section navigation) ---- */
+.mchip-nav { display: none; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); }
+.mchip-rail {
+  display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+  -webkit-overflow-scrolling: touch; padding: 10px 20px 12px;
+}
+.mchip-rail::-webkit-scrollbar { display: none; }
+.mchip-rail a {
+  flex: none; display: inline-flex; align-items: center; min-height: 40px; padding: 0 16px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--card);
+  color: var(--ink-2); font-size: 13.5px; font-weight: 600; text-decoration: none;
+  transition: border-color 0.2s var(--ease), color 0.2s var(--ease);
+}
+.mchip-rail a:active { border-color: var(--brand); color: var(--brand-strong); }
+
+/* ---- Thumb-zone mobile CTA ---- */
+.mcta {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 70; display: none;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--bg) 90%, transparent); backdrop-filter: blur(10px);
+  border-top: 1px solid var(--line);
+  opacity: 0; transform: translateY(12px); pointer-events: none;
+  transition: opacity 0.25s var(--ease), transform 0.25s var(--ease);
+}
+.mcta.on { opacity: 1; transform: none; pointer-events: auto; }
+.mcta-in { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.mcta-copy { display: flex; flex-direction: column; line-height: 1.25; }
+.mcta-copy b { font-family: var(--font-display); font-size: 16px; color: var(--ink); }
+.mcta-copy span { font-size: 11.5px; color: var(--muted); }
+.mcta-btn { padding: 12px 22px; min-height: 48px; }
+
+/* ---- Mobile application of the research rules ---- */
+@media (max-width: 760px) {
+  .mchip-nav { display: block; }
+  .mcta { display: block; }
+  body { padding-bottom: 76px; } /* the CTA bar never covers content */
+  .mk-shell { padding: 0 20px; }
+  .mk-section { padding: 64px 0; }
+  .mstory { padding: 56px 0; }
+  .mstory-band { grid-template-columns: 1fr; gap: 16px; padding: 24px 22px; }
+  .mwhen { text-align: left; flex-direction: row; gap: 16px; }
+  .mscene, .mscene.alt { grid-template-columns: 1fr; gap: 8px; padding: 28px 0; }
+  .mscene.alt .mscene-n { order: 0; text-align: left; }
+  .mscene-n { font-size: 38px; }
+  .mscene p { font-size: 15.5px; }
+  /* touch targets: every interactive element at least ~44-48px */
+  .mk-nav .cta { gap: 8px; }
+  .mk-nav .cta a { min-height: 44px; display: inline-flex; align-items: center; padding: 10px 18px; font-size: 14px; }
+  .mk-btn-accent, .mk-btn-ghost { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; }
+  .mk-hero .actions { gap: 10px; }
+  .mk-hero .actions .mk-btn-accent, .mk-hero .actions .mk-btn-ghost { flex: 1 1 auto; text-align: center; }
+  .mk-footer .cols ul li a { display: block; padding: 9px 0; min-height: 44px; }
+  .mk-footer .top { gap: 28px; }
+  /* larger tap rows in the bento + reels */
+  .mk-tool { min-height: 0; }
+  .reel-dots button { width: 16px; height: 16px; }
+}
+@media (max-width: 560px) {
+  .mstory-band { padding: 20px 18px; }
+  .mnum { font-size: 44px; }
+  .mk-hero h1 { font-size: clamp(30px, 8.4vw, 38px); }
+  .mk-hero .trust { font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mlive i { animation: none; }
+  .mcta { transition: none; }
 }

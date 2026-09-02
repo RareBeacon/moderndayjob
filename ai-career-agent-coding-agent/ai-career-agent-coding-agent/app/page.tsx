@@ -3,9 +3,9 @@ import Image from 'next/image';
 import type { CSSProperties } from 'react';
 import { FAQ } from '@/components/site/FAQ';
 import { Reveal } from '@/components/site/Reveal';
-import { ScrollStory } from '@/components/site/ScrollStory';
+import { MarketStory, type MarketData } from '@/components/site/MarketStory';
 import { DemoReel } from '@/components/site/DemoReel';
-import type { MarketData } from '@/components/site/CityStage';
+import { MobileCta } from '@/components/site/MobileCta';
 import { supabaseAdmin } from '@/lib/supabase';
 
 /* Homepage data is ISR: rebuilt on deploy, then refreshed at most every 5
@@ -109,6 +109,18 @@ export default async function HomePage() {
             </span>
           </nav>
         </div>
+        {/* visible mobile navigation, horizontal chip rail (research: never hide core nav) */}
+        <nav className="mchip-nav" aria-label="Sections">
+          <div className="mchip-rail">
+            <Link href="/#market">The market</Link>
+            <Link href="/#how">How it works</Link>
+            <Link href="/#demo">The flow</Link>
+            <Link href="/#case">Case study</Link>
+            <Link href="/#tools">Free tools</Link>
+            <Link href="/#pricing">Pricing</Link>
+            <Link href="/#faq">FAQ</Link>
+          </div>
+        </nav>
       </header>
 
       <main id="main">
@@ -163,8 +175,8 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* 2.5 · The cinematic market story: scroll = camera */}
-        <ScrollStory market={market} />
+        {/* 2.5 · The live market story: stats band + four-beat editorial */}
+        <MarketStory market={market} />
 
         {/* 3 · Career identity, asymmetric copy + profile-strength card */}
         <section className="mk-section">
@@ -554,7 +566,10 @@ export default async function HomePage() {
         </section>
       </main>
 
-      {/* 15 · Footer */}
+      {/* 15 · Mobile thumb-zone CTA */}
+      <MobileCta />
+
+      {/* 16 · Footer */}
       <footer className="mk-footer">
         <div className="mk-shell">
           <div className="top">
