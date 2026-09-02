@@ -12,7 +12,7 @@ const STATUS: Record<string, { label: string; cls: string }> = {
 };
 
 const ERRORS: Record<string, { title: string; detail: string }> = {
-  UNAUTHENTICATED: { title: 'Sign in to continue', detail: 'Create a free account to run the scan — it takes a minute.' },
+  UNAUTHENTICATED: { title: 'Sign in to continue', detail: 'Create a free account to run the scan, it takes a minute.' },
   RATE_LIMITED: { title: 'Slow down', detail: 'Too many scans in a row. Wait a moment.' },
   INVALID_BODY: { title: 'Paste a bit more', detail: 'The CV text needs at least 100 characters.' },
 };
@@ -56,11 +56,11 @@ export function AtsScannerTool({ signedIn }: { signedIn: boolean }) {
         id="ats-cv"
         value={cv}
         onChange={(e) => setCv(e.target.value)}
-        placeholder="Paste the full text of your CV — headings, roles, dates, everything."
+        placeholder="Paste the full text of your CV, headings, roles, dates, everything."
         style={{ minHeight: 150 }}
       />
       <label className="ft-label" htmlFor="ats-jd" style={{ marginTop: 14 }}>
-        Job description <span style={{ color: 'var(--muted-2)', fontWeight: 500 }}>(optional — adds keyword matching)</span>
+        Job description <span style={{ color: 'var(--muted-2)', fontWeight: 500 }}>(optional, adds keyword matching)</span>
       </label>
       <textarea
         id="ats-jd"
@@ -78,7 +78,7 @@ export function AtsScannerTool({ signedIn }: { signedIn: boolean }) {
           <Link className="btn" href="/signup">Create a free account to scan</Link>
         )}
         <span className="muted" style={{ fontSize: 13.5 }}>
-          {enough ? 'Free — deterministic checks, no AI credits.' : `${cv.trim().length}/100 characters minimum.`}
+          {enough ? 'Free, deterministic checks, no AI credits.' : `${cv.trim().length}/100 characters minimum.`}
         </span>
       </div>
 

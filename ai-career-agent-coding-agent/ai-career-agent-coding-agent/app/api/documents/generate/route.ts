@@ -21,10 +21,10 @@ const body = z.object({
 });
 
 /**
- * POST /api/documents/generate — Phase 7 application intelligence.
+ * POST /api/documents/generate, Phase 7 application intelligence.
  *
  * Generates a CV / cover letter / application answers using ONLY profile facts,
- * runs the deterministic truthfulness checker, and — only if it passes — stores
+ * runs the deterministic truthfulness checker, and, only if it passes, stores
  * the result as an immutable, versioned generated_documents row. Costs one daily
  * AI credit, refunded when the AI fails or the output is rejected for
  * unsupported facts.
@@ -81,7 +81,7 @@ export async function POST(req: Request) {
   try {
     result = await generateDocument({ kind, profile, job, questions, gateway });
   } catch (err) {
-    // Provider failure (or no providers) — refund and surface as upstream error.
+    // Provider failure (or no providers), refund and surface as upstream error.
     await meter.refund();
     if (err instanceof AIGatewayError) {
       return NextResponse.json({ error: err.code }, { status: 502 });

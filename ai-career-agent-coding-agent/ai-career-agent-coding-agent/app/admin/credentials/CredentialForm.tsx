@@ -2,7 +2,7 @@
 import { useState } from 'react';
 
 /** Add an encrypted per-user provider key. Logic identical to the original
- *  form — restyled only (labels, grid, admin tokens). */
+ *  form, restyled only (labels, grid, admin tokens). */
 export default function CredentialForm() {
   const [userId, setUserId] = useState('');
   const [provider, setProvider] = useState<'openrouter' | 'huggingface'>('openrouter');

@@ -10,7 +10,7 @@ import { generateInterviewQuestions } from '@/lib/analysis/service';
 const body = z.object({ jobDescription: z.string().min(30).max(30000) });
 
 /**
- * POST /api/ai/interview-questions — free-tool interview practice generator.
+ * POST /api/ai/interview-questions, free-tool interview practice generator.
  *
  * Questions are derived only from what the listing states. Costs one daily
  * AI credit, refunded when the provider fails. Public tool pages gate this

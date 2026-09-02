@@ -1,4 +1,4 @@
-/** Deterministic ATS-style resume scanner — no AI, no credits, no claims.
+/** Deterministic ATS-style resume scanner, no AI, no credits, no claims.
  *
  * This scores STRUCTURE and PARSEABILITY of pasted CV text against a fixed
  * public rubric. It never judges the person. Every finding states exactly
@@ -73,10 +73,10 @@ export function scanResume(resumeText: string, jobDescription?: string): AtsResu
   };
 
   // 1. Length
-  if (words < 180) add('Length', 'fail', `${words} words — too thin for most parsers to find substance.`, 'Aim for 350+ words covering roles and results.', 12);
-  else if (words < 350) add('Length', 'warn', `${words} words — on the light side.`, 'Most strong CVs land between 350 and 1,200 words.', 12);
-  else if (words <= 1200) add('Length', 'pass', `${words} words — a healthy, parseable length.`, undefined, 12);
-  else add('Length', 'warn', `${words} words — very long; recruiters skim.`, 'Trim to what matters for the target role.', 12);
+  if (words < 180) add('Length', 'fail', `${words} words, too thin for most parsers to find substance.`, 'Aim for 350+ words covering roles and results.', 12);
+  else if (words < 350) add('Length', 'warn', `${words} words, on the light side.`, 'Most strong CVs land between 350 and 1,200 words.', 12);
+  else if (words <= 1200) add('Length', 'pass', `${words} words, a healthy, parseable length.`, undefined, 12);
+  else add('Length', 'warn', `${words} words, very long; recruiters skim.`, 'Trim to what matters for the target role.', 12);
 
   // 2. Email
   const hasEmail = /[\w.+-]+@[\w-]+\.[\w.]{2,}/.test(text);
@@ -97,14 +97,14 @@ export function scanResume(resumeText: string, jobDescription?: string): AtsResu
   add(
     'Core sections',
     found === 3 ? 'pass' : found === 2 ? 'warn' : 'fail',
-    `${found} of 3 standard sections detected${missing.length ? ` — missing: ${missing.join(', ')}` : ''}.`,
+    `${found} of 3 standard sections detected${missing.length ? `, missing: ${missing.join(', ')}` : ''}.`,
     'Use plain headings: Experience, Education, Skills.',
     16,
   );
 
   // 5. Dates
   const hasYears = /\b(19|20)\d{2}\b/.test(text);
-  add('Dates', hasYears ? 'pass' : 'fail', hasYears ? 'Year references found.' : 'No dates detected — parsers use them to build your timeline.', 'Add start/end years to each role (e.g. 2022 – 2024).', 8);
+  add('Dates', hasYears ? 'pass' : 'fail', hasYears ? 'Year references found.' : 'No dates detected, parsers use them to build your timeline.', 'Add start/end years to each role (e.g. 2022-2024).', 8);
 
   // 6. Action verbs
   const verbHits = ACTION_VERBS.filter((v) => new RegExp(`\\b${v}\\b`, 'i').test(text));
@@ -114,7 +114,7 @@ export function scanResume(resumeText: string, jobDescription?: string): AtsResu
 
   // 7. First person
   const firstPerson = /\b(i|my|me|mine)\b/i.test(text);
-  add('First person', firstPerson ? 'warn' : 'pass', firstPerson ? 'First-person pronouns detected.' : 'No first-person pronouns — good.', 'CVs read stronger without “I”; let the verbs work.', 6);
+  add('First person', firstPerson ? 'warn' : 'pass', firstPerson ? 'First-person pronouns detected.' : 'No first-person pronouns, good.', 'CVs read stronger without “I”; let the verbs work.', 6);
 
   // 8. Emoji / decorative characters
   const emoji = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(text);

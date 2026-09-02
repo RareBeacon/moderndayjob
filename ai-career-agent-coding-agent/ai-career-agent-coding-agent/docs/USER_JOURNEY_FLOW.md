@@ -1,6 +1,6 @@
-# AI Career Agent — User Journey Flow
+# AI Career Agent, User Journey Flow
 
-## Journey 1 — New User
+## Journey 1, New User
 
 ```text
 Landing Page
@@ -30,7 +30,7 @@ Activate Agent
 Dashboard
 ```
 
-## Journey 2 — AI Engineer
+## Journey 2, AI Engineer
 
 ```text
 Role: AI Engineer
@@ -56,7 +56,7 @@ Agent:
 - Submit according to mode
 ```
 
-## Journey 3 — Content Creator
+## Journey 3, Content Creator
 
 Exactly the same flow, but the user profile contains:
 - Content creation skills.
@@ -68,7 +68,7 @@ Exactly the same flow, but the user profile contains:
 
 No code path should be hard-coded to AI engineering.
 
-## Journey 4 — Daily Agent Run
+## Journey 4, Daily Agent Run
 
 ```text
 Daily Trigger
@@ -106,7 +106,7 @@ Record
 Notify
 ```
 
-## Journey 5 — Approval Mode
+## Journey 5, Approval Mode
 
 ```text
 Job shortlisted
@@ -130,7 +130,7 @@ User reviews
        Record
 ```
 
-## Journey 6 — Interview
+## Journey 6, Interview
 
 ```text
 Gmail event
@@ -150,7 +150,7 @@ Notify user
 Dashboard updates
 ```
 
-## Journey 7 — Pause
+## Journey 7, Pause
 
 User selects:
 `Pause Agent`
@@ -161,7 +161,7 @@ The system:
 - Allows existing in-flight operations to finish safely.
 - Preserves all history.
 
-## Journey 8 — Failure
+## Journey 8, Failure
 
 ```text
 Operation fails

@@ -8,7 +8,7 @@ import type { FetchLike, NormalizedJob, SourceAdapter } from '../lib/jobsources/
 const jsonResponse = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
-describe('adapters — normalization from real API shapes', () => {
+describe('adapters, normalization from real API shapes', () => {
   it('greenhouse: maps id/title/url/location and strips HTML', async () => {
     const fetchImpl: FetchLike = async () =>
       jsonResponse({ jobs: [{ id: 12345, title: 'Platform Engineer', absolute_url: 'https://boards.greenhouse.io/stripe/jobs/12345', location: { name: 'Remote (EMEA)' }, content: '<p><strong>Build</strong> infrastructure.</p>' }] });
@@ -53,7 +53,7 @@ describe('adapters — normalization from real API shapes', () => {
   });
 });
 
-describe('ingestion — error isolation + idempotent upserts', () => {
+describe('ingestion, error isolation + idempotent upserts', () => {
   const okAdapter = (id: string, n: number): SourceAdapter => ({
     id, label: id, fetchBatch: async (limit: number) => Array.from({ length: Math.min(n, limit) }, (_, i) => ({ source: 'GREENHOUSE', external_id: `${id}-${i}`, company: id, title: 'T', url: 'https://x', description: 'd', location: null, metadata: {} })),
   });

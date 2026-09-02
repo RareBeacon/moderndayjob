@@ -16,7 +16,7 @@ const DEFAULT_MAX_SCORED = 10;
 const DEFAULT_CONCURRENCY = 3;
 
 /**
- * Structural gateway dependency — the real `AIGateway` (packages/ai/gateway)
+ * Structural gateway dependency, the real `AIGateway` (packages/ai/gateway)
  * satisfies this, and tests inject a mock. Keeps the engine free of any
  * env/crypto/supabase import.
  */
@@ -46,7 +46,7 @@ export function verdictForScore(score: number): MatchVerdict {
 /**
  * Phase 6 matching engine.
  *
- *  1. deterministic filter (applied-exclusion + preference rules) — no AI cost;
+ *  1. deterministic filter (applied-exclusion + preference rules), no AI cost;
  *  2. batched AI scoring via the injected gateway, with per-job failure
  *     isolation (one bad job does not abort the batch);
  *  3. threshold + ranking into a shortlist.

@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 /**
  * Mounts once. Enables the `.reveal-ready` initial-hidden state, then reveals
  * every `[data-reveal]` as it scrolls into view. Without JS, content stays
- * visible (progressive enhancement) — good for SEO and no-JS fallbacks.
+ * visible (progressive enhancement), good for SEO and no-JS fallbacks.
  */
 export function ScrollReveal() {
   useEffect(() => {

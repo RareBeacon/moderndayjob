@@ -14,7 +14,7 @@ const body = z.object({
 });
 
 /**
- * POST /api/ai/match — Phase 6 matching.
+ * POST /api/ai/match, Phase 6 matching.
  *
  * Scores the user's job pool against their profile with explainable results,
  * excluding already-applied jobs and preference mismatches deterministically.

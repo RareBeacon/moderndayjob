@@ -1,7 +1,7 @@
 import { runDailyPipeline } from '@/lib/agent/pipeline';
 
 /**
- * Daily pipeline — the free production replacement for an always-on worker.
+ * Daily pipeline, the free production replacement for an always-on worker.
  * Triggered by Vercel Cron (see vercel.json) once a day; Vercel sends
  * `Authorization: Bearer $CRON_SECRET` automatically when CRON_SECRET is set.
  *

@@ -3,7 +3,7 @@ import type { NormalizedJob } from './types';
 
 /**
  * Upserts discovered jobs into the shared jobs pool. Idempotent on (source, external_id)
- * (TECHNICAL_REQUIREMENTS §7, §14). Server/worker-only — uses the service role.
+ * (TECHNICAL_REQUIREMENTS §7, §14). Server/worker-only, uses the service role.
  */
 export async function persistDiscoveredJobs(jobs: NormalizedJob[]): Promise<{ written: number }> {
   if (jobs.length === 0) return { written: 0 };

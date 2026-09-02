@@ -6,7 +6,7 @@ type Range = { jobId: string; min: number | null; max: number | null; exact: num
 type Result = { scannedCount: number; statedCount: number; ranges: Range[]; notes?: string; note?: string };
 
 const ERRORS: Record<string, { title: string; detail: string }> = {
-  UNAUTHENTICATED: { title: 'Sign in to continue', detail: 'Create a free account to run the check — it takes a minute.' },
+  UNAUTHENTICATED: { title: 'Sign in to continue', detail: 'Create a free account to run the check, it takes a minute.' },
   DAILY_AI_CREDITS_EXHAUSTED: { title: 'Out of AI credits', detail: 'Your daily AI credits are used up. They reset tomorrow.' },
   AI_CREDENTIAL_NOT_CONFIGURED: { title: 'Connect an AI provider', detail: 'Add an OpenRouter or Hugging Face API key in Settings.' },
   TRUTHFULNESS_FAILED: { title: 'Rejected', detail: 'The draft cited a listing outside the scanned set. Your credit was refunded.' },
@@ -15,7 +15,7 @@ const ERRORS: Record<string, { title: string; detail: string }> = {
 };
 
 function fmt(r: Range): string {
-  const amount = r.exact != null ? `${r.exact.toLocaleString()} ${r.currency}` : r.min != null && r.max != null ? `${r.min.toLocaleString()} – ${r.max.toLocaleString()} ${r.currency}` : r.min != null ? `from ${r.min.toLocaleString()} ${r.currency}` : `up to ${r.max?.toLocaleString()} ${r.currency}`;
+  const amount = r.exact != null ? `${r.exact.toLocaleString()} ${r.currency}` : r.min != null && r.max != null ? `${r.min.toLocaleString()}-${r.max.toLocaleString()} ${r.currency}` : r.min != null ? `from ${r.min.toLocaleString()} ${r.currency}` : `up to ${r.max?.toLocaleString()} ${r.currency}`;
   return `${amount} / ${r.period.toLowerCase()}`;
 }
 
@@ -54,7 +54,7 @@ export function SalaryInsightsTool({ signedIn }: { signedIn: boolean }) {
     <div className="ft-tool">
       <p className="muted" style={{ margin: 0 }}>
         We read up to 20 real listings matching a role and report <b>only the pay ranges they
-        explicitly state</b> — no estimates, no invented &quot;market averages&quot;. If listings
+        explicitly state</b>, no estimates, no invented &quot;market averages&quot;. If listings
         don&apos;t say, we say so.
       </p>
       <div className="ft-fields" style={{ gridTemplateColumns: '1fr' }}>
@@ -76,7 +76,7 @@ export function SalaryInsightsTool({ signedIn }: { signedIn: boolean }) {
 
       {!signedIn && (
         <p className="muted" style={{ marginTop: 12, fontSize: 14 }}>
-          Free forever plan included — 2 AI credits every day.{' '}
+          Free forever plan included, 2 AI credits every day.{' '}
           <Link href="/login" className="inline-link">Already have an account? Sign in →</Link>
         </p>
       )}
@@ -108,7 +108,7 @@ export function SalaryInsightsTool({ signedIn }: { signedIn: boolean }) {
           ) : (
             <div className="dd-empty">
               <p className="muted" style={{ margin: 0 }}>
-                {result.notes || 'None of the scanned listings stated a pay range.'} That is normal — most employers keep pay off the listing.
+                {result.notes || 'None of the scanned listings stated a pay range.'} That is normal, most employers keep pay off the listing.
               </p>
             </div>
           )}

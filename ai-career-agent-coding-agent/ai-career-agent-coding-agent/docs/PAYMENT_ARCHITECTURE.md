@@ -1,4 +1,4 @@
-# Payment Architecture — Flutterwave
+# Payment Architecture, Flutterwave
 
 ## Plans
 - FREE: ₦0; 2 AI career credits/day; no autonomous applications.

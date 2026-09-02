@@ -1,4 +1,4 @@
-# Modern Job — End-to-End Execution Plan
+# Modern Job, End-to-End Execution Plan
 
 **Source of truth:** `RareBeacon/moderndayjob` architecture and security rules.
 
@@ -33,7 +33,7 @@ The product is ready for controlled production launch only when:
 
 ---
 
-## Phase 0 — Architecture, repository, and deployment safety
+## Phase 0, Architecture, repository, and deployment safety
 
 ### Deliverables
 - Repository structure aligned with web, packages, workers, migrations, docs, and tests.
@@ -50,7 +50,7 @@ The product is ready for controlled production launch only when:
 
 ---
 
-## Phase 1 — Identity, tenant isolation, and workspace onboarding
+## Phase 1, Identity, tenant isolation, and workspace onboarding
 
 ### Deliverables
 - Email/password signup, login, session refresh, sign-out, and protected routes.
@@ -72,7 +72,7 @@ The product is ready for controlled production launch only when:
 
 ---
 
-## Phase 2 — Private document management
+## Phase 2, Private document management
 
 ### Deliverables
 - Private Supabase Storage buckets.
@@ -88,7 +88,7 @@ The product is ready for controlled production launch only when:
 
 ---
 
-## Phase 3 — Career workspace and application tracking
+## Phase 3, Career workspace and application tracking
 
 ### Deliverables
 - Dashboard populated from real records only.
@@ -104,7 +104,7 @@ The product is ready for controlled production launch only when:
 
 ---
 
-## Phase 4 — Entitlements, quotas, billing, and administration
+## Phase 4, Entitlements, quotas, billing, and administration
 
 ### Deliverables
 - Server-side plan/entitlement service.
@@ -125,7 +125,7 @@ The product is ready for controlled production launch only when:
 
 ---
 
-## Phase 5 — AI career tools
+## Phase 5, AI career tools
 
 ### Deliverables
 - Provider adapter interface: OpenRouter primary, Hugging Face fallback.
@@ -146,7 +146,7 @@ The product is ready for controlled production launch only when:
 
 ---
 
-## Phase 6 — Job discovery and matching
+## Phase 6, Job discovery and matching
 
 ### Deliverables
 - Normalized job model.
@@ -166,7 +166,7 @@ The product is ready for controlled production launch only when:
 
 ---
 
-## Phase 7 — Application intelligence and controlled workflow
+## Phase 7, Application intelligence and controlled workflow
 
 ### Deliverables
 - Immutable resume/cover-letter/application-answer versions.
@@ -180,7 +180,7 @@ The product is ready for controlled production launch only when:
 
 ---
 
-## Phase 8 — Workers and controlled automation
+## Phase 8, Workers and controlled automation
 
 ### Deliverables
 - Render web/agent/browser/scheduler services.
@@ -202,7 +202,7 @@ The product is ready for controlled production launch only when:
 
 ---
 
-## Phase 9 — Quality, observability, and launch
+## Phase 9, Quality, observability, and launch
 
 ### Deliverables
 - Unit, integration, RLS, billing, quota-race, AI-schema, browser-adapter, SSRF, and end-to-end tests.

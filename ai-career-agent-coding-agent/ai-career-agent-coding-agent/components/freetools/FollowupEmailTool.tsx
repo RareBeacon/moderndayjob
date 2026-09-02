@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { CopyButton } from './CopyButton';
 
 const ERRORS: Record<string, { title: string; detail: string }> = {
-  UNAUTHENTICATED: { title: 'Sign in to continue', detail: 'Create a free account to draft your email — it takes a minute.' },
+  UNAUTHENTICATED: { title: 'Sign in to continue', detail: 'Create a free account to draft your email, it takes a minute.' },
   DAILY_AI_CREDITS_EXHAUSTED: { title: 'Out of AI credits', detail: 'Your daily AI credits are used up. They reset tomorrow.' },
   AI_CREDENTIAL_NOT_CONFIGURED: { title: 'Connect an AI provider', detail: 'Add an OpenRouter or Hugging Face API key in Settings.' },
   RATE_LIMITED: { title: 'Slow down', detail: 'Too many requests. Wait a moment.' },
@@ -63,7 +63,7 @@ export function FollowupEmailTool({ signedIn }: { signedIn: boolean }) {
   return (
     <div className="ft-tool">
       <p className="muted" style={{ margin: 0 }}>
-        A short, polite follow-up drafted from the facts you give — company, role, when you applied.
+        A short, polite follow-up drafted from the facts you give, company, role, when you applied.
         Nothing invented: no fake names, no imagined conversations.
       </p>
       <div className="ft-fields">
@@ -89,7 +89,7 @@ export function FollowupEmailTool({ signedIn }: { signedIn: boolean }) {
 
       {!signedIn && (
         <p className="muted" style={{ marginTop: 12, fontSize: 14 }}>
-          Free forever plan included — 2 AI credits every day.{' '}
+          Free forever plan included, 2 AI credits every day.{' '}
           <Link href="/login" className="inline-link">Already have an account? Sign in →</Link>
         </p>
       )}
@@ -114,7 +114,7 @@ export function FollowupEmailTool({ signedIn }: { signedIn: boolean }) {
             <CopyButton text={email.body} />
           </div>
           <p className="muted" style={{ marginTop: 12, fontSize: 12 }}>
-            Read before sending — make it sound like you, and only include what is true.
+            Read before sending, make it sound like you, and only include what is true.
           </p>
         </div>
       )}

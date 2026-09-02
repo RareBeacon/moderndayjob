@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
-/* AppShell — the authenticated chrome (Phase 2): a receding warm sidebar
+/* AppShell, the authenticated chrome (Phase 2): a receding warm sidebar
    on desktop, a top bar with a CSS-only mobile drawer, and a fixed bottom
    tab bar on mobile. Server component (no hooks); active state passed per
    page. Token-driven; recedes so the work area takes precedence (Linear). */

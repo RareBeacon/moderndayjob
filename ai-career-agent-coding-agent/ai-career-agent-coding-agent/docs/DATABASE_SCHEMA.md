@@ -1,4 +1,4 @@
-# AI Career Agent — Database Schema
+# AI Career Agent, Database Schema
 
 ## Design Rules
 

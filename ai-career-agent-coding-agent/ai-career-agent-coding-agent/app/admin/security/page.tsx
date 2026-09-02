@@ -5,7 +5,7 @@ import { AdminShell, AdminForbidden } from '@/components/site/AdminShell';
 
 export const dynamic = 'force-dynamic';
 
-/** Admin • Security — duplicate-risk review, highest risk first.
+/** Admin • Security, duplicate-risk review, highest risk first.
  *  Server-side gated (the old client-only fetch had no page-level gate).
  *  Enforcement stays on the server-side termination endpoint. */
 export default async function AdminSecurityPage() {
@@ -37,7 +37,7 @@ export default async function AdminSecurityPage() {
     <AdminShell active="security">
       <h1 className="ad-h1">Security</h1>
       <p className="ad-lede">
-        Duplicate-risk signals across accounts, highest first. Review before acting — termination is
+        Duplicate-risk signals across accounts, highest first. Review before acting, termination is
         enforced through the audited server-side endpoint, never from this page.
       </p>
 
@@ -60,8 +60,8 @@ export default async function AdminSecurityPage() {
             )}
             {rows.map((x) => (
               <tr key={x.user_id}>
-                <td className="ad-mono">{x.email ?? '—'}</td>
-                <td>{x.full_name ?? '—'}</td>
+                <td className="ad-mono">{x.email ?? '-'}</td>
+                <td>{x.full_name ?? '-'}</td>
                 <td>
                   <span className="ad-chip">{x.plan ?? 'unknown'}</span>
                 </td>

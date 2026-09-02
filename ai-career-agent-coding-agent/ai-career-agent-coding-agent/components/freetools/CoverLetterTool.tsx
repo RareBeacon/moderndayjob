@@ -5,7 +5,7 @@ import { useState } from 'react';
 type Report = { passed: boolean; summary: string };
 
 const ERRORS: Record<string, { title: string; detail: string }> = {
-  UNAUTHENTICATED: { title: 'Sign in to continue', detail: 'Create a free account to write your letter — it takes a minute.' },
+  UNAUTHENTICATED: { title: 'Sign in to continue', detail: 'Create a free account to write your letter, it takes a minute.' },
   CAREER_PROFILE_REQUIRED: { title: 'Complete your profile first', detail: 'The letter is built from your verified facts. Add your experience under Profile, then come back.' },
   DAILY_AI_CREDITS_EXHAUSTED: { title: 'Out of AI credits', detail: 'Your daily AI credits are used up. They reset tomorrow.' },
   AI_CREDENTIAL_NOT_CONFIGURED: { title: 'Connect an AI provider', detail: 'Add an OpenRouter or Hugging Face API key in Settings.' },
@@ -50,7 +50,7 @@ export function CoverLetterTool({ signedIn }: { signedIn: boolean }) {
   return (
     <div className="ft-tool">
       <p className="muted" style={{ margin: 0 }}>
-        We write a concise, truthful cover letter from your verified profile facts — never invented
+        We write a concise, truthful cover letter from your verified profile facts, never invented
         employers, metrics, or skills. Tailoring to a specific saved job is available in your workspace.
       </p>
       <div className="ft-actions">
@@ -66,7 +66,7 @@ export function CoverLetterTool({ signedIn }: { signedIn: boolean }) {
 
       {!signedIn && (
         <p className="muted" style={{ marginTop: 12, fontSize: 14 }}>
-          Free forever plan included — 2 AI credits every day.{' '}
+          Free forever plan included, 2 AI credits every day.{' '}
           <Link href="/login" className="inline-link">Already have an account? Sign in →</Link>
         </p>
       )}
@@ -85,7 +85,7 @@ export function CoverLetterTool({ signedIn }: { signedIn: boolean }) {
           {report && (
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14 }}>
               <span className="badge" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>
-                {report.passed ? 'Truthful — verified' : 'Rejected'}
+                {report.passed ? 'Truthful, verified' : 'Rejected'}
               </span>
               {version ? <span className="muted" style={{ fontSize: 13 }}>Saved as immutable version {version}</span> : null}
               <span className="muted" style={{ fontSize: 13 }}>{report.summary}</span>

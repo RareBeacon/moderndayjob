@@ -3,7 +3,7 @@ import type { AdapterContext, JobSourceAdapter, NormalizedJob } from '../types';
 
 /**
  * Greenhouse public job-board API (boards-api.greenhouse.io). This is a legitimate
- * public JSON API for career pages — not scraping. The host is fixed, and the board
+ * public JSON API for career pages, not scraping. The host is fixed, and the board
  * token is validated to a safe charset so it cannot alter the host (SSRF-safe).
  */
 const HOST = 'https://boards-api.greenhouse.io';

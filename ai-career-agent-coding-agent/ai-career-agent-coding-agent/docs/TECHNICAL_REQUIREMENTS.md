@@ -1,4 +1,4 @@
-# AI Career Agent — Technical Requirements
+# AI Career Agent, Technical Requirements
 
 ## 1. Technology Baseline
 

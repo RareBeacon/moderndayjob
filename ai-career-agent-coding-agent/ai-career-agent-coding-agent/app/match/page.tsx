@@ -59,7 +59,7 @@ export default function MatchPage() {
           },
           DAILY_AI_CREDITS_EXHAUSTED: {
             title: 'Daily AI credits used up',
-            detail: 'Your plan’s daily AI credits are exhausted. They reset tomorrow — or upgrade for more.',
+            detail: 'Your plan’s daily AI credits are exhausted. They reset tomorrow, or upgrade for more.',
           },
           CAREER_PROFILE_REQUIRED: {
             title: 'Complete your profile first',
@@ -93,7 +93,7 @@ export default function MatchPage() {
         <p className="eyebrow">Matching engine</p>
         <h1>Job matches</h1>
         <p style={{ color: 'var(--muted)', fontSize: 17, margin: '14px 0 0' }}>
-          We score every job in your pool against your profile and explain exactly why each one fits —
+          We score every job in your pool against your profile and explain exactly why each one fits,
           excluding jobs you’ve already applied to and ones outside your preferences.
         </p>
       </div>
@@ -206,7 +206,7 @@ function MatchCard({ m }: { m: JobMatch }) {
           </div>
           <p className="muted" style={{ fontSize: 12, gridColumn: '1 / -1' }}>
             Scored by {m.provider}. % alignment compares your verified profile to this listing&apos;s stated
-            requirements — it never guarantees an interview.
+            requirements, it never guarantees an interview.
           </p>
         </div>
       )}

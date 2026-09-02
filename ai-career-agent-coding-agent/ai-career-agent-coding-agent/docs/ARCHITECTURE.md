@@ -1,4 +1,4 @@
-# AI Career Agent — Architecture
+# AI Career Agent, Architecture
 
 ## 1. System Overview
 

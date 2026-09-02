@@ -30,9 +30,9 @@ const VERDICT_LABEL: Record<Verdict, string> = {
 };
 
 const ERRORS: Record<string, { title: string; detail: string }> = {
-  UNAUTHENTICATED: { title: 'Sign in to continue', detail: 'Create a free account to run matching — it takes a minute.' },
+  UNAUTHENTICATED: { title: 'Sign in to continue', detail: 'Create a free account to run matching, it takes a minute.' },
   CAREER_PROFILE_REQUIRED: { title: 'Complete your profile first', detail: 'Matching needs your career profile. Fill it in under Profile, then come back.' },
-  DAILY_AI_CREDITS_EXHAUSTED: { title: 'Daily AI credits used up', detail: 'Your free daily credits are exhausted. They reset tomorrow — or upgrade for more.' },
+  DAILY_AI_CREDITS_EXHAUSTED: { title: 'Daily AI credits used up', detail: 'Your free daily credits are exhausted. They reset tomorrow, or upgrade for more.' },
   AI_CREDENTIAL_NOT_CONFIGURED: { title: 'Connect an AI provider', detail: 'Add an OpenRouter or Hugging Face API key in Settings to power matching.' },
   RATE_LIMITED: { title: 'Slow down', detail: 'Too many requests. Wait a moment and try again.' },
   AI_MATCH_FAILED: { title: 'Matching failed', detail: 'The AI provider could not score these jobs. Your credit was refunded.' },
@@ -71,7 +71,7 @@ export function SkillsMatcherTool({ signedIn }: { signedIn: boolean }) {
   return (
     <div className="ft-tool">
       <p className="muted" style={{ margin: 0 }}>
-        We score the jobs in your pool against your real profile and explain exactly why each one fits —
+        We score the jobs in your pool against your real profile and explain exactly why each one fits,
         strengths, gaps, and the skills that matter. Jobs you&apos;ve already applied to are excluded.
       </p>
       <div className="ft-actions">
@@ -87,7 +87,7 @@ export function SkillsMatcherTool({ signedIn }: { signedIn: boolean }) {
 
       {!signedIn && (
         <p className="muted" style={{ marginTop: 12, fontSize: 14 }}>
-          Free forever plan included — 2 AI credits every day.{' '}
+          Free forever plan included, 2 AI credits every day.{' '}
           <Link href="/login" className="inline-link">Already have an account? Sign in →</Link>
         </p>
       )}
@@ -158,7 +158,7 @@ export function SkillsMatcherTool({ signedIn }: { signedIn: boolean }) {
                         <ul>{m.gaps.length ? m.gaps.map((s, i) => <li key={i}>{s}</li>) : <li>None noted</li>}</ul>
                       </div>
                       <p className="muted" style={{ fontSize: 12, gridColumn: '1 / -1' }}>
-                        % alignment compares your verified profile to this listing&apos;s stated requirements — it never guarantees an interview.
+                        % alignment compares your verified profile to this listing&apos;s stated requirements, it never guarantees an interview.
                       </p>
                     </div>
                   )}

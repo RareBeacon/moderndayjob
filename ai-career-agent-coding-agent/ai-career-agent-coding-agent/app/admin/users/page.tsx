@@ -5,7 +5,7 @@ import { AdminShell, AdminForbidden } from '@/components/site/AdminShell';
 
 export const dynamic = 'force-dynamic';
 
-/** Admin • Users — dense ruled table over the admin_user_overview view.
+/** Admin • Users, dense ruled table over the admin_user_overview view.
  *  Server-side gated: unauthenticated → login, non-admin → forbidden. */
 export default async function AdminUsersPage() {
   const user = await getUser();
@@ -38,7 +38,7 @@ export default async function AdminUsersPage() {
       <h1 className="ad-h1">Users</h1>
       <p className="ad-lede">
         Every account with plan, status, and duplicate-risk signal. Termination is enforced through the
-        server-side endpoint only — never from this page.
+        server-side endpoint only, never from this page.
       </p>
 
       <div className="ad-scroll">
@@ -61,8 +61,8 @@ export default async function AdminUsersPage() {
             )}
             {rows.map((x) => (
               <tr key={x.user_id}>
-                <td className="ad-mono">{x.email ?? '—'}</td>
-                <td>{x.full_name ?? '—'}</td>
+                <td className="ad-mono">{x.email ?? '-'}</td>
+                <td>{x.full_name ?? '-'}</td>
                 <td>
                   <span className="ad-chip">{x.plan ?? 'unknown'}</span>
                 </td>
@@ -72,7 +72,7 @@ export default async function AdminUsersPage() {
                   </span>
                 </td>
                 <td className="ad-mono">{x.risk_score ?? 0}</td>
-                <td className="ad-mono">{x.created_at ? x.created_at.slice(0, 10) : '—'}</td>
+                <td className="ad-mono">{x.created_at ? x.created_at.slice(0, 10) : '-'}</td>
               </tr>
             ))}
           </tbody>
@@ -80,7 +80,7 @@ export default async function AdminUsersPage() {
       </div>
       <p className="muted" style={{ marginTop: 12, fontSize: 12.5 }}>
         {rows.length} account{rows.length === 1 ? '' : 's'}. Risk score is a duplicate/abuse signal from
-        the overview view — investigate before acting.
+        the overview view, investigate before acting.
       </p>
     </AdminShell>
   );

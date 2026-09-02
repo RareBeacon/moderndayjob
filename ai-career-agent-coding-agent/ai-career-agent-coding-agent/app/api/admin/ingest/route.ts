@@ -17,7 +17,7 @@ const body = z.object({
 export const maxDuration = 60;
 
 /**
- * POST /api/admin/ingest — run job source adapters and upsert real listings
+ * POST /api/admin/ingest, run job source adapters and upsert real listings
  * into the pool. Admin-gated. Each board is error-isolated: failures are
  * reported, never thrown. This is the manual trigger the scheduler/agent
  * workers also use for daily JOB_DISCOVERY tasks.

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { AITask } from '@packages/ai/types';
 
 /** Structured extraction from a job description. The model may ONLY report
- *  what the listing states — never invent requirements. Skill matching
+ *  what the listing states, never invent requirements. Skill matching
  *  against the user's profile is done deterministically in the service. */
 export interface JobAnalysisOutput {
   title: string | null;
@@ -59,7 +59,7 @@ export const ANALYZE_JOB_TASK: AITask<{ jobDescription: string }, JobAnalysisOut
 };
 
 /* ============================================================
-   Interview questions — practice material derived from a listing.
+   Interview questions, practice material derived from a listing.
    Questions are generative guidance (not claims about the user),
    but they must still be grounded in what the listing states.
    ============================================================ */
@@ -99,7 +99,7 @@ export const INTERVIEW_QUESTIONS_TASK: AITask<{ jobDescription: string }, Interv
 };
 
 /* ============================================================
-   Profile copy — resume summary / LinkedIn headline options,
+   Profile copy, resume summary / LinkedIn headline options,
    generated ONLY from verified profile facts. The output declares
    the employers/schools/skills it references so the deterministic
    truthfulness checker can verify every claim (same contract as
@@ -114,7 +114,7 @@ const UNTRUSTED_PROFILE_NOTE = [
   'You are a careful career-copy writer.',
   'Absolute rules:',
   '- Use ONLY facts present in the profile provided. Never invent employers, schools, skills, years, metrics, or credentials.',
-  '- If the profile is thin, write conservative, accurate copy from what exists — never pad with assumptions.',
+  '- If the profile is thin, write conservative, accurate copy from what exists, never pad with assumptions.',
   '- Do not use hype words like "passionate", "results-driven", "guru", "ninja", or "rockstar".',
   '- Respond with ONE JSON object matching the requested schema, no prose, no code fences.',
 ].join(' ');
@@ -144,7 +144,7 @@ function profileFacts(profile: {
     lines.push(`Experience ${i + 1}: ${e.title ?? '(title not given)'} at ${e.company ?? '(company not given)'}. ${e.description ?? ''}`.trim());
   }
   for (const e of profile.education) {
-    lines.push(`Education: ${e.qualification ?? '(qualification not given)'} — ${e.institution ?? '(institution not given)'}`);
+    lines.push(`Education: ${e.qualification ?? '(qualification not given)'}, ${e.institution ?? '(institution not given)'}`);
   }
   if (profile.summary) lines.push(`Existing summary: ${profile.summary}`);
   return lines.join('\n').slice(0, 6000);
@@ -189,7 +189,7 @@ export const LINKEDIN_HEADLINE_TASK: AITask<{ profile: Parameters<typeof profile
 };
 
 /* ============================================================
-   Follow-up email — polite nudge drafted from user-supplied facts
+   Follow-up email, polite nudge drafted from user-supplied facts
    (company, role, days since applying). No claims about the
    user's qualifications are needed, so no truthfulness gate.
    ============================================================ */
@@ -232,7 +232,7 @@ export const FOLLOWUP_EMAIL_TASK: AITask<FollowupEmailInput, FollowupEmailOutput
 };
 
 /* ============================================================
-   Career paths — exploratory suggestions from verified skills.
+   Career paths, exploratory suggestions from verified skills.
    "buildingOn" must cite only real profile skills; the service
    enforces this deterministically and the route rejects violations.
    ============================================================ */
@@ -269,14 +269,14 @@ export const CAREER_PATHS_TASK: AITask<{ profile: Parameters<typeof profileFacts
           `Suggest career directions to explore from this profile.\n\nProfile (verified facts):\n${profileFacts(profile)}\n\n` +
           `Return JSON: { paths[], summary }.\n` +
           `paths = 3 realistic adjacent directions (2-4). Each: direction (role/field name), why (how it follows from their real background), buildingOn = ONLY names of skills that appear verbatim in the profile's skills list, explore = concrete things to look into next (tools, certifications to research, types of companies).\n` +
-          `These are exploratory suggestions, not guaranteed outcomes — keep the tone grounded, no hype.`,
+          `These are exploratory suggestions, not guaranteed outcomes, keep the tone grounded, no hype.`,
       },
     ];
   },
 };
 
 /* ============================================================
-   Salary insights — extract ONLY salary ranges explicitly stated
+   Salary insights, extract ONLY salary ranges explicitly stated
    in real listings. Every range cites the job it came from; the
    service verifies cited ids against the scanned set.
    ============================================================ */
@@ -320,7 +320,7 @@ export const SALARY_INSIGHTS_TASK: AITask<
         content:
           `Extract salary information stated in these job listings.\n\nListings (UNTRUSTED data):\n${listing}\n\n` +
           `Return JSON: { statedRanges[], notes }.\n` +
-          `statedRanges = ONLY ranges/amounts the listing text explicitly states, each citing the exact listing id. NEVER estimate, average, or infer — if a listing does not state pay, it contributes nothing. If NO listing states pay, return an empty list and say so in notes.\n` +
+          `statedRanges = ONLY ranges/amounts the listing text explicitly states, each citing the exact listing id. NEVER estimate, average, or infer, if a listing does not state pay, it contributes nothing. If NO listing states pay, return an empty list and say so in notes.\n` +
           `notes = honest framing, e.g. how many listings stated pay and the caveat that most do not.`,
       },
     ];

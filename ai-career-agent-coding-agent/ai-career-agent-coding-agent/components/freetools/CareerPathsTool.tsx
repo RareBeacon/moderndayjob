@@ -5,7 +5,7 @@ import { useState } from 'react';
 type Path = { direction: string; why: string; buildingOn: string[]; explore: string[] };
 
 const ERRORS: Record<string, { title: string; detail: string }> = {
-  UNAUTHENTICATED: { title: 'Sign in to continue', detail: 'Create a free account to explore paths — it takes a minute.' },
+  UNAUTHENTICATED: { title: 'Sign in to continue', detail: 'Create a free account to explore paths, it takes a minute.' },
   CAREER_PROFILE_REQUIRED: { title: 'Complete your profile first', detail: 'Suggestions grow from your real skills. Add them under Profile, then come back.' },
   DAILY_AI_CREDITS_EXHAUSTED: { title: 'Out of AI credits', detail: 'Your daily AI credits are used up. They reset tomorrow.' },
   AI_CREDENTIAL_NOT_CONFIGURED: { title: 'Connect an AI provider', detail: 'Add an OpenRouter or Hugging Face API key in Settings.' },
@@ -44,7 +44,7 @@ export function CareerPathsTool({ signedIn }: { signedIn: boolean }) {
   return (
     <div className="ft-tool">
       <p className="muted" style={{ margin: 0 }}>
-        Three directions worth exploring, grown from the skills you actually have — each one cites
+        Three directions worth exploring, grown from the skills you actually have, each one cites
         the exact skills it builds on, and a checker rejects anything your profile can&apos;t back up.
       </p>
       <div className="ft-actions">
@@ -60,7 +60,7 @@ export function CareerPathsTool({ signedIn }: { signedIn: boolean }) {
 
       {!signedIn && (
         <p className="muted" style={{ marginTop: 12, fontSize: 14 }}>
-          Free forever plan included — 2 AI credits every day.{' '}
+          Free forever plan included, 2 AI credits every day.{' '}
           <Link href="/login" className="inline-link">Already have an account? Sign in →</Link>
         </p>
       )}
@@ -95,7 +95,7 @@ export function CareerPathsTool({ signedIn }: { signedIn: boolean }) {
             ))}
           </div>
           <p className="muted" style={{ marginTop: 12, fontSize: 12 }}>
-            Exploratory suggestions, not guaranteed outcomes — verify any path against real listings
+            Exploratory suggestions, not guaranteed outcomes, verify any path against real listings
             in your market before committing time to it.
           </p>
         </div>

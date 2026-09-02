@@ -6,7 +6,7 @@ import { supabaseJobStore } from '../jobsources/store';
 import type { SourceAdapter } from '../jobsources/types';
 
 /**
- * Shared agent pipeline — the single source of truth for task processing.
+ * Shared agent pipeline, the single source of truth for task processing.
  * Used by BOTH the always-on worker (workers/agent, local/dev or a future
  * paid host) and the free production path (Vercel Cron →
  * /api/cron/daily-pipeline). Same semantics, one implementation.
@@ -53,7 +53,7 @@ export async function refreshPoolIfStale(deps: PipelineDeps): Promise<IngestRepo
   return runIngestion({ adapters: deps.adapters, store: deps.store, limit: deps.limit ?? 30, pauseMs: deps.pauseMs ?? 250 });
 }
 
-/** Process one claimed task. Pure decision logic — completion is the caller's job. */
+/** Process one claimed task. Pure decision logic, completion is the caller's job. */
 export async function processAgentTask(task: AgentTask, deps: PipelineDeps): Promise<{ status: 'SUCCEEDED' | 'WAITING_APPROVAL'; result: Record<string, unknown> }> {
   if (task.type === 'JOB_DISCOVERY') {
     const outcome = await refreshPoolIfStale(deps);
@@ -74,7 +74,7 @@ export async function completeTask(db: SupabaseClient, task: AgentTask, status: 
   await db.from('agent_tasks').update({ status, result, completed_at: new Date().toISOString(), lease_token: null, lease_expires_at: null, updated_at: new Date().toISOString() }).eq('id', task.id).eq('lease_token', task.lease_token);
 }
 
-/** Fail a task — re-queue with backoff while attempts remain, else give up. */
+/** Fail a task, re-queue with backoff while attempts remain, else give up. */
 export async function failTask(db: SupabaseClient, task: AgentTask, error: unknown): Promise<void> {
   const message = error instanceof Error ? error.message : 'TASK_FAILED';
   const retry = task.attempts < 3;
@@ -99,7 +99,7 @@ export interface PipelineReport {
 
 /**
  * The whole daily cycle, in order:
- *  1. enqueue today's discovery tasks (idempotent RPC — on conflict do nothing)
+ *  1. enqueue today's discovery tasks (idempotent RPC, on conflict do nothing)
  *  2. refresh the job pool if stale (also covers the zero-active-users case,
  *     so free tools like Salary Insights always have a populated pool)
  *  3. claim + process tasks until drained (each completes fast; the pool is
@@ -110,15 +110,15 @@ export async function runDailyPipeline(partial: Partial<PipelineDeps> = {}): Pro
   const day = new Date().toISOString().slice(0, 10);
   const report: PipelineReport = { day, enqueued: 0, poolRefresh: null, tasksProcessed: 0, taskOutcomes: [], errors: [] };
 
-  // 1 — enqueue (idempotent)
+  // 1, enqueue (idempotent)
   const { data: enqueued, error: enqueueError } = await deps.db.rpc('enqueue_daily_discovery', { p_day: day });
   if (enqueueError) throw enqueueError;
   report.enqueued = Number(enqueued) || 0;
 
-  // 2 — baseline pool refresh
+  // 2, baseline pool refresh
   report.poolRefresh = await refreshPoolIfStale(deps);
 
-  // 3 — drain tasks
+  // 3, drain tasks
   for (let round = 0; round < MAX_CLAIM_ROUNDS; round++) {
     const tasks = await claimTasks(deps.db, CLAIM_BATCH, 300);
     if (!tasks.length) break;

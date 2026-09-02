@@ -18,7 +18,7 @@ const manual = z.object({
 });
 
 /**
- * POST /api/ai/followup-email — polite follow-up drafted from facts the user
+ * POST /api/ai/followup-email, polite follow-up drafted from facts the user
  * supplies (or from a real tracked application). No qualification claims →
  * no truthfulness gate. One AI credit, refunded on provider failure.
  */

@@ -1,9 +1,9 @@
-# ModernJob — UI/UX Implementation Plan (v2, research-grounded)
+# ModernJob, UI/UX Implementation Plan (v2, research-grounded)
 
 > Prepared **before** building. This document synthesizes a study of real,
 > human-designed SaaS products and the current codebase, then defines an original
 > design language and a phased build plan. Goal: a career product that happens to
-> be powered by AI — **memorable, intelligent, human, premium** — not an AI template.
+> be powered by AI, **memorable, intelligent, human, premium**, not an AI template.
 >
 > Date: 2026-08-23. Author: design lead (Arena agent). Supersedes the visual layer
 > of `docs/UIUX_BRIEF.md` (product flows there still apply, except Gmail which is
@@ -13,7 +13,7 @@
 
 ## 0. TL;DR
 
-- **Position:** the **quality-first, truthful, approval-gated career agent** — the
+- **Position:** the **quality-first, truthful, approval-gated career agent**, the
   white space between spammy auto-blasters (LazyApply/Sonara) and prep-only tools
   (Teal/Jobscan). Every screen must make truthfulness + human control + proof
   legible.
@@ -21,7 +21,7 @@
   (refined turquoise)** for action/progress/match, **two sparing pops** (cobalt =
   intelligence, coral = energy), **mint = success**. Never black; never pure white;
   never purple-blue gradients.
-- **Type:** **Satoshi (display/headings, self-hosted) + Inter (body/UI)** — the
+- **Type:** **Satoshi (display/headings, self-hosted) + Inter (body/UI)**, the
   "differentiated choice" ([SaaS Typography Playbook](https://fullstop360.com/blog/insights/branding/saas-typography-playbook-what-leading-companies-use)),
   escaping the Inter-as-default "AI tell."
 - **Motif:** CAREER → MOMENTUM → INTELLIGENCE → ACTION, expressed as a subtle
@@ -38,12 +38,12 @@
 
 Studied: **Linear, Attio, Stripe, Notion, Vercel/Geist, Raycast, Resend**.
 
-- **Restraint is the differentiator.** "The best products — Linear, Notion, Stripe —
+- **Restraint is the differentiator.** "The best products, Linear, Notion, Stripe,
   are distinctive because of restraint, not excess. They make fewer design choices,
   but each choice is intentional" ([AI-slop guide](https://www.925studios.co/blog/ai-slop-web-design-guide)).
-- **Muted palette, intentional pops.** "Most text/icons sit at 40–60% opacity; only
+- **Muted palette, intentional pops.** "Most text/icons sit at 40-60% opacity; only
   status/priority/interactive get full-saturation color" ([Linear breakdown](https://www.925studios.co/blog/linear-design-breakdown-saas-ui-2026)).
-- **Navigation should recede.** "Don't compete for attention you haven't earned —
+- **Navigation should recede.** "Don't compete for attention you haven't earned,
   the sidebar is a few notches dimmer so the work area takes precedence; fewer,
   smaller icons; softer borders, structure felt not seen" ([Linear refresh](https://linear.app/now/behind-the-latest-design-refresh)).
 - **Speed & certainty as design.** Optimistic UI, skeleton states over spinners,
@@ -71,7 +71,7 @@ Explicitly called out across sources ([AI-slop guide](https://www.925studios.co/
 8. "AI magic" sparkle icons everywhere, excessive shadows, huge gradient text.
 
 > Audit of the **current live v2 homepage**: mostly compliant (varied radius,
-> warm base, real-product "momentum panel") — but it **still uses Inter/Plus Jakarta
+> warm base, real-product "momentum panel"), but it **still uses Inter/Plus Jakarta
 > default type**, has a **subtle radial-gradient glow** in the hero (borderline orb),
 > and a **4-card automation grid** + **3-card pricing**. All flagged for refinement
 > in Phase 1/3 below.
@@ -80,7 +80,7 @@ Explicitly called out across sources ([AI-slop guide](https://www.925studios.co/
 
 - "AI-built sites favor Inter or system fonts … that's a tell" ([AI-slop guide](https://www.925studios.co/blog/ai-slop-web-design-guide)).
 - Leading SaaS use **custom/licensed** faces for distinctiveness; the realistic
-  free path is **"System B: the differentiated choice"** — a distinctive heading
+  free path is **"System B: the differentiated choice"**, a distinctive heading
   face + a clean body face ([SaaS Typography Playbook](https://fullstop360.com/blog/insights/branding/saas-typography-playbook-what-leading-companies-use)).
 - Strong free, non-generic faces: **Satoshi, General Sans, Space Grotesk, Hanken
   Grotesk, DM Sans** ([weandthecolor](https://weandthecolor.com/20-modern-sans-serif-fonts-graphic-designers-love-in-2026/211445)).
@@ -114,7 +114,7 @@ makes those five differentiators **visible**.
 2. **One accent earns attention.** Turquoise = the only thing that "moves." Everything
    else is warm-neutral. Pops (cobalt/coral/mint) appear only where they carry meaning.
 3. **Warm cohesion.** Ivory + warm grays as one temperature; cool accents are
-   deliberate contrast — never mix warm and cool grays ([r/SaaS](https://www.reddit.com/r/SaaS/comments/1qg36na/how_to_design_a_nongeneric_saas_ui_without/)).
+   deliberate contrast, never mix warm and cool grays ([r/SaaS](https://www.reddit.com/r/SaaS/comments/1qg36na/how_to_design_a_nongeneric_saas_ui_without/)).
 4. **Hierarchy via variation, not uniformity.** Vary radius, weight, size, density
    intentionally. No two adjacent blocks look identical.
 5. **Progressive disclosure.** Show the essence; reveal detail on intent (hover,
@@ -123,35 +123,35 @@ makes those five differentiators **visible**.
    a fact-trace, and an edit control (from `UIUX_BRIEF.md` §8).
 7. **Speed = trust.** Optimistic UI, skeletons (never bare spinners), <200ms feel.
 8. **Accessible by default.** WCAG 2.2 AA, keyboard-first, visible focus,
-   reduced-motion — part of the system, not an add-on.
+   reduced-motion, part of the system, not an add-on.
 
 ---
 
 ## 3. Design tokens (formal system)
 
-### 3.1 Color — warm ivory base, one accent, meaningful pops
+### 3.1 Color, warm ivory base, one accent, meaningful pops
 
 ```
-/* Base — warm */
+/* Base, warm */
 --background-primary:   #FAF8F3   /* warm ivory (never pure white) */
 --background-secondary: #F3EFE6   /* warmer section tint */
 --surface:              #FFFFFF   /* cards on ivory */
 --surface-sunken:       #F6F2EA   /* recessed fields, code */
 
-/* Text — warm petrol/slate (never pure black) */
+/* Text, warm petrol/slate (never pure black) */
 --text-primary:   #14201F   /* deep warm petrol */
 --text-secondary: #57524A   /* warm slate */
 --text-tertiary:  #8A8378   /* warm muted */
 
 /* The ONE accent */
---accent-primary:        #0BA5A0   /* refined turquoise — action/progress/match */
+--accent-primary:        #0BA5A0   /* refined turquoise, action/progress/match */
 --accent-primary-strong: #067A7C
 --accent-primary-soft:   #E4F4F2
 --accent-primary-line:   #AEE0DB
 
 /* Meaningful pops (sparingly) */
---accent-intel:  #2F4CFF   /* cobalt — AI intelligence/matching */
---accent-energy: #FF6A4D   /* coral — energy/urgent/CTA highlight */
+--accent-intel:  #2F4CFF   /* cobalt, AI intelligence/matching */
+--accent-energy: #FF6A4D   /* coral, energy/urgent/CTA highlight */
 --accent-success:#15A37A   /* mint-leaning success */
 
 /* Semantic */
@@ -168,9 +168,9 @@ makes those five differentiators **visible**.
 **Rules:** backgrounds never darker than `--background-secondary`; text never pure
 `#000`; the **only** fully-saturated color in a given view is `--accent-primary`
 unless a pop carries explicit meaning (status, intelligence, urgency). Current v2
-uses **cool** `--line` (`#E4ECEB`) — **fix: warm it** to match the ivory.
+uses **cool** `--line` (`#E4ECEB`), **fix: warm it** to match the ivory.
 
-### 3.2 Spacing — strict 4px grid
+### 3.2 Spacing, strict 4px grid
 
 ```
 --space-1:4px  --space-2:8px  --space-3:12px  --space-4:16px
@@ -179,7 +179,7 @@ uses **cool** `--line` (`#E4ECEB`) — **fix: warm it** to match the ivory.
 ```
 No off-grid values. Components compose from these only.
 
-### 3.3 Radius — varied scale (anti-uniformity)
+### 3.3 Radius, varied scale (anti-uniformity)
 
 ```
 --radius-xs:6px (chips/tags)  --radius-sm:10px (inputs/buttons)
@@ -214,11 +214,11 @@ Shadows are **soft, low, warm-tinted** (never harsh black halos).
 
 ---
 
-## 4. Visual motif — CAREER → MOMENTUM → INTELLIGENCE → ACTION
+## 4. Visual motif, CAREER → MOMENTUM → INTELLIGENCE → ACTION
 
 A subtle, reusable system (no literal rockets/arrows):
 
-- **Trajectory step:** an ascending 2–3 step diagonal used as section dividers,
+- **Trajectory step:** an ascending 2-3 step diagonal used as section dividers,
   progress ticks, and the logo mark (already an upward stroke + node). Conveys
   *career trajectory / progress*.
 - **Flow rail:** a vertical/horizontal rail with nodes + an animated fill (the hero
@@ -240,12 +240,12 @@ Build once in `components/ui/*`, reuse everywhere. Spec highlights:
 | **Button** | pill (`--radius-pill`); primary=turquoise ink, ghost=warm border, accent=coral for the single highest-priority CTA. 140ms lift on hover. |
 | **Input/Select/Search** | `--radius-sm`, sunken surface, warm border, `--focus-ring`; label above, helper below; inline validation with icon+message. |
 | **Badge/Status** | semantic only; dot+label; never decorative. |
-| **Progress / MatchScore** | conic **ring** (0–100) + verdict word; reused in discovery, dashboard, JD analyzer. |
-| **JobCard** | title/company/location, match ring, **"Why this job"** 2-line reason, top skills matched, salary, source badge, actions (View/Save/Skip/Apply/Ask agent). **Not** a uniform card grid — list-with-rail in discovery. |
+| **Progress / MatchScore** | conic **ring** (0-100) + verdict word; reused in discovery, dashboard, JD analyzer. |
+| **JobCard** | title/company/location, match ring, **"Why this job"** 2-line reason, top skills matched, salary, source badge, actions (View/Save/Skip/Apply/Ask agent). **Not** a uniform card grid, list-with-rail in discovery. |
 | **ResumePreview / ResumeEditor** | realistic A4 document (margins, ruled), inline section edit, AI-rewrite affordance, **ATS bar**, **truthfulness** check chip, version switcher. |
 | **AgentActivityStream** | timestamped flow-rail feed (Found → Deduped → Scored → Shortlisted → Generated → Submitted) with live pulse; **not** a spinner. |
 | **ApplicationTimeline** | horizontal stage track (Saved→Preparing→Applied→Viewed→Interview→Offer/Rejected) + response-probability + follow-up nudge. |
-| **Empty/Loading/Error states** | empty = illustration-free, one sentence + one CTA; loading = skeleton matching layout; error = what happened + what to do + retry (`UIUX_BRIEF.md` §10–11). |
+| **Empty/Loading/Error states** | empty = illustration-free, one sentence + one CTA; loading = skeleton matching layout; error = what happened + what to do + retry (`UIUX_BRIEF.md` §10-11). |
 | **Toast/Modal/Drawer/Tooltip/Tabs/Dropdown** | warm surfaces, `--shadow-2/3`, `--ease` 240ms. |
 | **Navigation/Sidebar/MobileNav** | receding warm sidebar (dimmer than content), compact; mobile = bottom tab (Home/Jobs/Applications/Agent) + "More" sheet. |
 
@@ -253,58 +253,58 @@ Build once in `components/ui/*`, reuse everywhere. Spec highlights:
 
 ## 6. Screen-by-screen plan
 
-### 6.1 Landing page (Phase 3) — "well detailed," 13 distinct sections
+### 6.1 Landing page (Phase 3), "well detailed," 13 distinct sections
 
 Composition rule: **no two adjacent sections share a layout.** Alternate
 full-bleed / asymmetric / grid / editorial / rail.
 
-1. **Header** — translucent warm, receding; logo + 3 anchor links + Sign in / Start free.
-2. **Hero** — asymmetric (1.1fr / 0.9fr). Left: outcome headline ("Your next role,
-   found and applied — while you do something else"), one-line proof, primary CTA
+1. **Header**, translucent warm, receding; logo + 3 anchor links + Sign in / Start free.
+2. **Hero**, asymmetric (1.1fr / 0.9fr). Left: outcome headline ("Your next role,
+   found and applied, while you do something else"), one-line proof, primary CTA
    **"Build My Free CV"** + ghost **"See How It Works"**, 3 trust chips. Right: the
    **living agent workspace** (flow rail: Found→Matched→CV tailored→Ready→Submitted
    + live pulse + 3 stat footers). *Replace the radial "glow" with a structured
    warm gradient edge, not an orb.*
-3. **Career profile introduction** — asymmetric; left copy ("Build your profile once")
+3. **Career profile introduction**, asymmetric; left copy ("Build your profile once")
    + 3 numbered points; right a **profile-strength card** (warm surface, animated
    meter to 88%, skill chips, avatar). Emphasizes profession-agnostic.
-4. **AI resume transformation** — split: left a **realistic resume document mock**
+4. **AI resume transformation**, split: left a **realistic resume document mock**
    (ruled lines, ATS score tag, ATS bar); right copy + "truthful by design" +
    "versioned & traceable" points. Studio preview, not a text box.
-5. **Job matching** — split: left copy ("Matching that explains itself"); right a
+5. **Job matching**, split: left copy ("Matching that explains itself"); right a
    **match card** with conic ring (92), "You're a strong match because…", matched
    skills + one gap. *Differentiator vs LinkedIn/Indeed.*
-6. **ATS intelligence** — editorial/rail: a JD paste → structured breakdown
+6. **ATS intelligence**, editorial/rail: a JD paste → structured breakdown
    (required skills, keywords, gaps, strengths) as a ruled grid. No wall of text.
-7. **Automated application workflow** — the WOW: a **sophisticated activity
+7. **Automated application workflow**, the WOW: a **sophisticated activity
    interface** showing agent states (Discovering→Analyzing→Tailoring→Answering→
-   Filling→Verifying→Submitting→Completed) as a staged rail with a "live" node —
+   Filling→Verifying→Submitting→Completed) as a staged rail with a "live" node,
    not a grid of identical cards and not a spinner. Conveys "your AI employee."
-8. **Application activity** — a calm **pipeline snapshot** (Saved→Applied→
+8. **Application activity**, a calm **pipeline snapshot** (Saved→Applied→
    Interview→Offer) + response-rate sparkline (purposeful chart, real shape).
-9. **Free tools** — asymmetric bento (varied tile sizes, NOT a 3×3 grid) linking
+9. **Free tools**, asymmetric bento (varied tile sizes, NOT a 3×3 grid) linking
    the 10 SEO tools; each tile previews its output.
-10. **How the AI agent works** — 3 large numbered steps on airy whitespace
+10. **How the AI agent works**, 3 large numbered steps on airy whitespace
     (Build profile → Agent works → Approve & track).
-11. **Security & privacy** — trust rail: "Only your verified facts," "You approve
+11. **Security & privacy**, trust rail: "Only your verified facts," "You approve
     every application," "Immutable receipts," "No Gmail access, no inbox
     monitoring." (Reinforces the differentiators + D-001.)
-12. **Pricing** — 3 tiers but **not** identical cards: Free (warm), Basic (featured,
+12. **Pricing**, 3 tiers but **not** identical cards: Free (warm), Basic (featured,
     elevated, turquoise edge), Premium (coral accent). NGN. **7-day trial** banner.
-13. **FAQ** — accordion (reuse existing), max-width 760, airy.
-14. **Final CTA** — warm surface with a soft structured gradient edge; one headline,
+13. **FAQ**, accordion (reuse existing), max-width 760, airy.
+14. **Final CTA**, warm surface with a soft structured gradient edge; one headline,
     one CTA, one ghost.
-15. **Footer** — logo + blurb + 2 link columns + copyright.
+15. **Footer**, logo + blurb + 2 link columns + copyright.
 
 **Copy rules (anti-vague-headline):** outcome-first, concrete, founder-voice; no
 "Build the future." ([fibr.ai](https://fibr.ai/landing-page/saas-landing-pages),
 [vezadigital](https://www.vezadigital.com/post/best-saas-landing-page-examples)).
 
-### 6.2 Auth & onboarding (Phase 4) — guided, no Gmail
+### 6.2 Auth & onboarding (Phase 4), guided, no Gmail
 
-- **Sign up / login** — single-column warm card, `AuthShell` (exists), generous
+- **Sign up / login**, single-column warm card, `AuthShell` (exists), generous
   whitespace, inline validation, social/email. (Already functional post-fix.)
-- **Onboarding wizard (6 steps)** — a focused, one-decision-per-screen flow that
+- **Onboarding wizard (6 steps)**, a focused, one-decision-per-screen flow that
   feels like *building your AI career identity*; persistent progress rail (motif):
   1. What do you do? (profession selector, custom)
   2. What role are you targeting? (multi-select + keywords)
@@ -315,25 +315,25 @@ full-bleed / asymmetric / grid / editorial / rail.
 - Reuses the existing `app/onboarding` 5-step wizard structure; restyle to v2 +
   extend to 6 steps; **remove Gmail entirely** (D-001).
 
-### 6.3 Dashboard — "career command center" (Phase 5)
+### 6.3 Dashboard, "career command center" (Phase 5)
 
 Must answer, above the fold: *Where am I? Profile state? What next? What's the AI
 doing? How many applications? What opportunities? What to improve?*
 
 - **Greeting band:** "Good morning, [Name]." + agent status + pause/resume.
 - **Career momentum** (the signature viz): NOT four identical metric cards. A single
-  **momentum composition** — an ascending trajectory graphic integrating
+  **momentum composition**, an ascending trajectory graphic integrating
   Applications, Interviews, Response rate, Profile strength as one connected visual
   (e.g., a stepped ascent with annotations), warm surface.
 - **Center column:** recommended opportunities (JobCards), recent applications
   (timeline rows).
-- **Right rail:** AI recommendations ("3 jobs to review," "Profile at 72% — add 2
+- **Right rail:** AI recommendations ("3 jobs to review," "Profile at 72%, add 2
   skills," "Follow up on Acme Co.") as a quiet, receding column.
 - **Left:** receding warm sidebar nav.
 
 ### 6.4 Resume studio (Phase 6)
 
-- **Studio layout:** 3 zones — left AI controls + job targeting; **center realistic
+- **Studio layout:** 3 zones, left AI controls + job targeting; **center realistic
   A4 resume preview** (editable inline: section edit, AI rewrite, reorder); right
   match score + ATS bar + suggestions + **version history** (immutable list).
 - Truthfulness chip on every AI-touched block ("Based on your profile ✓").
@@ -342,7 +342,7 @@ doing? How many applications? What opportunities? What to improve?*
 ### 6.5 JD analyzer (Phase 6/7)
 
 - Paste JD → animated **structured breakdown**: match ring, required skills (matched/
-  missing), keywords, responsibilities, gaps, strengths — ruled grid, scannable.
+  missing), keywords, responsibilities, gaps, strengths, ruled grid, scannable.
 
 ### 6.6 Job discovery (Phase 7)
 
@@ -358,7 +358,7 @@ doing? How many applications? What opportunities? What to improve?*
 
 ### 6.8 Application tracker (Phase 9)
 
-- Pipeline view (Saved→Preparing→Applied→Viewed→Interview→Offer/Rejected) — **not**
+- Pipeline view (Saved→Preparing→Applied→Viewed→Interview→Offer/Rejected), **not**
   a Kanban clone: each card carries **response probability**, **application
   quality**, **follow-up recommendation** (visual intelligence, not just columns).
 
@@ -378,13 +378,13 @@ doing? How many applications? What opportunities? What to improve?*
 
 10 pages under the design system but **each a distinct composition** (hero tool,
 live-working preview, result panel, related tools, FAQ). Routes from the brief.
-Shared chrome, varied layouts — not duplicated templates.
+Shared chrome, varied layouts, not duplicated templates.
 
 ---
 
 ## 7. Motion, responsive, accessibility
 
-- **Motion:** purposeful only — progress fill, status transitions, skeleton→content,
+- **Motion:** purposeful only, progress fill, status transitions, skeleton→content,
   document-generation transition, success confirmations. `prefers-reduced-motion`
   collapses to instant + static finals. Timings from §3.5.
 - **Responsive:** mobile-first; **recompose** at 360/390/430/768/1024/1440/1920
@@ -412,7 +412,7 @@ Shared chrome, varied layouts — not duplicated templates.
 ## 9. No-placeholder policy
 
 No lorem/fake testimonials/fake companies/fake stats. Where real data is absent,
-ship **realistic empty states** ("No applications yet — activate your agent to
+ship **realistic empty states** ("No applications yet, activate your agent to
 begin") and mark development fixtures with a clearly-labelled internal banner. Hero
 "stats" on marketing are presented as **illustrative product state**, not claimed
 company metrics.
@@ -424,7 +424,7 @@ company metrics.
 | Phase | Deliverable | Status |
 |---|---|---|
 | 0 | Research + this plan | ✅ done |
-| 1 | **Design system** — tokens, type, spacing/radius/motion/z-index, base components | ✅ v1+v2 shipped → **v3 "Broadstreet Journal" live** (Newsreader display + Inter body, rust accent, 0px radius, hairlines) |
+| 1 | **Design system**, tokens, type, spacing/radius/motion/z-index, base components | ✅ v1+v2 shipped → **v3 "Broadstreet Journal" live** (Newsreader display + Inter body, rust accent, 0px radius, hairlines) |
 | 2 | App shell: sidebar nav + authed chrome | ✅ all 8 authed pages wrapped |
 | 3 | **Landing page (well-detailed)** | ✅ live, restyled under v3 |
 | 4 | Auth + 6-step onboarding (no Gmail) | ✅ live |
@@ -433,7 +433,7 @@ company metrics.
 | 7 | Job discovery ("Why this job") | ✅ live (jobs + explainable matching) |
 | 8 | Application automation (activity stream) | 🟡 tracker + approval gates live; activity-stream UX polish pending |
 | 9 | Application tracker (pipeline) | ✅ live |
-| 10 | Billing/pricing (in-app) | 🟡 **HELD** — FLW create/webhook + entitlements built; charge/verify blocked on `FLW_SECRET_KEY` retrieval |
+| 10 | Billing/pricing (in-app) | 🟡 **HELD**, FLW create/webhook + entitlements built; charge/verify blocked on `FLW_SECRET_KEY` retrieval |
 | 11 | Admin dashboard (dense, bright) | ⬜ APIs exist; UI restyle pending |
 | 12 | 10 SEO free-tool pages | 🟡 **3/10 live** (real-backends-only policy: JD analyzer, cover letter, skills matcher) |
 | 13 | Responsive refinement (360→1920) | ⬜ |
@@ -444,16 +444,16 @@ company metrics.
 **v3 rollout queue (Broadstreet Journal, post-foundation):** Daily Digest dashboard
 (+ scan-stats backend so "we discarded N" is truthful) → editorial job cards →
 de-gamified match display (verdict-first; product decision) → anti-scam banner
-(shippable now — it's a statement about us, not a per-employer claim) → admin
-restyle (Phase 11) → hardening 13–16.
+(shippable now, it's a statement about us, not a per-employer claim) → admin
+restyle (Phase 11) → hardening 13-16.
 
 **Parked/external:** billing completion (FLW secret), Render workers (gated on
 adapters + tests), 7 remaining free tools (need real backends), Greenhouse/Lever/
 Ashby source adapters (real job pool), employer-verification pipeline (prereq for
-any "verified" badge — never shown until true).
+any "verified" badge, never shown until true).
 
 **Build order:** Phase 1 (tokens/type) → 3 (landing, detailed) → 2 (app shell) →
-4 (onboarding) → 5 (dashboard) → 6–9 (core product) → 10–12 → 13–16 hardening.
+4 (onboarding) → 5 (dashboard) → 6-9 (core product) → 10-12 → 13-16 hardening.
 Each phase: gate (tsc + vitest + build) → commit → deploy → verify live.
 
 ---
@@ -461,12 +461,12 @@ Each phase: gate (tsc + vitest + build) → commit → deploy → verify live.
 ## 11. Key decisions (to log in DECISIONS.md as D-008)
 
 - **D-008a Type:** Satoshi (display) + Inter (body), self-hosted Satoshi via
-  `next/font/local` — the "differentiated choice" to avoid the Inter-as-default tell.
+  `next/font/local`, the "differentiated choice" to avoid the Inter-as-default tell.
 - **D-008b Color:** warm ivory + warm grays (cohesive) + **one** turquoise accent +
   cobalt/coral/mint as meaning-only pops. Warm the currently-cool `--line`.
 - **D-008c Motif:** ascending trajectory + flow rail + structured grids (subtle,
   no literal arrows/rockets).
-- **D-008d Position:** quality-first, truthful, approval-gated, fully-tracked — the
+- **D-008d Position:** quality-first, truthful, approval-gated, fully-tracked, the
   visible differentiator on every screen.
 - **D-008e Restraint:** 4px grid, varied radius, progressive disclosure, skeletons;
   every element must justify itself.
@@ -474,18 +474,18 @@ Each phase: gate (tsc + vitest + build) → commit → deploy → verify live.
 ---
 
 ### Research sources
-- [Linear design breakdown — 925studios](https://www.925studios.co/blog/linear-design-breakdown-saas-ui-2026)
+- [Linear design breakdown, 925studios](https://www.925studios.co/blog/linear-design-breakdown-saas-ui-2026)
 - [Linear: a calmer interface (official refresh)](https://linear.app/now/behind-the-latest-design-refresh)
-- [Attio's design-first strategy — Strategy Breakdowns](https://strategybreakdowns.com/p/how-attio-does-design)
-- [AI Slop Web Design guide — 925studios](https://www.925studios.co/blog/ai-slop-web-design-guide)
-- [Why AI websites look generic — madebyoversight](https://www.madebyoversight.com/post/why-ai-websites-look-generic-how-to-make-custom)
-- [What makes a product feel premium — dev.to](https://dev.to/samareshdas/why-most-ai-generated-websites-still-feel-generic-and-what-actually-makes-a-product-feel-premium-33p2)
-- [SaaS Typography Playbook — Fullstop360](https://fullstop360.com/blog/insights/branding/saas-typography-playbook-what-leading-companies-use)
-- [Best fonts for SaaS — LapaOne](https://www.lapaone.com/best-fonts-for-saas-products/)
-- [Modern sans-serifs 2026 — WeAndTheColor](https://weandthecolor.com/20-modern-sans-serif-fonts-graphic-designers-love-in-2026/211445)
+- [Attio's design-first strategy, Strategy Breakdowns](https://strategybreakdowns.com/p/how-attio-does-design)
+- [AI Slop Web Design guide, 925studios](https://www.925studios.co/blog/ai-slop-web-design-guide)
+- [Why AI websites look generic, madebyoversight](https://www.madebyoversight.com/post/why-ai-websites-look-generic-how-to-make-custom)
+- [What makes a product feel premium, dev.to](https://dev.to/samareshdas/why-most-ai-generated-websites-still-feel-generic-and-what-actually-makes-a-product-feel-premium-33p2)
+- [SaaS Typography Playbook, Fullstop360](https://fullstop360.com/blog/insights/branding/saas-typography-playbook-what-leading-companies-use)
+- [Best fonts for SaaS, LapaOne](https://www.lapaone.com/best-fonts-for-saas-products/)
+- [Modern sans-serifs 2026, WeAndTheColor](https://weandthecolor.com/20-modern-sans-serif-fonts-graphic-designers-love-in-2026/211445)
 - [r/SaaS: non-generic UI](https://www.reddit.com/r/SaaS/comments/1qg36na/how_to_design_a_nongeneric_saas_ui_without/)
-- [SaaS landing pages that convert — fibr.ai](https://fibr.ai/landing-page/saas-landing-pages)
-- [Best SaaS landing examples — Vezadigital](https://www.vezadigital.com/post/best-saas-landing-page-examples)
-- [AI job tools ranked — scale.jobs](https://scale.jobs/blog/job-search-apps-auto-apply-ranked)
-- [Best AI job application tools — aicreator](https://www.aicreator.co/blog/best-ai-job-application-tools)
-- [Quality-first AI apply alternatives — sprad.io](https://sprad.io/blog/top-5-ai-apply-alternatives-for-quality-first-non-spammy-job)
+- [SaaS landing pages that convert, fibr.ai](https://fibr.ai/landing-page/saas-landing-pages)
+- [Best SaaS landing examples, Vezadigital](https://www.vezadigital.com/post/best-saas-landing-page-examples)
+- [AI job tools ranked, scale.jobs](https://scale.jobs/blog/job-search-apps-auto-apply-ranked)
+- [Best AI job application tools, aicreator](https://www.aicreator.co/blog/best-ai-job-application-tools)
+- [Quality-first AI apply alternatives, sprad.io](https://sprad.io/blog/top-5-ai-apply-alternatives-for-quality-first-non-spammy-job)

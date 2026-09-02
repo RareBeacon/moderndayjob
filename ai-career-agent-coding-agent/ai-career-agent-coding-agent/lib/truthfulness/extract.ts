@@ -1,5 +1,5 @@
 /**
- * Deterministic extraction helpers for the truthfulness checker. No AI — these
+ * Deterministic extraction helpers for the truthfulness checker. No AI, these
  * are the authoritative, side-effect-free signals (ARCHITECTURE §2: the AI must
  * never be the sole authority for truthfulness).
  */
@@ -12,7 +12,7 @@ export function norm(value: string): string {
 /**
  * Extract quantitative claims that are classic fabrication vectors: percentages,
  * multipliers (e.g. "3x"), and currency amounts. Bare counts and years are
- * deliberately excluded — they are too noisy and often derivable from dates.
+ * deliberately excluded, they are too noisy and often derivable from dates.
  *
  * Each match is returned lowercased with spaces removed so that "40 %" and
  * "40%" compare equal.
@@ -48,7 +48,7 @@ export function matchesAny(claimed: string, known: string[]): boolean {
 
 /**
  * Detect credential CLAIMS coarsely: the word "certified", or a known cert
- * acronym. Coarse on purpose — the value is checked against the profile, so a
+ * acronym. Coarse on purpose, the value is checked against the profile, so a
  * claim with no profile grounding is flagged without fragile title parsing.
  */
 export function extractCredentials(text: string): string[] {

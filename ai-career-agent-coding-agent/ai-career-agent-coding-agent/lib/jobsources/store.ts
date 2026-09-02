@@ -2,7 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import type { JobStore } from './ingest';
 import type { NormalizedJob } from './types';
 
-/** Production store: upserts on (source, external_id) — idempotent ingestion.
+/** Production store: upserts on (source, external_id), idempotent ingestion.
  *  created_at is not part of the update set, so first-seen time is preserved. */
 export const supabaseJobStore: JobStore = {
   async upsertJobs(jobs: NormalizedJob[]) {

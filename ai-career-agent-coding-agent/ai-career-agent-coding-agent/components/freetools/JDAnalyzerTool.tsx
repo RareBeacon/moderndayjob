@@ -18,8 +18,8 @@ type Analysis = {
 };
 
 const ERRORS: Record<string, { title: string; detail: string }> = {
-  UNAUTHENTICATED: { title: 'Sign in to continue', detail: 'Create a free account to run the analyzer — it takes a minute.' },
-  DAILY_AI_CREDITS_EXHAUSTED: { title: 'Daily AI credits used up', detail: 'Your free daily credits are exhausted. They reset tomorrow — or upgrade for more.' },
+  UNAUTHENTICATED: { title: 'Sign in to continue', detail: 'Create a free account to run the analyzer, it takes a minute.' },
+  DAILY_AI_CREDITS_EXHAUSTED: { title: 'Daily AI credits used up', detail: 'Your free daily credits are exhausted. They reset tomorrow, or upgrade for more.' },
   AI_CREDENTIAL_NOT_CONFIGURED: { title: 'Connect an AI provider', detail: 'Add an OpenRouter or Hugging Face API key in Settings to power analysis.' },
   AI_ALL_PROVIDERS_FAILED: { title: 'Analysis failed', detail: 'The AI provider could not analyze this listing. Your credit was refunded.' },
   RATE_LIMITED: { title: 'Slow down', detail: 'Too many requests. Wait a moment and try again.' },
@@ -66,7 +66,7 @@ export function JDAnalyzerTool({ signedIn }: { signedIn: boolean }) {
         id="jd"
         value={jd}
         onChange={(e) => setJd(e.target.value)}
-        placeholder="Paste the full listing here — responsibilities, requirements, everything."
+        placeholder="Paste the full listing here, responsibilities, requirements, everything."
       />
       <div className="ft-actions">
         {signedIn ? (
@@ -83,7 +83,7 @@ export function JDAnalyzerTool({ signedIn }: { signedIn: boolean }) {
 
       {!signedIn && (
         <p className="muted" style={{ marginTop: 12, fontSize: 14 }}>
-          Free forever plan included — 2 AI credits every day.{' '}
+          Free forever plan included, 2 AI credits every day.{' '}
           <Link href="/login" className="inline-link">Already have an account? Sign in →</Link>
         </p>
       )}
@@ -137,7 +137,7 @@ export function JDAnalyzerTool({ signedIn }: { signedIn: boolean }) {
           )}
           {analysis.provider && (
             <p className="muted" style={{ marginTop: 10, fontSize: 12 }}>
-              Analyzed by {analysis.provider}. Extraction reflects only what the listing states — nothing invented.
+              Analyzed by {analysis.provider}. Extraction reflects only what the listing states, nothing invented.
             </p>
           )}
         </div>

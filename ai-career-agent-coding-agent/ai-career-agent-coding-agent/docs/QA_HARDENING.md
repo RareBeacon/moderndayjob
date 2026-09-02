@@ -1,10 +1,10 @@
-# Hardening Pass — Phases 13–16 Audit Record
+# Hardening Pass, Phases 13-16 Audit Record
 
 Date: 2026-09-02 · Post-v3 (Broadstreet Journal) · Commit range covered: `afdfb2b` → this pass.
 
-## Phase 14 — Accessibility (WCAG 2.2 AA)
+## Phase 14, Accessibility (WCAG 2.2 AA)
 
-### Contrast (programmatic — every token pair in use)
+### Contrast (programmatic, every token pair in use)
 
 | Pair | Ratio | AA (4.5) |
 |---|---|---|
@@ -34,21 +34,21 @@ Date: 2026-09-02 · Post-v3 (Broadstreet Journal) · Commit range covered: `afdf
 ### Motion
 - Global `prefers-reduced-motion` guard (`animation/transition: none`) covers everything, including v3 hovers. ✓
 
-## Phase 13 — Responsive
+## Phase 13, Responsive
 
 Verified in CSS (recompose points): `.mk-hero .grid` stacks ≤~860px · `.ft-split`/`.ft-band-grid`/`.ft-steps` 1-col ≤860 · `.ft-related` 1-col ≤640 · `.dd-cols` 1-col ≤900 · `.dd-stats` 4→2 ≤900 · `.ad-form` 1-col ≤860 · admin tables horizontally scrollable (`.ad-scroll`) · `.app-content` gets 92px bottom padding on mobile so the fixed bottom tab bar never covers content · mobile bottom tabs shipped with AppShell (Phase 2).
 Type at 320px: hero uses `clamp()`; digest masthead `clamp(26px, 4vw, 40px)`.
 
-## Phase 15 — Performance
+## Phase 15, Performance
 
-- Fonts: Newsreader (variable, latin subset, 2 files) + Inter via `next/font` — hashed, preloaded, `display: swap`. Satoshi files remain on disk but are no longer referenced (no runtime cost; kept for revert).
+- Fonts: Newsreader (variable, latin subset, 2 files) + Inter via `next/font`, hashed, preloaded, `display: swap`. Satoshi files remain on disk but are no longer referenced (no runtime cost; kept for revert).
 - **Removed 8.7KB of dead v1 CSS** this pass, including a never-rendered dark `#06231F` hero (rule compliance: never black), old mockup/marquee/float animations, and the unused `ScrollReveal` rules.
 - No raster images anywhere in the UI (inline SVG only, width/height set). No client JS on marketing/free-tool pages beyond the tool forms.
 
-## Phase 16 — Visual QA (anti-slop)
+## Phase 16, Visual QA (anti-slop)
 
 Programmatic greps: zero occurrences of purple/blue gradients, orbs, sparkle glyphs, glassmorphism `backdrop-filter` on cards (only the marketing header, now solid in v3), emoji-as-icons, stock imagery. One accent family (rust + semantic states). Grays warm-only. Display face is Newsreader (not Inter-as-default).
-**Fixed this pass:** `mkpulse`/`arpulse` glows and two v2 wash gradients still carried turquoise `rgba(10,169,166,…)` / coral `rgba(255,106,77,…)` — all converted to the rust family. Momentum rail fill was mint→brand gradient → solid rust (one-accent discipline).
+**Fixed this pass:** `mkpulse`/`arpulse` glows and two v2 wash gradients still carried turquoise `rgba(10,169,166,…)` / coral `rgba(255,106,77,…)`, all converted to the rust family. Momentum rail fill was mint→brand gradient → solid rust (one-accent discipline).
 
 ## Needs human eyes (cannot verify without a signed-in session)
 

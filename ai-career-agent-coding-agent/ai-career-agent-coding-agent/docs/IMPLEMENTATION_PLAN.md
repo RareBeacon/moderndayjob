@@ -1,6 +1,6 @@
-# AI Career Agent — Implementation Plan
+# AI Career Agent, Implementation Plan
 
-## Phase 0 — Repository and Safety
+## Phase 0, Repository and Safety
 
 Deliver:
 - README.
@@ -20,7 +20,7 @@ Acceptance:
 - Test suite runs.
 - No secrets in repository.
 
-## Phase 1 — App Shell
+## Phase 1, App Shell
 
 Build:
 - Next.js.
@@ -34,7 +34,7 @@ Acceptance:
 - User can sign up/sign in/sign out.
 - Protected routes work.
 
-## Phase 2 — Database
+## Phase 2, Database
 
 Build:
 - migrations.
@@ -49,7 +49,7 @@ Acceptance:
 - CRUD works through server layer.
 - migrations are reproducible.
 
-## Phase 3 — Professional Profile
+## Phase 3, Professional Profile
 
 Build:
 - onboarding.
@@ -66,7 +66,7 @@ Acceptance:
 - User can create Content Creator profile.
 - No profession-specific hard coding.
 
-## Phase 4 — Job Discovery
+## Phase 4, Job Discovery
 
 Build:
 - job source interface.
@@ -80,7 +80,7 @@ Acceptance:
 - Jobs appear with canonical metadata.
 - Duplicates are prevented.
 
-## Phase 5 — AI Gateway
+## Phase 5, AI Gateway
 
 Build:
 - provider interface.
@@ -97,7 +97,7 @@ Acceptance:
 - provider failure falls back.
 - quotas enforced.
 
-## Phase 6 — Matching Engine
+## Phase 6, Matching Engine
 
 Build:
 - deterministic filters.
@@ -110,7 +110,7 @@ Acceptance:
 - Job scores are explainable.
 - Previously applied jobs are excluded.
 
-## Phase 7 — Application Intelligence
+## Phase 7, Application Intelligence
 
 Build:
 - personalized CV generator.
@@ -123,7 +123,7 @@ Acceptance:
 - Generated materials contain only supported facts.
 - Each application has immutable document references.
 
-## Phase 8 — Application Workflow
+## Phase 8, Application Workflow
 
 Build:
 - application state machine.
@@ -140,7 +140,7 @@ Acceptance:
 - Duplicate submission impossible through retry.
 - Unsupported/blocked pages stop safely.
 
-## Phase 9 — Gmail
+## Phase 9, Gmail
 
 Build:
 - Google Cloud OAuth setup instructions.
@@ -156,7 +156,7 @@ Acceptance:
 - A test email is classified.
 - Interview event appears on dashboard.
 
-## Phase 10 — Daily Agent
+## Phase 10, Daily Agent
 
 Build:
 - daily Vercel cron.
@@ -171,7 +171,7 @@ Acceptance:
 - Partial failure does not destroy entire run.
 - User can pause agent.
 
-## Phase 11 — Analytics
+## Phase 11, Analytics
 
 Build:
 - application counts.
@@ -184,7 +184,7 @@ Build:
 Acceptance:
 - Metrics are derived from real application records.
 
-## Phase 12 — Hardening
+## Phase 12, Hardening
 
 Build:
 - rate limits.
@@ -201,7 +201,7 @@ Acceptance:
 - Security checklist passes.
 - No known critical vulnerabilities.
 
-## Phase 13 — Production Deployment
+## Phase 13, Production Deployment
 
 Checklist:
 - Supabase production project.
@@ -216,7 +216,7 @@ Checklist:
 - health checks.
 - smoke tests.
 
-## Phase 14 — Worker Upgrade
+## Phase 14, Worker Upgrade
 
 Only after MVP usage proves the need:
 

@@ -6,7 +6,7 @@ import CredentialForm from './CredentialForm';
 
 export const dynamic = 'force-dynamic';
 
-/** Admin • AI credentials — encrypted per-user provider keys.
+/** Admin • AI credentials, encrypted per-user provider keys.
  *  Server-side gated. Secrets are never rendered back to the browser. */
 export default async function AdminCredentialsPage() {
   const user = await getUser();
@@ -38,7 +38,7 @@ export default async function AdminCredentialsPage() {
       <h1 className="ad-h1">AI credentials</h1>
       <p className="ad-lede">
         Per-user provider keys, encrypted at rest (AES-256-GCM). Full secrets are never rendered back to
-        the browser — only provider, model, and key version.
+        the browser, only provider, model, and key version.
       </p>
 
       <CredentialForm />
@@ -70,7 +70,7 @@ export default async function AdminCredentialsPage() {
                   <span className={`ad-chip ${x.status === 'active' ? 'ok' : 'warn'}`}>{x.status}</span>
                 </td>
                 <td className="ad-mono">v{x.key_version}</td>
-                <td className="ad-mono">{x.created_at ? x.created_at.slice(0, 10) : '—'}</td>
+                <td className="ad-mono">{x.created_at ? x.created_at.slice(0, 10) : '-'}</td>
               </tr>
             ))}
           </tbody>

@@ -31,7 +31,7 @@ export function inferEmploymentType(...textParts: string[]): EmploymentType {
   return 'unknown';
 }
 
-/** SHA-256 of normalized identity fields — content fingerprint for dedup + immutability. */
+/** SHA-256 of normalized identity fields, content fingerprint for dedup + immutability. */
 export function contentHash(parts: {
   source: string;
   source_job_id: string;

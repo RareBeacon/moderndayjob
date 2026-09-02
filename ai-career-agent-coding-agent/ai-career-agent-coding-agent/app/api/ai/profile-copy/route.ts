@@ -11,7 +11,7 @@ import { loadGenerationProfile } from '@/lib/generation/loader';
 const body = z.object({ kind: z.enum(['SUMMARY', 'HEADLINE']) });
 
 /**
- * POST /api/ai/profile-copy — free-tool resume summaries & LinkedIn headlines.
+ * POST /api/ai/profile-copy, free-tool resume summaries & LinkedIn headlines.
  *
  * Options are generated ONLY from the user's verified profile facts and then
  * checked by the deterministic truthfulness checker; a failed check rejects
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
   try {
     const result = await generateProfileCopy({ gateway, kind, profile });
     if (!result.report.passed) {
-      // Unsupported claims — reject and refund, exactly like document generation.
+      // Unsupported claims, reject and refund, exactly like document generation.
       await meter.refund();
       return NextResponse.json(
         { error: 'TRUTHFULNESS_FAILED', summary: result.report.summary },

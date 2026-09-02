@@ -49,7 +49,7 @@ export default function JobsPage() {
       <section className="workspace-hero">
         <p className="eyebrow">OPPORTUNITIES</p>
         <h1>Discovered jobs.</h1>
-        <p>Jobs are normalized from supported public sources, de-duplicated, and ready for matching. Every listing links to a real source — never fabricated.</p>
+        <p>Jobs are normalized from supported public sources, de-duplicated, and ready for matching. Every listing links to a real source, never fabricated.</p>
         <Link className="btn" href="/match">Score these for fit →</Link>
       </section>
 

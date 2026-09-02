@@ -10,7 +10,7 @@ const body = z.object({
 });
 
 /**
- * POST /api/ats/scan — deterministic ATS-style scan of pasted CV text.
+ * POST /api/ats/scan, deterministic ATS-style scan of pasted CV text.
  * No AI, no credits: every check is a fixed public rubric on structure and
  * parseability. Optional job description adds keyword overlap.
  */
@@ -27,5 +27,5 @@ export async function POST(req: Request) {
   }
   const { resumeText, jobDescription } = parsed.data;
   const result = scanResume(resumeText, jobDescription);
-  return NextResponse.json({ ...result, note: 'Deterministic checks on structure and parseability — this score never judges your worth as a candidate.' });
+  return NextResponse.json({ ...result, note: 'Deterministic checks on structure and parseability, this score never judges your worth as a candidate.' });
 }

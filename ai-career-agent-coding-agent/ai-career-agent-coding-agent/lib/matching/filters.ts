@@ -23,7 +23,7 @@ function normRemote(s: string): RemoteType | undefined {
  * structurally ineligible BEFORE any AI cost is incurred:
  *   - already applied to (Phase 6 acceptance: "previously applied excluded");
  *   - remote / employment-type / location / seniority mismatch when the user
- *     expressed a preference. Unknown/undetermined values are always kept —
+ *     expressed a preference. Unknown/undetermined values are always kept,
  *     the filter never over-rejects when it cannot tell.
  *
  * Pure + side-effect free → unit-testable.

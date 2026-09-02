@@ -82,7 +82,7 @@ describe('processAgentTask', () => {
     const r = await processAgentTask(task(), deps(db));
     expect(r.result).toEqual({ skipped: 'pool_already_fresh' });
   });
-  it('APPLICATION never auto-submits — always WAITING_APPROVAL', async () => {
+  it('APPLICATION never auto-submits, always WAITING_APPROVAL', async () => {
     const { db } = makeDb({ latestJob: null });
     const r = await processAgentTask(task({ type: 'APPLICATION' }), deps(db));
     expect(r.status).toBe('WAITING_APPROVAL');
@@ -102,7 +102,7 @@ describe('failTask backoff', () => {
   });
 });
 
-describe('runDailyPipeline — the free production path', () => {
+describe('runDailyPipeline, the free production path', () => {
   it('enqueue → baseline ingest → drain tasks, in order, once', async () => {
     const { db, calls } = makeDb({
       enqueued: 2,
@@ -132,7 +132,7 @@ describe('runDailyPipeline — the free production path', () => {
     expect(report.tasksProcessed).toBe(1);
   });
 
-  it('a dead source board is isolated — no task fails, failures are reported, not thrown', async () => {
+  it('a dead source board is isolated, no task fails, failures are reported, not thrown', async () => {
     const bad: SourceAdapter = { id: 'bad', label: 'bad', fetchBatch: async () => { throw new Error('BOARD_DOWN'); } };
     const { db } = makeDb({ enqueued: 0, latestJob: null, claims: [[task({ attempts: 0 }), task({ id: 'task-2' })]] });
     const report = await runDailyPipeline({ ...deps(db), adapters: [bad] });
@@ -145,7 +145,7 @@ describe('runDailyPipeline — the free production path', () => {
     expect(refresh?.totalUpserted).toBe(0);
   });
 
-  it('a task-level error (DB failure) is failed and re-queued — pipeline continues', async () => {
+  it('a task-level error (DB failure) is failed and re-queued, pipeline continues', async () => {
     // baseline sees a fresh pool; task-1's freshness check hits a DB error; task-2 is fine
     const { db, calls } = makeDb({
       enqueued: 0,

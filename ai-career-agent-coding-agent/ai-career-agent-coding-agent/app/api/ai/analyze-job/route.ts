@@ -11,7 +11,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 const body = z.object({ jobDescription: z.string().min(30).max(30000) });
 
 /**
- * POST /api/ai/analyze-job — free-tool job-description analysis.
+ * POST /api/ai/analyze-job, free-tool job-description analysis.
  *
  * The AI extracts ONLY what the listing states (skills, keywords,
  * responsibilities); required skills are then compared against the user's
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'DAILY_AI_CREDITS_EXHAUSTED' }, { status: 429 });
   }
 
-  // Profile skills are optional — analysis still works without a profile;
+  // Profile skills are optional, analysis still works without a profile;
   // the client then shows neutral chips instead of matched/missing.
   const { data: career } = await supabaseAdmin
     .from('career_profiles')
@@ -69,7 +69,7 @@ export async function POST(req: Request) {
     const analysis = await analyzeJob({ gateway, jobDescription, userSkills });
     return NextResponse.json({ analysis, profileSkillsCount: userSkills.length });
   } catch (err) {
-    // Provider failure — refund and surface as an upstream error.
+    // Provider failure, refund and surface as an upstream error.
     await meter.refund();
     if (err instanceof AIGatewayError) {
       return NextResponse.json({ error: err.code }, { status: 502 });

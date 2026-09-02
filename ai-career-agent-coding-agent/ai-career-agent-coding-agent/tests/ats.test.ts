@@ -5,11 +5,11 @@ const goodCv = `
 Amina Okafor
 amina@example.com | +234 803 555 0123
 EXPERIENCE
-Operations Lead — Kudi, Lagos (2021 – 2024)
+Operations Lead, Kudi, Lagos (2021-2024)
 • Led a team of 6 analysts and reduced processing time by 30%
 • Built dashboards that improved reporting speed
 • Managed vendor relationships across 3 regions
-Analyst — GTBank (2019 – 2021)
+Analyst, GTBank (2019-2021)
 • Delivered monthly forecasting models
 • Automated reconciliation checks
 EDUCATION
@@ -18,7 +18,7 @@ SKILLS
 Excel, SQL, Python, Operations management, Vendor management
 `.repeat(3);
 
-describe('scanResume — deterministic checks', () => {
+describe('scanResume, deterministic checks', () => {
   it('scores a well-structured CV highly with all sections found', () => {
     const r = scanResume(goodCv);
     expect(r.score).toBeGreaterThanOrEqual(80);
@@ -58,7 +58,7 @@ describe('scanResume — deterministic checks', () => {
   });
 });
 
-describe('extractKeywords — frequency-based, no model', () => {
+describe('extractKeywords, frequency-based, no model', () => {
   it('ranks repeated terms and drops stopwords', () => {
     const kws = extractKeywords('Python developer. Python. Python and more Python with Kubernetes and docker docker.');
     expect(kws[0]).toBe('python');

@@ -42,7 +42,7 @@ export default function Billing() {
       <section className="workspace-hero">
         <p className="eyebrow">PLAN &amp; USAGE</p>
         <h1>Keep control of your momentum.</h1>
-        <p>Your plan, credits, and automation allowance are calculated securely on the server—not in your browser.</p>
+        <p>Your plan, credits, and automation allowance are calculated securely on the server-not in your browser.</p>
         {entitlement && (
           <div className="usage-strip">
             <span><b>{entitlement.plan}</b> current plan</span>

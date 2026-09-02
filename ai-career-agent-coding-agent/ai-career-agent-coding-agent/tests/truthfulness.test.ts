@@ -11,7 +11,7 @@ const profile: TruthfulProfile = {
   experienceText: 'Led a team. Increased test coverage to 80%.',
 };
 
-describe('verifyDocument — entity checks', () => {
+describe('verifyDocument, entity checks', () => {
   it('passes when every claim is grounded in the profile', () => {
     const r = verifyDocument(
       {
@@ -50,7 +50,7 @@ describe('verifyDocument — entity checks', () => {
   });
 });
 
-describe('verifyDocument — metric + credential fabrication', () => {
+describe('verifyDocument, metric + credential fabrication', () => {
   it('accepts a metric that appears in the profile', () => {
     const r = verifyDocument({ text: 'Achieved coverage of 80%.' }, profile);
     expect(r.passed).toBe(true);
@@ -77,7 +77,7 @@ describe('verifyDocument — metric + credential fabrication', () => {
 });
 
 describe('extract helpers', () => {
-  it('extracts percentages, multipliers, currency — not years', () => {
+  it('extracts percentages, multipliers, currency, not years', () => {
     expect(extractMetrics('up 80%, 3x growth, $50k, in 2019')).toEqual(
       expect.arrayContaining(['80%', '3x', '$50k']),
     );

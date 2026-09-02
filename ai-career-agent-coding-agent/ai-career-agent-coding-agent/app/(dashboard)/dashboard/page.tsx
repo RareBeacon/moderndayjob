@@ -15,10 +15,10 @@ type DraftApp = {
 type FreshJob = { id: string; title: string | null; company: string | null; location: string | null; source: string | null; created_at: string | null };
 
 /**
- * Daily Digest — the "morning paper" dashboard (Broadstreet Journal, v3).
+ * Daily Digest, the "morning paper" dashboard (Broadstreet Journal, v3).
  * Every number on this page is a real count from the database: drafts awaiting
  * approval, applications in flight, listings synced in the last 24h. We never
- * claim scans or "discarded" totals we do not track — the trust banner states
+ * claim scans or "discarded" totals we do not track, the trust banner states
  * what WE guarantee (free to apply, approval-gated), nothing more.
  */
 export default async function Dashboard() {
@@ -80,25 +80,25 @@ export default async function Dashboard() {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Africa/Lagos',
   });
 
-  // Honest digest sentence — only real counts, never scan totals we don't track.
+  // Honest digest sentence, only real counts, never scan totals we don't track.
   const parts: string[] = [];
   if (draftsWaiting > 0) parts.push(`${draftsWaiting} draft${draftsWaiting === 1 ? '' : 's'} waiting for your approval`);
   if (inFlight > 0) parts.push(`${inFlight} application${inFlight === 1 ? '' : 's'} in flight`);
   if (newToday > 0) parts.push(`${newToday} listing${newToday === 1 ? '' : 's'} synced to your pool since yesterday`);
   const summary = parts.length
     ? `${parts.join(', ')}. Nothing is sent until you approve it.`
-    : 'A quiet day — your pool is ready when you are. Nothing is ever sent without your approval.';
+    : 'A quiet day, your pool is ready when you are. Nothing is ever sent without your approval.';
 
   // Deterministic, real-derived next steps (no fabricated suggestions)
   const suggestions: { text: string; href: string }[] = [];
-  if (completeness.percent < 100) suggestions.push({ text: `Finish your profile — ${completeness.percent}% complete for stronger matches.`, href: '/onboarding' });
+  if (completeness.percent < 100) suggestions.push({ text: `Finish your profile, ${completeness.percent}% complete for stronger matches.`, href: '/onboarding' });
   if ((applicationCount ?? 0) === 0) suggestions.push({ text: 'Track your first application to start your history.', href: '/applications' });
   if (entitlement.automation_enabled && (taskCount ?? 0) === 0) suggestions.push({ text: 'Your agent is ready. Find matches to begin automation.', href: '/match' });
   suggestions.push({ text: 'Refresh your CV and run an ATS check for your next role.', href: '/generate' });
 
   return (
     <AppShell active="dashboard" title="Daily digest">
-      {/* Trust banner — statements about us, provably true */}
+      {/* Trust banner, statements about us, provably true */}
       <div className="dd-banner" role="note">
         Your application is free. Jobiest never asks candidates for money, and nothing is ever sent
         without your approval.
@@ -135,7 +135,7 @@ export default async function Dashboard() {
                   </li>
                 ))}
               </ul>
-              <p className="muted dd-note">Drafts are prepared from your verified facts only. Approve, edit, or reject — your call, every time.</p>
+              <p className="muted dd-note">Drafts are prepared from your verified facts only. Approve, edit, or reject, your call, every time.</p>
             </section>
           )}
 

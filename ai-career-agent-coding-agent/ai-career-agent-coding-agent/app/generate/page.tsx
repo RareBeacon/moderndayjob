@@ -115,7 +115,7 @@ export default function GeneratePage() {
         <p className="eyebrow">Application intelligence</p>
         <h1>Resume studio</h1>
         <p style={{ color: 'var(--muted)', fontSize: 17, margin: '14px 0 0' }}>
-          CVs, cover letters, and application answers — built only from your verified profile facts and
+          CVs, cover letters, and application answers, built only from your verified profile facts and
           checked for truthfulness before they’re saved. Each generation is an immutable version.
         </p>
       </div>
@@ -145,7 +145,7 @@ export default function GeneratePage() {
           >
             <option value="">General (no specific job)</option>
             {jobs.map((j) => (
-              <option key={j.id} value={j.id}>{j.title} — {j.company}</option>
+              <option key={j.id} value={j.id}>{j.title}, {j.company}</option>
             ))}
           </select>
         </label>
@@ -231,7 +231,7 @@ function ReportBar({ report, version }: { report: Report; version?: number }) {
           ? { background: 'var(--success-bg)', color: 'var(--success)' }
           : { background: 'var(--danger-bg)', color: 'var(--danger)' }
       }>
-        {report.passed ? 'Truthful — saved' : 'Rejected'}
+        {report.passed ? 'Truthful, saved' : 'Rejected'}
       </span>
       {version && <span className="muted" style={{ fontSize: 13 }}>Version {version}</span>}
       <span className="muted" style={{ fontSize: 13 }}>{report.summary}</span>

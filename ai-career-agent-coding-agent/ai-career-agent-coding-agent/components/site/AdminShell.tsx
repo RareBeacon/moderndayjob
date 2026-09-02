@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
-/* AdminShell — internal chrome for /admin surfaces.
+/* AdminShell, internal chrome for /admin surfaces.
    Denser than the user app: ruled data tables, tracked uppercase
    overlines, no marketing ornament. §6.10 of the UI/UX plan. */
 

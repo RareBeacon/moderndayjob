@@ -194,7 +194,7 @@ export default function OnboardingPage() {
       <section className="onboarding-card wizard-card">
         <p className="eyebrow">SET UP YOUR CAREER WORKSPACE</p>
         <h1>Let’s tailor your agent.</h1>
-        <p className="step-sub">Six quick steps. Your profile is the source of facts we use — we never invent.</p>
+        <p className="step-sub">Six quick steps. Your profile is the source of facts we use, we never invent.</p>
 
         <div className="stepper" role="list">
           {STEPS.map((label, i) => (
@@ -214,7 +214,7 @@ export default function OnboardingPage() {
             {step === 0 && (
               <div className="form-stack">
                 <label>What’s your name?<input value={form.full_name} onChange={field('full_name')} placeholder="Your name" /></label>
-                <label>What do you do?<span>A headline in your own words — any profession.</span><input value={form.headline} onChange={field('headline')} placeholder="e.g. Senior Product Designer" /></label>
+                <label>What do you do?<span>A headline in your own words, any profession.</span><input value={form.headline} onChange={field('headline')} placeholder="e.g. Senior Product Designer" /></label>
                 <label>Short professional summary<span>The experience you want your agent to understand.</span><textarea value={form.summary} onChange={field('summary')} rows={3} placeholder="A few lines about your work and strengths." /></label>
               </div>
             )}
@@ -222,7 +222,7 @@ export default function OnboardingPage() {
             {step === 1 && (
               <div className="form-stack">
                 <label>Which roles are you targeting?<span>Comma-separated, e.g. Product Designer, UX Researcher</span><input value={form.target_roles} onChange={field('target_roles')} placeholder="e.g. Product Designer, UX Researcher" /></label>
-                <label>Your key skills<span>Comma-separated — these power matching and truthful applications.</span><input value={form.skills} onChange={field('skills')} placeholder="e.g. Figma, research, strategy" /></label>
+                <label>Your key skills<span>Comma-separated, these power matching and truthful applications.</span><input value={form.skills} onChange={field('skills')} placeholder="e.g. Figma, research, strategy" /></label>
               </div>
             )}
 
@@ -279,7 +279,7 @@ export default function OnboardingPage() {
                     </div>
                   ))}
                 </div>
-                <label>Application email<span>The address used when you apply. No inbox access — just a contact email.</span><input type="email" value={form.application_email} onChange={field('application_email')} placeholder="you@example.com" /></label>
+                <label>Application email<span>The address used when you apply. No inbox access, just a contact email.</span><input type="email" value={form.application_email} onChange={field('application_email')} placeholder="you@example.com" /></label>
                 <label>How much control should your agent have?</label>
                 <div className="mode-cards">
                   {MODES.map((m) => (
@@ -310,13 +310,13 @@ export default function OnboardingPage() {
                   <h2>Your agent is ready to work.</h2>
                   <p className="muted">Here’s what we’ll use. You can change anything later.</p>
                   <ul className="ready-list">
-                    <li><span>Name</span><b>{form.full_name || '—'}</b></li>
-                    <li><span>Target roles</span><b>{split(form.target_roles).join(', ') || '—'}</b></li>
-                    <li><span>Arrangement</span><b>{form.remote_types.length ? form.remote_types.join(', ') : '—'}{form.locations ? ` · ${form.locations}` : ''}</b></li>
+                    <li><span>Name</span><b>{form.full_name || '-'}</b></li>
+                    <li><span>Target roles</span><b>{split(form.target_roles).join(', ') || '-'}</b></li>
+                    <li><span>Arrangement</span><b>{form.remote_types.length ? form.remote_types.join(', ') : '-'}{form.locations ? ` · ${form.locations}` : ''}</b></li>
                     <li><span>Control</span><b>{modeLabel}</b></li>
-                    <li><span>Daily target</span><b>{form.daily_target || '—'} applications/day</b></li>
+                    <li><span>Daily target</span><b>{form.daily_target || '-'} applications/day</b></li>
                   </ul>
-                  <p className="ready-note">Approval mode keeps you in charge. Your agent prepares — you review and release.</p>
+                  <p className="ready-note">Approval mode keeps you in charge. Your agent prepares, you review and release.</p>
                 </div>
               </div>
             )}

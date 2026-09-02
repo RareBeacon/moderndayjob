@@ -13,7 +13,7 @@ const body = z.object({ role: z.string().trim().min(2).max(60) });
 const SCAN_LIMIT = 20;
 
 /**
- * POST /api/ai/salary-insights — report ONLY pay ranges explicitly stated
+ * POST /api/ai/salary-insights, report ONLY pay ranges explicitly stated
  * in real listings from the job pool. No estimates, no averages, no market
  * claims. Empty pool → honest empty answer, no credit spent.
  */
@@ -86,7 +86,7 @@ export async function POST(req: Request) {
       ranges: result.ranges,
       notes: result.notes,
       provider: result.provider,
-      note: 'Only pay ranges explicitly stated in listings are shown. Most employers do not state pay — treat these as signals, not market rates.',
+      note: 'Only pay ranges explicitly stated in listings are shown. Most employers do not state pay, treat these as signals, not market rates.',
     });
   } catch (err) {
     await meter.refund();

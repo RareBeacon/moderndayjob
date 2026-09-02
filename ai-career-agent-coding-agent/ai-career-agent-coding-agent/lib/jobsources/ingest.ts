@@ -28,7 +28,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /**
  * Run all source adapters with error isolation: a failing board is recorded
  * in the report and the remaining boards still run. Rows are upserted on
- * (source, external_id) so re-running is idempotent — created_at of an
+ * (source, external_id) so re-running is idempotent, created_at of an
  * existing row is never touched, so "new in your pool" stays truthful.
  */
 export async function runIngestion(options: IngestOptions): Promise<IngestReport> {

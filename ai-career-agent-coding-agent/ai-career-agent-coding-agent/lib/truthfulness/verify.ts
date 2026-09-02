@@ -2,12 +2,12 @@ import type { Claim, TruthfulProfile, TruthfulnessReport, VerificationInput } fr
 import { extractCredentials, extractMetrics, matchesAny, norm } from './extract';
 
 /**
- * Deterministic truthfulness verifier (ARCHITECTURE §2 — the AI is never the
+ * Deterministic truthfulness verifier (ARCHITECTURE §2, the AI is never the
  * sole authority for truthfulness). Given the model's claimed entities and the
  * generated text, it checks every claim against the verified profile facts:
  *
  *  - employers / schools: every claimed entity must exist in the profile
- *    (hard failure if not — fabricated employers/schools are disqualifying);
+ *    (hard failure if not, fabricated employers/schools are disqualifying);
  *  - metrics: every percentage / multiplier / currency amount in the text must
  *    appear in the profile's source text (catches "increased revenue by 45%"
  *    that the candidate never stated);
@@ -103,7 +103,7 @@ export function verifyDocument(
     ? suspicious.length
       ? `Passed with ${suspicious.length} unverified skill(s) to review.`
       : 'All claims are supported by the profile.'
-    : `${unsupported.length} unsupported claim(s) detected — not persisted.`;
+    : `${unsupported.length} unsupported claim(s) detected, not persisted.`;
 
   return { supported, unsupported, suspicious, passed, summary };
 }

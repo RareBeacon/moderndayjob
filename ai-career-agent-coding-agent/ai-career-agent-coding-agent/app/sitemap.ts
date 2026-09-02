@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { SITE_URL } from '@/lib/site';
 
-/** All 10 free tools + core pages — everything public and indexable. */
+/** All 10 free tools + core pages, everything public and indexable. */
 const FREE_TOOLS = [
   '/free-job-description-analyzer',
   '/free-cover-letter-writer',

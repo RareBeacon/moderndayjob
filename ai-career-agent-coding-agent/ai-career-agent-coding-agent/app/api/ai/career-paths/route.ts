@@ -8,7 +8,7 @@ import { generateCareerPaths } from '@/lib/analysis/service';
 import { loadGenerationProfile } from '@/lib/generation/loader';
 
 /**
- * POST /api/ai/career-paths — exploratory direction suggestions from
+ * POST /api/ai/career-paths, exploratory direction suggestions from
  * verified skills. Deterministic guard: skills cited as "building on" must
  * exist in the profile or the draft is rejected + refunded.
  */
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
       paths: result.paths,
       summary: result.summary,
       provider: result.provider,
-      framing: 'Exploratory suggestions based on your verified skills — not guaranteed outcomes.',
+      framing: 'Exploratory suggestions based on your verified skills, not guaranteed outcomes.',
     });
   } catch (err) {
     await meter.refund();

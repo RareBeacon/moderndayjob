@@ -2,7 +2,7 @@ import { defaultFetchImpl, type FetchLike, type NormalizedJob, type SourceAdapte
 import { capText, cleanLine, contentHash, htmlToText } from './normalize';
 
 /* ============================================================
-   Greenhouse — public board JSON API (no auth for public boards)
+   Greenhouse, public board JSON API (no auth for public boards)
    GET https://boards.greenhouse.io/v1/boards/{token}/jobs?content=true
    ============================================================ */
 interface GreenhouseJob {
@@ -51,7 +51,7 @@ export function greenhouseAdapter(token: string, fetchImpl: FetchLike): SourceAd
 }
 
 /* ============================================================
-   Lever — public postings API
+   Lever, public postings API
    GET https://api.lever.co/v0/postings/{company}?mode=json
    ============================================================ */
 interface LeverPosting {
@@ -98,7 +98,7 @@ export function leverAdapter(company: string, fetchImpl: FetchLike): SourceAdapt
 }
 
 /* ============================================================
-   Ashby — public posting API
+   Ashby, public posting API
    GET https://api.ashbyhq.com/posting-api/job-board/{org}
    ============================================================ */
 interface AshbyJob {
@@ -149,7 +149,7 @@ export function ashbyAdapter(org: string, fetchImpl: FetchLike): SourceAdapter {
 }
 
 /* ============================================================
-   Board registry — defaults verified live 2026-09-02; env-overridable.
+   Board registry, defaults verified live 2026-09-02; env-overridable.
    ============================================================ */
 export const DEFAULT_GREENHOUSE_BOARDS = 'stripe,airbnb,dropbox';
 export const DEFAULT_LEVER_BOARDS = 'spotify';

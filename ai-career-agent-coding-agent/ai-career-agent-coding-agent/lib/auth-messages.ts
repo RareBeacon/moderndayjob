@@ -1,6 +1,6 @@
 /**
  * Maps raw Supabase auth error strings to calm, actionable messages
- * (UI/UX Brief §11 — never show only "something went wrong").
+ * (UI/UX Brief §11, never show only "something went wrong").
  */
 export function humanizeAuthError(message: string): string {
   const m = (message || '').toLowerCase();

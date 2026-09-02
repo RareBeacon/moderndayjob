@@ -1,4 +1,4 @@
-# AI Career Agent — UI/UX Brief
+# AI Career Agent, UI/UX Brief
 
 ## 1. Product Personality
 
@@ -128,12 +128,12 @@ Sections:
 Live event feed:
 
 ```text
-10:01 — Found 42 new jobs
-10:04 — Removed 11 duplicates
-10:06 — Scored 31 opportunities
-10:12 — Shortlisted 12
-10:17 — Generated application for Company A
-10:18 — Submitted application
+10:01, Found 42 new jobs
+10:04, Removed 11 duplicates
+10:06, Scored 31 opportunities
+10:12, Shortlisted 12
+10:17, Generated application for Company A
+10:18, Submitted application
 ```
 
 ## 8. Trust UI

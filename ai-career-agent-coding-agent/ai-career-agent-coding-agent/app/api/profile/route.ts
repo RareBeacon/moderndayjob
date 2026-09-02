@@ -68,7 +68,7 @@ export async function PUT(request: Request) {
 /**
  * Clears the user's structured career profile (headline, summary, skills,
  * experience, education, projects, links). Does NOT delete the account or the
- * auth-tied `profiles` row — see DECISIONS.md D-003.
+ * auth-tied `profiles` row, see DECISIONS.md D-003.
  */
 export async function DELETE() {
   const user = await requireUser();

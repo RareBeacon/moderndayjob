@@ -27,7 +27,7 @@ export interface JobAnalysis extends JobAnalysisOutput {
 /**
  * Deterministic, case-insensitive skill comparison with containment matching,
  * so "React" matches "react.js" (and vice versa) in either direction.
- * Pure — fully unit-testable.
+ * Pure, fully unit-testable.
  */
 export function compareSkills(required: string[], userSkills: string[]): { matched: string[]; missing: string[] } {
   const norm = (s: string) => s.trim().toLowerCase();
@@ -64,7 +64,7 @@ export async function analyzeJob(input: {
 /**
  * Generate interview practice questions grounded in what the listing states.
  * Questions are guidance, not claims about the user, so there is no
- * truthfulness check — but the prompt forbids inventing requirements.
+ * truthfulness check, but the prompt forbids inventing requirements.
  */
 export async function generateInterviewQuestions(input: {
   gateway: AnalysisGateway;
@@ -81,7 +81,7 @@ export type ProfileCopyKind = 'SUMMARY' | 'HEADLINE';
 /**
  * Generate resume-summary or LinkedIn-headline options from verified profile
  * facts, then run the deterministic truthfulness checker over the result.
- * The route rejects (and refunds) when report.passed is false — same contract
+ * The route rejects (and refunds) when report.passed is false, same contract
  * as the workspace document generators.
  */
 export async function generateProfileCopy(input: {
@@ -104,7 +104,7 @@ export async function generateProfileCopy(input: {
   return { kind: input.kind, options: data.options, report, provider };
 }
 
-/** Follow-up email — drafted from user-supplied facts (no qualification claims). */
+/** Follow-up email, drafted from user-supplied facts (no qualification claims). */
 export async function generateFollowupEmail(input: {
   gateway: AnalysisGateway;
   company: string;
@@ -151,7 +151,7 @@ export async function generateCareerPaths(input: {
 
 /**
  * Salary insights from real listings. Deterministic guard: every cited jobId
- * must belong to the scanned set — a range attributed to a listing we never
+ * must belong to the scanned set, a range attributed to a listing we never
  * read is fabrication and fails verification.
  */
 export async function generateSalaryInsights(input: {

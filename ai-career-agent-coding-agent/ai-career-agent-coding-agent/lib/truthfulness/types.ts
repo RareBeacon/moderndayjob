@@ -6,7 +6,7 @@ export interface TruthfulProfile {
   employers: string[];
   /** Institution names from education entries. */
   schools: string[];
-  /** Joined experience descriptions — a source of legitimate numbers/metrics. */
+  /** Joined experience descriptions, a source of legitimate numbers/metrics. */
   experienceText: string;
 }
 

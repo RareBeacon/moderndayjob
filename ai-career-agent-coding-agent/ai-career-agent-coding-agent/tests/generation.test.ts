@@ -36,7 +36,7 @@ const honestCV: CVOutput = {
   education: [{ institution: 'University of Lagos', qualification: 'BSc Computer Science' }],
 };
 
-describe('generateDocument — CV', () => {
+describe('generateDocument, CV', () => {
   it('passes truthfulness when only profile facts are used', async () => {
     const res = await generateDocument({ kind: 'CV', profile, gateway: mockGateway(() => honestCV) });
     expect(res.report.passed).toBe(true);
@@ -66,7 +66,7 @@ describe('generateDocument — CV', () => {
   });
 });
 
-describe('generateDocument — cover letter', () => {
+describe('generateDocument, cover letter', () => {
   it('passes when references are grounded', async () => {
     const out: CoverLetterOutput = {
       body: 'At Google I used TypeScript to build reliable systems for users.',
@@ -87,7 +87,7 @@ describe('generateDocument — cover letter', () => {
   });
 });
 
-describe('generateDocument — answers', () => {
+describe('generateDocument, answers', () => {
   it('throws when questions are missing', async () => {
     await expect(
       generateDocument({ kind: 'ANSWERS', profile, gateway: mockGateway(() => ({})) }),

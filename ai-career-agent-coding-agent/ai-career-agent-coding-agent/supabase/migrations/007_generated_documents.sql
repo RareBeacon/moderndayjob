@@ -1,6 +1,6 @@
 -- 007_generated_documents.sql
 -- Immutable, versioned generated documents (CV / cover-letter / answers) with
--- source-fact references for traceability (Trust Principles). No UPDATE policy —
+-- source-fact references for traceability (Trust Principles). No UPDATE policy,
 -- documents are append-only; a new version is a new row. Writes via service role.
 create table if not exists public.generated_documents (
   id uuid primary key default gen_random_uuid(),

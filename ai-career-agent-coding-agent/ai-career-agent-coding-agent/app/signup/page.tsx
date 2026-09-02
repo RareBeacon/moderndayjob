@@ -36,7 +36,7 @@ export default function SignupPage() {
       router.refresh();
       return;
     }
-    // Email confirmation is enabled — no session yet.
+    // Email confirmation is enabled, no session yet.
     setNotice('Account created. Check your email to confirm, then sign in.');
   }
 

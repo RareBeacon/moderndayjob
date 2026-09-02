@@ -17,7 +17,7 @@ export interface DiscoveryOutcome {
 /**
  * Runs all sources with failure isolation (ARCHITECTURE §13 / TECHNICAL_REQUIREMENTS §20):
  * one source throwing never prevents the others from returning jobs.
- * Pure — no database access. Use persistDiscoveredJobs() to store results.
+ * Pure, no database access. Use persistDiscoveredJobs() to store results.
  */
 export async function runDiscovery(sources: DiscoverySource[]): Promise<DiscoveryOutcome> {
   const jobs: import('./types').NormalizedJob[] = [];

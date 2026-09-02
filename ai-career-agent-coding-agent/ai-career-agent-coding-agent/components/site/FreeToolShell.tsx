@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
-/* FreeToolShell — marketing chrome for the public /free-* SEO tool pages.
+/* FreeToolShell, marketing chrome for the public /free-* SEO tool pages.
    Shares the landing's warm design system (mk-* tokens) with a compact hero. */
 
 function Logo() {

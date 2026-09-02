@@ -5,12 +5,12 @@ import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { LinkedInHeadlineTool } from '@/components/freetools/LinkedInHeadlineTool';
 
 export const metadata: Metadata = {
-  title: 'Free LinkedIn Headline Builder — honest, buzzword-free options',
+  title: 'Free LinkedIn Headline Builder, honest, buzzword-free options',
   description:
-    'Five LinkedIn headline options built from your verified profile facts — role-first, skills-first, and a plain conservative one. Truthfulness-checked. Free.',
+    'Five LinkedIn headline options built from your verified profile facts, role-first, skills-first, and a plain conservative one. Truthfulness-checked. Free.',
   openGraph: {
-    title: 'Free LinkedIn Headline Builder — Jobiest',
-    description: 'Headlines from your verified facts — no buzzword stacking, no emojis. Free to use.',
+    title: 'Free LinkedIn Headline Builder · Jobiest',
+    description: 'Headlines from your verified facts, no buzzword stacking, no emojis. Free to use.',
   },
 };
 
@@ -19,7 +19,7 @@ export default async function FreeLinkedInHeadlinePage() {
   return (
     <FreeToolShell
       title="LinkedIn Headline Builder"
-      lead="Five headline options from your verified profile facts — varied angles, no buzzword stacking, checked for truthfulness before you see them."
+      lead="Five headline options from your verified profile facts, varied angles, no buzzword stacking, checked for truthfulness before you see them."
     >
       <section className="mk-section tight">
         <div className="mk-shell" style={{ maxWidth: 860 }}>
@@ -34,7 +34,7 @@ export default async function FreeLinkedInHeadlinePage() {
               <p>
                 &quot;AI-Powered Growth Ninja 🚀&quot; tells recruiters nothing and collapses under
                 scrutiny. Every option here is built from facts in your profile and verified before it
-                reaches you — so what your headline says, you can back up.
+                reaches you, so what your headline says, you can back up.
               </p>
             </div>
             <ul className="ft-points">
@@ -56,15 +56,15 @@ export default async function FreeLinkedInHeadlinePage() {
             <div className="ft-faq">
               <details>
                 <summary>Is it really free?</summary>
-                <p>Yes. It uses one of your daily AI credits — the free plan includes 2 every day, forever.</p>
+                <p>Yes. It uses one of your daily AI credits, the free plan includes 2 every day, forever.</p>
               </details>
               <details>
                 <summary>Why no keywords like "Open to Work"?</summary>
-                <p>Those are LinkedIn settings, not headline content — and this tool only writes from your verified facts. Add availability signals on LinkedIn itself.</p>
+                <p>Those are LinkedIn settings, not headline content, and this tool only writes from your verified facts. Add availability signals on LinkedIn itself.</p>
               </details>
               <details>
                 <summary>Can I use it without a profile?</summary>
-                <p>You need at least some profile facts — that is where the truth comes from. Add your experience under Profile first; it takes a few minutes.</p>
+                <p>You need at least some profile facts, that is where the truth comes from. Add your experience under Profile first; it takes a few minutes.</p>
               </details>
             </div>
           </div>
@@ -72,7 +72,7 @@ export default async function FreeLinkedInHeadlinePage() {
           <p className="ft-cta-line">
             Make the whole profile work together.{' '}
             <Link href="/signup" className="inline-link">Start free →</Link>{' '}
-            — headline, CV, and applications from one set of verified facts.
+           your headline, CV, and applications from one set of verified facts.
           </p>
         </div>
       </section>

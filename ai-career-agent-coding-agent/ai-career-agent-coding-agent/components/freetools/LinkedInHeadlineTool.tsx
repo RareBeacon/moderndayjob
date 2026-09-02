@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { CopyButton } from './CopyButton';
 
 const ERRORS: Record<string, { title: string; detail: string }> = {
-  UNAUTHENTICATED: { title: 'Sign in to continue', detail: 'Create a free account to build your headline — it takes a minute.' },
+  UNAUTHENTICATED: { title: 'Sign in to continue', detail: 'Create a free account to build your headline, it takes a minute.' },
   CAREER_PROFILE_REQUIRED: { title: 'Complete your profile first', detail: 'Headlines are built from your verified facts. Add your experience under Profile, then come back.' },
   DAILY_AI_CREDITS_EXHAUSTED: { title: 'Out of AI credits', detail: 'Your daily AI credits are used up. They reset tomorrow.' },
   AI_CREDENTIAL_NOT_CONFIGURED: { title: 'Connect an AI provider', detail: 'Add an OpenRouter or Hugging Face API key in Settings.' },
@@ -47,7 +47,7 @@ export function LinkedInHeadlineTool({ signedIn }: { signedIn: boolean }) {
   return (
     <div className="ft-tool">
       <p className="muted" style={{ margin: 0 }}>
-        Five headline options from your verified profile facts — role-first, skills-first, and a plain
+        Five headline options from your verified profile facts, role-first, skills-first, and a plain
         conservative one. Checked for truthfulness before you see them. No buzzword stacking, no emojis.
       </p>
       <div className="ft-actions">
@@ -63,7 +63,7 @@ export function LinkedInHeadlineTool({ signedIn }: { signedIn: boolean }) {
 
       {!signedIn && (
         <p className="muted" style={{ marginTop: 12, fontSize: 14 }}>
-          Free forever plan included — 2 AI credits every day.{' '}
+          Free forever plan included, 2 AI credits every day.{' '}
           <Link href="/login" className="inline-link">Already have an account? Sign in →</Link>
         </p>
       )}
@@ -80,7 +80,7 @@ export function LinkedInHeadlineTool({ signedIn }: { signedIn: boolean }) {
       {state === 'done' && (
         <div style={{ marginTop: 20 }}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14 }}>
-            <span className="badge" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>Truthful — verified</span>
+            <span className="badge" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>Truthful, verified</span>
             <span className="muted" style={{ fontSize: 13 }}>Every claim checked against your profile.</span>
           </div>
           <div style={{ display: 'grid', gap: 10 }}>
@@ -93,7 +93,7 @@ export function LinkedInHeadlineTool({ signedIn }: { signedIn: boolean }) {
           </div>
           {provider && (
             <p className="muted" style={{ marginTop: 12, fontSize: 12 }}>
-              Drafted by {provider}. Paste the one that fits into LinkedIn — it should sound like you.
+              Drafted by {provider}. Paste the one that fits into LinkedIn, it should sound like you.
             </p>
           )}
         </div>

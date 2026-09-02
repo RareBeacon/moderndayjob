@@ -52,7 +52,7 @@ function jobBlock(job?: GenerationJob): string {
         location: job.location ?? null,
         description: job.description.slice(0, 4000),
       })}\n`
-    : '\nNo specific job provided — write a strong general version.\n';
+    : '\nNo specific job provided, write a strong general version.\n';
 }
 
 /* ---------- CV ---------- */

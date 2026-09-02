@@ -1,4 +1,4 @@
-# AI Career Agent — Product Requirements Document
+# AI Career Agent, Product Requirements Document
 
 ## 1. Product Summary
 
@@ -14,7 +14,7 @@ The product must never hard-code a single profession. The profession is user dat
 
 ## 3. Primary Users
 
-### User A — AI Engineer
+### User A, AI Engineer
 Example roles:
 - AI Engineer
 - AI Developer
@@ -24,7 +24,7 @@ Example roles:
 - Generative AI Engineer
 - Python Developer
 
-### User B — Content Creator
+### User B, Content Creator
 Example roles:
 - Content Creator
 - Content Strategist

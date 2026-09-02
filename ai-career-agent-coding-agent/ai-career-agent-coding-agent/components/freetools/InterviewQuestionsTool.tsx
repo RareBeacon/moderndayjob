@@ -10,8 +10,8 @@ type Result = {
 };
 
 const ERRORS: Record<string, { title: string; detail: string }> = {
-  UNAUTHENTICATED: { title: 'Sign in to continue', detail: 'Create a free account to generate questions — it takes a minute.' },
-  DAILY_AI_CREDITS_EXHAUSTED: { title: 'Daily AI credits used up', detail: 'Your free daily credits are exhausted. They reset tomorrow — or upgrade for more.' },
+  UNAUTHENTICATED: { title: 'Sign in to continue', detail: 'Create a free account to generate questions, it takes a minute.' },
+  DAILY_AI_CREDITS_EXHAUSTED: { title: 'Daily AI credits used up', detail: 'Your free daily credits are exhausted. They reset tomorrow, or upgrade for more.' },
   AI_CREDENTIAL_NOT_CONFIGURED: { title: 'Connect an AI provider', detail: 'Add an OpenRouter or Hugging Face API key in Settings to power this tool.' },
   AI_ALL_PROVIDERS_FAILED: { title: 'Generation failed', detail: 'The AI provider could not process this listing. Your credit was refunded.' },
   RATE_LIMITED: { title: 'Slow down', detail: 'Too many requests. Wait a moment and try again.' },
@@ -56,7 +56,7 @@ export function InterviewQuestionsTool({ signedIn }: { signedIn: boolean }) {
         id="iq-jd"
         value={jd}
         onChange={(e) => setJd(e.target.value)}
-        placeholder="Paste the listing you're interviewing for — requirements, duties, everything."
+        placeholder="Paste the listing you're interviewing for, requirements, duties, everything."
       />
       <div className="ft-actions">
         {signedIn ? (
@@ -73,7 +73,7 @@ export function InterviewQuestionsTool({ signedIn }: { signedIn: boolean }) {
 
       {!signedIn && (
         <p className="muted" style={{ marginTop: 12, fontSize: 14 }}>
-          Free forever plan included — 2 AI credits every day.{' '}
+          Free forever plan included, 2 AI credits every day.{' '}
           <Link href="/login" className="inline-link">Already have an account? Sign in →</Link>
         </p>
       )}
@@ -113,7 +113,7 @@ export function InterviewQuestionsTool({ signedIn }: { signedIn: boolean }) {
           )}
           {result.provider && (
             <p className="muted" style={{ marginTop: 12, fontSize: 12 }}>
-              Questions by {result.provider}, based only on what this listing states. Practice material — not a guarantee of what will be asked.
+              Questions by {result.provider}, based only on what this listing states. Practice material, not a guarantee of what will be asked.
             </p>
           )}
         </div>

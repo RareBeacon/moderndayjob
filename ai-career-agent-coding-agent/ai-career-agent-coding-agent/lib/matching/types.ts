@@ -95,6 +95,6 @@ export interface MatchingOutcome {
   cappedCount: number;
   /** Jobs actually sent to the AI. */
   scoredCount: number;
-  /** Per-job AI failures (failure isolation — one failure does not abort the batch). */
+  /** Per-job AI failures (failure isolation, one failure does not abort the batch). */
   failures: MatchFailure[];
 }

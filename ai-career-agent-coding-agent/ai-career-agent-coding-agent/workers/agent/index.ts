@@ -5,7 +5,7 @@ import { defaultAdapters } from '../../lib/jobsources/boards';
 import { supabaseJobStore } from '../../lib/jobsources/store';
 
 /**
- * Always-on agent worker (optional — local dev / a future paid host).
+ * Always-on agent worker (optional, local dev / a future paid host).
  * Production runs the same logic daily via Vercel Cron:
  * /api/cron/daily-pipeline. Both use lib/agent/pipeline.
  */

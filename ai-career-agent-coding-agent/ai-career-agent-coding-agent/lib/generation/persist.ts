@@ -21,12 +21,12 @@ export interface PersistedDocument {
 
 /**
  * Persist a generated document as an immutable, versioned row
- * (migration 007 + 008). A new generation is always a NEW row — prior versions
+ * (migration 007 + 008). A new generation is always a NEW row, prior versions
  * are never mutated (append-only). `version` is computed as max(existing)+1 for
  * the same (user, kind, application). `content_hash` makes each version
  * verifiable; `source_facts` records the truthfulness report for traceability.
  *
- * Server/worker-only — writes use the service role (RLS bypass).
+ * Server/worker-only, writes use the service role (RLS bypass).
  */
 export async function persistGeneratedDocument(input: PersistInput): Promise<PersistedDocument> {
   const contentHash = crypto.createHash('sha256').update(input.content).digest('hex');

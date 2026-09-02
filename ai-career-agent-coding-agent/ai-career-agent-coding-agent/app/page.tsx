@@ -1,6 +1,38 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import type { CSSProperties } from 'react';
 import { FAQ } from '@/components/site/FAQ';
+import { Reveal } from '@/components/site/Reveal';
+import { ScrollStory } from '@/components/site/ScrollStory';
+import { DemoReel } from '@/components/site/DemoReel';
+import type { MarketData } from '@/components/site/CityStage';
+import { supabaseAdmin } from '@/lib/supabase';
+
+/* Homepage data is ISR: rebuilt on deploy, then refreshed at most every 5
+   minutes, so the market city shows recent counts without hammering the
+   database on every visit. */
+export const revalidate = 300;
+
+/** Live market shape for the 3D city. Honest on failure: empty means the
+ *  scene renders unlabeled rather than inventing numbers. */
+async function getLiveMarket(): Promise<MarketData> {
+  try {
+    const { data, error } = await supabaseAdmin.from('jobs').select('source, company');
+    if (error || !data) return { total: 0, sources: [], companies: [], checkedAt: null };
+    const bySource = new Map<string, number>();
+    const byCompany = new Map<string, number>();
+    for (const row of data as { source: string; company: string | null }[]) {
+      bySource.set(row.source, (bySource.get(row.source) ?? 0) + 1);
+      const co = (row.company ?? '').trim();
+      if (co) byCompany.set(co, (byCompany.get(co) ?? 0) + 1);
+    }
+    const sources = [...bySource.entries()].map(([name, count]) => ({ name: name.charAt(0) + name.slice(1).toLowerCase(), count })).sort((a, b) => b.count - a.count);
+    const companies = [...byCompany.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 7);
+    return { total: data.length, sources, companies, checkedAt: new Date().toISOString() };
+  } catch {
+    return { total: 0, sources: [], companies: [], checkedAt: null };
+  }
+}
 
 /* small inline check glyph for the security rail (meaningful, not decorative sparkle) */
 function Check() {
@@ -50,13 +82,14 @@ const tools = [
   { tag: 'Live', title: 'Skills Matcher', body: 'See which of your skills a job actually rewards.', href: '/free-skills-matcher' },
   { tag: 'Live', title: 'Interview Question Generator', body: 'Practice role-specific questions with model answers.', href: '/free-interview-question-generator' },
   { tag: 'Live', title: 'Career Path Explorer', body: 'Map realistic next steps from your real profile.', href: '/free-career-path-explorer' },
-  { tag: 'Live', title: 'Salary Insights', body: 'Only the pay that real listings state — never estimates.', href: '/free-salary-insights' },
+  { tag: 'Live', title: 'Salary Insights', body: 'Only the pay that real listings state, never estimates.', href: '/free-salary-insights' },
   { tag: 'Live', title: 'Resume Summary Generator', body: 'A sharp two-line intro, grounded in your work.', href: '/free-resume-summary-generator' },
   { tag: 'Live', title: 'Follow-up Email Writer', body: 'A polite, timely nudge to a recruiter.', href: '/free-follow-up-email-writer' },
   { tag: 'Live', title: 'LinkedIn Headline Builder', body: 'A headline that earns the right clicks.', href: '/free-linkedin-headline-builder' },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const market = await getLiveMarket();
   return (
     <>
       {/* 1 · Header */}
@@ -79,13 +112,13 @@ export default function HomePage() {
       </header>
 
       <main id="main">
-        {/* 2 · Hero — asymmetric: outcome copy + living agent workspace */}
+        {/* 2 · Hero, asymmetric: outcome copy + living agent workspace */}
         <section className="mk-hero">
           <div className="mk-shell grid">
             <div>
               <span className="mk-eyebrow"><span className="pulse" /> Your AI career agent is working</span>
               <h1>
-                Your next role, <em>found and applied</em> — while you do something else.
+                Your next role, <em>found and applied</em>, while you do something else.
               </h1>
               <p className="lead">
                 Jobiest discovers jobs that genuinely fit, scores them against your real profile,
@@ -116,7 +149,7 @@ export default function HomePage() {
                   <div className="mk-step done"><span className="node">✓</span><span className="label">Matched · 92%</span><span className="meta">7 of 8 skills</span></div>
                   <div className="mk-step done"><span className="node">✓</span><span className="label">CV tailored</span><span className="meta">ATS-ready</span></div>
                   <div className="mk-step active"><span className="node">•</span><span className="label">Application ready</span><span className="meta">Awaiting you</span></div>
-                  <div className="mk-step todo"><span className="node" /><span className="label">Submitted</span><span className="meta">—</span></div>
+                  <div className="mk-step todo"><span className="node" /><span className="label">Submitted</span><span className="meta">-</span></div>
                 </div>
                 <div className="mk-panel-foot">
                   <div className="mk-stat"><b>12</b><span>new matches today</span></div>
@@ -130,19 +163,22 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* 3 · Career identity — asymmetric copy + profile-strength card */}
+        {/* 2.5 · The cinematic market story: scroll = camera */}
+        <ScrollStory market={market} />
+
+        {/* 3 · Career identity, asymmetric copy + profile-strength card */}
         <section className="mk-section">
           <div className="mk-shell mk-identity">
             <div className="copy">
               <span className="mk-kicker">Your career identity</span>
               <h2>Build your profile once. We do the rest.</h2>
               <p>
-                Tell us your experience, skills, and goals in a guided flow — for any profession, not just
+                Tell us your experience, skills, and goals in a guided flow, for any profession, not just
                 engineering. Your profile becomes the single source of truth that powers every CV, match, and
                 application. No exaggeration. No fabrication. Just your real story, applied precisely.
               </p>
               <ul className="points">
-                <li><span className="ic">1</span><span><b>Profession-agnostic</b><br /><span>Engineers, designers, marketers, accountants, founders — all welcome.</span></span></li>
+                <li><span className="ic">1</span><span><b>Profession-agnostic</b><br /><span>Engineers, designers, marketers, accountants, founders, all welcome.</span></span></li>
                 <li><span className="ic">2</span><span><b>Verified facts only</b><br /><span>We never invent employers, metrics, or credentials you don’t have.</span></span></li>
                 <li><span className="ic">3</span><span><b>Reused everywhere</b><br /><span>One profile fuels matching, CVs, cover letters, and answers.</span></span></li>
               </ul>
@@ -166,7 +202,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* 4 · Resume studio — split: document mock + copy */}
+        {/* 4 · Resume studio, split: document mock + copy */}
         <section className="mk-section" style={{ background: 'var(--background-secondary)' }}>
           <div className="mk-shell mk-studio">
             <div className="mk-doc" aria-hidden="true">
@@ -184,7 +220,7 @@ export default function HomePage() {
             </div>
             <div className="copy">
               <span className="mk-kicker">Resume studio</span>
-              <h2>A document studio — not a text box.</h2>
+              <h2>A document studio, not a text box.</h2>
               <p>
                 Paste a job description and watch your CV reshape to it: keywords aligned, achievements
                 repositioned, an ATS score applied. Every edit is grounded in your real profile and kept as an
@@ -199,7 +235,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* 5 · Job matching — split: copy + match card with ring + "why" */}
+        {/* 5 · Job matching, split: copy + match card with ring + "why" */}
         <section className="mk-section">
           <div className="mk-shell mk-match-wrap">
             <div>
@@ -208,7 +244,7 @@ export default function HomePage() {
                 Matching that actually explains itself.
               </h2>
               <p style={{ color: 'var(--muted)', fontSize: 17, lineHeight: 1.65, marginTop: 16 }}>
-                No black-box scores. For every job you see a clear fit percentage and the exact reasons —
+                No black-box scores. For every job you see a clear fit percentage and the exact reasons,
                 strengths, gaps, and the skills that matter. Jobs you’ve already applied to are automatically
                 excluded, so you never waste a step.
               </p>
@@ -221,7 +257,7 @@ export default function HomePage() {
                 </div>
                 <div>
                   <h3>Senior Product Designer</h3>
-                  <p className="loc">Northwind · Remote · $90–120k</p>
+                  <p className="loc">Northwind · Remote · $90-120k</p>
                   <p className="why">“You’re a strong match because…”</p>
                 </div>
               </div>
@@ -235,7 +271,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* 6 · ATS intelligence — editorial: JD paste → structured ruled grid */}
+        {/* 6 · ATS intelligence, editorial: JD paste → structured ruled grid */}
         <section className="mk-section" style={{ background: 'var(--background-secondary)' }}>
           <div className="mk-shell mk-ats">
             <div className="mk-jd" aria-hidden="true">
@@ -254,7 +290,7 @@ export default function HomePage() {
                 Every listing, broken into a plan.
               </h2>
               <p style={{ color: 'var(--muted)', fontSize: 17, lineHeight: 1.6, margin: '16px 0 24px', maxWidth: '52ch' }}>
-                Paste a job description and get a structured breakdown — required skills you have, the ones
+                Paste a job description and get a structured breakdown, required skills you have, the ones
                 you’re missing, the keywords that matter, and where you’re strong. A ruled grid you can scan
                 in seconds.
               </p>
@@ -268,13 +304,13 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* 7 · Automation — sophisticated staged agent rail (not identical cards) */}
+        {/* 7 · Automation, sophisticated staged agent rail (not identical cards) */}
         <section className="mk-section">
           <div className="mk-shell">
             <div className="mk-sec-head center">
               <span className="mk-kicker">Application automation</span>
               <h2>Meet your AI career employee.</h2>
-              <p>From discovery to submission, the agent moves your applications through every stage — and pauses for your approval before anything sends.</p>
+              <p>From discovery to submission, the agent moves your applications through every stage, and pauses for your approval before anything sends.</p>
             </div>
             <div className="mk-agent-rail" style={{ '--rail': '56%' } as CSSProperties}>
               {agentStages.map((s) => (
@@ -290,13 +326,13 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* 8 · Application activity — pipeline snapshot + response sparkline */}
+        {/* 8 · Application activity, pipeline snapshot + response sparkline */}
         <section className="mk-section" style={{ background: 'var(--background-secondary)' }}>
           <div className="mk-shell">
             <div className="mk-sec-head center">
               <span className="mk-kicker">Full tracking</span>
               <h2>Every application, in one calm pipeline.</h2>
-              <p>See where each application stands, your live response rate, and what to follow up on — never a scattered spreadsheet again.</p>
+              <p>See where each application stands, your live response rate, and what to follow up on, never a scattered spreadsheet again.</p>
             </div>
             <div className="mk-activity" style={{ marginTop: 40 }}>
               <div className="mk-pipe-grid">
@@ -332,13 +368,46 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* 9 · Free tools — asymmetric bento */}
+        {/* 8.5 · Case study: one honest morning */}
+        <section className="mk-section case" id="case" style={{ background: 'var(--background-secondary)' }}>
+          <div className="mk-shell mk-case">
+            <Reveal className="mk-case-media">
+              <Image
+                src="/images/case-study.jpg"
+                alt="A young Lagos professional reviewing her calm Jobiest dashboard in warm morning light"
+                width={1200}
+                height={800}
+                sizes="(max-width: 900px) 100vw, 46vw"
+                style={{ width: '100%', height: 'auto', borderRadius: 'var(--radius-lg)' }}
+              />
+              <span className="mk-case-tag">Case study</span>
+            </Reveal>
+            <Reveal delay={120} className="mk-case-copy">
+              <span className="mk-kicker">Case study</span>
+              <h2>One Tuesday morning with Jobiest.</h2>
+              <p className="mk-case-note">
+                A walkthrough of the real system with an example profile. Everything the system does
+                below is live behavior; only the person is illustrative.
+              </p>
+              <ol className="mk-case-steps">
+                <li><b>06:30</b><span>The daily pipeline runs: six boards read over their public APIs, 180 listings normalized, hashed and deduplicated. The job pool is warm before Lagos wakes.</span></li>
+                <li><b>07:12</b><span>Amaka, an operations lead, opens her digest. Roles are ranked by real skill overlap with her verified profile. No gamified scores, no streaks to feed.</span></li>
+                <li><b>07:40</b><span>She checks Salary Insights for “operations”: only listings that explicitly state pay appear, next to the honest denominator of how many were scanned.</span></li>
+                <li><b>08:05</b><span>She tailors a CV for an Ops Lead role. The generator cites only her profile facts; the truthfulness guard rejects anything it cannot trace back.</span></li>
+                <li><b>09:14</b><span>The application is prepared and parked. Status: waiting for approval. It will sit there until she says yes, because that is the product’s whole point.</span></li>
+              </ol>
+              <p className="mk-case-quote">“The system’s honesty is the feature.”</p>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* 9 · Free tools, asymmetric bento */}
         <section className="mk-section" id="tools">
           <div className="mk-shell">
             <div className="mk-sec-head center">
               <span className="mk-kicker">Free career tools</span>
               <h2>Real tools. No paywall to start.</h2>
-              <p>Ten focused tools to move your search forward. Free to use — your account unlocks each one.</p>
+              <p>Ten focused tools to move your search forward. Free to use, your account unlocks each one.</p>
             </div>
             <div className="mk-bento">
               {tools.map((t, i) => (
@@ -350,11 +419,11 @@ export default function HomePage() {
                 </Link>
               ))}
             </div>
-            <p className="mk-bento-note">All ten tools are <b style={{ color: 'var(--brand-strong)' }}>live</b> — every one truthful, every one free to start.</p>
+            <p className="mk-bento-note">All ten tools are <b style={{ color: 'var(--brand-strong)' }}>live</b>, every one truthful, every one free to start.</p>
           </div>
         </section>
 
-        {/* 10 · How it works — three airy numbered steps */}
+        {/* 10 · How it works, three airy numbered steps */}
         <section className="mk-section" id="how" style={{ background: 'var(--background-secondary)' }}>
           <div className="mk-shell">
             <div className="mk-sec-head center">
@@ -369,7 +438,33 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* 11 · Security & privacy — trust rail (reinforces differentiators + D-001) */}
+        {/* 10.5 · The flow, animated (the homepage video) */}
+        <section className="mk-section" id="demo">
+          <div className="mk-shell">
+            <div className="mk-sec-head center">
+              <span className="mk-kicker">The whole flow</span>
+              <h2>Watch it work, end to end.</h2>
+              <p>Five steps, one loop. This is the actual product flow, animated.</p>
+            </div>
+            <Reveal className="demo-wrap"><DemoReel /></Reveal>
+          </div>
+        </section>
+
+        {/* Editorial plate: the magazine image band */}
+        <figure className="plate">
+          <Image
+            src="/images/editorial-career.jpg"
+            alt="Editorial illustration: paper-cut city towers rising from an open notebook, a paper plane ascending between them"
+            fill
+            sizes="100vw"
+          />
+          <figcaption>
+            <span className="mk-kicker">Our whole philosophy, one image</span>
+            <p>The market is real. Your story is real. We just introduce them.</p>
+          </figcaption>
+        </figure>
+
+        {/* 11 · Security & privacy, trust rail (reinforces differentiators + D-001) */}
         <section className="mk-section">
           <div className="mk-shell">
             <div className="mk-sec-head center">
@@ -386,7 +481,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* 12 · Pricing — Free / Basic (featured) / Premium (coral) */}
+        {/* 12 · Pricing, Free / Basic (featured) / Premium (coral) */}
         <section className="mk-section" id="pricing" style={{ background: 'var(--background-secondary)' }}>
           <div className="mk-shell">
             <div className="mk-sec-head center">
@@ -429,7 +524,7 @@ export default function HomePage() {
                 <Link className="mk-btn-primary" href="/signup" style={{ textAlign: 'center' }}>Choose Premium</Link>
               </div>
             </div>
-            <p className="mk-trial"><b>7-day automation trial</b> on every new account — try Basic features free, no card required.</p>
+            <p className="mk-trial"><b>7-day automation trial</b> on every new account, try Basic features free, no card required.</p>
           </div>
         </section>
 
@@ -449,7 +544,7 @@ export default function HomePage() {
           <div className="mk-shell">
             <div className="mk-cta">
               <h2>Your career agent is ready when you are.</h2>
-              <p>Build your free CV in minutes. No card, no commitment — just momentum.</p>
+              <p>Build your free CV in minutes. No card, no commitment, just momentum.</p>
               <div className="actions" style={{ marginTop: 28, display: 'flex', flexWrap: 'wrap' }}>
                 <Link className="mk-btn-accent" href="/signup">Build My Free CV</Link>
                 <Link className="mk-btn-ghost" href="/login">I already have an account</Link>

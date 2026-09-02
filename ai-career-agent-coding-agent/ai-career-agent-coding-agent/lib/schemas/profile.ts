@@ -4,7 +4,7 @@ import { z } from 'zod';
  * Application email validation.
  *
  * Product rule (AGENTS.md §6 / DECISIONS.md D-001): this is an APPLICATION EMAIL
- * ONLY — no inbox access, no OAuth, no stored credentials. The value is a contact
+ * ONLY, no inbox access, no OAuth, no stored credentials. The value is a contact
  * address the user supplies, so it may be stored in cleartext.
  *
  * Allows empty (user has not provided one yet); otherwise must be a valid,
@@ -17,7 +17,7 @@ const applicationEmail = z
 
 /**
  * Schema for PUT /api/profile. Centralized so the route and the unit tests share
- * one source of truth (CODING_AGENT.md §5 — typed schemas, no business logic in UI).
+ * one source of truth (CODING_AGENT.md §5, typed schemas, no business logic in UI).
  */
 export const profileSchema = z.object({
   full_name: z.string().trim().min(2).max(100),

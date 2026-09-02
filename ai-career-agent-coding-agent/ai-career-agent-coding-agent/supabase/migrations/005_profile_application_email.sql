@@ -10,4 +10,4 @@ alter table public.profiles
   add column if not exists application_email text;
 
 comment on column public.profiles.application_email is
-  'Email address the user wants used when submitting applications. Application email only — no inbox access or credentials are stored.';
+  'Email address the user wants used when submitting applications. Application email only, no inbox access or credentials are stored.';

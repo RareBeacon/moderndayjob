@@ -43,7 +43,7 @@ export async function generateDocument(input: GenerateInput): Promise<Generation
     const report = verifyDocument(verification, truthfulProfile);
     return {
       kind: 'CV',
-      title: input.job ? `CV — ${input.job.title}` : 'CV — General',
+      title: input.job ? `CV, ${input.job.title}` : 'CV, General',
       content: JSON.stringify(data, null, 2),
       report,
       provider,
@@ -61,7 +61,7 @@ export async function generateDocument(input: GenerateInput): Promise<Generation
     );
     return {
       kind: 'COVER_LETTER',
-      title: input.job ? `Cover letter — ${input.job.company}` : 'Cover letter — General',
+      title: input.job ? `Cover letter, ${input.job.company}` : 'Cover letter, General',
       content: data.body,
       report,
       provider,
@@ -83,7 +83,7 @@ export async function generateDocument(input: GenerateInput): Promise<Generation
   );
   return {
     kind: 'ANSWERS',
-    title: input.job ? `Answers — ${input.job.company}` : 'Answers — General',
+    title: input.job ? `Answers, ${input.job.company}` : 'Answers, General',
     content: JSON.stringify(data, null, 2),
     report,
     provider,

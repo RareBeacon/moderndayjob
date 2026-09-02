@@ -5,7 +5,7 @@
  * - Injectable: they receive a `fetchImpl` so tests never hit live APIs.
  * - Isolated: one adapter failing must never break another (ingest.ts).
  * - Honest: they only map fields the source actually provides; nothing is
- *   inferred or fabricated. Listing text is UNTRUSTED data end-to-end —
+ *   inferred or fabricated. Listing text is UNTRUSTED data end-to-end,
  *   stored as data and always framed as untrusted in downstream AI prompts.
  */
 

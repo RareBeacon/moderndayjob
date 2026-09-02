@@ -2,7 +2,7 @@ import { contentHash, inferEmploymentType, inferRemoteType, stripHtml } from '..
 import type { AdapterContext, JobSourceAdapter, NormalizedJob } from '../types';
 
 /**
- * Lever public postings API (api.lever.co/v0/postings). Public JSON API — not scraping.
+ * Lever public postings API (api.lever.co/v0/postings). Public JSON API, not scraping.
  * Fixed host; company slug validated to a safe charset (SSRF-safe).
  */
 const HOST = 'https://api.lever.co';
