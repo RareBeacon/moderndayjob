@@ -21,23 +21,55 @@ export default function SignupPage() {
     setBusy(true);
     setError('');
     setNotice('');
-    const { data, error } = await supabaseBrowser().auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: name } },
-    });
-    setBusy(false);
-    if (error) {
-      setError(humanizeAuthError(error.message));
+
+    // 1. Create the account server-side, pre-confirmed: no email
+    //    round-trip, the account works the second it exists.
+    const res = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password }),
+    }).catch(() => null);
+
+    if (res && res.status === 409) {
+      const { error: msg } = await res.json().catch(() => ({ error: '' }));
+      setError(msg || 'An account with this email already exists. Sign in instead.');
+      setBusy(false);
       return;
     }
-    if (data.session) {
-      router.push('/onboarding');
-      router.refresh();
+
+    if (!res || !res.ok) {
+      // Fallback: classic client-side signup (covers the unlikely case
+      // of the server route being unavailable). If email confirmation
+      // kicks in there, the user still gets a clear notice.
+      const { data, error } = await supabaseBrowser().auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: name } },
+      });
+      if (error) {
+        setError(humanizeAuthError(error.message));
+        setBusy(false);
+        return;
+      }
+      if (data.session) {
+        router.push('/onboarding');
+        router.refresh();
+        return;
+      }
+      setNotice('Account created. Check your email to confirm, then sign in.');
+      setBusy(false);
       return;
     }
-    // Email confirmation is enabled, no session yet.
-    setNotice('Account created. Check your email to confirm, then sign in.');
+
+    // 2. Account exists and is confirmed: sign straight in.
+    const { error: signInError } = await supabaseBrowser().auth.signInWithPassword({ email, password });
+    if (signInError) {
+      setError(humanizeAuthError(signInError.message));
+      setBusy(false);
+      return;
+    }
+    router.push('/onboarding');
+    router.refresh();
   }
 
   return (

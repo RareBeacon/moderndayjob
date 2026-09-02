@@ -3,6 +3,7 @@ import Image from 'next/image';
 import type { CSSProperties } from 'react';
 import { FAQ } from '@/components/site/FAQ';
 import { Reveal } from '@/components/site/Reveal';
+import { Logo } from '@/components/site/Logo';
 import { MarketStory, type MarketData } from '@/components/site/MarketStory';
 import { DemoReel } from '@/components/site/DemoReel';
 import { MobileCta } from '@/components/site/MobileCta';
@@ -40,20 +41,6 @@ function Check() {
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M5 12.5 L10 17 L19 7" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
-  );
-}
-
-function Logo() {
-  return (
-    <span className="mk-logo">
-      <span className="mark" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none">
-          <path d="M4 16 L9 9 L13 13 L20 5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-          <circle cx="20" cy="5" r="2.1" fill="currentColor" />
-        </svg>
-      </span>
-      Jobiest
-    </span>
   );
 }
 

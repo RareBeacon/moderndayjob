@@ -1,23 +1,11 @@
 import Link from 'next/link';
+import { Logo } from './Logo';
 import type { ReactNode } from 'react';
 
 /* AdminShell, internal chrome for /admin surfaces.
    Denser than the user app: ruled data tables, tracked uppercase
    overlines, no marketing ornament. §6.10 of the UI/UX plan. */
 
-function Logo() {
-  return (
-    <span className="mk-logo">
-      <span className="mark" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none">
-          <path d="M4 16 L9 9 L13 13 L20 5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-          <circle cx="20" cy="5" r="2.1" fill="currentColor" />
-        </svg>
-      </span>
-      Jobiest
-    </span>
-  );
-}
 
 const NAV = [
   { href: '/admin/users', key: 'users', label: 'Users' },

@@ -18,7 +18,22 @@ export default function LoginPage() {
     e.preventDefault();
     setBusy(true);
     setError('');
-    const { error } = await supabaseBrowser().auth.signInWithPassword({ email, password });
+    let { error } = await supabaseBrowser().auth.signInWithPassword({ email, password });
+
+    // Legacy accounts created before auto-confirmation: if the password
+    // was right but the email was never confirmed, confirm it now and
+    // retry, so nobody is locked out of an account they own.
+    if (error && (error.code === 'email_not_confirmed' || /email not confirmed/i.test(error.message))) {
+      const res = await fetch('/api/auth/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      }).catch(() => null);
+      if (res && res.ok) {
+        ({ error } = await supabaseBrowser().auth.signInWithPassword({ email, password }));
+      }
+    }
+
     setBusy(false);
     if (error) {
       setError(humanizeAuthError(error.message));

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Logo } from './Logo';
 import type { ReactNode } from 'react';
 
 export function AuthShell({
@@ -13,9 +14,8 @@ export function AuthShell({
   return (
     <main className="auth-page">
       <div className="auth-card">
-        <Link href="/" className="logo center" aria-label="Jobiest home">
-          <span className="dot" aria-hidden="true">M</span>
-          Jobiest
+        <Link href="/" aria-label="Jobiest home" style={{ textDecoration: 'none' }}>
+          <Logo className="logo center" />
         </Link>
         <h1>{title}</h1>
         {subtitle ? <p className="sub">{subtitle}</p> : null}

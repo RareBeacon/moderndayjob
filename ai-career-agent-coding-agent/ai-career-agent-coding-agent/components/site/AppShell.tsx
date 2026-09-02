@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Logo } from './Logo';
 import type { ReactNode } from 'react';
 
 /* AppShell, the authenticated chrome (Phase 2): a receding warm sidebar
@@ -45,19 +46,6 @@ const BOTTOM: NavItem[] = [
   { key: 'generate', href: '/generate', label: 'Make', icon: ic(ICONS.edit) },
 ];
 
-function Logo() {
-  return (
-    <span className="app-logo">
-      <span className="mark" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
-          <path d="M4 16 L9 9 L13 13 L20 5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-          <circle cx="20" cy="5" r="2.1" fill="currentColor" />
-        </svg>
-      </span>
-      Jobiest
-    </span>
-  );
-}
 
 export function AppShell({
   active,
