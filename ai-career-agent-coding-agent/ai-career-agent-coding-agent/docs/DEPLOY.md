@@ -75,12 +75,19 @@ curl -H "Authorization: Bearer $CRON_SECRET" https://jobiest.com/api/cron/daily-
 
 - Registered at Truehost (₦10,000 first year, ₦20,000/yr renewal).
 - Added to the Vercel project: apex + www (www 301 → apex).
-- Registrar nameservers should point to `ns1.vercel-dns.com` /
-  `ns2.vercel-dns.com` (set in Truehost → Domains → jobiest.com →
-  Nameservers → custom). Vercel then manages apex A / www CNAME / SSL
-  automatically.
+- Registrar nameservers point to `ns1.vercel-dns.com` / `ns2.vercel-dns.com`
+  (set in Truehost → Domains → jobiest.com → Nameservers → custom).
+  **GOTCHA (cost us ~30 min):** a domain added via the API defaults to
+  external-DNS mode — `zone: false` — so Vercel's nameservers REFUSE queries
+  for it even after delegation. The fix is the rarely-documented
+  `PATCH /v3/domains/{domain}?teamId={tid}` with body `{"op":"update",
+  "zone":true}`, then POST the project-domain `/verify` endpoint. The zone
+  activates instantly and Let's Encrypt SSL issues within ~2 minutes.
 - Brand rebranded ModernJob → Jobiest across all user surfaces.
 - `NEXT_PUBLIC_APP_URL` = `https://jobiest.com` (drives canonicals, sitemap,
   robots, billing redirect). `lib/site.ts` falls back to the vercel.app URL.
 - NOTE: `.git/config` (and thus the remote) is wiped by sandbox restarts —
-  re-add it per the steps above before pushing.
+  re-add it per the steps above before pushing. `/tmp` is also volatile.
+- Vercel scope: everything lives in the implicit team
+  `team_zP8FkiSpYLJdhebBSCPL0Wa1` ("ogungboyeopeyemiphilip-gmailcom's
+  projects") — pass `teamId` on domain-scoped API calls or they 403.
