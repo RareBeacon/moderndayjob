@@ -17,9 +17,9 @@ const TOOLS = [
 
 function Tick() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--jl-green)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M5 12.5 L10 17 L19 7" />
-    </svg>
+    <span className="jl-tick" aria-hidden="true">
+      <IconCheck size={13} />
+    </span>
   );
 }
 

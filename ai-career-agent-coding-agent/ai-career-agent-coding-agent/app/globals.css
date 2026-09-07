@@ -851,7 +851,7 @@ html, body { overflow-x: clip; }
   display: flex; align-items: center; gap: 28px;
   padding-top: 26px; padding-bottom: 18px;
 }
-.jl-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--color-text-inverse); font-weight: 800; font-size: 23px; letter-spacing: -0.02em; }
+.jl-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--color-text-inverse); font-weight: 800; font-size: 23px; letter-spacing: -0.02em; flex: none; }
 .jl-brand-mark { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: var(--jl-yellow); color: var(--jl-navy-deep); flex: none; }
 .jl-brand-mark svg { width: 19px; height: 19px; }
 .jl-nav-links { display: flex; align-items: center; gap: 30px; margin: 0 auto; }
@@ -863,7 +863,7 @@ html, body { overflow-x: clip; }
   border-radius: 3px; background: var(--jl-yellow);
 }
 .jl-nav-actions { display: flex; align-items: center; gap: 12px; }
-.jl-nav-search { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; color: var(--color-text-inverse); transition: background .15s ease; }
+.jl-nav-search { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; color: var(--color-text-inverse); transition: background .15s ease; flex: none; }
 .jl-nav-search:hover { background: rgba(255,255,255,.12); }
 .jl-btn-ghost, .jl-btn-solid, .jl-btn-outline {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -958,7 +958,7 @@ html, body { overflow-x: clip; }
   transition: transform .2s ease, box-shadow .2s ease;
 }
 .jl-float-card:hover { transform: translateY(-3px); box-shadow: 0 26px 48px -20px rgba(2, 20, 60, .55); }
-.jl-float-ico { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: var(--brand-soft); color: var(--jl-blue); flex: none; }
+.jl-float-ico { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: var(--brand-soft); color: var(--jl-blue); flex: none; }
 .jl-float-card b { display: block; font-size: 14.5px; color: var(--jl-navy); }
 .jl-float-card span { display: block; font-size: 12.5px; color: var(--jl-muted); }
 .jl-float-arrow {
@@ -1024,16 +1024,15 @@ html, body { overflow-x: clip; }
 .jl-plan .jl-price { font-size: 38px; font-weight: 800; color: var(--jl-navy); letter-spacing: -0.02em; }
 .jl-plan .jl-price small { font-size: 14px; font-weight: 600; color: var(--jl-muted); }
 .jl-plan ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-.jl-plan li { display: flex; align-items: flex-start; gap: 9px; color: var(--jl-muted); font-size: 14px; }
-.jl-plan li::before { content: ""; width: 18px; height: 18px; border-radius: 50%; background: #eaf4ee; color: var(--jl-green); flex: none; margin-top: 1px; }
-.jl-plan li .jl-tick { display: none; }
+.jl-plan li { display: flex; align-items: center; gap: 9px; color: var(--jl-muted); font-size: 14px; }
+.jl-plan li .jl-tick { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--success-bg); color: var(--jl-green); flex: none; }
 .jl-plan .jl-plan-cta { margin-top: auto; }
 .jl-page .jl-trial-note { text-align: center; margin-top: 22px; color: var(--jl-muted); font-size: 14px; }
 .jl-trial-note b { color: var(--jl-navy); }
 /* About / trust */
 .jl-about-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 .jl-about { background: var(--card); border: 1px solid var(--jl-line); border-radius: 14px; padding: 22px 20px; }
-.jl-about .jl-about-ico { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: var(--brand-soft); color: var(--jl-blue); margin-bottom: 14px; }
+.jl-about .jl-about-ico { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: var(--brand-soft); color: var(--jl-blue); margin-bottom: 14px; }
 .jl-about h3 { font-size: 15.5px; font-weight: 800; color: var(--jl-navy); }
 .jl-about p { margin-top: 8px; font-size: 13.5px; color: var(--jl-muted); }
 /* FAQ */
@@ -1066,8 +1065,8 @@ html, body { overflow-x: clip; }
 .jl-footer-bottom { border-top: 1px solid rgba(255,255,255,.12); padding: 20px 0 26px; display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; font-size: 13px; color: var(--jl-blue-dusk); }
 /* ---------- Responsive ---------- */
 @media (max-width: 1199px) {.jl-features-grid { grid-template-columns: repeat(3, 1fr); }.jl-tools-grid { grid-template-columns: repeat(3, 1fr); }.jl-about-grid { grid-template-columns: repeat(2, 1fr); }.jl-nav-links { gap: 20px; }.jl-nav-inner { gap: 20px; }}
-@media (max-width: 900px) {.jl-hero-grid { grid-template-columns: minmax(0, 1fr); gap: 28px; padding-top: 18px; padding-bottom: 64px; }.jl-hero-grid > * { min-width: 0; }.jl-visual { min-height: 380px; }.jl-person { object-position: 80% 20%; mask-image: linear-gradient(to right, transparent 0%, #000 18%); -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 18%); }.jl-nav-links { display: none; }.jl-nav-actions .jl-btn-ghost { display: none; }.jl-burger { display: grid; }.jl-mobile-menu { display: block; position: absolute; left: 0; right: 0; top: 100%; background: var(--jl-navy-2); padding: 10px 20px 18px; border-top: 1px solid rgba(255,255,255,.12); }.jl-mobile-menu a { display: block; color: var(--color-text-inverse); font-weight: 600; font-size: 16px; padding: 12px 2px; border-bottom: 1px solid rgba(255,255,255,.1); }.jl-mobile-menu a.active { color: var(--jl-yellow); }.jl-plans { grid-template-columns: 1fr; }.jl-how { grid-template-columns: 1fr; }.jl-features-grid { grid-template-columns: repeat(2, 1fr); }.jl-tools-grid { grid-template-columns: repeat(2, 1fr); }}
-@media (max-width: 640px) {.jl-sec { padding: 40px 0; }.jl-headline { font-size: clamp(36px, 10vw, 46px); }.jl-search { flex-direction: column; align-items: stretch; border-radius: 22px; padding: 8px 12px 12px; gap: 0; width: 100%; max-width: 100%; }.jl-search-field { padding: 4px 8px; }.jl-search-loc { max-width: none; }.jl-search-div { display: none; }.jl-search-field:first-child { border-bottom: 1px solid var(--jl-line); }.jl-search-btn { width: 100%; margin-top: 8px; }.jl-features-grid { grid-template-columns: 1fr; }.jl-tools-grid { grid-template-columns: 1fr; }.jl-about-grid { grid-template-columns: 1fr; }.jl-visual { min-height: 300px; }.jl-person { object-position: 92% 20%; }.jl-float { position: static; flex-direction: row; overflow-x: auto; padding: 4px 2px 10px; margin-top: -6px; scrollbar-width: none; }.jl-float::-webkit-scrollbar { display: none; }.jl-float-card { flex: 0 0 220px; }.jl-dream { font-size: 16px; }.jl-banner-inner { gap: 12px; }.jl-banner-line { width: 34px; }.jl-footer-cols { gap: 40px; }}
+@media (max-width: 900px) {.jl-hero-grid { grid-template-columns: minmax(0, 1fr); gap: 28px; padding-top: 18px; padding-bottom: 64px; }.jl-hero-grid > * { min-width: 0; }.jl-visual { min-height: 0; display: flex; flex-direction: column; gap: 14px; }.jl-circle, .jl-scribbles, .jl-dream { display: none; }.jl-person { position: relative; width: 100%; height: 380px; border-radius: 20px; object-fit: cover; object-position: 68% 12%; mask-image: none; -webkit-mask-image: none; z-index: 1; }.jl-float { position: static; flex-direction: row; overflow-x: auto; gap: 14px; padding: 2px 2px 10px; margin: 0; scrollbar-width: none; }.jl-float::-webkit-scrollbar { display: none; }.jl-float-card { flex: 0 0 264px; }.jl-nav-links { display: none; }.jl-nav-actions .jl-btn-ghost { display: none; }.jl-burger { display: grid; }.jl-mobile-menu { display: block; position: absolute; left: 0; right: 0; top: 100%; background: var(--jl-navy-2); padding: 10px 20px 18px; border-top: 1px solid rgba(255,255,255,.12); }.jl-mobile-menu a { display: block; color: var(--color-text-inverse); font-weight: 600; font-size: 16px; padding: 12px 2px; border-bottom: 1px solid rgba(255,255,255,.1); }.jl-mobile-menu a.active { color: var(--jl-yellow); }.jl-plans { grid-template-columns: 1fr; }.jl-how { grid-template-columns: 1fr; }.jl-features-grid { grid-template-columns: repeat(2, 1fr); }.jl-tools-grid { grid-template-columns: repeat(2, 1fr); }}
+@media (max-width: 640px) {.jl-sec { padding: 40px 0; }.jl-headline { font-size: clamp(36px, 10vw, 46px); }.jl-search { flex-direction: column; align-items: stretch; border-radius: 22px; padding: 8px 12px 12px; gap: 0; width: 100%; max-width: 100%; }.jl-search-field { padding: 4px 8px; }.jl-search-loc { max-width: none; }.jl-search-div { display: none; }.jl-search-field:first-child { border-bottom: 1px solid var(--jl-line); }.jl-search-btn { width: 100%; margin-top: 8px; }.jl-features-grid { grid-template-columns: 1fr; }.jl-tools-grid { grid-template-columns: 1fr; }.jl-about-grid { grid-template-columns: 1fr; }.jl-person { height: 300px; }.jl-float-card { flex: 0 0 232px; }.jl-nav-inner { gap: 10px; }.jl-nav-actions { gap: 8px; }.jl-nav-search { width: 36px; height: 36px; }.jl-btn-solid { padding: 10px 14px; font-size: 14px; }.jl-burger { width: 40px; height: 40px; }.jl-banner-inner { gap: 12px; }.jl-banner-line { width: 34px; }.jl-footer-cols { gap: 40px; }}
 /* ============================================================
    Jobiest · Unified design system (refinement pass)
    One token layer for the whole product: navy + yellow brand,
