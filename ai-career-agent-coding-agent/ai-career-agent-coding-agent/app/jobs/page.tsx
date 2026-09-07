@@ -21,17 +21,33 @@ type Job = {
   created_at: string;
 };
 
+function readQuery(): { q: string; loc: string } {
+  if (typeof window === 'undefined') return { q: '', loc: '' };
+  const params = new URLSearchParams(window.location.search);
+  return { q: (params.get('q') ?? '').trim().toLowerCase(), loc: (params.get('loc') ?? '').trim().toLowerCase() };
+}
+
+function matches(job: Job, q: string, loc: string): boolean {
+  const hay = `${job.title} ${job.company} ${job.location} ${job.source}`.toLowerCase();
+  if (q && !q.split(/\s+/).every((word) => hay.includes(word))) return false;
+  if (loc && !job.location.toLowerCase().includes(loc)) return false;
+  return true;
+}
+
 export default function JobsPage() {
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [all, setAll] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState('');
+  const [query, setQuery] = useState<{ q: string; loc: string }>({ q: '', loc: '' });
 
   useEffect(() => {
     let active = true;
+    const q = readQuery();
+    setQuery(q);
     fetch('/api/jobs')
       .then((r) => r.json())
       .then((d) => {
-        if (active) setJobs(Array.isArray(d.jobs) ? d.jobs : []);
+        if (active) setAll(Array.isArray(d.jobs) ? d.jobs : []);
       })
       .catch(() => {
         if (active) setStatus('Could not load jobs right now.');
@@ -43,6 +59,8 @@ export default function JobsPage() {
       active = false;
     };
   }, []);
+
+  const jobs = all.filter((j) => matches(j, query.q, query.loc));
 
   return (
     <AppShell active="jobs" title="Jobs">
@@ -56,6 +74,17 @@ export default function JobsPage() {
       <section className="job-list">
         {loading ? (
           <p className="muted">Loading…</p>
+        ) : jobs.length === 0 && all.length > 0 ? (
+          <article className="card">
+            <h2>No jobs match your search.</h2>
+            <p className="muted">
+              {query.q ? <>Nothing matched “{query.q}”{query.loc ? ` near ${query.loc}` : ''}.</> : <>No jobs match that location.</>}{' '}
+              Try different keywords or a broader location.
+            </p>
+            <div className="dashboard-links">
+              <Link href="/jobs" className="inline-link">Clear search →</Link>
+            </div>
+          </article>
         ) : jobs.length === 0 ? (
           <article className="card">
             <h2>No jobs discovered yet.</h2>
