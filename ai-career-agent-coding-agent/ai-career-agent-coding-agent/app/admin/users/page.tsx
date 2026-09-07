@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { AdminShell, AdminForbidden } from '@/components/site/AdminShell';
+import UserActions from './UserActions';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,12 +52,13 @@ export default async function AdminUsersPage() {
               <th>Status</th>
               <th>Risk</th>
               <th>Joined</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="ad-empty">No users yet.</td>
+                <td colSpan={7} className="ad-empty">No users yet.</td>
               </tr>
             )}
             {rows.map((x) => (
@@ -67,12 +69,13 @@ export default async function AdminUsersPage() {
                   <span className="ad-chip">{x.plan ?? 'unknown'}</span>
                 </td>
                 <td>
-                  <span className={`ad-chip ${x.account_status === 'active' ? 'ok' : 'warn'}`}>
+                  <span className={`ad-chip ${String(x.account_status).toLowerCase() === 'active' ? 'ok' : 'warn'}`}>
                     {x.account_status ?? 'unknown'}
                   </span>
                 </td>
                 <td className="ad-mono">{x.risk_score ?? 0}</td>
                 <td className="ad-mono">{x.created_at ? x.created_at.slice(0, 10) : '-'}</td>
+                <td><UserActions userId={x.user_id} status={x.account_status} /></td>
               </tr>
             ))}
           </tbody>

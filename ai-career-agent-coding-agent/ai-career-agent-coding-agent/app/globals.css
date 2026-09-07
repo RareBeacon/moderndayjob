@@ -890,7 +890,7 @@ html, body { overflow-x: clip; }
 .jl-hero-grid {
   position: relative; z-index: 5;
   display: grid; grid-template-columns: 1.02fr 0.98fr; align-items: center;
-  gap: 40px; padding-top: 34px; padding-bottom: 84px; min-height: 520px;
+  gap: 40px; padding-top: 30px; padding-bottom: 64px; min-height: 500px;
 }
 .jl-eyebrow {
   display: inline-flex; align-items: center; gap: 8px;
@@ -904,7 +904,7 @@ html, body { overflow-x: clip; }
 }
 .jl-headline .jl-hl-yellow { color: var(--jl-yellow); position: relative; white-space: nowrap; display: inline-block; }
 .jl-headline .jl-hl-yellow svg { position: absolute; left: -2%; bottom: -0.14em; width: 104%; height: 0.42em; }
-.jl-sub { margin: 22px 0 0; color: var(--jl-blue-tint); font-size: 16.5px; line-height: 1.65; max-width: 540px; }
+.jl-page .jl-sub { margin: 22px 0 0; color: var(--jl-blue-tint); font-size: 16.5px; line-height: 1.65; max-width: 540px; }
 /* Search */
 .jl-search {
   display: flex; align-items: center; gap: 6px;
@@ -989,9 +989,9 @@ html, body { overflow-x: clip; }
 .jl-feature-link svg { transition: transform .2s ease; }
 .jl-feature:hover .jl-feature-link svg { transform: translateX(4px); }
 /* ---------- Light sections ---------- */
-.jl-sec { padding: 74px 0; }
+.jl-sec { padding: clamp(40px, 5vw, 64px) 0; }
 .jl-sec.tint { background: var(--color-surface-alt); }
-.jl-sec-head { max-width: 720px; margin-bottom: 40px; }
+.jl-sec-head { max-width: 720px; margin-bottom: 32px; }
 .jl-sec-head.center { margin-left: auto; margin-right: auto; text-align: center; }
 .jl-kicker { display: inline-block; text-transform: uppercase; letter-spacing: 3px; font-size: 12px; font-weight: 700; color: var(--jl-blue); margin-bottom: 12px; }
 .jl-sec-head h2 { font-size: clamp(26px, 3vw, 36px); font-weight: 800; color: var(--jl-navy); }
@@ -1028,7 +1028,7 @@ html, body { overflow-x: clip; }
 .jl-plan li::before { content: ""; width: 18px; height: 18px; border-radius: 50%; background: #eaf4ee; color: var(--jl-green); flex: none; margin-top: 1px; }
 .jl-plan li .jl-tick { display: none; }
 .jl-plan .jl-plan-cta { margin-top: auto; }
-.jl-trial-note { text-align: center; margin-top: 22px; color: var(--jl-muted); font-size: 14px; }
+.jl-page .jl-trial-note { text-align: center; margin-top: 22px; color: var(--jl-muted); font-size: 14px; }
 .jl-trial-note b { color: var(--jl-navy); }
 /* About / trust */
 .jl-about-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
@@ -1047,7 +1047,7 @@ html, body { overflow-x: clip; }
 .jl-faq-wrap .faq-a > div { padding: 0 20px 18px; }
 .jl-faq-wrap .faq-a p { color: var(--jl-muted); font-size: 14.5px; }
 /* ---------- Banner ---------- */
-.jl-banner { position: relative; background: var(--jl-navy); color: var(--color-text-inverse); margin-top: 40px; }
+.jl-banner { position: relative; background: var(--jl-navy); color: var(--color-text-inverse); margin-top: 24px; }
 .jl-banner-wave { display: block; width: 100%; height: 60px; margin-top: -1px; color: var(--jl-bg); }
 .jl-banner-inner { display: flex; align-items: center; justify-content: center; gap: 24px; padding: 44px 20px 54px; }
 .jl-banner-line { width: 72px; height: 1.5px; background: rgba(255,255,255,.35); flex: none; }
@@ -1066,8 +1066,8 @@ html, body { overflow-x: clip; }
 .jl-footer-bottom { border-top: 1px solid rgba(255,255,255,.12); padding: 20px 0 26px; display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; font-size: 13px; color: var(--jl-blue-dusk); }
 /* ---------- Responsive ---------- */
 @media (max-width: 1199px) {.jl-features-grid { grid-template-columns: repeat(3, 1fr); }.jl-tools-grid { grid-template-columns: repeat(3, 1fr); }.jl-about-grid { grid-template-columns: repeat(2, 1fr); }.jl-nav-links { gap: 20px; }.jl-nav-inner { gap: 20px; }}
-@media (max-width: 900px) {.jl-hero-grid { grid-template-columns: minmax(0, 1fr); gap: 28px; padding-top: 18px; padding-bottom: 96px; }.jl-hero-grid > * { min-width: 0; }.jl-visual { min-height: 380px; }.jl-person { object-position: 80% 20%; mask-image: linear-gradient(to right, transparent 0%, #000 18%); -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 18%); }.jl-nav-links { display: none; }.jl-nav-actions .jl-btn-ghost { display: none; }.jl-burger { display: grid; }.jl-mobile-menu { display: block; position: absolute; left: 0; right: 0; top: 100%; background: var(--jl-navy-2); padding: 10px 20px 18px; border-top: 1px solid rgba(255,255,255,.12); }.jl-mobile-menu a { display: block; color: var(--color-text-inverse); font-weight: 600; font-size: 16px; padding: 12px 2px; border-bottom: 1px solid rgba(255,255,255,.1); }.jl-mobile-menu a.active { color: var(--jl-yellow); }.jl-plans { grid-template-columns: 1fr; }.jl-how { grid-template-columns: 1fr; }.jl-features-grid { grid-template-columns: repeat(2, 1fr); }.jl-tools-grid { grid-template-columns: repeat(2, 1fr); }}
-@media (max-width: 640px) {.jl-sec { padding: 52px 0; }.jl-headline { font-size: clamp(36px, 10vw, 46px); }.jl-search { flex-direction: column; align-items: stretch; border-radius: 22px; padding: 12px; gap: 0; width: 100%; max-width: 100%; }.jl-search-field { padding: 6px 8px; }.jl-search-loc { max-width: none; }.jl-search-div { display: none; }.jl-search-btn { width: 100%; margin-top: 8px; }.jl-features-grid { grid-template-columns: 1fr; }.jl-tools-grid { grid-template-columns: 1fr; }.jl-about-grid { grid-template-columns: 1fr; }.jl-visual { min-height: 300px; }.jl-person { object-position: 92% 20%; }.jl-float { position: static; flex-direction: row; overflow-x: auto; padding: 4px 2px 10px; margin-top: -6px; scrollbar-width: none; }.jl-float::-webkit-scrollbar { display: none; }.jl-float-card { flex: 0 0 220px; }.jl-dream { font-size: 16px; }.jl-banner-inner { gap: 12px; }.jl-banner-line { width: 34px; }.jl-footer-cols { gap: 40px; }}
+@media (max-width: 900px) {.jl-hero-grid { grid-template-columns: minmax(0, 1fr); gap: 28px; padding-top: 18px; padding-bottom: 64px; }.jl-hero-grid > * { min-width: 0; }.jl-visual { min-height: 380px; }.jl-person { object-position: 80% 20%; mask-image: linear-gradient(to right, transparent 0%, #000 18%); -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 18%); }.jl-nav-links { display: none; }.jl-nav-actions .jl-btn-ghost { display: none; }.jl-burger { display: grid; }.jl-mobile-menu { display: block; position: absolute; left: 0; right: 0; top: 100%; background: var(--jl-navy-2); padding: 10px 20px 18px; border-top: 1px solid rgba(255,255,255,.12); }.jl-mobile-menu a { display: block; color: var(--color-text-inverse); font-weight: 600; font-size: 16px; padding: 12px 2px; border-bottom: 1px solid rgba(255,255,255,.1); }.jl-mobile-menu a.active { color: var(--jl-yellow); }.jl-plans { grid-template-columns: 1fr; }.jl-how { grid-template-columns: 1fr; }.jl-features-grid { grid-template-columns: repeat(2, 1fr); }.jl-tools-grid { grid-template-columns: repeat(2, 1fr); }}
+@media (max-width: 640px) {.jl-sec { padding: 40px 0; }.jl-headline { font-size: clamp(36px, 10vw, 46px); }.jl-search { flex-direction: column; align-items: stretch; border-radius: 22px; padding: 8px 12px 12px; gap: 0; width: 100%; max-width: 100%; }.jl-search-field { padding: 4px 8px; }.jl-search-loc { max-width: none; }.jl-search-div { display: none; }.jl-search-field:first-child { border-bottom: 1px solid var(--jl-line); }.jl-search-btn { width: 100%; margin-top: 8px; }.jl-features-grid { grid-template-columns: 1fr; }.jl-tools-grid { grid-template-columns: 1fr; }.jl-about-grid { grid-template-columns: 1fr; }.jl-visual { min-height: 300px; }.jl-person { object-position: 92% 20%; }.jl-float { position: static; flex-direction: row; overflow-x: auto; padding: 4px 2px 10px; margin-top: -6px; scrollbar-width: none; }.jl-float::-webkit-scrollbar { display: none; }.jl-float-card { flex: 0 0 220px; }.jl-dream { font-size: 16px; }.jl-banner-inner { gap: 12px; }.jl-banner-line { width: 34px; }.jl-footer-cols { gap: 40px; }}
 /* ============================================================
    Jobiest · Unified design system (refinement pass)
    One token layer for the whole product: navy + yellow brand,
@@ -1249,6 +1249,7 @@ a { transition: color var(--transition-fast); }
 }
 /* Primary buttons: navy, lift on hover */
 .btn, .mk-btn-accent { background: var(--color-primary); color: var(--color-text-inverse); }
+.mk-nav .mk-btn-accent, .mk-nav a.mk-btn-accent { color: var(--color-text-inverse); }
 .btn:hover, .mk-btn-accent:hover { background: var(--color-primary-hover); box-shadow: var(--shadow-md); transform: translateY(-1px); }
 .btn-ghost, .mk-btn-ghost { background: transparent; color: var(--color-text-primary); border: 1px solid var(--color-border-strong); }
 .btn-ghost:hover, .mk-btn-ghost:hover { border-color: var(--color-primary); background: var(--color-surface-alt); }

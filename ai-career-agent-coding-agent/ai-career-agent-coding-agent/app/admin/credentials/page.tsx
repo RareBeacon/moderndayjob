@@ -3,6 +3,7 @@ import { getUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { AdminShell, AdminForbidden } from '@/components/site/AdminShell';
 import CredentialForm from './CredentialForm';
+import CredentialActions from './CredentialActions';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,10 +22,11 @@ export default async function AdminCredentialsPage() {
 
   const { data } = await supabaseAdmin
     .from('ai_credentials')
-    .select('user_id,provider,model,status,created_at,key_version')
+    .select('id,user_id,provider,model,status,created_at,key_version')
     .order('created_at', { ascending: false });
 
   const rows = (data ?? []) as Array<{
+    id: string;
     user_id: string;
     provider: string;
     model: string;
@@ -53,24 +55,26 @@ export default async function AdminCredentialsPage() {
               <th>Status</th>
               <th>Key version</th>
               <th>Added</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="ad-empty">No credentials stored yet.</td>
+                <td colSpan={7} className="ad-empty">No credentials stored yet.</td>
               </tr>
             )}
-            {rows.map((x, i) => (
-              <tr key={`${x.user_id}-${i}`}>
+            {rows.map((x) => (
+              <tr key={x.id}>
                 <td className="ad-mono" title={x.user_id}>{x.user_id.slice(0, 8)}…</td>
                 <td>{x.provider}</td>
                 <td className="ad-mono">{x.model}</td>
                 <td>
-                  <span className={`ad-chip ${x.status === 'active' ? 'ok' : 'warn'}`}>{x.status}</span>
+                  <span className={`ad-chip ${String(x.status).toLowerCase() === 'active' ? 'ok' : 'warn'}`}>{x.status}</span>
                 </td>
                 <td className="ad-mono">v{x.key_version}</td>
                 <td className="ad-mono">{x.created_at ? x.created_at.slice(0, 10) : '-'}</td>
+                <td><CredentialActions id={x.id} /></td>
               </tr>
             ))}
           </tbody>
