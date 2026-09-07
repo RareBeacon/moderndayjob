@@ -1335,9 +1335,13 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
    ============================================================ */
 [data-animate] {
   opacity: 0;
-  transform: translateY(20px);
-  transition: opacity var(--transition-slow), transform var(--transition-slow);
+  transform: translateY(16px);
+  transition: opacity var(--transition-base), transform var(--transition-base);
   will-change: opacity, transform;
+}
+[data-animate].is-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 @media (prefers-reduced-motion: reduce) {[data-animate] { opacity: 1 !important; transform: none !important; transition: none !important; }*, *::before, *::after {
     animation-duration: 0.01ms !important;

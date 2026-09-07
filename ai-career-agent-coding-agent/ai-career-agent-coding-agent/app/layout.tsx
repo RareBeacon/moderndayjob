@@ -66,6 +66,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${newsreader.variable} ${inter.variable}`}>
       <body>
         <a href="#main" className="skip-link">Skip to content</a>
+        {/* Without JS the scroll-reveal driver can't run — never hide content. */}
+        <noscript>
+          <style>{'[data-animate]{opacity:1!important;transform:none!important;transition:none!important}'}</style>
+        </noscript>
         {children}
         <ScrollReveal />
       </body>

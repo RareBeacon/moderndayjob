@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 
-/** Per-row account controls: Suspend (reversible via DB) and Terminate
- *  (permanent). Both go through the audited server-side endpoints only. */
+/** Per-row account controls: Suspend (reversible via DB), Terminate
+ *  (permanent), and Sign out everywhere (revoke live sessions). All go
+ *  through the audited server-side endpoints only. */
 export default function UserActions({ userId, status }: { userId: string; status: string | null }) {
-  const [busy, setBusy] = useState<'SUSPEND' | 'TERMINATE' | null>(null);
+  const [busy, setBusy] = useState<'SUSPEND' | 'TERMINATE' | 'SIGNOUT' | null>(null);
   const [message, setMessage] = useState('');
 
-  async function act(action: 'SUSPEND' | 'TERMINATE') {
+  async function act(action: 'SUSPEND' | 'TERMINATE' | 'SIGNOUT') {
     if (busy) return;
     if (action === 'TERMINATE' && !window.confirm('Terminate this account permanently? This cannot be undone.')) return;
     setBusy(action);
@@ -20,7 +21,7 @@ export default function UserActions({ userId, status }: { userId: string; status
         body: JSON.stringify({ userId }),
       });
       const j = await r.json();
-      setMessage(j.ok ? (action === 'SUSPEND' ? 'Suspended.' : 'Terminated.') : (j.error ?? 'Failed'));
+      setMessage(j.ok ? (action === 'SUSPEND' ? 'Suspended.' : action === 'TERMINATE' ? 'Terminated.' : 'Sessions revoked.') : (j.error ?? 'Failed'));
       if (j.ok) setTimeout(() => window.location.reload(), 700);
     } catch {
       setMessage('Network error.');
@@ -32,7 +33,7 @@ export default function UserActions({ userId, status }: { userId: string; status
   const isActive = String(status).toLowerCase() === 'active';
 
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
       {isActive && (
         <button
           className="btn-ghost"
@@ -43,6 +44,14 @@ export default function UserActions({ userId, status }: { userId: string; status
           {busy === 'SUSPEND' ? '…' : 'Suspend'}
         </button>
       )}
+      <button
+        className="btn-ghost"
+        style={{ minHeight: 34, padding: '6px 12px', fontSize: 12.5 }}
+        disabled={busy !== null}
+        onClick={() => act('SIGNOUT')}
+      >
+        {busy === 'SIGNOUT' ? '…' : 'Sign out'}
+      </button>
       <button
         className="btn-ghost"
         style={{ minHeight: 34, padding: '6px 12px', fontSize: 12.5, color: 'var(--danger)' }}

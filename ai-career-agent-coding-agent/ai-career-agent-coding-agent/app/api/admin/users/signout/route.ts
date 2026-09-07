@@ -2,9 +2,9 @@ import { requireUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { z } from 'zod';
 
-/* Admin-only account suspension. Mirrors terminate: sets the profile status,
- * cancels any queued/running agent work, and writes an audited admin action.
- * Suspended accounts are rejected by requireUser() on the next request. */
+/* Admin-only "sign out everywhere": revokes every live session for the target
+ * user via Supabase Auth admin. Combined with suspend/terminate this closes
+ * the "revoke-sessions" promise from SECURITY_ARCHITECTURE. */
 const body = z.object({ userId: z.string().uuid() });
 
 export async function POST(req: Request) {
@@ -18,27 +18,15 @@ export async function POST(req: Request) {
     if (!a) return Response.json({ error: 'FORBIDDEN' }, { status: 403 });
 
     const { userId } = body.parse(await req.json());
-    const { error } = await supabaseAdmin
-      .from('profiles')
-      .update({ account_status: 'SUSPENDED' })
-      .eq('user_id', userId);
+    const { error } = await supabaseAdmin.auth.admin.signOut(userId, 'global');
     if (error) return Response.json({ error: error.message }, { status: 409 });
-
-    // Revoke live sessions so the suspension takes effect immediately.
-    await supabaseAdmin.auth.admin.signOut(userId, 'global').catch(() => undefined);
-
-    await supabaseAdmin
-      .from('agent_tasks')
-      .update({ status: 'CANCELLED' })
-      .eq('user_id', userId)
-      .in('status', ['QUEUED', 'RUNNING']);
 
     await supabaseAdmin.from('admin_actions').insert({
       admin_user_id: admin.id,
       target_user_id: userId,
-      action: 'SUSPEND_ACCOUNT',
+      action: 'REVOKE_SESSIONS',
     });
-    return Response.json({ ok: true, suspended: userId });
+    return Response.json({ ok: true, signedOut: userId });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'INTERNAL';
     if (message === 'FORBIDDEN') return Response.json({ error: 'FORBIDDEN' }, { status: 403 });
