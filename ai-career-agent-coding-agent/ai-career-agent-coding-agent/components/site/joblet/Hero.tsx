@@ -1,7 +1,4 @@
 import {
-  IconSearch,
-  IconPin,
-  IconChevron,
   IconBolt,
   IconShield,
   IconUsers,
@@ -9,8 +6,7 @@ import {
   IconChart,
   IconArrowRight,
 } from './Icons';
-
-const LOCATIONS = ['Remote', 'Lagos', 'Abuja', 'Nigeria', 'United States', 'United Kingdom', 'Europe'];
+import { JobletSearch } from './JobletSearch';
 
 const FLOATS = [
   { icon: IconBriefcase, title: 'Remote Jobs', sub: 'Work from anywhere' },
@@ -70,29 +66,7 @@ export function JobletHero({ liveTotal, liveSources }: { liveTotal: number; live
           </p>
 
           {/* Search — connects to the real job browser at /jobs */}
-          <form className="jl-search" action="/jobs" method="get" role="search">
-            <div className="jl-search-field">
-              <span className="jl-si"><IconSearch size={19} /></span>
-              <input
-                type="search"
-                name="q"
-                placeholder="Search for jobs, skills or companies..."
-                aria-label="Search for jobs, skills or companies"
-              />
-            </div>
-            <span className="jl-search-div" aria-hidden="true" />
-            <div className="jl-search-field jl-search-loc">
-              <span className="jl-si"><IconPin size={19} /></span>
-              <select name="loc" aria-label="Location" defaultValue="">
-                <option value="">Location</option>
-                {LOCATIONS.map((l) => (
-                  <option key={l} value={l}>{l}</option>
-                ))}
-              </select>
-              <IconChevron size={16} />
-            </div>
-            <button className="jl-search-btn" type="submit">Search</button>
-          </form>
+          <JobletSearch />
 
           <div className="jl-trust">
             <span className="jl-trust-item"><IconBolt size={17} /> Verified job listings</span>

@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import localFont from 'next/font/local';
 import { SITE_URL } from '@/lib/site';
+import { ScrollReveal } from '@/components/site/ScrollReveal';
 
 /* Newsreader, self-hosted variable display face (Google Fonts, OFL).
    "The Broadstreet Journal" direction (v3): high-legibility editorial serif
@@ -42,10 +43,20 @@ export const metadata: Metadata = {
   },
   twitter: { card: 'summary_large_image', title: 'Jobiest · your AI career agent', description: 'Your AI career agent. Truthful applications, full tracking, you in control.' },
   robots: { index: true, follow: true },
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/favicon-32x32.png', type: 'image/png', sizes: '32x32' },
+      { url: '/favicon-16x16.png', type: 'image/png', sizes: '16x16' },
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+    ],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180' }],
+  },
+  manifest: '/site.webmanifest',
 };
 
 export const viewport: Viewport = {
-  themeColor: '#f9f8f6',
+  themeColor: '#062B68',
   width: 'device-width',
   initialScale: 1,
 };
@@ -56,6 +67,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <a href="#main" className="skip-link">Skip to content</a>
         {children}
+        <ScrollReveal />
       </body>
     </html>
   );

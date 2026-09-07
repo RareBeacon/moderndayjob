@@ -1979,3 +1979,372 @@ html, body { overflow-x: clip; }
   .jl-banner-line { width: 34px; }
   .jl-footer-cols { gap: 40px; }
 }
+
+/* ============================================================
+   Jobiest · Unified design system (refinement pass)
+   One token layer for the whole product: navy + yellow brand,
+   warm-light surfaces, 4px spacing, rounded corners, soft
+   elevation. Legacy token NAMES are remapped here so every
+   existing surface re-themes automatically without edits.
+   Appended last: this block is the single source of truth.
+   ============================================================ */
+
+:root {
+  /* --- Brand colors --- */
+  --color-primary: #062b68;        /* deep navy */
+  --color-primary-hover: #0a3d8f;
+  --color-primary-active: #021a40;
+  --color-secondary: #2f6bff;      /* bright blue, secondary brand */
+  --color-accent: #ffd21a;         /* yellow accent */
+  --color-accent-hover: #ffdf4d;
+  --color-accent-active: #f2c40a;
+  --color-primary-rgb: 6, 43, 104;
+
+  /* --- Semantic --- */
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-error: #dc2626;
+  --color-info: #2f6bff;
+
+  /* --- Surface & background --- */
+  --color-bg: #f5f8fd;
+  --color-surface: #ffffff;
+  --color-surface-alt: #edf3fb;
+  --color-overlay: rgba(2, 26, 64, 0.55);
+
+  /* --- Text --- */
+  --color-text-primary: #122a54;
+  --color-text-secondary: #55688c;
+  --color-text-muted: #8fa1c2;
+  --color-text-inverse: #ffffff;
+
+  /* --- Borders --- */
+  --color-border: #e4ecf6;
+  --color-border-strong: #c9d8f0;
+  --color-border-focus: #2f6bff;
+
+  /* --- Spacing scale (4px base) --- */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+  --space-12: 48px; --space-16: 64px; --space-20: 80px; --space-24: 96px;
+
+  /* --- Radius --- */
+  --radius-xs: 6px;  --radius-sm: 10px; --radius-md: 12px; --radius: 14px;
+  --radius-lg: 20px; --radius-xl: 28px; --radius-2xl: 36px; --radius-full: 9999px;
+
+  /* --- Shadows (soft, navy-tinted) --- */
+  --shadow-xs: 0 1px 2px rgba(6, 43, 104, 0.06);
+  --shadow-sm: 0 2px 6px rgba(6, 43, 104, 0.08);
+  --shadow-md: 0 6px 18px rgba(6, 43, 104, 0.10);
+  --shadow-lg: 0 12px 32px rgba(6, 43, 104, 0.12);
+  --shadow-xl: 0 24px 56px rgba(6, 43, 104, 0.16);
+
+  /* --- Transitions --- */
+  --transition-fast: 150ms ease-out;
+  --transition-base: 250ms ease-out;
+  --transition-slow: 400ms ease-out;
+  --transition-spring: 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* --- Type scale (fluid) --- */
+  --text-xs: clamp(0.7rem, 1vw, 0.75rem);
+  --text-sm: clamp(0.8rem, 1.2vw, 0.875rem);
+  --text-base: clamp(0.9rem, 1.5vw, 1rem);
+  --text-lg: clamp(1rem, 1.8vw, 1.125rem);
+  --text-xl: clamp(1.1rem, 2vw, 1.25rem);
+  --text-2xl: clamp(1.25rem, 2.5vw, 1.5rem);
+  --text-3xl: clamp(1.5rem, 3vw, 1.875rem);
+  --text-4xl: clamp(1.75rem, 4vw, 2.25rem);
+  --text-5xl: clamp(2rem, 5vw, 3rem);
+  --text-6xl: clamp(2.5rem, 6vw, 3.75rem);
+
+  /* --- Fonts: one family, two weights-ranges (unify to sans) --- */
+  --font-heading: var(--font-body, Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
+  --font-body: var(--font-body, Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
+
+  /* === Legacy token remap → new brand (re-themes every existing surface) === */
+  --brand: var(--color-primary);
+  --brand-strong: var(--color-primary-hover);
+  --brand-ink: var(--color-primary);
+  --brand-soft: #eaf1ff;
+  --brand-softer: #dce9fd;
+  --brand-line: #c9d8f0;
+  --ink: var(--color-text-primary);
+  --ink-2: #33466b;
+  --muted: var(--color-text-secondary);
+  --muted-2: var(--color-text-muted);
+  --line: var(--color-border);
+  --line-2: #ebf1f9;
+  --bg: var(--color-bg);
+  --card: var(--color-surface);
+  --background-secondary: var(--color-surface-alt);
+  --surface-sunken: var(--color-surface-alt);
+  --surface: var(--color-surface);
+  --surface-elevated: var(--color-surface);
+  --accent-primary: var(--color-primary);
+  --accent-secondary: var(--color-secondary);
+  --border: var(--color-border);
+  --focus: var(--ring, 0 0 0 3px rgba(47, 107, 255, 0.3));
+  --cobalt: var(--color-info);
+  --mint: var(--color-info);
+  --coral: var(--color-accent);
+  --success: var(--color-success);
+  --success-bg: #eaf7ee;
+  --success-line: #bbf0c9;
+  --warning: var(--color-warning);
+  --warning-bg: #fff6e8;
+  --danger: var(--color-error);
+  --danger-bg: #fdebec;
+  --danger-line: #f5c2c7;
+  --ring: 0 0 0 3px rgba(47, 107, 255, 0.3);
+  --radius-sm: 10px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-2xl: 36px;
+  --radius-pill: 999px;
+  --shadow-sm: var(--shadow-xs);
+  --shadow: var(--shadow-md);
+  --shadow-lg: var(--shadow-xl);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur: 250ms;
+  --font-display: var(--font-heading);
+  --font-sans: var(--font-body);
+  --maxw: 1320px;
+}
+
+/* ============================================================
+   Base elements
+   ============================================================ */
+.jl-page,
+body { text-rendering: optimizeLegibility; }
+img { max-width: 100%; height: auto; display: block; }
+h1, h2, h3, h4, h5 {
+  font-family: var(--font-heading);
+  letter-spacing: -0.02em;
+}
+h1 { font-weight: 800; line-height: 1.12; }
+h2 { font-weight: 700; line-height: 1.2; }
+h3 { font-weight: 700; line-height: 1.25; }
+h4 { font-weight: 600; line-height: 1.3; }
+p { line-height: 1.65; }
+a { transition: color var(--transition-fast); }
+
+/* ============================================================
+   Buttons — unified states across every variant
+   ============================================================ */
+.btn,
+.btn-secondary,
+.btn-ghost,
+.btn-light,
+.mk-btn-primary,
+.mk-btn-accent,
+.mk-btn-ghost,
+.jl-btn-ghost,
+.jl-btn-solid,
+.jl-btn-outline,
+.text-button {
+  transition:
+    background-color var(--transition-base),
+    border-color var(--transition-base),
+    color var(--transition-base),
+    box-shadow var(--transition-base),
+    transform var(--transition-fast);
+}
+.btn:active, .btn-secondary:active, .btn-ghost:active,
+.mk-btn-primary:active, .mk-btn-accent:active, .mk-btn-ghost:active,
+.jl-btn-solid:active, .jl-btn-ghost:active, .jl-btn-outline:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-xs);
+}
+.btn:disabled, .btn[disabled],
+.mk-btn-primary:disabled, .mk-btn-accent:disabled,
+.jl-btn-solid:disabled, .jl-btn-ghost:disabled {
+  opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none;
+}
+.btn:focus-visible, .btn-secondary:focus-visible, .btn-ghost:focus-visible,
+.mk-btn-primary:focus-visible, .mk-btn-accent:focus-visible, .mk-btn-ghost:focus-visible,
+.jl-btn-solid:focus-visible, .jl-btn-ghost:focus-visible, .jl-btn-outline:focus-visible,
+.text-button:focus-visible, .jl-nav-links a:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 3px;
+}
+
+/* Primary buttons: navy, lift on hover */
+.btn, .mk-btn-accent { background: var(--color-primary); color: var(--color-text-inverse); }
+.btn:hover, .mk-btn-accent:hover { background: var(--color-primary-hover); box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.btn-secondary { background: var(--color-text-primary); color: #fff; }
+.btn-secondary:hover { background: var(--color-primary-hover); box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.btn-ghost, .mk-btn-ghost { background: transparent; color: var(--color-text-primary); border: 1px solid var(--color-border-strong); }
+.btn-ghost:hover, .mk-btn-ghost:hover { border-color: var(--color-primary); background: var(--color-surface-alt); }
+.btn-light { background: #fff; color: var(--color-text-primary); }
+.btn-light:hover { background: var(--color-surface-alt); }
+
+/* CTA accent (yellow) */
+.mk-btn-primary { background: var(--color-accent); color: var(--color-primary-active); }
+.mk-btn-primary:hover { background: var(--color-accent-hover); color: var(--color-primary-active); box-shadow: 0 12px 26px -12px rgba(255, 210, 26, 0.7); transform: translateY(-1px); }
+
+/* Full-width CTAs on small screens (touch target ≥ 44px) */
+@media (max-width: 479px) {
+  .btn, .btn-secondary, .btn-ghost,
+  .mk-btn-primary, .mk-btn-accent, .mk-btn-ghost,
+  .jl-btn-solid, .jl-btn-ghost, .jl-btn-outline {
+    width: 100%; min-height: 44px;
+  }
+  .actions, .mk-nav .cta { gap: var(--space-3); }
+}
+
+/* ============================================================
+   Forms & inputs — focus ring, consistent borders
+   ============================================================ */
+input, select, textarea {
+  font-family: var(--font-body);
+  transition: border-color var(--transition-base), box-shadow var(--transition-base);
+}
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline: none; }
+.form-stack input, .form-stack textarea, .form-stack select,
+.auth-form input, .track-form select, .profile-form input,
+.profile-form textarea, .repeat-row input, .repeat-row textarea,
+.dd-wizard input, .dd-wizard textarea, .dd-wizard select,
+.ft-input, .jl-search-field input, .jl-search-field select {
+  border-color: var(--color-border);
+}
+.form-stack input:focus, .form-stack textarea:focus,
+.auth-form input:focus, .track-form select:focus,
+.profile-form input:focus, .profile-form textarea:focus,
+.repeat-row input:focus, .repeat-row textarea:focus,
+.ft-input:focus, .dd-wizard input:focus, .dd-wizard textarea:focus {
+  border-color: var(--color-border-focus);
+  box-shadow: 0 0 0 3px rgba(47, 107, 255, 0.18);
+}
+
+/* ============================================================
+   Search experience — focus ring + clear button + ⌘K hint
+   ============================================================ */
+.jl-search { transition: box-shadow var(--transition-base), border-color var(--transition-base); }
+.jl-search:focus-within {
+  box-shadow: 0 0 0 3px rgba(47, 107, 255, 0.22), 0 24px 50px -22px rgba(2, 20, 60, 0.55);
+}
+.jl-search-clear {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 50%; border: 0;
+  background: var(--color-surface-alt); color: var(--color-text-secondary);
+  cursor: pointer; flex: none; margin-right: 2px;
+  opacity: 1; transition: opacity var(--transition-fast), background-color var(--transition-fast), transform var(--transition-fast);
+}
+.jl-search-clear[hidden] { display: none; }
+.jl-search-clear:hover { background: #dfe9f8; color: var(--color-primary); }
+.jl-kbd-hint {
+  display: inline-flex; align-items: center; gap: 4px; flex: none;
+  margin-left: auto; margin-right: 10px;
+  color: var(--color-text-muted); font-size: 12px; font-weight: 600;
+}
+.jl-kbd-hint kbd {
+  font-family: inherit; background: #f2f6fd; border: 1px solid var(--color-border);
+  border-bottom-width: 2px; border-radius: 6px; padding: 2px 6px; font-size: 11px; color: var(--color-text-secondary);
+}
+@media (max-width: 640px) { .jl-kbd-hint { display: none; } }
+
+/* ============================================================
+   Re-theme the legacy "green" workspace layer → tokens
+   ============================================================ */
+.onboarding-card { border-color: var(--color-border); box-shadow: var(--shadow-lg); }
+.eyebrow { color: var(--color-primary); }
+.form-stack label span { color: var(--color-text-secondary); }
+.form-status { color: var(--color-text-secondary); }
+.workspace-header { border-bottom-color: var(--color-border); }
+.brand { color: var(--color-primary); }
+.workspace-hero p:not(.eyebrow) { color: var(--color-text-secondary); }
+.metrics article { border-color: var(--color-border); }
+.metrics p, .metrics span { color: var(--color-text-secondary); }
+.inline-link { color: var(--color-primary); }
+.upload-card { border-color: var(--color-border-strong); background: var(--color-surface-alt); color: var(--color-text-primary); }
+.upload-card:hover { background: #e3edfa; border-color: var(--color-primary); }
+.upload-card span { color: var(--color-text-secondary); }
+.track-form { border-color: var(--color-border); }
+.profile-form { border-color: var(--color-border); }
+.repeat-row { background: var(--color-surface-alt); }
+.usage-strip span { border-color: var(--color-border); background: var(--color-surface-alt); color: var(--color-text-secondary); }
+.usage-strip b { color: var(--color-primary); }
+.plan-grid small { color: var(--color-text-secondary); }
+.featured-plan { border-color: var(--color-border-strong); background: var(--color-surface-alt); }
+.completeness { border-color: var(--color-border); background: var(--color-surface-alt); }
+.progress { background: var(--color-border); }
+.progress i { background: linear-gradient(90deg, var(--color-primary), var(--color-secondary)); }
+
+/* Fix stray hardcoded legacy colors */
+.cta-band { background: linear-gradient(135deg, var(--color-primary-hover), var(--color-primary-active)); }
+.cta-band p { color: #c7d7f5; }
+.job-co { background: linear-gradient(135deg, var(--color-primary), var(--color-secondary)); }
+
+/* App + marketing logo tile → yellow brand mark, navy glyph */
+.mk-logo .mark, .logo .mark, .app-logo .mark {
+  background: var(--color-accent); color: var(--color-primary-active); box-shadow: none;
+  border-radius: 9px;
+}
+
+/* ============================================================
+   Scroll entrance animations (IntersectionObserver adds .is-visible)
+   ============================================================ */
+[data-animate] {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity var(--transition-slow), transform var(--transition-slow);
+  will-change: opacity, transform;
+}
+[data-animate].is-visible { opacity: 1; transform: translateY(0); }
+@media (prefers-reduced-motion: reduce) {
+  [data-animate] { opacity: 1 !important; transform: none !important; transition: none !important; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================
+   Responsive guardrails
+   ============================================================ */
+@media (min-width: 1600px) {
+  .jl-shell, .container { max-width: 1440px; }
+}
+@media (max-width: 640px) {
+  .jl-headline { font-size: clamp(36px, 10vw, 46px); }
+}
+
+/* ============================================================
+   Micro-interactions — loading, toggles, dropdowns
+   ============================================================ */
+@keyframes jlPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+.skeleton {
+  background: var(--color-border);
+  border-radius: var(--radius-sm);
+  animation: jlPulse 1.6s ease-in-out infinite;
+}
+.skeleton-line { height: 14px; margin: 10px 0; border-radius: 6px; }
+
+@keyframes jlSpin { to { transform: rotate(360deg); } }
+.spinner {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2.5px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  animation: jlSpin 0.7s linear infinite;
+}
+
+/* Checkbox scale-pop + draw */
+input[type="checkbox"] {
+  accent-color: var(--color-primary);
+  transform: scale(1);
+  transition: transform var(--transition-fast);
+}
+input[type="checkbox"]:active { transform: scale(0.92); }
+
+/* Dropdown / select gentle open hint */
+select { cursor: pointer; }
+
+/* Toast slide-in (utility for future/notification use) */
+@keyframes jlToastIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.toast { animation: jlToastIn var(--transition-base); }
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton, .spinner { animation: none; }
+}

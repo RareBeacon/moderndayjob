@@ -27,14 +27,14 @@ export function JobletTools() {
   return (
     <section className="jl-sec" id="tools">
       <div className="jl-shell">
-        <div className="jl-sec-head center">
+        <div className="jl-sec-head center" data-animate>
           <span className="jl-kicker">Career resources</span>
           <h2>Free tools. No paywall to start.</h2>
           <p>Ten focused tools to move your search forward — each one truthful, each one free to start.</p>
         </div>
         <div className="jl-tools-grid">
-          {TOOLS.map((t) => (
-            <Link className="jl-tool" href={t.href} key={t.title}>
+          {TOOLS.map((t, i) => (
+            <Link className="jl-tool" href={t.href} key={t.title} data-animate data-animate-delay={i * 50}>
               <span className="jl-tool-tag">Live</span>
               <h3>{t.title}</h3>
               <p>{t.body}</p>
@@ -56,21 +56,17 @@ export function JobletHow() {
           <h2>Three steps to momentum.</h2>
         </div>
         <div className="jl-how">
-          <div className="jl-how-step">
-            <span className="jl-n">1</span>
-            <h3>Build your profile</h3>
-            <p>A guided flow captures your experience, skills, and the roles you want. Any profession.</p>
-          </div>
-          <div className="jl-how-step">
-            <span className="jl-n">2</span>
-            <h3>Let the agent work</h3>
-            <p>It discovers jobs, scores fit, and prepares truthful, tailored applications for you.</p>
-          </div>
-          <div className="jl-how-step">
-            <span className="jl-n">3</span>
-            <h3>Approve &amp; track</h3>
-            <p>Review each application, approve in a click, and watch every status update in one place.</p>
-          </div>
+          {[
+            { n: '1', t: 'Build your profile', b: 'A guided flow captures your experience, skills, and the roles you want. Any profession.' },
+            { n: '2', t: 'Let the agent work', b: 'It discovers jobs, scores fit, and prepares truthful, tailored applications for you.' },
+            { n: '3', t: 'Approve &amp; track', b: 'Review each application, approve in a click, and watch every status update in one place.' },
+          ].map((s, i) => (
+            <div className="jl-how-step" key={s.n} data-animate data-animate-delay={i * 80}>
+              <span className="jl-n">{s.n}</span>
+              <h3>{s.t}</h3>
+              <p>{s.b}</p>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -144,8 +140,8 @@ export function JobletAbout() {
           <p>Real people. Real journeys. Four commitments built into how Jobiest works.</p>
         </div>
         <div className="jl-about-grid">
-          {ABOUT.map((a) => (
-            <div className="jl-about" key={a.title}>
+          {ABOUT.map((a, i) => (
+            <div className="jl-about" key={a.title} data-animate data-animate-delay={i * 70}>
               <span className="jl-about-ico"><a.icon size={20} /></span>
               <h3>{a.title}</h3>
               <p>{a.body}</p>

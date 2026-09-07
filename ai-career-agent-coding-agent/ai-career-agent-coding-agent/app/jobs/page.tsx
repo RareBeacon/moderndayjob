@@ -68,12 +68,53 @@ export default function JobsPage() {
         <p className="eyebrow">OPPORTUNITIES</p>
         <h1>Discovered jobs.</h1>
         <p>Jobs are normalized from supported public sources, de-duplicated, and ready for matching. Every listing links to a real source, never fabricated.</p>
-        <Link className="btn" href="/match">Score these for fit →</Link>
+
+        {/* Live filter — updates as you type, mirrors the homepage search */}
+        <form
+          className="jl-search"
+          style={{ marginTop: 20, boxShadow: 'var(--shadow-sm)', border: '1px solid var(--color-border)' }}
+          onSubmit={(e) => e.preventDefault()}
+        >
+          <div className="jl-search-field">
+            <span className="jl-si" aria-hidden="true">🔍</span>
+            <input
+              type="search"
+              placeholder="Filter by role, company or skill…"
+              aria-label="Filter jobs"
+              value={query.q}
+              onChange={(e) => setQuery((s) => ({ ...s, q: e.target.value }))}
+            />
+            <button
+              type="button"
+              className="jl-search-clear"
+              aria-label="Clear search"
+              hidden={!query.q}
+              onClick={() => setQuery((s) => ({ ...s, q: '' }))}
+            >
+              ×
+            </button>
+          </div>
+          <button className="jl-search-btn" type="submit" style={{ background: 'var(--color-primary)', color: '#fff', minHeight: 44 }}>
+            {query.loc ? `Near ${query.loc}` : 'Search'}
+          </button>
+        </form>
+
+        <div style={{ marginTop: 16 }}>
+          <Link className="btn" href="/match">Score these for fit →</Link>
+        </div>
       </section>
 
       <section className="job-list">
         {loading ? (
-          <p className="muted">Loading…</p>
+          <div aria-hidden="true" style={{ display: 'grid', gap: 12 }}>
+            {[0, 1, 2].map((i) => (
+              <div className="card" key={i} style={{ padding: 20 }}>
+                <div className="skeleton" style={{ width: '55%', height: 16 }} />
+                <div className="skeleton skeleton-line" style={{ width: '35%' }} />
+                <div className="skeleton skeleton-line" style={{ width: '70%' }} />
+              </div>
+            ))}
+          </div>
         ) : jobs.length === 0 && all.length > 0 ? (
           <article className="card">
             <h2>No jobs match your search.</h2>

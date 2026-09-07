@@ -58,8 +58,15 @@ export function JobletFeatureCards() {
     <section className="jl-features" aria-label="What you can do">
       <div className="jl-shell">
         <div className="jl-features-grid">
-          {CARDS.map((c) => (
-            <a className="jl-feature" href={c.href} key={c.title} id={c.title === 'For Employers' ? 'employers' : undefined}>
+          {CARDS.map((c, i) => (
+            <a
+              className="jl-feature"
+              href={c.href}
+              key={c.title}
+              id={c.title === 'For Employers' ? 'employers' : undefined}
+              data-animate
+              data-animate-delay={i * 60}
+            >
               <span className="jl-feature-ico" style={{ background: c.color }}>
                 <c.icon size={22} />
               </span>
