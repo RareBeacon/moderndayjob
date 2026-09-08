@@ -19,7 +19,7 @@ exactly — not generic Flutterwave/Supabase docs.
 | `FLW_SECRET_KEY` | billing create + webhook verify | ❌ **add** |
 | `FLW_SECRET_HASH` | webhook signature | ❌ **add** |
 | `FLW_CLIENT_ID` / `FLW_CLIENT_SECRET` | *(declared in lib/env.ts, read by nothing)* | skip — unused |
-| `ENCRYPTION_MASTER_KEY` | credential encryption (AES-256-GCM) | ❌ **rotate** (currently dev fallback) |
+| `ENCRYPTION_MASTER_KEY` | credential encryption (AES-256-GCM) | ✅ **rotated** (2026-09-08, fresh random key) |
 | `NEXT_PUBLIC_APP_URL` | Flutterwave redirect URL | ✅ set (`https://jobiest.com`) |
 | `UPSTASH_REDIS_REST_URL` / `_TOKEN` | rate limiting | ✅ already live |
 | `CRON_SECRET` | daily pipeline | ✅ already live |
@@ -157,6 +157,16 @@ Project: `https://cbxloutahmalorumaihc.supabase.co` (ref `cbxloutahmalorumaihc`)
 - **User data was NOT carried over** (no service-role/PAT for the old project).
   Pre-launch test accounts vanished; any real users must sign up again.
 - `.env.local` now points at the new project (gitignored).
+- **Vercel cutover done (2026-09-08):** the 3 Supabase env vars
+  (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+  `SUPABASE_SERVICE_ROLE_KEY`) were updated in Vercel and a production
+  deployment created + verified READY. Production client bundle now bakes in
+  `cbxloutahmalorumaihc.supabase.co`. End-to-end verified: production signup →
+  new DB (profile/workspace/subscription provisioned), entitlements view +
+  `consume_ai_credit` RPC work via the new service-role key.
+- **Old project** `otcpzmuqnvlfgurtbbut` is now orphaned (still holds the old
+  accounts incl. real signups). Delete it from the old Supabase account once
+  you're satisfied — see §2c.
 
 ### 2a. Service-role key (needed for the app to write data server-side)
 1. dashboard.supabase.com → your project → **Settings → API**.
@@ -237,6 +247,13 @@ curl -X DELETE "https://cbxloutahmalorumaihc.supabase.co/auth/v1/admin/users/<US
 ---
 
 ## 3. Rotate `ENCRYPTION_MASTER_KEY`
+
+### ✅ Status: ROTATED (2026-09-08)
+- A fresh 64-hex-char key was generated (`openssl rand -hex 32`) and set in
+  Vercel (Production) + `.env.local`. Done while the database is empty of real
+  users, so no re-encryption migration was needed.
+- The old dev fallback (`development-only-key-must-be-replaced`) is no longer
+  in effect for production.
 
 ### Why it matters now
 `lib/env.ts` requires ≥32 chars but **falls back to the string
