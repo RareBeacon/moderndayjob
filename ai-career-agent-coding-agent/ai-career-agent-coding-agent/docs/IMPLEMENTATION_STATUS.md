@@ -42,3 +42,8 @@ This repository now contains the implementation scaffold, executable SQL migrati
 - `tests/apply-task.test.ts` (14 tests): `processApplicationTask` re-checks every gate server-side (kill switch, pause, approval, entitlement, platform, expiry, package, truthfulness) before any browser call; SUBMITTED/STOP outcomes with owner-scoped application updates + audit events.
 - `tests/preferences-agent.test.ts` (6 tests): agent pause/resume keyed on the server-derived user id (client-supplied `user_id` ignored), non-boolean body → 400, 429/500 paths.
 - Delivered as commit `538bff7`; suite now 27 files / 252 tests, `tsc --noEmit` clean, `next build` clean.
+- `tests/admin-users-list.test.ts` (3 tests): admin-only overview list; non-admin → 403.
+- `tests/applications-service.test.ts` (17 tests): owner-scoped fetches/updates (cross-user → NOT_FOUND), `prepareApplication` idempotency + insert-race recovery, `approveApplication` gates (expiry/email/package), `requestAutoSubmit` kill-switch / entitlement / platform / idempotent task reuse / enqueue + event.
+- `tests/applications-routes.test.ts` (14 tests): `AppActionError` → HTTP status mapping (404/403/409/422), body validation, 429 rate limiting, server-derived user id propagation.
+- Hardening fix: `app/api/admin/users/route.ts` now returns `403 FORBIDDEN` for non-admins (was an uncaught throw → 500), matching sibling admin routes.
+- Delivered as commit `ac4ec64`; suite now 30 files / 286 tests, `tsc --noEmit` clean, `next build` clean.
