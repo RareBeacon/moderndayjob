@@ -11,6 +11,7 @@
     "lint": "tsc --noEmit",
     "agent": "tsx workers/agent/index.ts",
     "browser": "tsx workers/browser/index.ts",
+    "api": "tsx workers/api/index.ts",
     "scheduler": "tsx workers/scheduler/index.ts"
   },
   "dependencies": {

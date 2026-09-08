@@ -1,0 +1,54 @@
+# Self-hosted browser worker + API gateway on Oracle Always Free (Ampere A1).
+# Run from this directory:
+#   cp .env.example .env   # fill in the secrets + domains
+#   docker compose up -d --build
+services:
+  # Isolated browser worker — same hardened image as Render (Playwright + Chromium).
+  worker:
+    build:
+      context: ../.. # app root (Dockerfile, package.json, workers/)
+    restart: unless-stopped
+    environment:
+      - PORT=8082
+      - BROWSER_WORKER_SECRET=${BROWSER_WORKER_SECRET:?set BROWSER_WORKER_SECRET}
+      - NODE_ENV=production
+    expose:
+      - '8082'
+
+  # Self-hosted API gateway (auth + rate limit) in front of the worker.
+  api:
+    build:
+      context: ../..
+    command: ['npm', 'run', 'api']
+    restart: unless-stopped
+    environment:
+      - PORT=8081
+      - API_KEYS=${API_KEYS:?set API_KEYS}
+      - BROWSER_WORKER_URL=http://worker:8082
+      - BROWSER_WORKER_SECRET=${BROWSER_WORKER_SECRET:?set BROWSER_WORKER_SECRET}
+      - RATE_LIMIT_MAX=${RATE_LIMIT_MAX:-30}
+      - RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS:-60000}
+    expose:
+      - '8081'
+    depends_on:
+      - worker
+
+  # Edge TLS (Let's Encrypt, automatic) + routing:
+  #   WORKER_DOMAIN -> worker:8082,  API_DOMAIN -> api:8081
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      - WORKER_DOMAIN=${WORKER_DOMAIN:?set WORKER_DOMAIN e.g. worker.jobiest.com}
+      - API_DOMAIN=${API_DOMAIN:?set API_DOMAIN e.g. api.jobiest.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
