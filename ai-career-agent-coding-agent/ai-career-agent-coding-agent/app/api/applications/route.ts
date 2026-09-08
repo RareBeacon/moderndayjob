@@ -4,7 +4,7 @@ import { requireUser } from '@/lib/auth';
 import { assertEntitlement } from '@packages/security/entitlements';
 import { supabaseAdmin } from '@/lib/supabase';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
-import { listApplications } from '@/lib/applications/service';
+import { isAutomationEnabled, listApplications } from '@/lib/applications/service';
 
 const automated = z.object({ jobId: z.string().uuid(), email: z.string().email() });
 const manual = z.object({
@@ -19,7 +19,7 @@ const manual = z.object({
 export async function GET() {
   const u = await requireUser();
   const applications = await listApplications(u.id);
-  return Response.json({ applications });
+  return Response.json({ applications, automationEnabled: isAutomationEnabled() });
 }
 
 export async function POST(req: Request) {

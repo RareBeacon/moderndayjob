@@ -1,4 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase';
+import { assertEntitlement } from '@packages/security/entitlements';
+import { detectApplyAdapter } from '@/lib/apply/registry';
 import {
   decideApprove,
   decidePrepare,
@@ -28,9 +30,16 @@ import {
  *  stale; sources do not currently expose an explicit expiry). */
 export const JOB_EXPIRY_MS = 90 * 24 * 60 * 60 * 1000;
 
+export type AppErrorCode =
+  | GateCode
+  | 'AUTOMATION_DISABLED'
+  | 'NOT_ENTITLED'
+  | 'UNSUPPORTED_PLATFORM'
+  | 'POLICY_RESTRICTED';
+
 export class AppActionError extends Error {
-  code: GateCode;
-  constructor(code: GateCode, message: string) {
+  code: AppErrorCode;
+  constructor(code: AppErrorCode, message: string) {
     super(message);
     this.code = code;
   }
@@ -78,6 +87,8 @@ export interface ApplicationDetail {
   application: ApplicationRow & { job: JobRow | null };
   package: PackageDoc[];
   timeline: TimelineEvent[];
+  /** Global automatic-submission kill switch (env AUTOMATION_SUBMIT_ENABLED). */
+  automationEnabled: boolean;
 }
 
 /* ---------- helpers ---------- */
@@ -125,16 +136,27 @@ async function hasPackage(userId: string, applicationId: string): Promise<boolea
   return (cv ?? 0) > 0;
 }
 
-async function writeEvent(app: ApplicationRow, event: string, meta: Record<string, unknown> = {}) {
+/** Append an owner-scoped audit event to an application's timeline. Exported
+ *  so the Phase 8 worker can write submission events from outside this module. */
+export async function appendApplicationEvent(
+  userId: string,
+  applicationId: string,
+  event: string,
+  meta: Record<string, unknown> = {},
+): Promise<void> {
   const at = new Date().toISOString();
   await supabaseAdmin.from('agent_tasks').insert({
-    user_id: app.user_id,
-    application_id: app.id,
+    user_id: userId,
+    application_id: applicationId,
     type: 'APPLICATION_EVENT',
     status: 'COMPLETED',
     payload: { event },
-    result: { event, at, by: app.user_id, ...meta },
+    result: { event, at, by: userId, ...meta },
   });
+}
+
+async function writeEvent(app: ApplicationRow, event: string, meta: Record<string, unknown> = {}) {
+  await appendApplicationEvent(app.user_id, app.id, event, meta);
 }
 
 async function fetchDocs(userId: string, applicationId: string): Promise<PackageDoc[]> {
@@ -208,7 +230,12 @@ export async function getApplication(userId: string, id: string): Promise<Applic
     fetchDocs(userId, ready.id),
     fetchTimeline(userId, ready.id),
   ]);
-  return { application: { ...ready, job }, package: packageDocs, timeline };
+  return {
+    application: { ...ready, job },
+    package: packageDocs,
+    timeline,
+    automationEnabled: isAutomationEnabled(),
+  };
 }
 
 export async function listApplications(userId: string): Promise<ApplicationDetail['application'][]> {
@@ -337,7 +364,7 @@ export async function submitApplication(userId: string, id: string): Promise<App
 }
 
 /** Friendly messages for gate codes shown to the user. */
-export function messageFor(code: GateCode | undefined): string {
+export function messageFor(code: AppErrorCode | undefined): string {
   switch (code) {
     case 'EXPIRED_JOB':
       return 'This job listing is too old to apply to. Find a newer listing instead.';
@@ -349,7 +376,71 @@ export function messageFor(code: GateCode | undefined): string {
       return 'That action is not available for this application right now.';
     case 'NOT_FOUND':
       return 'Application not found.';
+    case 'AUTOMATION_DISABLED':
+      return 'Automatic submission is not enabled yet.';
+    case 'NOT_ENTITLED':
+      return 'Your plan does not include automatic submission.';
+    case 'UNSUPPORTED_PLATFORM':
+      return 'This employer platform is not supported for automatic submission yet.';
+    case 'POLICY_RESTRICTED':
+      return 'Automatic submission is disabled by policy right now.';
     default:
       return 'Something went wrong. Please try again.';
   }
+}
+
+/** Global automatic-submission kill switch. Absent/false ⇒ nothing can ever
+ *  be submitted automatically, regardless of plan or application state. */
+export function isAutomationEnabled(): boolean {
+  return process.env.AUTOMATION_SUBMIT_ENABLED === 'true';
+}
+
+/** Enqueue a controlled automatic submission for an APPROVED application.
+ *  Server-side gates only: approved state, kill switch, automation
+ *  entitlement, and a supported site adapter. Idempotent. */
+export async function requestAutoSubmit(userId: string, id: string): Promise<{ taskId: string }> {
+  const app = await fetchApplication(userId, id);
+  if (!app) throw new AppActionError('NOT_FOUND', 'Application not found.');
+  if (app.status !== 'APPROVED') {
+    throw new AppActionError('INVALID_TRANSITION', 'Only applications you have approved can be submitted automatically.');
+  }
+  if (!isAutomationEnabled()) throw new AppActionError('AUTOMATION_DISABLED', 'Automatic submission is not enabled.');
+  try {
+    await assertEntitlement(userId, 'automation');
+  } catch {
+    throw new AppActionError('NOT_ENTITLED', 'Your plan does not include automatic submission.');
+  }
+
+  const job = await fetchJob(app.job_id);
+  if (!job || !job.url) throw new AppActionError('NOT_FOUND', 'Job not found.');
+  if (!detectApplyAdapter(job.url)) {
+    throw new AppActionError('UNSUPPORTED_PLATFORM', 'This employer platform is not supported for automatic submission.');
+  }
+
+  // Idempotent: reuse an already-queued/running submission task for this app.
+  const { data: existing } = await supabaseAdmin
+    .from('agent_tasks')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('application_id', id)
+    .eq('type', 'APPLICATION')
+    .in('status', ['QUEUED', 'RUNNING'])
+    .maybeSingle();
+  if (existing) return { taskId: (existing as { id: string }).id };
+
+  const { data: task, error } = await supabaseAdmin
+    .from('agent_tasks')
+    .insert({
+      user_id: userId,
+      application_id: id,
+      type: 'APPLICATION',
+      status: 'QUEUED',
+      payload: { application_id: id, job_id: app.job_id, mode: 'assisted' },
+    })
+    .select('id')
+    .single();
+  if (error) throw new AppActionError('DUPLICATE', 'A submission is already queued for this application.');
+
+  await appendApplicationEvent(userId, id, 'SUBMISSION_REQUESTED', { job: `${job.company} — ${job.title}` });
+  return { taskId: (task as { id: string }).id };
 }

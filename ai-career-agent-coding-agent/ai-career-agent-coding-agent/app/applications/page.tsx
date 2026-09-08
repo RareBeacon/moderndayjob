@@ -37,6 +37,7 @@ type Detail = {
   };
   package: Doc[];
   timeline: TimelineEvent[];
+  automationEnabled: boolean;
 };
 
 const STATUS_TONE: Record<string, string> = {
@@ -139,12 +140,22 @@ export default function Applications() {
   const [formMsg, setFormMsg] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ text: string; err: boolean } | null>(null);
+  const [automationEnabled, setAutomationEnabled] = useState(false);
+  const [agentActive, setAgentActive] = useState<boolean | null>(null);
 
   async function load() {
     const r = await fetch('/api/applications');
-    if (r.ok) setItems((await r.json()).applications || []);
+    if (r.ok) {
+      const j = await r.json();
+      setItems(j.applications || []);
+      setAutomationEnabled(j.automationEnabled ?? false);
+    }
   }
-  useEffect(() => { load(); }, []);
+  async function loadAgent() {
+    const r = await fetch('/api/preferences');
+    if (r.ok) setAgentActive((await r.json()).preferences?.active ?? true);
+  }
+  useEffect(() => { load(); loadAgent(); }, []);
 
   async function openDetail(id: string) {
     if (openId === id) { setOpenId(null); setDetail(null); return; }
@@ -152,7 +163,11 @@ export default function Applications() {
     setDetail(null);
     setMsg(null);
     const r = await fetch(`/api/applications/${id}`);
-    if (r.ok) setDetail(await r.json());
+    if (r.ok) {
+      const j = await r.json();
+      setDetail(j);
+      setAutomationEnabled(j.automationEnabled ?? false);
+    }
   }
 
   async function act(id: string, action: 'approve' | 'reject' | 'withdraw' | 'submit') {
@@ -189,6 +204,41 @@ export default function Applications() {
     }
   }
 
+  async function autoSubmit(id: string) {
+    if (busy) return;
+    setBusy('auto' + id);
+    setMsg(null);
+    const r = await fetch(`/api/applications/${id}/auto-submit`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const j = await r.json();
+    setBusy(null);
+    if (r.ok) {
+      setMsg({
+        text: 'Submission queued — the agent fills the employer form and stops for any CAPTCHA, login, or unsupported step. Watch the timeline.',
+        err: false,
+      });
+      const rd = await fetch(`/api/applications/${id}`);
+      if (rd.ok) setDetail(await rd.json());
+      await load();
+    } else {
+      setMsg({ text: friendly(j.error, j.message), err: true });
+    }
+  }
+
+  async function toggleAgent() {
+    const next = !agentActive;
+    setAgentActive(next);
+    const r = await fetch('/api/preferences/agent', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ active: next }),
+    });
+    if (!r.ok) setAgentActive(!next);
+  }
+
   async function track(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy('track');
@@ -220,6 +270,16 @@ export default function Applications() {
           <a className="btn" href="/match">Prepare from a match</a>
           <button className="btn-ghost" onClick={() => setOpenForm((v) => !v)}>{openForm ? 'Close form' : 'Track an application'}</button>
         </div>
+        <p className="muted" style={{ marginTop: 12, fontSize: 13 }}>
+          {automationEnabled
+            ? (agentActive !== null ? `Automatic submission is on — approved applications can be filled and sent by the agent. ` : '')
+            : 'Automatic submission is off — nothing is ever sent without an explicit go-live. '}
+          {automationEnabled && agentActive !== null && (
+            <button className="inline-link" style={{ fontSize: 13, margin: 0 }} onClick={toggleAgent}>
+              {agentActive ? 'Pause agent' : 'Resume agent'}
+            </button>
+          )}
+        </p>
         {openForm && (
           <form className="form-stack track-form" onSubmit={track}>
             <label>Company<input name="company" required placeholder="Company name" /></label>
@@ -268,8 +328,10 @@ export default function Applications() {
                   busy={busy}
                   msg={msg}
                   status={st}
+                  automationEnabled={detail?.automationEnabled ?? false}
                   onAct={(action) => act(a.id, action)}
                   onGenerate={(kind) => generate(a.id, kind)}
+                  onAutoSubmit={() => autoSubmit(a.id)}
                 />
               )}
             </div>
@@ -285,10 +347,12 @@ function DetailPanel(props: {
   busy: string | null;
   msg: { text: string; err: boolean } | null;
   status: string | undefined;
+  automationEnabled: boolean;
   onAct: (action: 'approve' | 'reject' | 'withdraw' | 'submit') => void;
   onGenerate: (kind: 'CV' | 'COVER_LETTER') => void;
+  onAutoSubmit: () => void;
 }) {
-  const { detail, busy, msg, status, onAct, onGenerate } = props;
+  const { detail, busy, msg, status, automationEnabled, onAct, onGenerate, onAutoSubmit } = props;
   if (!detail) return <div className="app-detail"><p className="muted">Loading…</p></div>;
 
   const job = detail.application.job;
@@ -352,11 +416,26 @@ function DetailPanel(props: {
           <div className="app-actions">
             {awaiting && <button className="btn" disabled={busy !== null} onClick={() => onAct('approve')}>{busy === 'approve' + detail.application.id ? '…' : 'Approve application'}</button>}
             {awaiting && <button className="btn-ghost" disabled={busy !== null} onClick={() => onAct('reject')}>Reject</button>}
-            {status === 'APPROVED' && <button className="btn" disabled={busy !== null} onClick={() => onAct('submit')}>{busy === 'submit' + detail.application.id ? '…' : 'Mark as submitted'}</button>}
+            {status === 'APPROVED' && automationEnabled && (
+              <button className="btn" disabled={busy !== null} onClick={onAutoSubmit}>{busy === 'auto' + detail.application.id ? 'Queuing…' : 'Submit automatically'}</button>
+            )}
+            {status === 'APPROVED' && (
+              <button className={automationEnabled ? 'btn-ghost' : 'btn'} disabled={busy !== null} onClick={() => onAct('submit')}>
+                {busy === 'submit' + detail.application.id ? '…' : 'Mark as submitted'}
+              </button>
+            )}
             {(status === 'PREPARING' || status === 'AWAITING_APPROVAL' || status === 'APPROVED') && (
               <button className="btn-ghost" style={{ color: 'var(--color-error)' }} disabled={busy !== null} onClick={() => onAct('withdraw')}>Withdraw</button>
             )}
           </div>
+
+          {automationEnabled && status === 'APPROVED' && (
+            <p className="muted" style={{ marginTop: 10, fontSize: 12.5 }}>
+              “Submit automatically” fills the employer’s form and stops for any CAPTCHA, sign-in, or
+              unsupported form — it never bypasses security checks, and nothing is sent unless the form is
+              positively identified.
+            </p>
+          )}
 
           {msg && <p className={`app-msg ${msg.err ? 'err' : ''}`}>{msg.text}</p>}
 
@@ -372,14 +451,17 @@ function DetailPanel(props: {
   );
 }
 
-function friendly(code: string): string {
+function friendly(code: string, message?: string): string {
   switch (code) {
     case 'EXPIRED_JOB': return 'This job listing is too old to apply to. Find a newer listing instead.';
     case 'REQUIRED_FIELDS_MISSING': return 'Add your application email in Profile and generate a CV or cover letter first.';
     case 'INVALID_TRANSITION': return 'That action is not available for this application right now.';
     case 'NOT_FOUND': return 'Application not found.';
+    case 'AUTOMATION_DISABLED': return 'Automatic submission is not enabled yet.';
+    case 'NOT_ENTITLED': return 'Your plan does not include automatic submission.';
+    case 'UNSUPPORTED_PLATFORM': return 'This employer platform is not supported for automatic submission yet.';
     case 'RATE_LIMITED': return 'Too many requests — slow down a moment.';
-    default: return 'Something went wrong. Please try again.';
+    default: return message || 'Something went wrong. Please try again.';
   }
 }
 

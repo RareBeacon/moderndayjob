@@ -4,6 +4,7 @@ import { defaultAdapters } from '../jobsources/boards';
 import { runIngestion, type IngestReport, type JobStore } from '../jobsources/ingest';
 import { supabaseJobStore } from '../jobsources/store';
 import type { SourceAdapter } from '../jobsources/types';
+import { processApplicationTask } from '../apply/task';
 
 /**
  * Shared agent pipeline, the single source of truth for task processing.
@@ -61,10 +62,12 @@ export async function processAgentTask(task: AgentTask, deps: PipelineDeps): Pro
     return { status: 'SUCCEEDED', result: { ingested: outcome.totalUpserted, sources: outcome.sources } };
   }
   if (task.type === 'APPLICATION') {
-    // Autonomous submission stays OFF until an approved site adapter,
-    // browser isolation and the full security gate exist. Nothing sends
-    // without explicit user approval.
-    return { status: 'WAITING_APPROVAL', result: { reason: 'Automation is disabled until an approved site adapter and user approval are available.' } };
+    // Controlled automatic submission (Phase 8). Every gate — the global kill
+    // switch, the per-user pause, APPROVED state, entitlement, supported site
+    // adapter, truthfulness — is re-checked server-side inside the processor
+    // before any browser is touched. With the kill switch absent (default),
+    // this returns WAITING_APPROVAL and nothing is ever sent.
+    return processApplicationTask((task.payload ?? {}) as Record<string, unknown>);
   }
   return { status: 'SUCCEEDED', result: { message: 'No operation required.' } };
 }

@@ -82,11 +82,11 @@ describe('processAgentTask', () => {
     const r = await processAgentTask(task(), deps(db));
     expect(r.result).toEqual({ skipped: 'pool_already_fresh' });
   });
-  it('APPLICATION never auto-submits, always WAITING_APPROVAL', async () => {
+  it('APPLICATION stays WAITING_APPROVAL without an application id (no auto-submit)', async () => {
     const { db } = makeDb({ latestJob: null });
     const r = await processAgentTask(task({ type: 'APPLICATION' }), deps(db));
     expect(r.status).toBe('WAITING_APPROVAL');
-    expect(String(r.result.reason)).toContain('user approval');
+    expect(String(r.result.reason)).toBe('MISSING_APPLICATION_ID');
   });
 });
 
