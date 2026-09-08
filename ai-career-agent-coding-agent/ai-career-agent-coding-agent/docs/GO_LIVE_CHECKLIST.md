@@ -42,6 +42,19 @@ silently ignored.
 - `FLW_SECRET_HASH` — compared (timing-safe) against the `verif-hash` header
   Flutterwave sends on every webhook.
 
+### ⚠️ V3 vs V4 (read this first)
+The app is built on Flutterwave **V3**. The dashboard now surfaces **V4** keys
+(Client ID / Client Secret / Encryption key) by default — **those will NOT
+work** with this code. Use the **"V3 Live API keys"** section of
+Settings → API keys:
+
+- **V3 Secret key** (`FLWSECK-…`, live) → `FLW_SECRET_KEY`. Shown/downloadable
+  only once; generate via "Generate Secret Key" (7-digit email code) and save
+  it immediately.
+- **V3 webhook secret hash** → `FLW_SECRET_HASH` (Settings → Webhooks → V3).
+- **Not needed:** V3 Public key (`FLWPUBK-…`, no client-side SDK), V3
+  Encryption key (direct card charge only), and the V4 Client ID/Secret.
+
 ### What you do **not** need (important)
 - **"Live plan IDs" are not required.** The app uses Flutterwave **Standard
   payments** (amount-based). Plan prices live in your own DB
