@@ -27,12 +27,25 @@ export type FlwPaymentInput = {
 export type FlwCreateResult = { link: string };
 
 /** Best-effort read of Flutterwave's error body so failures are diagnosable
- *  (e.g. account-not-activated vs invalid redirect_url vs bad key). */
+ *  (e.g. account-not-activated vs invalid redirect_url vs bad key). The 400
+ *  "One or more required parameters missing" is generic — the field-level
+ *  reasons live in the `errors[]` array, so surface those too. */
 async function readFlwError(res: Response): Promise<string> {
   try {
-    const body = (await res.clone().json()) as { message?: string; error?: string; data?: { message?: string } };
+    const body = (await res.clone().json()) as {
+      message?: string;
+      error?: string;
+      data?: { message?: string };
+      errors?: Array<{ field?: string; message?: string }>;
+    };
+    const parts: string[] = [];
     const detail = body?.message ?? body?.error ?? body?.data?.message ?? '';
-    return detail ? `: ${detail}` : '';
+    if (detail) parts.push(detail);
+    const fieldErrors = (body?.errors ?? [])
+      .map((e) => `${e.field ?? '?'}: ${e.message ?? ''}`)
+      .filter(Boolean);
+    if (fieldErrors.length) parts.push(fieldErrors.join(' | '));
+    return parts.length ? `: ${parts.join('; ')}` : '';
   } catch {
     return '';
   }

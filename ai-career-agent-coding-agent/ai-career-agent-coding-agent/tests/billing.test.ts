@@ -53,6 +53,24 @@ describe('flutterwave createFlutterwaveTransaction', () => {
     } as unknown as Response));
     await expect(createFlutterwaveTransaction(baseInput)).rejects.toThrow(/FLW_CREATE_FAILED:400: redirect_url must be https/);
   });
+
+  it('surfaces field-level errors from the errors[] array', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      clone: () => ({ json: async () => ({
+        status: 'error',
+        message: 'One or more required parameters missing',
+        errors: [
+          { field: 'tx_ref', message: 'Transaction reference is required' },
+          { field: 'redirect_url', message: 'Redirect URL is required' },
+        ],
+      }) }),
+      json: async () => ({ status: 'error', message: 'One or more required parameters missing' }),
+    } as unknown as Response));
+    await expect(createFlutterwaveTransaction(baseInput)).rejects.toThrow(/tx_ref: Transaction reference is required/);
+    await expect(createFlutterwaveTransaction(baseInput)).rejects.toThrow(/redirect_url: Redirect URL is required/);
+  });
 });
 
 describe('flutterwave verifyFlutterwaveTransaction', () => {
