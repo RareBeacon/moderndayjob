@@ -28,3 +28,9 @@ This repository now contains the implementation scaffold, executable SQL migrati
 8. Configure Upstash Redis and verify all sensitive endpoints have rate limits.
 9. Configure Render environment variables and separate web/agent/browser/scheduler services.
 10. Run a production readiness review before enabling live autonomous submission.
+
+## Wave 5 (tests & hardening) — in progress
+- `tests/billing-webhook.test.ts` (11 tests): verif-hash timing-safe check (401 before any work), event filtering (`transfer.*`, failed tx, malformed JSON), server-side re-verification + amount/currency/email guards, replay/idempotency contract (`apply_verified_payment` + `payment_events` upsert with `ignoreDuplicates`).
+- `tests/admin-security.test.ts` (9 tests): non-admin 403 on terminate/credential routes, terminate (related accounts + work-cancel + global sign-out + audit), suspend, sign-out-everywhere, credential add (ciphertext ≠ plaintext, key_version 1) / revoke / rotate (requires new key, revoke-then-issue with key_version+1).
+- `tests/entitlements.test.ts` (9 tests): `assertEntitlement` account-status gate (`ACCOUNT_BLOCKED`) and automation entitlement gate; `createUsageMeter` reserve via `consume_ai_credit`, `AI_QUOTA_EXHAUSTED` → `AIGatewayError`, refund best-effort (never throws).
+- Delivered as commit `d2472c8`; suite now 21 files / 203 tests (was 18 / 174), `tsc --noEmit` clean, `next build` clean, Vercel production deploy green.
