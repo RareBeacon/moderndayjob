@@ -1,6 +1,11 @@
 # Render Blueprint — one-click deploy of the isolated browser worker.
 # Render → New → Blueprint → point at RareBeacon/moderndayjob.
 #
+# Docker runtime (still the FREE plan): Render's native Node runtime cannot
+# install Chromium's system deps (`playwright install --with-deps` runs `su`
+# inside the build and fails). The official Playwright image in ./Dockerfile
+# ships Chromium + system libs pre-installed, so the build needs no apt/sudo.
+#
 # The worker has NO database credentials (see workers/browser/index.ts): it
 # receives a pre-built candidate payload over HTTP and returns an ApplyOutcome.
 # It only needs PORT (injected by Render) and BROWSER_WORKER_SECRET (shared
@@ -8,12 +13,14 @@
 services:
   - type: web
     name: jobiest-browser-worker
-    runtime: node
+    runtime: docker
     region: frankfurt
     plan: free
-    buildCommand: npm ci && npx playwright install --with-deps chromium
-    startCommand: npm run browser
+    rootDir: ai-career-agent-coding-agent/ai-career-agent-coding-agent
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     healthCheckPath: /healthz
+    autoDeployTrigger: 'off' # deploys are triggered manually via the Render API
     envVars:
       # Generate once (`openssl rand -hex 32`), set here AND in Vercel as
       # BROWSER_WORKER_SECRET. Render's "sync: false" keeps it out of the

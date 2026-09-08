@@ -1,0 +1,14 @@
+# Never bake these into the worker image.
+node_modules
+.next
+.env
+.env.*
+*.log
+.git
+.github
+tests
+supabase
+docs
+public
+app
+components

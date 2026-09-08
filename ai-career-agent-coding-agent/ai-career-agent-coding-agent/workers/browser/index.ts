@@ -79,7 +79,16 @@ async function handleSubmit(body: SubmitBody): Promise<ApplyOutcome> {
   const cvPath = await materializeCv(body.candidate.cvDownloadUrl);
   const candidate: ApplyCandidate = { ...body.candidate, cvPath: cvPath ?? body.candidate.cvPath };
 
-  const browser = await chromium.launch({ headless: true });
+  // Container hardening: the worker runs in the official Playwright Docker
+  // image on Render (free plan). Docker's default seccomp profile blocks the
+  // Chromium namespace sandbox, so Chromium must run with --no-sandbox there;
+  // /dev/shm is tiny in containers, so route shared memory through /tmp.
+  // (Blast radius is still contained: non-root user, per-request SSRF re-check,
+  // throwaway context, no secrets/DB creds in this image.)
+  const browser = await chromium.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+  });
   try {
     const context = await browser.newContext(); // isolated: no shared cookies/storage
     const page = await context.newPage();
