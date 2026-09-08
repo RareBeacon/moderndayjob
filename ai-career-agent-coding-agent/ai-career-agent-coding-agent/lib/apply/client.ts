@@ -24,9 +24,15 @@ export async function submitViaBrowser(req: BrowserSubmitRequest): Promise<Apply
     };
   }
   try {
+    // Shared secret with the worker (never reaches the browser — this module
+    // is only imported server-side). Absent secret ⇒ the worker denies us,
+    // which surfaces here as a safe STOP.
+    const secret = process.env.BROWSER_WORKER_SECRET;
+    const headers: Record<string, string> = { 'content-type': 'application/json' };
+    if (secret) headers.authorization = `Bearer ${secret}`;
     const res = await fetch(`${base.replace(/\/+$/, '')}/submit`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers,
       body: JSON.stringify(req),
       signal: AbortSignal.timeout(180_000),
     });

@@ -291,8 +291,13 @@ run a re-encryption migration (decrypt with old key → encrypt with new key)
   `${BROWSER_WORKER_URL}/submit`.
 - `workers/browser/index.ts` is the isolated HTTP service: Playwright +
   Chromium, a **fresh context per request** (no shared cookies), SSRF re-check
-  on **every navigation**, domain allowlist. Listens on `WORKER_PORT`
-  (default 8082). Exposes `/healthz` and `POST /submit`.
+  on **every navigation**, domain allowlist. Listens on `PORT` (Render-injected)
+  or `WORKER_PORT` (default 8082). Exposes `/healthz` and `POST /submit`.
+- **`POST /submit` is now gated by a shared secret (hardened 2026-09-08):**
+  it requires `Authorization: Bearer $BROWSER_WORKER_SECRET`, compared
+  timing-safely, and **fails closed** (no secret configured ⇒ 401 for
+  everyone). The web-app side (`submitViaBrowser`) sends the header. See
+  `workers/browser/auth.ts` + `tests/browser-worker-auth.test.ts`.
 - The **kill switch** is `AUTOMATION_SUBMIT_ENABLED === 'true'` (the exact
   lowercase string — `'1'`, `'TRUE'`, or `'true '` all keep it OFF, enforced
   by `tests/automation-killswitch.test.ts`).
@@ -303,38 +308,30 @@ run a re-encryption migration (decrypt with old key → encrypt with new key)
 
 ### Step-by-step
 1. **Deploy the browser worker on Render** (it can't run on Vercel):
-   - New **Background Worker** service, repo `RareBeacon/moderndayjob`.
-   - Build command:
-     ```bash
-     npm ci && npx playwright install --with-deps chromium
-     ```
-   - Start command:
-     ```bash
-     npm run browser        # tsx workers/browser/index.ts
-     ```
-   - Environment:
-     ```
-     NEXT_PUBLIC_SUPABASE_URL=https://cbxloutahmalorumaihc.supabase.co
-     NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
-     SUPABASE_SERVICE_ROLE_KEY=<service-role JWT>
-     ENCRYPTION_MASTER_KEY=<the rotated key>
-     WORKER_PORT=8082
-     ```
-     ⚠️ Two small gaps to close before trusting this in production (I can patch
-     both if you want):
-     - `workers/browser/index.ts` reads `WORKER_PORT`, not Render's injected
-       `PORT` — either set `WORKER_PORT` manually or let the code read
-       `PORT ?? WORKER_PORT`.
-     - `POST /submit` has **no auth** — anything that can reach the URL can
-       ask it to browse. Add a shared `BROWSER_WORKER_SECRET` header check
-       (and have `submitViaBrowser` send it).
-2. **Point Vercel at it:** `BROWSER_WORKER_URL=https://<your-service>.onrender.com`.
+   - **One-click Blueprint:** Render → New → Blueprint → repo
+     `RareBeacon/moderndayjob` → it reads `render.yaml` (web service
+     `jobiest-browser-worker`, build `npm ci && npx playwright install
+     --with-deps chromium`, start `npm run browser`, health `/healthz`).
+   - **Manual alternative:** New Web Service (NOT background worker — it must
+     serve HTTP), repo + same build/start commands, health `/healthz`.
+   - **Environment:** the worker needs **only** `BROWSER_WORKER_SECRET`
+     (shared with Vercel — same value both places). Render injects `PORT`
+     (the code reads `PORT ?? WORKER_PORT ?? 8082`). **No Supabase/DB
+     credentials** — the worker's import graph never touches `lib/env` or
+     `lib/supabase`.
+2. **Point Vercel at it:** set `BROWSER_WORKER_URL=https://<service>.onrender.com`
+   in Vercel (Production). `BROWSER_WORKER_SECRET` is already set in Vercel.
 3. **Staging tests (do all of these before flipping anything):**
    ```bash
-   # health:
+   # health (no auth):
    curl https://<service>.onrender.com/healthz
-   # SSRF guard (must be blocked — the key safety property):
-   curl -X POST https://<service>.onrender.com/submit \
+   # auth gate (must be 401 without the secret):
+   curl -s -o /dev/null -w "%{http_code}\n" -X POST https://<service>.onrender.com/submit \
+     -H 'content-type: application/json' -d '{"jobUrl":"https://boards.greenhouse.io/x","allowedDomains":["boards.greenhouse.io"],"candidate":{}}'
+   # expect 401
+   # SSRF guard (with auth; must be blocked — the key safety property):
+   curl -s -X POST https://<service>.onrender.com/submit \
+     -H "authorization: Bearer $BROWSER_WORKER_SECRET" \
      -H 'content-type: application/json' \
      -d '{"jobUrl":"http://169.254.169.254/latest/meta-data","allowedDomains":["greenhouse.io"],"candidate":{}}'
    # expect a POLICY_RESTRICTED / SSRF_BLOCKED response, never a fetch.
@@ -356,12 +353,16 @@ run a re-encryption migration (decrypt with old key → encrypt with new key)
    whole thing instantly.
 
 ### Suggested order of operations overall
-1. Supabase service-role key + migrations + RLS verify (§2) — unblocks
-   everything server-side.
-2. Rotate `ENCRYPTION_MASTER_KEY` (§3) — do it before any real users.
-3. Flutterwave test-mode loop, then live keys (§1).
+1. Supabase service-role key + migrations + RLS verify (§2) — ✅ done
+   (migrated to `cbxloutahmalorumaihc`, hardened).
+2. Rotate `ENCRYPTION_MASTER_KEY` (§3) — ✅ done.
+3. Flutterwave test-mode loop, then live keys (§1) — live keys ✅ done;
+   webhook leg still to verify with a real/test payment.
 4. Browser worker + staging tests, then (with explicit approval) flip the
-   automation switch (§4).
+   automation switch (§4) — ✅ worker hardened (PORT + fail-closed auth,
+   `BROWSER_WORKER_SECRET` set in Vercel); remaining: deploy on Render
+   (`render.yaml` ready), set `BROWSER_WORKER_URL`, staging tests, explicit
+   approval to set `AUTOMATION_SUBMIT_ENABLED=true`.
 
 ---
 

@@ -1,0 +1,24 @@
+# Render Blueprint — one-click deploy of the isolated browser worker.
+# Render → New → Blueprint → point at RareBeacon/moderndayjob.
+#
+# The worker has NO database credentials (see workers/browser/index.ts): it
+# receives a pre-built candidate payload over HTTP and returns an ApplyOutcome.
+# It only needs PORT (injected by Render) and BROWSER_WORKER_SECRET (shared
+# with the web app via Vercel — set the SAME value in both).
+services:
+  - type: web
+    name: jobiest-browser-worker
+    runtime: node
+    region: frankfurt
+    plan: free
+    buildCommand: npm ci && npx playwright install --with-deps chromium
+    startCommand: npm run browser
+    healthCheckPath: /healthz
+    envVars:
+      # Generate once (`openssl rand -hex 32`), set here AND in Vercel as
+      # BROWSER_WORKER_SECRET. Render's "sync: false" keeps it out of the
+      # repo; paste the same value in both places.
+      - key: BROWSER_WORKER_SECRET
+        sync: false
+      - key: NODE_ENV
+        value: production

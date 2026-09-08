@@ -6,6 +6,7 @@ import { chromium } from 'playwright';
 import { assertSafeNavigation } from '../../lib/agent/ssrf';
 import { detectApplyAdapter } from '../../lib/apply/registry';
 import { runApply } from '../../lib/apply/engine';
+import { isAuthorizedHeader } from './auth';
 import type { ApplyCandidate, ApplyOutcome, ApplyPage } from '../../lib/apply/types';
 
 /**
@@ -23,7 +24,8 @@ import type { ApplyCandidate, ApplyOutcome, ApplyPage } from '../../lib/apply/ty
  *    after the run.
  */
 
-const PORT = Number(process.env.WORKER_PORT ?? 8082);
+// Render injects PORT for web services; WORKER_PORT remains for local dev.
+const PORT = Number(process.env.PORT ?? process.env.WORKER_PORT ?? 8082);
 
 /** Bind a Playwright page to the fakeable ApplyPage contract. */
 function bindPage(page: import('playwright').Page): ApplyPage {
@@ -110,6 +112,13 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   if (req.method === 'POST' && req.url === '/submit') {
+    // Shared-secret gate (fail closed): without a matching BROWSER_WORKER_SECRET
+    // nothing may ask this worker to browse. Timing-safe compare.
+    if (!isAuthorizedHeader(req.headers.authorization, process.env.BROWSER_WORKER_SECRET)) {
+      res.writeHead(401, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ outcome: 'STOP', code: 'POLICY_RESTRICTED', message: 'Unauthorized: missing or invalid worker secret.' }));
+      return;
+    }
     try {
       const chunks: Buffer[] = [];
       for await (const c of req) chunks.push(c as Buffer);
