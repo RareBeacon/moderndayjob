@@ -24,7 +24,8 @@ exactly — not generic Flutterwave/Supabase docs.
 | `UPSTASH_REDIS_REST_URL` / `_TOKEN` | rate limiting | ✅ already live |
 | `CRON_SECRET` | daily pipeline | ✅ already live |
 | `AUTOMATION_SUBMIT_ENABLED` | automation kill switch | keep **unset** until final approval |
-| `BROWSER_WORKER_URL` | where the browser worker lives | only at automation go-live |
+| `BROWSER_WORKER_URL` | where the browser worker lives | ✅ set (`https://jobiest-browser-worker.onrender.com`) |
+| `BROWSER_WORKER_SECRET` | shared worker auth (Bearer) | ✅ set in Vercel + Render worker |
 
 **Rule that bites everyone once:** Vercel env vars only apply to *new*
 deployments. After adding/editing any variable, trigger a redeploy (push any
@@ -307,39 +308,38 @@ run a re-encryption migration (decrypt with old key → encrypt with new key)
   responsive go-live you want the agent worker running continuously (below).
 
 ### Step-by-step
-1. **Deploy the browser worker on Render** (it can't run on Vercel):
-   - **One-click Blueprint:** Render → New → Blueprint → repo
-     `RareBeacon/moderndayjob` → it reads `render.yaml` (web service
-     `jobiest-browser-worker`, build `npm ci && npx playwright install
-     --with-deps chromium`, start `npm run browser`, health `/healthz`).
-   - **Manual alternative:** New Web Service (NOT background worker — it must
-     serve HTTP), repo + same build/start commands, health `/healthz`.
-   - **Environment:** the worker needs **only** `BROWSER_WORKER_SECRET`
-     (shared with Vercel — same value both places). Render injects `PORT`
-     (the code reads `PORT ?? WORKER_PORT ?? 8082`). **No Supabase/DB
-     credentials** — the worker's import graph never touches `lib/env` or
-     `lib/supabase`.
+1. **Deploy the browser worker on Render** (it can't run on Vercel) — ✅ **DONE (2026-09-08)**:
+   - Live at `https://jobiest-browser-worker.onrender.com` (`srv-dag2nku1egvs73a29dng`,
+     plan **free**, region frankfurt).
+   - **Docker runtime** (still the free plan): Render's native Node runtime
+     cannot install Chromium's system deps (`playwright install --with-deps`
+     runs `su` inside the build → `su: Authentication failure`), so the worker
+     builds from `./Dockerfile` off the official Playwright image
+     `mcr.microsoft.com/playwright:v1.62.1-noble` (Chromium + system libs
+     pre-installed at `/ms-playwright`; Node pinned to 22 to match
+     `engines >=20 <23`; runs as non-root `pwuser`). `render.yaml` Blueprint
+     matches.
+   - **Environment:** the worker has **only** `BROWSER_WORKER_SECRET`
+     (shared with Vercel — same value both places) + `NODE_ENV=production`.
+     Render injects `PORT` (the code reads `PORT ?? WORKER_PORT ?? 8082`).
+     **No Supabase/DB credentials** — the worker's import graph never touches
+     `lib/env` or `lib/supabase`.
+   - Chromium launch args are hardened for the container: `--no-sandbox`,
+     `--disable-setuid-sandbox`, `--disable-dev-shm-usage` (Docker's default
+     seccomp blocks the Chromium namespace sandbox; /dev/shm is tiny).
 2. **Point Vercel at it:** set `BROWSER_WORKER_URL=https://<service>.onrender.com`
    in Vercel (Production). `BROWSER_WORKER_SECRET` is already set in Vercel.
-3. **Staging tests (do all of these before flipping anything):**
-   ```bash
-   # health (no auth):
-   curl https://<service>.onrender.com/healthz
-   # auth gate (must be 401 without the secret):
-   curl -s -o /dev/null -w "%{http_code}\n" -X POST https://<service>.onrender.com/submit \
-     -H 'content-type: application/json' -d '{"jobUrl":"https://boards.greenhouse.io/x","allowedDomains":["boards.greenhouse.io"],"candidate":{}}'
-   # expect 401
-   # SSRF guard (with auth; must be blocked — the key safety property):
-   curl -s -X POST https://<service>.onrender.com/submit \
-     -H "authorization: Bearer $BROWSER_WORKER_SECRET" \
-     -H 'content-type: application/json' \
-     -d '{"jobUrl":"http://169.254.169.254/latest/meta-data","allowedDomains":["greenhouse.io"],"candidate":{}}'
-   # expect a POLICY_RESTRICTED / SSRF_BLOCKED response, never a fetch.
-   ```
-   Then a controlled real submission against a known Greenhouse/Lever posting
-   from a test account, and confirm the application lands in `SUBMITTED` (or a
-   clean STOP with a recorded reason, e.g. CAPTCHA) — never a hang or a
-   partial submit.
+3. **Staging tests (do all of these before flipping anything)** — ✅ **DONE (2026-09-08)**:
+   - `/healthz` → 200 `{"ok":true,"worker":"browser",…}`.
+   - `POST /submit` without the secret → **401** `POLICY_RESTRICTED`.
+   - `POST /submit` with a wrong secret → **401** `POLICY_RESTRICTED`.
+   - `POST /submit` with the correct secret + SSRF probe
+     (`http://169.254.169.254/latest/meta-data/`) → **`SSRF_BLOCKED`**
+     (STOP, never fetched).
+   - Remaining (before flipping the switch): a controlled real submission
+     against a known Greenhouse/Lever posting from a test account, confirming
+     the application lands in `SUBMITTED` (or a clean STOP with a recorded
+     reason, e.g. CAPTCHA) — never a hang or a partial submit.
 4. **Flip the kill switch** — only after you've approved go-live:
    - Vercel env: `AUTOMATION_SUBMIT_ENABLED=true` (exactly `true`).
    - Redeploy.
@@ -359,11 +359,12 @@ run a re-encryption migration (decrypt with old key → encrypt with new key)
 3. Flutterwave test-mode loop, then live keys (§1) — live keys ✅ done;
    webhook leg still to verify with a real/test payment.
 4. Browser worker + staging tests, then (with explicit approval) flip the
-   automation switch (§4) — ✅ worker hardened (PORT + fail-closed auth,
-   `BROWSER_WORKER_SECRET` set in Vercel); remaining: deploy on Render
-   (`render.yaml` ready), set `BROWSER_WORKER_URL`, staging tests, explicit
-   approval to set `AUTOMATION_SUBMIT_ENABLED=true`.
+   automation switch (§4) — ✅ worker deployed + live on Render (Docker/
+   Playwright, free plan), ✅ `BROWSER_WORKER_URL` set in Vercel, ✅ staging
+   tests (401 auth gate + SSRF blocked) passed; remaining: controlled real
+   submission test, then **explicit approval** to set
+   `AUTOMATION_SUBMIT_ENABLED=true`.
 
 ---
 
-*Last verified against the codebase on 2026-09-08 (commit `ac4ec64` + Wave 5).*
+*Last verified against the codebase on 2026-09-08 (commit `e867ed3`).*
