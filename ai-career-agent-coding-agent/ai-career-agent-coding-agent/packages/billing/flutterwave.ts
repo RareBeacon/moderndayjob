@@ -54,7 +54,12 @@ export async function createFlutterwaveTransaction(input: FlwPaymentInput): Prom
     }),
     cache: 'no-store',
   });
-  if (!res.ok) throw new Error(`FLW_CREATE_FAILED:${res.status}${await readFlwError(res)}`);
+  if (!res.ok) {
+    // Masked echo of what was sent, so provider rejections are diagnosable
+    // (which required field was missing / mistyped) without leaking PII.
+    const sent = `amount=${input.amount}(${typeof input.amount}) currency=${input.currency ?? 'NGN'} redirect=${input.redirect_url} email=${input.customer.email ? 'present' : 'MISSING'} tx_ref=${input.tx_ref}`;
+    throw new Error(`FLW_CREATE_FAILED:${res.status}${await readFlwError(res)} [sent: ${sent}]`);
+  }
   const data = (await res.json()) as { status?: string; data?: { link?: string } };
   if (data.status !== 'success' || !data.data?.link) throw new Error('FLW_NO_CHECKOUT_LINK');
   return { link: data.data.link };
