@@ -51,9 +51,10 @@ export function JobletHow() {
   return (
     <section className="jl-sec tint" id="how">
       <div className="jl-shell">
-        <div className="jl-sec-head center">
+        <div className="jl-sec-head center" data-animate>
           <span className="jl-kicker">How it works</span>
           <h2>Three steps to momentum.</h2>
+          <p>One guided profile, an agent that does the heavy lifting, and a single view of every application.</p>
         </div>
         <div className="jl-how">
           {[
@@ -77,13 +78,13 @@ export function JobletPricing() {
   return (
     <section className="jl-sec" id="pricing">
       <div className="jl-shell">
-        <div className="jl-sec-head center">
+        <div className="jl-sec-head center" data-animate>
           <span className="jl-kicker">Pricing</span>
           <h2>Start free. Upgrade when you’re ready to automate.</h2>
           <p>Prices in Naira. Cancel anytime.</p>
         </div>
         <div className="jl-plans">
-          <div className="jl-plan">
+          <div className="jl-plan" data-animate>
             <h3>Free</h3>
             <div className="jl-price">₦0<small> /month</small></div>
             <ul>
@@ -94,7 +95,7 @@ export function JobletPricing() {
             </ul>
             <Link className="jl-btn-outline jl-plan-cta" href="/signup" style={{ textAlign: 'center' }}>Start free</Link>
           </div>
-          <div className="jl-plan featured">
+          <div className="jl-plan featured" data-animate data-animate-delay="90">
             <h3>Basic</h3>
             <div className="jl-price">₦5,000<small> /month</small></div>
             <ul>
@@ -105,7 +106,7 @@ export function JobletPricing() {
             </ul>
             <Link className="jl-btn-solid jl-plan-cta" href="/signup" style={{ textAlign: 'center' }}>Choose Basic</Link>
           </div>
-          <div className="jl-plan">
+          <div className="jl-plan" data-animate data-animate-delay="180">
             <h3>Premium</h3>
             <div className="jl-price">₦10,000<small> /month</small></div>
             <ul>
@@ -117,7 +118,7 @@ export function JobletPricing() {
             <Link className="jl-btn-outline jl-plan-cta" href="/signup" style={{ textAlign: 'center' }}>Choose Premium</Link>
           </div>
         </div>
-        <p className="jl-trial-note"><b>7-day automation trial</b> on every new account — try Basic features free, no card required.</p>
+        <p className="jl-trial-note" data-animate data-animate-delay="240"><b>7-day automation trial</b> on every new account — try Basic features free, no card required.</p>
       </div>
     </section>
   );
@@ -134,7 +135,7 @@ export function JobletAbout() {
   return (
     <section className="jl-sec tint" id="about">
       <div className="jl-shell">
-        <div className="jl-sec-head center">
+        <div className="jl-sec-head center" data-animate>
           <span className="jl-kicker">Built on trust</span>
           <h2>Honest by design. Private by default.</h2>
           <p>Real people. Real journeys. Four commitments built into how Jobiest works.</p>
@@ -157,9 +158,10 @@ export function JobletFaq() {
   return (
     <section className="jl-sec" id="faq">
       <div className="jl-shell jl-faq-wrap">
-        <div className="jl-sec-head center">
+        <div className="jl-sec-head center" data-animate>
           <span className="jl-kicker">FAQ</span>
           <h2>Questions, answered.</h2>
+          <p>Straight answers about how Jobiest works, what it costs, and how your data is protected.</p>
         </div>
         <FAQ />
       </div>

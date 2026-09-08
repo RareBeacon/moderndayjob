@@ -45,12 +45,12 @@ export function JobletHero({ liveTotal, liveSources }: { liveTotal: number; live
       <div className="jl-shell jl-hero-grid">
         {/* Left content */}
         <div>
-          <span className="jl-eyebrow">
+          <span className="jl-eyebrow" data-animate>
             <span className="jl-dot" aria-hidden="true" />
             Your next opportunity is here
           </span>
 
-          <h1 className="jl-headline">
+          <h1 className="jl-headline" data-animate data-animate-delay="70">
             Find a Job That
             <br />
             Fits{' '}
@@ -60,22 +60,24 @@ export function JobletHero({ liveTotal, liveSources }: { liveTotal: number; live
             </span>
           </h1>
 
-          <p className="jl-sub">
+          <p className="jl-sub" data-animate data-animate-delay="140">
             Jobiest connects talented people with great companies. Search, apply,
             and take the next step in your career — faster and easier.
           </p>
 
           {/* Search — connects to the real job browser at /jobs */}
-          <JobletSearch />
+          <div data-animate data-animate-delay="210">
+            <JobletSearch />
+          </div>
 
-          <div className="jl-trust">
+          <div className="jl-trust" data-animate data-animate-delay="280">
             <span className="jl-trust-item"><IconBolt size={17} /> Verified job listings</span>
             <span className="jl-trust-item"><IconShield size={17} /> Safe &amp; secure platform</span>
             <span className="jl-trust-item"><IconUsers size={17} /> You stay in control</span>
           </div>
 
           {liveTotal > 0 && (
-            <p className="jl-live-note">
+            <p className="jl-live-note" data-animate data-animate-delay="340">
               {liveTotal.toLocaleString()} live listings right now
               {liveSources.length > 0 ? ` from ${liveSources.join(', ')}` : ''}.
             </p>
@@ -83,8 +85,8 @@ export function JobletHero({ liveTotal, liveSources }: { liveTotal: number; live
         </div>
 
         {/* Right visual */}
-        <div className="jl-visual">
-          <span className="jl-circle" aria-hidden="true" />
+        <div className="jl-visual" data-animate data-animate-delay="160">
+          <span className="jl-circle" data-parallax="0.07" aria-hidden="true" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             className="jl-person"
