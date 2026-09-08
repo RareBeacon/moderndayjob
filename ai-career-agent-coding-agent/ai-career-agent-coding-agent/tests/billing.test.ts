@@ -43,6 +43,16 @@ describe('flutterwave createFlutterwaveTransaction', () => {
     mockFetch({ status: 'error', data: {} });
     await expect(createFlutterwaveTransaction(baseInput)).rejects.toThrow();
   });
+
+  it('surfaces the provider error message on a rejected request', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      clone: () => ({ json: async () => ({ status: 'error', message: 'redirect_url must be https' }) }),
+      json: async () => ({ status: 'error', message: 'redirect_url must be https' }),
+    } as unknown as Response));
+    await expect(createFlutterwaveTransaction(baseInput)).rejects.toThrow(/FLW_CREATE_FAILED:400: redirect_url must be https/);
+  });
 });
 
 describe('flutterwave verifyFlutterwaveTransaction', () => {

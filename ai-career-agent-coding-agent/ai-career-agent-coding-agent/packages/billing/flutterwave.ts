@@ -26,6 +26,18 @@ export type FlwPaymentInput = {
 
 export type FlwCreateResult = { link: string };
 
+/** Best-effort read of Flutterwave's error body so failures are diagnosable
+ *  (e.g. account-not-activated vs invalid redirect_url vs bad key). */
+async function readFlwError(res: Response): Promise<string> {
+  try {
+    const body = (await res.clone().json()) as { message?: string; error?: string; data?: { message?: string } };
+    const detail = body?.message ?? body?.error ?? body?.data?.message ?? '';
+    return detail ? `: ${detail}` : '';
+  } catch {
+    return '';
+  }
+}
+
 export async function createFlutterwaveTransaction(input: FlwPaymentInput): Promise<FlwCreateResult> {
   if (!flutterwaveConfigured()) throw new Error('BILLING_NOT_CONFIGURED');
   const res = await fetch(`${FLW_BASE}/payments`, {
@@ -42,7 +54,7 @@ export async function createFlutterwaveTransaction(input: FlwPaymentInput): Prom
     }),
     cache: 'no-store',
   });
-  if (!res.ok) throw new Error(`FLW_CREATE_FAILED:${res.status}`);
+  if (!res.ok) throw new Error(`FLW_CREATE_FAILED:${res.status}${await readFlwError(res)}`);
   const data = (await res.json()) as { status?: string; data?: { link?: string } };
   if (data.status !== 'success' || !data.data?.link) throw new Error('FLW_NO_CHECKOUT_LINK');
   return { link: data.data.link };
@@ -63,7 +75,7 @@ export async function verifyFlutterwaveTransaction(transactionId: string | numbe
     headers: { Authorization: `Bearer ${process.env.FLW_SECRET_KEY}` },
     cache: 'no-store',
   });
-  if (!res.ok) throw new Error(`FLW_VERIFY_FAILED:${res.status}`);
+  if (!res.ok) throw new Error(`FLW_VERIFY_FAILED:${res.status}${await readFlwError(res)}`);
   const data = (await res.json()) as { status?: string; data?: Partial<FlwVerifyResult> };
   if (data.status !== 'success' || !data.data || !data.data.status) throw new Error('FLW_VERIFY_INVALID');
   return data.data as FlwVerifyResult;
