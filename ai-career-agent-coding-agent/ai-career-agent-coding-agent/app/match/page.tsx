@@ -157,7 +157,39 @@ export default function MatchPage() {
 
 function MatchCard({ m }: { m: JobMatch }) {
   const [open, setOpen] = useState(false);
+  const [preparing, setPreparing] = useState(false);
+  const [prepMsg, setPrepMsg] = useState('');
   const v = VERDICT_META[m.verdict];
+
+  async function prepare() {
+    if (preparing) return;
+    setPreparing(true);
+    setPrepMsg('');
+    try {
+      const r = await fetch('/api/applications/prepare', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId: m.jobId }),
+      });
+      if (r.ok) {
+        window.location.href = '/applications';
+        return;
+      }
+      const j = await r.json();
+      setPrepMsg(
+        j.error === 'EXPIRED_JOB'
+          ? 'This listing has expired.'
+          : j.error === 'DUPLICATE'
+            ? 'Already being prepared — see Applications.'
+            : 'Could not prepare this application. Try again.',
+      );
+    } catch {
+      setPrepMsg('Network error. Try again.');
+    } finally {
+      setPreparing(false);
+    }
+  }
+
   return (
     <article className="card match-card">
       <div className="match-head">
@@ -172,12 +204,19 @@ function MatchCard({ m }: { m: JobMatch }) {
             {m.location ? ` · ${m.location}` : ''}
           </p>
         </div>
-        {m.url && (
-          <a className="btn btn-ghost btn-sm" href={m.url} target="_blank" rel="noopener noreferrer">
-            View job
-          </a>
-        )}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {m.url && (
+            <a className="btn btn-ghost btn-sm" href={m.url} target="_blank" rel="noopener noreferrer">
+              View job
+            </a>
+          )}
+          <button className="btn btn-sm" onClick={prepare} disabled={preparing}>
+            {preparing ? 'Preparing…' : 'Prepare application'}
+          </button>
+        </div>
       </div>
+
+      {prepMsg && <p className="muted" style={{ marginTop: 10, color: 'var(--color-warning)' }}>{prepMsg}</p>}
 
       <p style={{ marginTop: 14, color: 'var(--ink-2)' }}>{m.summary}</p>
 
