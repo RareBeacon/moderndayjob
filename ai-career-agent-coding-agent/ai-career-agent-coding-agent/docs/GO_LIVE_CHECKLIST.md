@@ -104,6 +104,27 @@ Settings → API keys:
 - The webhook only works if Flutterwave can *reach* your URL, i.e. the endpoint
   must be live and the hash must match exactly.
 
+### ✅ Status: LIVE CONFIRMED (2026-09-08)
+- Live V3 keys were added to Vercel and a production smoke test initialized a
+  real hosted checkout: `POST /api/billing/flutterwave/create` returned **200**
+  with a `checkout.flutterwave.com/v3/hosted/pay/flwlnk-…` link. The key and
+  payload are correct.
+- **Gotcha hit during testing:** the smoke account used a `@…jobiest.test`
+  email; Flutterwave rejects it with
+  `customer.email: Customer email must be a valid email` (`.test` is a
+  reserved TLD). Real user emails (gmail.com etc.) pass. If you ever want a
+  clearer message, the create route could pre-validate `user.email` and return
+  a 422 before calling Flutterwave — not required.
+- An **unpaid live transaction** may now show in the Flutterwave dashboard
+  (created by the smoke test, never paid). Harmless; it can be ignored or
+  used to complete the first real ₦5000 test.
+- **Still unverified:** the webhook leg (Flutterwave → webhook →
+  `apply_verified_payment` → subscription grant). Verify by (a) completing a
+  real payment, or (b) switching to Test Mode keys + test card, then checking
+  `/billing` reflects the plan.
+- `FLW_SECRET_KEY` / `FLW_SECRET_HASH` are read; `FLW_CLIENT_ID` /
+  `FLW_CLIENT_SECRET` remain unused (V3 Standard needs neither).
+
 ---
 
 ## 2. Supabase: service-role key, migrations/RLS, and the throwaway account
@@ -158,16 +179,25 @@ where pronamespace = 'public'::regnamespace
                   'handle_new_user');
 ```
 
-### 2c. Delete the throwaway smoke-test account
-The account `upstash-smoke-1788865083692@jobiest.test` was created in
-production during the Upstash burst test.
+### 2c. Delete the throwaway smoke-test accounts
+These accounts were created in production during rate-limit and Flutterwave
+smoke tests. They own no real data.
+
+```sql
+-- find them all:
+select id, email, created_at from auth.users
+where email ilike '%jobiest.test%' or email ilike 'flwsmoke.%';
+```
+
+Known list:
+- `upstash-smoke-1788865083692@jobiest.test`
+- several `flw-smoke-…@jobiest.test`
+- one `flwsmoke.…@gmail.com`
 
 **Option A — SQL Editor (simplest):**
 ```sql
--- 1. find it (and any other test accounts):
-select id, email, created_at from auth.users where email ilike '%jobiest.test%';
--- 2. delete it; public rows cascade (FKs are on delete cascade):
-delete from auth.users where email = 'upstash-smoke-1788865083692@jobiest.test';
+-- delete; public rows cascade (FKs are on delete cascade):
+delete from auth.users where email ilike '%jobiest.test%' or email ilike 'flwsmoke.%';
 ```
 
 **Option B — Auth Admin API:**
