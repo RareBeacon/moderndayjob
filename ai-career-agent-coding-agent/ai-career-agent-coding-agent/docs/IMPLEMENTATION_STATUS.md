@@ -38,3 +38,7 @@ This repository now contains the implementation scaffold, executable SQL migrati
 - `tests/rate-limit.test.ts` (7 tests): `requestIp` proxy-header parsing (first trimmed XFF entry, x-real-ip fallback, blank-XFF, unknown); `enforceRateLimit` fail-open default when Upstash unset, and sliding-window delegation (limit/window args, success mapping).
 - `tests/automation-killswitch.test.ts` (12 tests): `AUTOMATION_SUBMIT_ENABLED` must be the exact string `'true'` — `'1'`/`'TRUE'`/whitespace/`yes` keep autonomous submission OFF.
 - Delivered as commit `9e87c62`; suite now 24 files / 228 tests, `tsc --noEmit` clean, `next build` clean.
+- `tests/middleware.test.ts` (4 tests): unauthenticated → `/login?next=…`, signed-in → `/dashboard` from auth pages, pass-through on protected pages, fail-open when Supabase env is missing.
+- `tests/apply-task.test.ts` (14 tests): `processApplicationTask` re-checks every gate server-side (kill switch, pause, approval, entitlement, platform, expiry, package, truthfulness) before any browser call; SUBMITTED/STOP outcomes with owner-scoped application updates + audit events.
+- `tests/preferences-agent.test.ts` (6 tests): agent pause/resume keyed on the server-derived user id (client-supplied `user_id` ignored), non-boolean body → 400, 429/500 paths.
+- Delivered as commit `538bff7`; suite now 27 files / 252 tests, `tsc --noEmit` clean, `next build` clean.
