@@ -340,6 +340,20 @@ run a re-encryption migration (decrypt with old key → encrypt with new key)
      against a known Greenhouse/Lever posting from a test account, confirming
      the application lands in `SUBMITTED` (or a clean STOP with a recorded
      reason, e.g. CAPTCHA) — never a hang or a partial submit.
+     **✅ DONE (2026-09-08)** — driven through the live Render worker with a
+     test candidate (`Test Candidate` / `apply-smoke-test@jobiest.com`):
+     - Greenhouse — GitLab "AI Engineer"
+       (`job-boards.greenhouse.io/gitlab/jobs/8556658002`) → **STOP/CAPTCHA**
+       (reCAPTCHA present; engine refused, nothing clicked).
+     - Lever — HighLevel "Application Engineer"
+       (`jobs.lever.co/gohighlevel/92965a0b-…/apply`) → **STOP/CAPTCHA**
+       (hCaptcha present; engine refused, nothing clicked).
+     - No hang, no partial submit. **Finding:** every modern real ATS form
+       ships a CAPTCHA (reCAPTCHA on Greenhouse, hCaptcha on Lever), so the
+       engine's CAPTCHA stop fires on real employers by design — it only
+       reaches SUBMITTED on captcha-free forms. The fill → CV-upload →
+       submit (SUBMITTED) path is covered by fixtures in
+       `tests/apply-adapters.test.ts`.
 4. **Flip the kill switch** — only after you've approved go-live:
    - Vercel env: `AUTOMATION_SUBMIT_ENABLED=true` (exactly `true`).
    - Redeploy.
@@ -361,9 +375,11 @@ run a re-encryption migration (decrypt with old key → encrypt with new key)
 4. Browser worker + staging tests, then (with explicit approval) flip the
    automation switch (§4) — ✅ worker deployed + live on Render (Docker/
    Playwright, free plan), ✅ `BROWSER_WORKER_URL` set in Vercel, ✅ staging
-   tests (401 auth gate + SSRF blocked) passed; remaining: controlled real
-   submission test, then **explicit approval** to set
-   `AUTOMATION_SUBMIT_ENABLED=true`.
+   tests (401 auth gate + SSRF blocked) passed, ✅ controlled real submissions
+   (Greenhouse + Lever) returned clean STOP/CAPTCHA with no hang or partial
+   submit. Remaining: **explicit approval** to set
+   `AUTOMATION_SUBMIT_ENABLED=true` (note: real employer forms all have
+   CAPTCHA today, so live autonomous submissions will STOP cleanly on them).
 
 ---
 
