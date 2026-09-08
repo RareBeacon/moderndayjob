@@ -23,7 +23,7 @@ exactly — not generic Flutterwave/Supabase docs.
 | `NEXT_PUBLIC_APP_URL` | Flutterwave redirect URL | ✅ set (`https://jobiest.com`) |
 | `UPSTASH_REDIS_REST_URL` / `_TOKEN` | rate limiting | ✅ already live |
 | `CRON_SECRET` | daily pipeline | ✅ already live |
-| `AUTOMATION_SUBMIT_ENABLED` | automation kill switch | keep **unset** until final approval |
+| `AUTOMATION_SUBMIT_ENABLED` | automation kill switch | ✅ **ON** (`true`) — approved 2026-09-08 |
 | `BROWSER_WORKER_URL` | where the browser worker lives | ✅ set (`https://jobiest-browser-worker.onrender.com`) |
 | `BROWSER_WORKER_SECRET` | shared worker auth (Bearer) | ✅ set in Vercel + Render worker |
 
@@ -357,6 +357,11 @@ run a re-encryption migration (decrypt with old key → encrypt with new key)
 4. **Flip the kill switch** — only after you've approved go-live:
    - Vercel env: `AUTOMATION_SUBMIT_ENABLED=true` (exactly `true`).
    - Redeploy.
+   - **✅ DONE (2026-09-08)** — `AUTOMATION_SUBMIT_ENABLED=true` set in Vercel
+     (Production + Preview + Development, env id `5D1UEbeJe1bNbA8M`); the
+     explicit go-live approval came from the operator after the controlled
+     real-submission test returned clean STOP/CAPTCHA on real Greenhouse +
+     Lever forms. Production redeployed after the env change.
 5. **Record the decision** (this file + a dated note) — the docs require an
    *explicit* approval before any autonomous-submission release, which is why
    the switch ships OFF.
@@ -373,13 +378,12 @@ run a re-encryption migration (decrypt with old key → encrypt with new key)
 3. Flutterwave test-mode loop, then live keys (§1) — live keys ✅ done;
    webhook leg still to verify with a real/test payment.
 4. Browser worker + staging tests, then (with explicit approval) flip the
-   automation switch (§4) — ✅ worker deployed + live on Render (Docker/
-   Playwright, free plan), ✅ `BROWSER_WORKER_URL` set in Vercel, ✅ staging
-   tests (401 auth gate + SSRF blocked) passed, ✅ controlled real submissions
-   (Greenhouse + Lever) returned clean STOP/CAPTCHA with no hang or partial
-   submit. Remaining: **explicit approval** to set
-   `AUTOMATION_SUBMIT_ENABLED=true` (note: real employer forms all have
-   CAPTCHA today, so live autonomous submissions will STOP cleanly on them).
+   automation switch (§4) — ✅ **COMPLETE (2026-09-08)**: worker live on Render
+   (Docker/Playwright, free plan), `BROWSER_WORKER_URL` + secret wired in
+   Vercel, staging tests passed (401 auth gate + SSRF blocked), controlled
+   real submissions returned clean STOP/CAPTCHA, and
+   `AUTOMATION_SUBMIT_ENABLED=true` was set in Vercel + redeployed after
+   explicit operator approval.
 
 ---
 
