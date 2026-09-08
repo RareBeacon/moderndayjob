@@ -47,3 +47,22 @@ This repository now contains the implementation scaffold, executable SQL migrati
 - `tests/applications-routes.test.ts` (14 tests): `AppActionError` → HTTP status mapping (404/403/409/422), body validation, 429 rate limiting, server-derived user id propagation.
 - Hardening fix: `app/api/admin/users/route.ts` now returns `403 FORBIDDEN` for non-admins (was an uncaught throw → 500), matching sibling admin routes.
 - Delivered as commit `ac4ec64`; suite now 30 files / 286 tests, `tsc --noEmit` clean, `next build` clean.
+
+## Wave 6 — go-live enablement (2026-09-08)
+- Supabase migrated to a new hardened project `cbxloutahmalorumaihc`: all 9
+  migrations applied + new `010_lockdown_private_tables.sql` (RLS on every
+  table, `security_invoker` + revoked grants on the two views). Closed 4 anon
+  leaks found on the old project (subscriptions/workspaces rows; user PII via
+  `v_workspace_entitlements`/`admin_user_overview`).
+- Vercel cutover verified: client bundle bakes in the new project; production
+  signup lands in the new DB with full provisioning; entitlements view +
+  `consume_ai_credit` RPC verified via the new service-role key.
+- `ENCRYPTION_MASTER_KEY` rotated (fresh 64-hex key in Vercel + .env.local).
+- Browser worker hardened (`c39eb4e`): `workers/browser/auth.ts` fail-closed
+  timing-safe secret gate; `POST /submit` requires `BROWSER_WORKER_SECRET`;
+  `PORT ?? WORKER_PORT` for Render; `submitViaBrowser` sends the header;
+  `render.yaml` Blueprint for one-click deploy. `BROWSER_WORKER_SECRET` set in
+  Vercel. Suite now 32 files / 300 tests.
+- Remaining: old-project deletion (needs a PAT from the other Supabase
+  account), Render deploy of the worker + `BROWSER_WORKER_URL`, staging tests,
+  then explicit approval to set `AUTOMATION_SUBMIT_ENABLED=true`.
