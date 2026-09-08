@@ -129,7 +129,34 @@ Settings → API keys:
 
 ## 2. Supabase: service-role key, migrations/RLS, and the throwaway account
 
-Project: `https://otcpzmuqnvlfgurtbbut.supabase.co` (ref `otcpzmuqnvlfgurtbbut`).
+Project: `https://cbxloutahmalorumaihc.supabase.co` (ref `cbxloutahmalorumaihc`).
+
+### ✅ Status: MIGRATED + HARDENED (2026-09-08)
+- The production project was **migrated to a new Supabase project**
+  `cbxloutahmalorumaihc` (the previous project `otcpzmuqnvlfgurtbbut` lived
+  under a Supabase account we could not produce a PAT for).
+- All 9 migrations applied, **plus a new `010_lockdown_private_tables.sql`**
+  closing real anon-key data leaks found on the old project:
+  - `subscriptions` and `workspaces` rows were readable by the public anon key.
+  - `v_workspace_entitlements` and `admin_user_overview` views leaked **every
+    user's email, full name, plan, trial dates** to anonymous callers.
+  - Fix: RLS enabled on all remaining tables (owner-read where a `user_id`
+    exists, service-role-only otherwise), both views made `security_invoker`
+    and revoked from `anon`/`authenticated`, and support/admin tables
+    (`admin_users`, `admin_actions`, `payment_events`, `security_events`,
+    `account_relationships`) removed from the anon API entirely.
+  - Verified: anon key now returns `[]` or `42501 permission denied` on every
+    sensitive table/view. The app uses the service role everywhere, so nothing
+    breaks.
+- Auth config set: `site_url=https://jobiest.com`,
+  `uri_allow_list=http://localhost:3000/**,https://jobiest.com/**`,
+  signup enabled, email confirmations ON (matches the pre-confirmed signup
+  route's assumptions).
+- Signup trigger verified end-to-end (profile/workspace/membership/
+  subscription all provisioned on user creation).
+- **User data was NOT carried over** (no service-role/PAT for the old project).
+  Pre-launch test accounts vanished; any real users must sign up again.
+- `.env.local` now points at the new project (gitignored).
 
 ### 2a. Service-role key (needed for the app to write data server-side)
 1. dashboard.supabase.com → your project → **Settings → API**.
@@ -147,7 +174,7 @@ Migrations are in `supabase/migrations/001_initial.sql … 009_*.sql`.
 npm i -g supabase        # or: brew install supabase/tap/supabase
 supabase login           # browser flow, OR:
 # supabase login --token sbp_<personal-access-token>
-supabase link --project-ref otcpzmuqnvlfgurtbbut
+supabase link --project-ref cbxloutahmalorumaihc
 supabase db push         # applies all pending migrations in order
 supabase migration list  # confirm all "applied"
 ```
@@ -202,7 +229,7 @@ delete from auth.users where email ilike '%jobiest.test%' or email ilike 'flwsmo
 
 **Option B — Auth Admin API:**
 ```bash
-curl -X DELETE "https://otcpzmuqnvlfgurtbbut.supabase.co/auth/v1/admin/users/<USER_ID>" \
+curl -X DELETE "https://cbxloutahmalorumaihc.supabase.co/auth/v1/admin/users/<USER_ID>" \
   -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
   -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY"
 ```
@@ -270,7 +297,7 @@ run a re-encryption migration (decrypt with old key → encrypt with new key)
      ```
    - Environment:
      ```
-     NEXT_PUBLIC_SUPABASE_URL=https://otcpzmuqnvlfgurtbbut.supabase.co
+     NEXT_PUBLIC_SUPABASE_URL=https://cbxloutahmalorumaihc.supabase.co
      NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
      SUPABASE_SERVICE_ROLE_KEY=<service-role JWT>
      ENCRYPTION_MASTER_KEY=<the rotated key>
