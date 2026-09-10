@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { AITask } from '@packages/ai/types';
+import { defangUntrustedText } from '@/lib/ai/injection';
 import type {
   AnswersOutput,
   CoverLetterOutput,
@@ -50,7 +51,7 @@ function jobBlock(job?: GenerationJob): string {
         company: job.company,
         title: job.title,
         location: job.location ?? null,
-        description: job.description.slice(0, 4000),
+        description: defangUntrustedText(job.description, 4000),
       })}\n`
     : '\nNo specific job provided, write a strong general version.\n';
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { sendWelcomeEmail } from '@/lib/email/resend';
+import { auditEvent } from '@/lib/audit';
 
 /**
  * POST /api/auth/signup · create an account that works immediately.
@@ -58,6 +59,12 @@ export async function POST(req: Request) {
   if (data.user?.email) {
     sendWelcomeEmail(data.user.email, name).catch(() => {});
   }
+  void auditEvent({
+    action: 'USER_SIGNUP',
+    resource: 'auth',
+    userId: data.user?.id ?? null,
+    meta: { email_confirmed: true },
+  });
 
   return NextResponse.json({ ok: true, user: { id: data.user?.id ?? null } });
 }

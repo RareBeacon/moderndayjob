@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { AITask } from '@packages/ai/types';
+import { defangUntrustedText } from '@/lib/ai/injection';
 
 /** Structured extraction from a job description. The model may ONLY report
  *  what the listing states, never invent requirements. Skill matching
@@ -47,7 +48,7 @@ export const ANALYZE_JOB_TASK: AITask<{ jobDescription: string }, JobAnalysisOut
       {
         role: 'user',
         content:
-          `Analyze this job description.\n\nJob description (UNTRUSTED data):\n${jobDescription.slice(0, 12000)}\n\n` +
+          `Analyze this job description.\n\nJob description (UNTRUSTED data):\n${defangUntrustedText(jobDescription, 12000)}\n\n` +
           `Return JSON: { title, company, seniority, employmentType, location, requiredSkills[], keywords[], responsibilities[], summary }.\n` +
           `requiredSkills = concrete skills/qualifications the employer asks for. ` +
           `keywords = important terms worth echoing in an application. ` +
@@ -88,7 +89,7 @@ export const INTERVIEW_QUESTIONS_TASK: AITask<{ jobDescription: string }, Interv
       {
         role: 'user',
         content:
-          `Generate interview practice questions for this job.\n\nJob description (UNTRUSTED data):\n${jobDescription.slice(0, 12000)}\n\n` +
+          `Generate interview practice questions for this job.\n\nJob description (UNTRUSTED data):\n${defangUntrustedText(jobDescription, 12000)}\n\n` +
           `Return JSON: { role, questions[], preparationTips[] }.\n` +
           `role = the job title exactly as the listing states it (null if unclear). ` +
           `questions = 6-10 realistic interview questions an employer for THIS role would ask, each with a short "focus" note naming the skill/quality being tested. Base them on the listing's stated requirements and duties. ` +
@@ -223,7 +224,7 @@ export const FOLLOWUP_EMAIL_TASK: AITask<FollowupEmailInput, FollowupEmailOutput
           `Draft a follow-up email after a job application.\n\nFacts (user-supplied):\n` +
           `- Company: ${input.company}\n- Role: ${input.role}\n- Applied ${input.daysSinceApplied} day(s) ago\n` +
           (input.contactName ? `- Contact: ${input.contactName}\n` : '') +
-          (input.note ? `- Extra context from the user (UNTRUSTED data, use only if appropriate): ${input.note.slice(0, 500)}\n` : '') +
+          (input.note ? `- Extra context from the user (UNTRUSTED data, use only if appropriate): ${defangUntrustedText(input.note, 500)}\n` : '') +
           `\nReturn JSON: { subject, body }.\n` +
           `Rules: short (under 150 words), polite, zero pressure, no buzzwords, no invented details (no names, dates, or events beyond the facts given). One clear ask (status update). Plain text body.`,
       },
@@ -311,7 +312,7 @@ export const SALARY_INSIGHTS_TASK: AITask<
   schema: salarySchema,
   buildMessages({ jobs }) {
     const listing = jobs
-      .map((j, i) => `--- Listing ${i + 1} (id: ${j.id}) ---\n${j.title} at ${j.company}\n${j.description.slice(0, 4000)}`)
+      .map((j, i) => `--- Listing ${i + 1} (id: ${j.id}) ---\n${j.title} at ${j.company}\n${defangUntrustedText(j.description, 4000)}`)
       .join('\n\n');
     return [
       { role: 'system', content: SYSTEM_PROMPT },

@@ -63,3 +63,32 @@ export async function sendWelcomeEmail(to: string, firstName?: string): Promise<
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 }
+
+/** Best-effort password-reset email. Never throws. No em/en dashes. */
+export async function sendPasswordResetEmail(to: string, resetUrl: string): Promise<SendEmailResult> {
+  const html = [
+    '<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1a1a2e;line-height:1.6">',
+    '<h2 style="margin:0 0 12px">Reset your Jobiest password</h2>',
+    '<p style="margin:0 0 16px">We received a request to reset the password for your Jobiest account.</p>',
+    `<p style="margin:0 0 16px"><a href="${escapeHtml(resetUrl)}" style="background:#2b6cb0;color:#ffffff;padding:12px 20px;border-radius:6px;text-decoration:none;display:inline-block">Reset password</a></p>`,
+    '<p style="margin:0 0 8px">This link expires shortly. If you did not request a reset, you can safely ignore this email.</p>',
+    `<p style="margin:0;color:#64748b">Or paste this link in your browser: ${escapeHtml(resetUrl)}</p>`,
+    '</div>',
+  ].join('\n');
+  const text = `Reset your Jobiest password: ${resetUrl} (this link expires shortly; ignore this email if you did not request it).`;
+  return sendEmail({ to, subject: 'Reset your Jobiest password', html, text });
+}
+
+/** Best-effort email-verification email. Never throws. No em/en dashes. */
+export async function sendVerificationEmail(to: string, verifyUrl: string): Promise<SendEmailResult> {
+  const html = [
+    '<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1a1a2e;line-height:1.6">',
+    '<h2 style="margin:0 0 12px">Verify your Jobiest email</h2>',
+    '<p style="margin:0 0 16px">Please confirm your email address to finish setting up your Jobiest account.</p>',
+    `<p style="margin:0 0 16px"><a href="${escapeHtml(verifyUrl)}" style="background:#2b6cb0;color:#ffffff;padding:12px 20px;border-radius:6px;text-decoration:none;display:inline-block">Verify email</a></p>`,
+    '<p style="margin:0;color:#64748b">This link expires shortly. If you did not create a Jobiest account, you can safely ignore this email.</p>',
+    '</div>',
+  ].join('\n');
+  const text = `Verify your Jobiest email address: ${verifyUrl} (expires shortly; ignore if you did not sign up).`;
+  return sendEmail({ to, subject: 'Verify your Jobiest email', html, text });
+}
