@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import type { AITask } from '../packages/ai/types';
 import { generateDocument, toTruthfulProfile, type GenerationGateway } from '../lib/generation/service';
+import { SAFE_FALLBACK_PROVIDER } from '../lib/generation/fallback';
+import { ANSWERS_TASK, COVER_LETTER_TASK, CV_TASK } from '../lib/generation/tasks';
 import type {
   AnswersOutput,
   CoverLetterOutput,
@@ -45,24 +47,38 @@ describe('generateDocument, CV', () => {
     expect(res.content).toContain('Google');
   });
 
-  it('fails truthfulness on a fabricated employer', async () => {
+  it('falls back instead of persisting a fabricated employer', async () => {
     const fabricated: CVOutput = {
       ...honestCV,
       experiences: [{ company: 'Netflix', title: 'Engineer', start: null, end: null, bullets: ['Did work.'] }],
     };
     const res = await generateDocument({ kind: 'CV', profile, gateway: mockGateway(() => fabricated) });
-    expect(res.report.passed).toBe(false);
-    expect(res.report.unsupported.some((c) => c.category === 'employer' && c.value === 'Netflix')).toBe(true);
+    expect(res.report.passed).toBe(true);
+    expect(res.provider).toBe(SAFE_FALLBACK_PROVIDER);
+    expect(res.content).not.toContain('Netflix');
+    expect(res.content).toContain('Google');
   });
 
-  it('fails truthfulness on a fabricated metric', async () => {
+  it('falls back instead of persisting a fabricated metric', async () => {
     const fabricated: CVOutput = {
       ...honestCV,
       experiences: [{ company: 'Google', title: 'Engineer', start: null, end: null, bullets: ['Grew revenue by 99%.'] }],
     };
     const res = await generateDocument({ kind: 'CV', profile, gateway: mockGateway(() => fabricated) });
-    expect(res.report.passed).toBe(false);
-    expect(res.report.unsupported.some((c) => c.value === '99%')).toBe(true);
+    expect(res.report.passed).toBe(true);
+    expect(res.provider).toBe(SAFE_FALLBACK_PROVIDER);
+    expect(res.content).not.toContain('99%');
+    expect(res.content).toContain('80%');
+  });
+
+  it('creates a deterministic CV when the provider throws', async () => {
+    const failingGateway: GenerationGateway = {
+      async run() { throw new Error('AI_ALL_PROVIDERS_FAILED'); },
+    };
+    const res = await generateDocument({ kind: 'CV', profile, gateway: failingGateway });
+    expect(res.report.passed).toBe(true);
+    expect(res.provider).toBe(SAFE_FALLBACK_PROVIDER);
+    expect(res.content).toContain('TypeScript');
   });
 });
 
@@ -76,14 +92,15 @@ describe('generateDocument, cover letter', () => {
     expect(res.report.passed).toBe(true);
   });
 
-  it('fails on a fabricated metric in the body', async () => {
+  it('falls back instead of persisting a fabricated metric in the body', async () => {
     const out: CoverLetterOutput = {
       body: 'I boosted sales by 40% across the region.',
       references: { employers: ['Google'], schools: [], skills: ['TypeScript'] },
     };
     const res = await generateDocument({ kind: 'COVER_LETTER', profile, gateway: mockGateway(() => out) });
-    expect(res.report.passed).toBe(false);
-    expect(res.report.unsupported.some((c) => c.value === '40%')).toBe(true);
+    expect(res.report.passed).toBe(true);
+    expect(res.provider).toBe(SAFE_FALLBACK_PROVIDER);
+    expect(res.content).not.toContain('40%');
   });
 });
 
@@ -107,6 +124,20 @@ describe('generateDocument, answers', () => {
     });
     expect(res.report.passed).toBe(true);
     expect(res.kind).toBe('ANSWERS');
+  });
+  it('does not verify untrusted question text as a candidate claim', async () => {
+    const out: AnswersOutput = {
+      answers: [{ question: 'Are you AWS Certified?', answer: 'That credential is not listed in my verified profile.' }],
+      references: { employers: [], schools: [], skills: [] },
+    };
+    const res = await generateDocument({
+      kind: 'ANSWERS',
+      profile,
+      questions: ['Are you AWS Certified?'],
+      gateway: mockGateway(() => out),
+    });
+    expect(res.report.passed).toBe(true);
+    expect(res.provider).toBe('mock');
   });
 });
 
@@ -150,5 +181,31 @@ describe('generateDocument, company-less experience (N/A regression)', () => {
     const res = await generateDocument({ kind: 'CV', profile: soloProfile, gateway: mockGateway(() => emptyCompany) });
     expect(res.report.passed).toBe(true);
     expect(res.content).toContain('"company": ""');
+  });
+});
+
+
+describe('generation task schema resilience', () => {
+  it('accepts missing optional CV fields that represent absent profile facts', () => {
+    const parsed = CV_TASK.schema.safeParse({
+      headline: 'AI Engineer',
+      summary: 'Builds AI automations from verified profile facts.',
+      experiences: [{ company: null, title: '', start: undefined, end: undefined, bullets: [] }],
+      skills: [],
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.experiences[0].company).toBe('');
+      expect(parsed.data.experiences[0].start).toBeNull();
+    }
+  });
+
+  it('defaults missing reference objects for cover letters and answers', () => {
+    const cover = COVER_LETTER_TASK.schema.safeParse({ body: 'A'.repeat(140) });
+    const answers = ANSWERS_TASK.schema.safeParse({ answers: [{ question: 'Q', answer: 'A' }] });
+    expect(cover.success).toBe(true);
+    expect(answers.success).toBe(true);
+    if (cover.success) expect(cover.data.references).toEqual({ employers: [], schools: [], skills: [] });
+    if (answers.success) expect(answers.data.references).toEqual({ employers: [], schools: [], skills: [] });
   });
 });

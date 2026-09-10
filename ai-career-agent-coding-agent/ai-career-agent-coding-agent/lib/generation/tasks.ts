@@ -58,6 +58,12 @@ function jobBlock(job?: GenerationJob): string {
     : '\nNo specific job provided, write a strong general version.\n';
 }
 
+const optionalModelString = (max: number) =>
+  z.preprocess((v) => (v == null ? '' : v), z.string().max(max).default(''));
+const nullableModelString = (max: number) =>
+  z.preprocess((v) => (v == null ? null : v), z.string().max(max).nullable().default(null));
+
+
 /* ---------- CV ---------- */
 const cvSchema = z.object({
   headline: z.string().min(2).max(160),
@@ -65,21 +71,23 @@ const cvSchema = z.object({
   experiences: z
     .array(
       z.object({
-        company: z.string().min(1).max(120),
-        title: z.string().min(1).max(120),
-        start: z.string().max(40).nullable(),
-        end: z.string().max(40).nullable(),
-        bullets: z.array(z.string().min(1).max(300)).min(1).max(6),
+        // Missing company/title is legitimate for many uploaded profiles; do
+        // not reject the whole CV just because the model omits those fields.
+        company: optionalModelString(120),
+        title: optionalModelString(120),
+        start: nullableModelString(40),
+        end: nullableModelString(40),
+        bullets: z.array(z.string().min(1).max(300)).max(6).default([]),
       }),
     )
-    .min(1)
-    .max(15),
-  skills: z.array(z.string().min(1).max(60)).min(1).max(40),
+    .max(15)
+    .default([]),
+  skills: z.array(z.string().min(1).max(60)).max(40).default([]),
   education: z
     .array(
       z.object({
-        institution: z.string().min(1).max(160),
-        qualification: z.string().min(1).max(160),
+        institution: optionalModelString(160),
+        qualification: optionalModelString(160),
       }),
     )
     .max(10)
@@ -109,7 +117,7 @@ const referenceSetSchema = z.object({
   employers: z.array(z.string().min(1).max(120)).max(20).default([]),
   schools: z.array(z.string().min(1).max(160)).max(20).default([]),
   skills: z.array(z.string().min(1).max(60)).max(40).default([]),
-});
+}).default({ employers: [], schools: [], skills: [] });
 
 const coverLetterSchema = z.object({
   body: z.string().min(120).max(3000),

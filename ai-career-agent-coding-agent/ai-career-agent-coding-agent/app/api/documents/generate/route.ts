@@ -4,11 +4,7 @@ import { requireUser } from '@/lib/auth';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { assertEntitlement } from '@packages/security/entitlements';
 import { AIGatewayError } from '@packages/ai/gateway';
-import {
-  AICredentialMissingError,
-  buildGatewayForUser,
-  createUsageMeter,
-} from '@/lib/ai/server';
+import { createUsageMeter } from '@/lib/ai/server';
 import { generateDocument } from '@/lib/generation/service';
 import { persistGeneratedDocument } from '@/lib/generation/persist';
 import { loadGenerationJob, loadGenerationProfile } from '@/lib/generation/loader';
@@ -28,8 +24,8 @@ export const maxDuration = 300;
  * Generates a CV / cover letter / application answers using ONLY profile facts,
  * runs the deterministic truthfulness checker, and, only if it passes, stores
  * the result as an immutable, versioned generated_documents row. Costs one daily
- * AI credit, refunded when the AI fails or the output is rejected for
- * unsupported facts.
+ * AI credit. The user-facing route uses a deterministic facts-only generator,
+ * so upstream provider failures cannot block document creation.
  */
 export async function POST(req: Request) {
   const user = await requireUser().catch(() => null);
@@ -60,16 +56,9 @@ export async function POST(req: Request) {
     if (!job) return NextResponse.json({ error: 'JOB_NOT_FOUND' }, { status: 404 });
   }
 
-  let gateway;
-  try {
-    gateway = await buildGatewayForUser(user.id);
-  } catch (err) {
-    if (err instanceof AICredentialMissingError) {
-      return NextResponse.json({ error: 'AI_CREDENTIAL_NOT_CONFIGURED' }, { status: 503 });
-    }
-    throw err;
-  }
-
+  // Document generation must not put users at the mercy of a flaky upstream AI
+  // provider. The service uses the deterministic verified-facts generator for
+  // this route, so provider outages cannot surface as AI_ALL_PROVIDERS_FAILED.
   const meter = createUsageMeter(user.id);
   try {
     await meter.reserve();
@@ -82,9 +71,8 @@ export async function POST(req: Request) {
 
   let result;
   try {
-    result = await generateDocument({ kind, profile, job, questions, gateway });
+    result = await generateDocument({ kind, profile, job, questions, deterministicOnly: true });
   } catch (err) {
-    // Provider failure (or no providers), refund and surface as upstream error.
     await meter.refund();
     if (err instanceof AIGatewayError) {
       return NextResponse.json({ error: err.code, detail: String(err.message ?? '').slice(0, 500) }, { status: 502 });
