@@ -32,6 +32,16 @@ export default async function SeoMissionControlPage() {
   }, { clicks: 0, impressions: 0, positionTotal: 0, rows: 0 });
   const avgCtr = totals.impressions ? totals.clicks / totals.impressions : 0;
   const avgPos = totals.rows ? totals.positionTotal / totals.rows : 0;
+  const urlTotals = data.urlAudits.reduce<{ total: number; indexed: number; notIndexed: number; pending: number; errors: number; sitemap: number }>((acc, row) => {
+    acc.total += 1;
+    const state = String(row.indexing_state ?? '');
+    if (state === 'INDEXED_CONFIRMED_BY_GOOGLE') acc.indexed += 1;
+    else if (/not indexed|not on google|excluded|fail/i.test(state)) acc.notIndexed += 1;
+    else acc.pending += 1;
+    if (String(row.status ?? '') === 'ERROR' || Number(row.http_status ?? 200) >= 400) acc.errors += 1;
+    if (row.sitemap_included) acc.sitemap += 1;
+    return acc;
+  }, { total: 0, indexed: 0, notIndexed: 0, pending: 0, errors: 0, sitemap: 0 });
 
   return (
     <AdminShell active="seo">
@@ -44,7 +54,7 @@ export default async function SeoMissionControlPage() {
       {!data.tablesReady && (
         <div className="seo-alert danger">
           <strong>SEO database migration required.</strong>
-          <p>{data.error} Apply `supabase/migrations/014_seo_agent.sql`, then reload this page.</p>
+          <p>{data.error} Apply SEO migrations 014, 019, 020 and 021, then reload this page.</p>
         </div>
       )}
 
@@ -55,6 +65,13 @@ export default async function SeoMissionControlPage() {
             <div className="seo-stat"><span>Mode</span><strong>{project.mode}</strong></div>
             <div className="seo-stat"><span>Agent</span><strong>{project.paused ? 'Paused' : 'Running'}</strong></div>
             <div className="seo-stat"><span>Google</span><strong>{connected ? 'Connected' : 'Not connected'}</strong></div>
+            <div className="seo-stat"><span>Public SEO pages</span><strong>{urlTotals.total || 'Pending'}</strong></div>
+            <div className="seo-stat"><span>Indexed by Google</span><strong>{urlTotals.indexed}</strong></div>
+            <div className="seo-stat"><span>Not indexed</span><strong>{urlTotals.notIndexed}</strong></div>
+            <div className="seo-stat"><span>Waiting</span><strong>{urlTotals.pending}</strong></div>
+            <div className="seo-stat"><span>URL errors</span><strong>{urlTotals.errors}</strong></div>
+            <div className="seo-stat"><span>In sitemap</span><strong>{urlTotals.sitemap || 'Pending'}</strong></div>
+            <div className="seo-stat"><span>Last sync</span><strong>{project.last_sync_at ? project.last_sync_at.slice(0, 10) : 'Unavailable'}</strong></div>
             <div className="seo-stat"><span>Clicks</span><strong>{totals.clicks}</strong></div>
             <div className="seo-stat"><span>Impressions</span><strong>{totals.impressions}</strong></div>
             <div className="seo-stat"><span>CTR</span><strong>{pct(avgCtr)}</strong></div>
@@ -97,6 +114,14 @@ export default async function SeoMissionControlPage() {
                 {data.keywords.map((k) => <tr key={String(k.id)}><td>{String(k.keyword ?? '-')}</td><td>{String(k.intent ?? '-')}</td><td className="ad-mono">{String(k.opportunity_score ?? 'unavailable')}</td><td>{String(k.metric_source ?? 'unavailable')}</td></tr>)}
               </tbody></table>
             </div>
+          </section>
+
+          <section className="seo-panel">
+            <h2>Public URL audit</h2>
+            <table className="ad-table"><thead><tr><th>URL</th><th>Status</th><th>HTTP</th><th>Sitemap</th><th>Google state</th><th>Errors</th></tr></thead><tbody>
+              {data.urlAudits.length === 0 && <tr><td colSpan={6} className="ad-empty">Run Audit Public URLs to build the definitive indexable URL list.</td></tr>}
+              {data.urlAudits.slice(0, 40).map((x) => <tr key={String(x.id)}><td className="ad-mono">{String(x.url ?? '-')}</td><td><span className="ad-chip">{String(x.status ?? '-')}</span></td><td>{String(x.http_status ?? '-')}</td><td>{x.sitemap_included ? 'Yes' : 'No'}</td><td>{String(x.indexing_state ?? '-')}</td><td>{Array.isArray(x.errors) ? x.errors.join(', ') : '-'}</td></tr>)}
+            </tbody></table>
           </section>
 
           <section className="seo-two-col">

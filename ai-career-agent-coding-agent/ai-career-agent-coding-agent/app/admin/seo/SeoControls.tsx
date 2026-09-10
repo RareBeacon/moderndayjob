@@ -63,8 +63,11 @@ export function SeoControls({ paused, connected }: { paused: boolean; connected:
       <div className="seo-button-row">
         <button className="btn" disabled={!!busy} onClick={() => setPaused(!paused)}>{paused ? 'Resume SEO Agent' : 'Pause SEO Agent'}</button>
         <button className="btn" disabled={!!busy} onClick={() => run('INITIAL_AUDIT')}>Run Initial SEO Audit</button>
+        <button className="btn" disabled={!!busy} onClick={() => run('SYNC_STRATEGIC_CONTENT')}>Publish Strategic Content</button>
         <button className="btn" disabled={!!busy} onClick={() => run('VERIFY_SITEMAP')}>Verify Sitemap</button>
+        <button className="btn" disabled={!!busy} onClick={() => run('RUN_PUBLIC_URL_AUDIT')}>Audit Public URLs</button>
         <button className="btn" disabled={!!busy || !connected} onClick={() => run('SUBMIT_SITEMAP')}>Submit Sitemap to GSC</button>
+        <button className="btn" disabled={!!busy || !connected} onClick={() => run('INSPECT_IMPORTANT_URLS')}>Inspect Important URLs</button>
         <button className="btn" disabled={!!busy || !connected} onClick={() => run('IMPORT_METRICS')}>Import GSC Metrics</button>
       </div>
       <form className="seo-article-form" action={selectProperty}>

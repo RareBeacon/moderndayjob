@@ -1536,8 +1536,57 @@ select { cursor: pointer; }
 .blog-article-body section { display: grid; gap: 12px; }
 .blog-step { color: var(--jl-blue); font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .12em; }
 .blog-article-body h2 { color: var(--jl-navy); font-size: clamp(23px, 3vw, 34px); }
+.blog-article-body h3 { color: var(--jl-navy); font-size: clamp(19px, 2.2vw, 25px); margin-top: 4px; }
 .blog-article-body p, .blog-article-body li { color: var(--jl-muted); font-size: 17px; line-height: 1.82; }
 .blog-article-body ul { padding-left: 22px; }
+.blog-featured-image {
+  display: grid;
+  min-height: 220px;
+  margin: 0 0 34px;
+  padding: clamp(24px, 4vw, 42px);
+  border-radius: 30px;
+  border: 1px solid rgba(2, 20, 60, 0.08);
+  background:
+    radial-gradient(circle at 18% 20%, rgba(255, 212, 0, 0.55), transparent 30%),
+    radial-gradient(circle at 80% 15%, rgba(47, 107, 255, 0.28), transparent 32%),
+    linear-gradient(135deg, #fffdf3, #f7f9ff 56%, #eef4ff);
+  box-shadow: 0 24px 70px -45px rgba(2, 20, 60, 0.38);
+}
+.blog-featured-image span {
+  color: var(--color-primary);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+}
+.blog-featured-image strong {
+  align-self: end;
+  max-width: 680px;
+  color: var(--jl-navy);
+  font-family: var(--font-heading);
+  font-size: clamp(28px, 5vw, 52px);
+  letter-spacing: -0.04em;
+  line-height: 1.02;
+}
+.blog-faq-box, .blog-related-box {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-alt);
+  border-radius: 24px;
+  padding: clamp(22px, 3vw, 30px);
+}
+.blog-faq-box details {
+  border-top: 1px solid var(--color-border);
+  padding: 16px 0;
+}
+.blog-faq-box details:first-of-type { border-top: 0; }
+.blog-faq-box summary {
+  cursor: pointer;
+  color: var(--jl-navy);
+  font-weight: 900;
+}
+.blog-faq-box p { margin-top: 10px; }
+.blog-related-box ul { margin: 0; }
+.blog-article-body .inline-link { display: inline; margin-top: 0; text-decoration: underline; text-underline-offset: 3px; }
 .blog-cta-box { background: var(--jl-navy); color: #fff; border-radius: 22px; padding: clamp(24px, 4vw, 40px); margin-top: 10px; }
 .blog-cta-box h2 { color: #fff; }
 .blog-cta-box p { color: rgba(255,255,255,.82); }

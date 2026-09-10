@@ -407,10 +407,20 @@ function toggleInList(values: string[], item: string) {
 }
 
 function trackEvent(eventName: string, input: { anonymousId?: string; step?: string; completionRate?: number; metadata?: Record<string, unknown> }) {
+  const params = new URLSearchParams(window.location.search);
+  const sourceArticle = params.get('utm_content') || params.get('source_article');
+  const source = params.get('utm_source') || (sourceArticle ? 'jobiest_blog' : undefined);
   fetch('/api/free-tools/analytics', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ eventName, toolId: location.pathname.replace(/^\/free-/, '').replace(/\/$/, ''), anonymousId: input.anonymousId, step: input.step, completionRate: input.completionRate, metadata: input.metadata }),
+    body: JSON.stringify({
+      eventName,
+      toolId: location.pathname.replace(/^\/free-/, '').replace(/\/$/, ''),
+      anonymousId: input.anonymousId,
+      step: input.step,
+      completionRate: input.completionRate,
+      metadata: { ...(input.metadata ?? {}), source, sourceArticle, referrer: document.referrer || undefined },
+    }),
     keepalive: true,
   }).catch(() => undefined);
 }

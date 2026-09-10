@@ -34,6 +34,47 @@ const body = z.object({
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
+function safeString(value: unknown, max = 180) {
+  if (typeof value !== 'string') return null;
+  const clean = value.trim().slice(0, max);
+  return clean || null;
+}
+
+async function recordSeoToolAttribution(input: {
+  eventName: (typeof eventNames)[number];
+  toolId: string;
+  anonymousId?: string | null;
+  userId?: string | null;
+  metadata?: Record<string, unknown>;
+}) {
+  const articleSlug = safeString(input.metadata?.sourceArticle);
+  if (!articleSlug) return;
+  const mappedEvent = input.eventName === 'free_tool_viewed'
+    ? 'tool_view_from_article'
+    : input.eventName === 'free_tool_started'
+      ? 'tool_start_from_article'
+      : input.eventName === 'free_tool_generation_completed'
+        ? 'tool_completion_from_article'
+        : null;
+  if (!mappedEvent) return;
+  try {
+    const { data: project } = await supabaseAdmin.from('seo_projects').select('id').limit(1).maybeSingle();
+    await supabaseAdmin.from('seo_conversion_events').insert({
+      project_id: project?.id ?? null,
+      user_id: input.userId ?? null,
+      anonymous_id: input.anonymousId ?? null,
+      event_name: mappedEvent,
+      article_slug: articleSlug,
+      source_url: safeString(input.metadata?.referrer, 500),
+      target_url: null,
+      tool_id: input.toolId,
+      metadata: input.metadata ?? {},
+    });
+  } catch {
+    // Conversion attribution must not block the free tool experience.
+  }
+}
+
 export async function POST(req: Request) {
   const user = await requireUser().catch(() => null);
   const parsed = body.safeParse(await req.json().catch(() => ({})));
@@ -54,6 +95,13 @@ export async function POST(req: Request) {
   };
 
   await supabaseAdmin.from('free_tool_events').insert(payload).then(undefined, () => undefined);
+  void recordSeoToolAttribution({
+    eventName: parsed.data.eventName,
+    toolId: parsed.data.toolId,
+    anonymousId: parsed.data.anonymousId,
+    userId: user?.id ?? null,
+    metadata: parsed.data.metadata,
+  });
   void auditEvent({ action: parsed.data.eventName, resource: 'free_tool', userId: user?.id ?? null, meta: { toolId: parsed.data.toolId, step: parsed.data.step, authenticated: Boolean(user) } });
   return NextResponse.json({ ok: true });
 }

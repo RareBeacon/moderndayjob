@@ -6,6 +6,46 @@ import { enforceRateLimit, getRedis, requestIp } from '@/lib/rate-limit';
 import { DEVICE_COOKIE, hashSignal, issueDeviceId, readDeviceId } from '@/lib/security/device';
 import { classifyRegistrationRisk, isRegistrationBlocked } from '@/lib/security/risk';
 
+function safeShort(value: unknown, max = 180) {
+  if (typeof value !== 'string') return null;
+  const clean = value.trim().slice(0, max);
+  return clean || null;
+}
+
+function sanitizeSignupAttribution(value: Record<string, unknown> | undefined) {
+  const sourceArticle = safeShort(value?.sourceArticle ?? value?.source_article);
+  const sourceTool = safeShort(value?.sourceTool ?? value?.source_tool);
+  const anonymousId = safeShort(value?.anonymousId, 120);
+  const sourceUrl = safeShort(value?.sourceUrl ?? value?.source_url, 500);
+  const targetUrl = safeShort(value?.targetUrl ?? value?.target_url, 500);
+  const source = safeShort(value?.source, 120);
+  return { sourceArticle, sourceTool, anonymousId, sourceUrl, targetUrl, source };
+}
+
+async function recordSignupAttribution(input: {
+  userId?: string | null;
+  attribution: ReturnType<typeof sanitizeSignupAttribution>;
+}) {
+  const { attribution } = input;
+  if (!attribution.sourceArticle && !attribution.sourceTool) return;
+  try {
+    const { data: project } = await supabaseAdmin.from('seo_projects').select('id').limit(1).maybeSingle();
+    await supabaseAdmin.from('seo_conversion_events').insert({
+      project_id: project?.id ?? null,
+      user_id: input.userId ?? null,
+      anonymous_id: attribution.anonymousId,
+      event_name: attribution.sourceArticle ? 'signup_created_from_article' : 'signup_created_from_tool',
+      article_slug: attribution.sourceArticle,
+      source_url: attribution.sourceUrl,
+      target_url: attribution.targetUrl,
+      tool_id: attribution.sourceTool,
+      metadata: { source: attribution.source },
+    });
+  } catch {
+    // Attribution must never block signup.
+  }
+}
+
 /**
  * POST /api/auth/signup · create an account that must be email-verified.
  *
@@ -29,7 +69,7 @@ export async function POST(req: Request) {
   const rl = await enforceRateLimit(`auth:signup:${ip}`, 5, '1 h');
   if (!rl.allowed) return NextResponse.json({ error: 'RATE_LIMITED' }, { status: 429 });
 
-  let body: { email?: string; password?: string };
+  let body: { email?: string; password?: string; attribution?: Record<string, unknown> };
   try {
     body = await req.json();
   } catch {
@@ -37,6 +77,7 @@ export async function POST(req: Request) {
   }
   const email = (body.email ?? '').trim().toLowerCase();
   const password = body.password ?? '';
+  const attribution = sanitizeSignupAttribution(body.attribution);
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
     return NextResponse.json({ error: 'That email address does not look right.' }, { status: 400 });
@@ -120,8 +161,9 @@ export async function POST(req: Request) {
     action: 'USER_SIGNUP',
     resource: 'auth',
     userId: data.user?.id ?? null,
-    meta: { email_confirmed: false, risk },
+    meta: { email_confirmed: false, risk, sourceArticle: attribution.sourceArticle, sourceTool: attribution.sourceTool },
   });
+  void recordSignupAttribution({ userId: data.user?.id ?? null, attribution });
 
   const res = NextResponse.json({ ok: true, verificationRequired: true, user: { id: data.user?.id ?? null } });
   res.cookies.set(DEVICE_COOKIE, deviceId, {

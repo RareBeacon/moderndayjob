@@ -21,12 +21,25 @@ export default function SignupPage() {
     setError('');
     setNotice('');
 
+    const attribution = (() => {
+      if (typeof window === 'undefined') return undefined;
+      const params = new URLSearchParams(window.location.search);
+      return {
+        source: params.get('utm_source') || undefined,
+        sourceArticle: params.get('utm_content') || params.get('source_article') || undefined,
+        sourceTool: params.get('source_tool') || undefined,
+        anonymousId: window.localStorage.getItem('jobiest.freeTools.anonymousId') || undefined,
+        sourceUrl: document.referrer || undefined,
+        targetUrl: window.location.href,
+      };
+    })();
+
     // 1. Create the account server-side (unverified): the server emails a
     //    verification link; the account cannot sign in until it is confirmed.
     const res = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, attribution }),
     }).catch(() => null);
 
     if (res && res.status === 409) {

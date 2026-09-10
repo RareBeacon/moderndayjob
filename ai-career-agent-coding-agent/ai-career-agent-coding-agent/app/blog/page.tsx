@@ -21,7 +21,7 @@ async function dbPosts() {
       .select('slug,title,target_keyword,secondary_keywords,meta_description,search_intent')
       .eq('status', 'PUBLISHED')
       .order('published_at', { ascending: false })
-      .limit(20);
+      .limit(80);
     if (error || !data) return [];
     const seeded = new Set(BLOG_POSTS.map((p) => p.slug));
     return data.filter((p) => !seeded.has(String(p.slug))).map((p) => ({

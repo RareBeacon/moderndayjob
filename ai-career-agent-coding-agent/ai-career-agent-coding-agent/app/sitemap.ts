@@ -1,21 +1,10 @@
 import type { MetadataRoute } from 'next';
 import { SITE_URL } from '@/lib/site';
 import { BLOG_POSTS } from '@/lib/seo/blog';
+import { CORE_SEO_PATHS, FREE_TOOL_SEO_PATHS, canonicalPublicUrl, isAllowedPublicSeoUrl } from '@/lib/seo/public-urls';
 import { supabaseAdmin } from '@/lib/supabase';
 
-/** All 10 free tools + core pages, everything public and indexable. */
-const FREE_TOOLS = [
-  '/free-job-description-analyzer',
-  '/free-cover-letter-writer',
-  '/free-resume-summary-generator',
-  '/free-linkedin-headline-builder',
-  '/free-interview-question-generator',
-  '/free-skills-matcher',
-  '/free-ats-resume-scanner',
-  '/free-follow-up-email-writer',
-  '/free-career-path-explorer',
-  '/free-salary-insights',
-];
+export const dynamic = 'force-dynamic';
 
 async function publishedSeoArticles(): Promise<MetadataRoute.Sitemap> {
   try {
@@ -24,12 +13,14 @@ async function publishedSeoArticles(): Promise<MetadataRoute.Sitemap> {
       .select('url, last_updated, published_at')
       .eq('status', 'PUBLISHED');
     if (error || !data) return [];
-    return data.map((row) => ({
-      url: String(row.url),
-      lastModified: new Date(String(row.last_updated ?? row.published_at ?? new Date().toISOString())),
-      changeFrequency: 'weekly' as const,
-      priority: 0.75,
-    }));
+    return data
+      .filter((row) => isAllowedPublicSeoUrl(String(row.url)))
+      .map((row) => ({
+        url: String(row.url),
+        lastModified: new Date(String(row.last_updated ?? row.published_at ?? new Date().toISOString())),
+        changeFrequency: 'weekly' as const,
+        priority: 0.75,
+      }));
   } catch {
     // SEO tables may not exist until the migration is applied; static sitemap remains valid.
     return [];
@@ -38,29 +29,29 @@ async function publishedSeoArticles(): Promise<MetadataRoute.Sitemap> {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
-  const core: MetadataRoute.Sitemap = [
-    { url: `${SITE_URL}/`, lastModified: now, changeFrequency: 'daily', priority: 1 },
-    { url: `${SITE_URL}/how-it-works`, lastModified: now, changeFrequency: 'monthly', priority: 0.9 },
-    { url: `${SITE_URL}/about`, lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
-    { url: `${SITE_URL}/pricing`, lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
-    { url: `${SITE_URL}/blog`, lastModified: now, changeFrequency: 'weekly', priority: 0.85 },
-    { url: `${SITE_URL}/login`, lastModified: now, changeFrequency: 'monthly', priority: 0.3 },
-    { url: `${SITE_URL}/signup`, lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
-    { url: `${SITE_URL}/terms`, lastModified: now, changeFrequency: 'yearly', priority: 0.2 },
-    { url: `${SITE_URL}/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.2 },
-    { url: `${SITE_URL}/refund`, lastModified: now, changeFrequency: 'yearly', priority: 0.2 },
-    { url: `${SITE_URL}/jobs`, lastModified: now, changeFrequency: 'daily', priority: 0.8 },
-  ];
+  const core: MetadataRoute.Sitemap = CORE_SEO_PATHS.map((path) => ({
+    url: canonicalPublicUrl(path),
+    lastModified: now,
+    changeFrequency: path === '/' ? 'daily' as const : path === '/pricing' || path === '/blog' ? 'weekly' as const : path === '/terms' || path === '/privacy' || path === '/refund' ? 'yearly' as const : 'monthly' as const,
+    priority: path === '/' ? 1 : path === '/pricing' || path === '/how-it-works' ? 0.9 : path === '/blog' ? 0.85 : path === '/about' ? 0.8 : 0.2,
+  }));
   const staticBlog = BLOG_POSTS.map((post) => ({
     url: `${SITE_URL}/blog/${post.slug}`,
     lastModified: new Date(post.publishedAt),
     changeFrequency: 'monthly' as const,
     priority: 0.75,
   }));
-  return [
+  const urls = [
     ...core,
-    ...FREE_TOOLS.map((path) => ({ url: `${SITE_URL}${path}`, lastModified: now, changeFrequency: 'weekly' as const, priority: 0.8 })),
+    ...FREE_TOOL_SEO_PATHS.map((path) => ({ url: canonicalPublicUrl(path), lastModified: now, changeFrequency: 'weekly' as const, priority: 0.8 })),
     ...staticBlog,
     ...(await publishedSeoArticles()),
-  ];
+  ].filter((entry) => isAllowedPublicSeoUrl(entry.url));
+  const seen = new Set<string>();
+  return urls.filter((entry) => {
+    const key = entry.url.replace(/\/$/, '');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
