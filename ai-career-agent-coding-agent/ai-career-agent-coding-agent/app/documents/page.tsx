@@ -2,19 +2,19 @@
 import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/site/AppShell';
 
-type Document = { id: string; kind: string; original_name: string; byte_size: number; created_at: string };
+type UploadedDoc = { id: string; kind: string; original_name: string; byte_size: number; created_at: string };
+type GeneratedDoc = { id: string; kind: string; title: string; version: number; created_at: string };
 
 export default function Documents() {
-  const [docs, setDocs] = useState<Document[]>([]);
+  const [docs, setDocs] = useState<UploadedDoc[]>([]);
+  const [generated, setGenerated] = useState<GeneratedDoc[]>([]);
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
 
   async function load() {
-    const r = await fetch('/api/documents');
-    if (r.ok) {
-      const x = await r.json();
-      setDocs(x.documents);
-    }
+    const [u, g] = await Promise.all([fetch('/api/documents'), fetch('/api/documents/generated')]);
+    if (u.ok) setDocs((await u.json()).documents);
+    if (g.ok) setGenerated((await g.json()).documents);
   }
   useEffect(() => { load(); }, []);
 
@@ -44,6 +44,10 @@ export default function Documents() {
     else setStatus('Download link is unavailable. Please try again.');
   }
 
+  function exportDoc(id: string, format: 'pdf' | 'docx') {
+    window.location.assign(`/api/documents/${id}/export?format=${format}`);
+  }
+
   return (
     <AppShell active="documents" title="Documents">
       <section className="workspace-hero">
@@ -57,10 +61,34 @@ export default function Documents() {
         </label>
         {status && <p className="form-status">{status}</p>}
       </section>
+
       <section className="document-list">
+        <h2>Generated documents</h2>
+        {generated.length === 0 ? (
+          <article className="card">
+            <p className="muted">Generated CVs, cover letters and answers appear here once you create them.</p>
+          </article>
+        ) : (
+          generated.map((d) => (
+            <article className="card document-row" key={d.id}>
+              <div>
+                <p className="eyebrow">{d.kind.replace('_', ' ')} · v{d.version}</p>
+                <h2>{d.title}</h2>
+                <p className="muted">Generated {new Date(d.created_at).toLocaleDateString()}</p>
+              </div>
+              <div className="doc-actions">
+                <button className="text-button" onClick={() => exportDoc(d.id, 'pdf')}>PDF</button>
+                <button className="text-button" onClick={() => exportDoc(d.id, 'docx')}>DOCX</button>
+              </div>
+            </article>
+          ))
+        )}
+      </section>
+
+      <section className="document-list">
+        <h2>Uploaded files</h2>
         {docs.length === 0 ? (
           <article className="card">
-            <h2>No documents uploaded yet.</h2>
             <p className="muted">Your uploaded CV will appear here. Jobiest will never invent its content.</p>
           </article>
         ) : (

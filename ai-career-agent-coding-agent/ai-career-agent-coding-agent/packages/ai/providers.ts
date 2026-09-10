@@ -87,3 +87,80 @@ export class OpenAICompatProvider implements AIProvider {
     return { ...res, provider: this.name };
   }
 }
+
+/**
+ * Ollama native transport: POST {baseUrl}/api/chat with stream:false.
+ * JSON mode uses Ollama's native `format: 'json'`, which is reliable on
+ * CPU-only local models (more so than the OpenAI-compat response_format shim).
+ * The endpoint is expected to sit behind a secret-gated gateway; the key is
+ * sent as a Bearer token and never logged.
+ */
+export const ollamaChat: ChatFn = async (req) => {
+  const options: Record<string, unknown> = { temperature: req.temperature ?? 0.2 };
+  if (req.maxTokens) options.num_predict = req.maxTokens;
+
+  const body: Record<string, unknown> = {
+    model: req.model,
+    messages: req.messages,
+    stream: false,
+    options,
+  };
+  if (req.responseFormat === 'json') body.format = 'json';
+
+  const res = await fetch(`${trimSlash(req.baseUrl)}/api/chat`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${req.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`OLLAMA_${res.status}`);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const json: any = await res.json();
+  return {
+    content: json?.message?.content ?? '',
+    usage: {
+      promptTokens: json?.prompt_eval_count,
+      completionTokens: json?.eval_count,
+    },
+    provider: req.model,
+    raw: json,
+  };
+};
+
+/**
+ * Ollama provider bound to one local model on the Oracle VM. Priority 0 makes
+ * it the primary provider in the chain; the lighter local fallback model and
+ * any user-stored OpenRouter/Hugging Face credentials follow it.
+ */
+export class OllamaProvider implements AIProvider {
+  readonly name: string;
+  readonly priority: number;
+  private readonly cfg: ProviderConfig;
+  private readonly chatFn: ChatFn;
+
+  constructor(config: ProviderConfig, chatFn: ChatFn = ollamaChat) {
+    this.name = config.name;
+    this.priority = config.priority;
+    this.cfg = config;
+    this.chatFn = chatFn;
+  }
+
+  async chat(
+    messages: AIMessage[],
+    opts?: { temperature?: number; responseFormat?: 'json' | 'text'; maxTokens?: number },
+  ): Promise<ChatResponse> {
+    const res = await this.chatFn({
+      model: this.cfg.model,
+      baseUrl: this.cfg.baseUrl,
+      apiKey: this.cfg.apiKey,
+      messages,
+      temperature: opts?.temperature,
+      responseFormat: opts?.responseFormat,
+      maxTokens: opts?.maxTokens,
+    });
+    return { ...res, provider: this.name };
+  }
+}
