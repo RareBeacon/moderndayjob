@@ -88,7 +88,7 @@ export async function POST(req: Request) {
   } catch (err) {
     await meter.refund();
     if (err instanceof AIGatewayError) {
-      return NextResponse.json({ error: err.code }, { status: 502 });
+      return NextResponse.json({ error: err.code, detail: String(err.message ?? '').slice(0, 500) }, { status: 502 });
     }
     throw err;
   }

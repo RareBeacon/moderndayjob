@@ -122,11 +122,13 @@ const UNTRUSTED_PROFILE_NOTE = [
 
 const profileCopySchema = z.object({
   options: z.array(z.string().min(10).max(400)).min(2).max(6),
+  // Small models occasionally omit `references`; default it so one missing key
+  // cannot fail the whole run (verification then checks the text only).
   references: z.object({
     employers: z.array(z.string().min(1).max(120)).max(20).default([]),
     schools: z.array(z.string().min(1).max(120)).max(20).default([]),
     skills: z.array(z.string().min(1).max(60)).max(40).default([]),
-  }),
+  }).default({ employers: [], schools: [], skills: [] }),
 });
 
 function profileFacts(profile: {
@@ -164,7 +166,7 @@ export const PROFILE_SUMMARY_TASK: AITask<{ profile: Parameters<typeof profileFa
           `Write 3 resume summary options (professional "About me" paragraphs, 2 sentences / under 60 words each) from this profile.\n\nProfile (verified facts):\n${profileFacts(profile)}\n\n` +
           `Return JSON: { options[], references }.\n` +
           `options = exactly 3 distinct summaries, plain first-person-free professional tone. ` +
-          `references = every employer, school, and skill name you used, for verification.`,
+          `references = REQUIRED: every employer, school, and skill name you used, for verification (use empty arrays if none).`,
       },
     ];
   },
@@ -183,7 +185,7 @@ export const LINKEDIN_HEADLINE_TASK: AITask<{ profile: Parameters<typeof profile
           `Write 5 LinkedIn headline options from this profile.\n\nProfile (verified facts):\n${profileFacts(profile)}\n\n` +
           `Return JSON: { options[], references }.\n` +
           `options = exactly 5 headlines, each under 120 characters, no emojis, no buzzword stacking. Vary the angle: role-first, skills-first, and one plain conservative option. ` +
-          `references = every employer, school, and skill name you used, for verification.`,
+          `references = REQUIRED: every employer, school, and skill name you used, for verification (use empty arrays if none).`,
       },
     ];
   },

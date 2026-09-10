@@ -268,3 +268,19 @@ describe('follow-up email task, prompt framing', () => {
     expect(SALARY_INSIGHTS_TASK.id).toBe('salary_insights');
   });
 });
+
+describe('profile copy schema resilience', () => {
+  it('defaults missing references instead of failing (small-model backstop)', () => {
+    for (const task of [PROFILE_SUMMARY_TASK, LINKEDIN_HEADLINE_TASK]) {
+      const r = task.schema.safeParse({ options: ['Ten chars!!', 'Another valid option here.'] });
+      expect(r.success).toBe(true);
+      if (r.success) {
+        expect(r.data.references).toEqual({ employers: [], schools: [], skills: [] });
+      }
+    }
+  });
+  it('still rejects options that violate length bounds', () => {
+    const r = PROFILE_SUMMARY_TASK.schema.safeParse({ options: ['short'] });
+    expect(r.success).toBe(false);
+  });
+});
