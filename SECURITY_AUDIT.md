@@ -84,10 +84,8 @@ Browser ──HTTPS──▶ Vercel Edge (platform WAF/DDoS) ──▶ Next.js s
 - Supabase migrations `001`–`011` in `supabase/migrations/`.
 - **RLS enabled** on user-data tables (profiles, applications, documents, generated_documents, preferences, payments, etc.) with `auth.uid() = user_id` select/insert policies; no `UPDATE` policy on append-only tables (generated_documents).
 - **`generated_documents`** is append-only + versioned with a `content_hash` (SHA-256) for immutability/verifiability, plus `source_facts` for traceability.
-- **`public.audit_logs`** (migration `011`) is **deny-by-default**: RLS enabled, **no policies**, so neither `anon` nor `authenticated` can read/write it; only the service role (server) writes.
+- **`public.audit_logs`** (migration `011`, **applied 2026-09-10 via Management API**): RLS enabled, **no policies** — deny-by-default, so neither `anon` nor `authenticated` can read/write; only the service role (server) writes. Verified live: a real signup produced a `USER_SIGNUP` row.
 - Service-role key exists **only** in server env; never shipped to the client.
-
-> ⚠️ Migration `011_audit_logs.sql` is **not yet applied** to the hosted project (see §18 remaining risks).
 
 ---
 
@@ -188,8 +186,7 @@ Thresholds are deliberately generous so families, offices, and cybercafes are no
 - `lib/audit.ts` — `auditEvent()` writes to `public.audit_logs` (service-role only). **Best-effort and never throws** so logging can't break a request.
 - `sanitizeMeta()` + `redactSecrets()` strip anything matching secret-like patterns (`secret|token|password|api_key|authorization|…`) before write; metadata is size-capped and cycle-safe.
 - Events: `USER_SIGNUP`, `PASSWORD_RESET_REQUEST`, `PASSWORD_RESET_COMPLETED`, `AI_RESUME_GENERATED`, `RESUME_EXPORT`, `APPLICATION_SUBMITTED`, `SUSPICIOUS_REGISTRATION`, admin actions, etc.
-
-> ⚠️ Until migration `011` is applied, `auditEvent()` **silently no-ops** (insert fails against a missing table and is swallowed by design). See remaining risks.
+- **Verified in production 2026-09-10:** a live signup wrote a `USER_SIGNUP` row (`resource=auth`, risk level recorded, user-scoped) into `audit_logs`.
 
 ---
 
@@ -214,6 +211,7 @@ All run against the real code on 2026-09-10:
 | Live E2E: `GET /api/documents/[id]/export` | ✅ owner→200 `%PDF`/`PK`, anon→401, non-owner→404, bad format→400 |
 | Live `jobiest.com` response headers | ✅ CSP + nosniff + DENY + referrer + permissions + HSTS present |
 | Live `/api/health` | ✅ `ok: true`, database ok, AI gateway ok, email configured |
+| Live audit trail (`audit_logs`) | ✅ migration applied; real signup wrote `USER_SIGNUP` row |
 
 **Security-relevant suites** (selected): `admin-security`, `admin-users-list`, `auth-signup-route`, `security-risk`, `rate-limit`, `ssrf`, `truthfulness`, `browser-worker-auth`, `apply-stop-conditions`, `automation-killswitch`, `billing-webhook`, `crypto`, `entitlements`, `plans`, `middleware`, `documents-export`, `api-gateway`.
 
@@ -242,28 +240,28 @@ New suites added this pass:
 
 ## 19. Known remaining risks
 
-1. **Supabase migration `011_audit_logs.sql` is NOT applied** to the hosted project (no Supabase PAT / DB password available to the agent; service-role key cannot run DDL). Until applied, audit events are dropped silently and `audit_logs` does not exist. **Action required: user provides `sbp_…` PAT or database password, or applies the SQL in the Supabase SQL editor.**
-2. **Email verification is not mandatory at signup** (`email_confirm: true` is a deliberate product trade-off for one-motion signup). If strict verification becomes required, flip the flag and gate sign-in on confirmation.
-3. **`postcss` advisory** (build-time only; XSS via `</style>` stringify and source-map auto-loading) remains because the fix requires a breaking `next@16` upgrade. Documented as accepted build-time risk pending a planned major upgrade.
-4. **Device-linking is best-effort**: a user can clear cookies or switch browsers to evade device velocity. By design (no CAPTCHA); EXTREME/IP limits remain as backstop.
-5. **No custom WAF/DDoS module** — relies on Vercel platform edge; custom firewall rules not yet configured in the Vercel dashboard.
-6. **Flutterwave is test-mode only** — the real-mode close loop (live keys + live webhook verification) is not activated pending authorization.
-7. **Rate limits fail open** when Upstash is unreachable (availability over strictness) — acceptable for this scale, worth revisiting if abuse is observed.
-8. **Oracle A1 self-hosted gateway** is not yet provisioned (Oracle "Out of host capacity"; background retry loop continues). AI falls back to user-stored credentials meanwhile.
+1. **Email verification is not mandatory at signup** (`email_confirm: true` is a deliberate product trade-off for one-motion signup). If strict verification becomes required, flip the flag and gate sign-in on confirmation.
+2. **`postcss` advisory** (build-time only; XSS via `</style>` stringify and source-map auto-loading) remains because the fix requires a breaking `next@16` upgrade. Documented as accepted build-time risk pending a planned major upgrade.
+3. **Device-linking is best-effort**: a user can clear cookies or switch browsers to evade device velocity. By design (no CAPTCHA); EXTREME/IP limits remain as backstop.
+4. **No custom WAF/DDoS module** — relies on Vercel platform edge; custom firewall rules not yet configured in the Vercel dashboard.
+5. **Flutterwave is test-mode only** — the real-mode close loop (live keys + live webhook verification) is not activated pending authorization.
+6. **Rate limits fail open** when Upstash is unreachable (availability over strictness) — acceptable for this scale, worth revisiting if abuse is observed.
+7. **Oracle A1 self-hosted gateway** is not yet provisioned (Oracle "Out of host capacity"; background retry loop continues). AI falls back to user-stored credentials meanwhile.
+
+*Previously-open risk now resolved: Supabase migration `011_audit_logs.sql` was applied on 2026-09-10 via the Management API (user-provided PAT) and the audit trail was verified live.*
 
 ---
 
 ## 20. Recommended future hardening
 
-1. Apply migration `011` (see §19.1) — unblocks the audit trail.
-2. Configure Vercel Firewall custom rules (bot detection, geo-block where appropriate) for defense-in-depth beyond headers.
-3. Add Turnstile/hCaptcha to signup **only if** signup abuse is observed (human-in-the-loop handoff until then).
-4. Plan a `next@16` major upgrade to clear the `postcss` advisory.
-5. Enable mandatory email verification once onboarding friction is acceptable.
-6. Add secret scanning (e.g. `trufflehog` / gitleaks) to CI for pre-push enforcement.
-7. Introduce structured log export/alerting on `audit_logs` (e.g. daily digest of `SUSPICIOUS_REGISTRATION`).
-8. Rate-limit webhook endpoints by source + signature and add replay protection for Flutterwave webhooks.
-9. Provision the Oracle A1 VM to make Ollama-first the default AI path and remove third-party API dependence.
+1. Configure Vercel Firewall custom rules (bot detection, geo-block where appropriate) for defense-in-depth beyond headers.
+2. Add Turnstile/hCaptcha to signup **only if** signup abuse is observed (human-in-the-loop handoff until then).
+3. Plan a `next@16` major upgrade to clear the `postcss` advisory.
+4. Enable mandatory email verification once onboarding friction is acceptable.
+5. Add secret scanning (e.g. `trufflehog` / gitleaks) to CI for pre-push enforcement.
+6. Introduce structured log export/alerting on `audit_logs` (e.g. daily digest of `SUSPICIOUS_REGISTRATION`).
+7. Rate-limit webhook endpoints by source + signature and add replay protection for Flutterwave webhooks.
+8. Provision the Oracle A1 VM to make Ollama-first the default AI path and remove third-party API dependence.
 
 ---
 
