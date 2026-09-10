@@ -5,10 +5,11 @@ import { IconSearch, IconMenu, IconClose } from './Icons';
 
 const LINKS = [
   { label: 'Home', href: '/', active: true },
-  { label: 'Jobs', href: '/jobs', active: false },
+  { label: 'How it works', href: '/how-it-works', active: false },
   { label: 'Pricing', href: '/pricing', active: false },
   { label: 'Resources', href: '/#tools', active: false },
-  { label: 'About', href: '/#about', active: false },
+  { label: 'Blog', href: '/blog', active: false },
+  { label: 'About', href: '/about', active: false },
 ];
 
 /** Jobiest wordmark + yellow ascent mark (the same mark geometry as Logo.tsx). */

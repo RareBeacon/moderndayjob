@@ -11,14 +11,43 @@ import {
   localizePrice,
   resolveCurrency,
 } from '@/lib/billing/currency';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata = {
   title: 'Pricing',
   description:
-    'Jobiest pricing: free forever, then Basic ₦5,000, Premium ₦10,000 and Max ₦20,000 a month. Prices shown in your local currency.',
+    'Jobiest pricing: free forever, then paid plans for more CVs, cover letters, approved automation and support. No card required to start.',
+  alternates: { canonical: `${SITE_URL}/pricing` },
 };
 
 export const dynamic = 'force-dynamic';
+
+const PROBLEM_ROWS = [
+  ['I do not know if my CV is passing ATS checks', 'ATS Resume Scanner', 'All plans'],
+  ['I spend hours writing cover letters for each role', 'Cover Letter Writer', 'All plans, with more daily volume on paid plans'],
+  ['I cannot apply to enough roles to get traction', 'Approved application automation', 'Premium and Max'],
+  ['I lose track of where I have applied', 'Application tracker dashboard', 'All plans'],
+  ['I need truthful documents, not AI hallucinations', 'Verified-facts generation and truthfulness checks', 'All plans'],
+];
+
+const FAQ = [
+  {
+    q: 'Is the free tier really free, or does it expire?',
+    a: 'It is free forever. You can keep using the free tools and your dashboard. Paid plans add more daily document volume, approved automation, priority processing and support.',
+  },
+  {
+    q: 'Do I have to let Jobiest send applications without checking them?',
+    a: 'No. Approval mode is the default. Nothing sends without you reviewing and confirming it first.',
+  },
+  {
+    q: 'What if I am in a field Jobiest does not specialize in?',
+    a: 'Jobiest works best where roles are posted on verified ATS sources such as Greenhouse, Ashby and Lever. That includes technology, finance, marketing, operations, design, HR, sales and more.',
+  },
+  {
+    q: 'What does verified facts only mean?',
+    a: 'It means Jobiest will not invent experience, inflate job titles, or fabricate skills to make an application look stronger. If a field is blank, the platform omits it or asks you for the fact instead of guessing.',
+  },
+];
 
 export default async function PricingPage({
   searchParams,
@@ -35,104 +64,74 @@ export default async function PricingPage({
 
   const rows: { label: string; values: Record<PlanCode, string> }[] = [
     {
-      label: 'Monthly price (₦)',
-      values: {
-        FREE: '₦0',
-        BASIC: '₦5,000',
-        PREMIUM: '₦10,000',
-        MAX: '₦20,000',
-      },
+      label: 'Monthly price',
+      values: Object.fromEntries(PLAN_ORDER.map((code) => {
+        const p = PLANS[code];
+        const price = localizePrice(p.monthlyNgn, currency, rates);
+        return [code, p.monthlyNgn === 0 ? price.formatted : `${price.formatted} / month`];
+      })) as Record<PlanCode, string>,
     },
-    {
-      label: 'AI documents',
-      values: { FREE: '3 total', BASIC: '3 / day', PREMIUM: '10 / day', MAX: '20 / day' },
-    },
-    {
-      label: 'Auto-apply slots',
-      values: { FREE: '—', BASIC: '2 total (trial)', PREMIUM: '10 / day', MAX: '20 / day' },
-    },
-    {
-      label: 'Free career tools',
-      values: { FREE: '10 / day', BASIC: '50 / day', PREMIUM: 'Unlimited', MAX: 'Unlimited' },
-    },
-    {
-      label: 'ATS resume scanner',
-      values: { FREE: '✓', BASIC: '✓', PREMIUM: '✓', MAX: '✓' },
-    },
-    {
-      label: 'Approval-mode workflow',
-      values: { FREE: 'Manual', BASIC: 'Trial', PREMIUM: '✓', MAX: '✓' },
-    },
-    {
-      label: 'Support',
-      values: { FREE: 'Community', BASIC: 'Priority email', PREMIUM: 'Priority + faster AI', MAX: 'Concierge' },
-    },
-    {
-      label: 'Human review',
-      values: { FREE: '—', BASIC: '—', PREMIUM: '—', MAX: '✓' },
-    },
+    { label: 'AI documents', values: { FREE: '3 total', BASIC: '3 / day', PREMIUM: '10 / day', MAX: '20 / day' } },
+    { label: 'Auto-apply slots', values: { FREE: '-', BASIC: '2 total trial uses', PREMIUM: '10 / day', MAX: '20 / day' } },
+    { label: 'Free career tools', values: { FREE: '10 / day', BASIC: '50 / day', PREMIUM: 'Unlimited', MAX: 'Unlimited' } },
+    { label: 'ATS resume scanner', values: { FREE: 'Included', BASIC: 'Included', PREMIUM: 'Included', MAX: 'Included' } },
+    { label: 'Approval-mode workflow', values: { FREE: 'Manual', BASIC: 'Trial', PREMIUM: 'Included', MAX: 'Included' } },
+    { label: 'Support', values: { FREE: 'Community', BASIC: 'Priority email', PREMIUM: 'Priority + faster queue', MAX: 'Concierge' } },
   ];
 
   return (
     <div className="jl-page">
       <JobletNavbar authenticated={!!user} />
       <main id="main">
-        <section className="jl-sec">
+        <section className="jl-sec blog-hero">
           <div className="jl-shell">
-            <div className="jl-sec-head center" style={{ paddingTop: 30 }}>
-              <span className="jl-kicker">Pricing</span>
-              <h1>Start free. Upgrade only when you need more momentum.</h1>
-              <p>
-                Free forever for job seekers. Paid plans add document volume, automation and support —
-                cancel anytime.
-              </p>
-              <CurrencyPicker current={currency} currencies={[...SUPPORTED_CURRENCIES]} />
-              <p className="jl-currency-note">
-                {currency === 'NGN'
-                  ? 'Prices shown in Naira (₦).'
-                  : `Prices shown in ${currency} as an estimate — you are billed in Naira (₦).`}
-              </p>
-            </div>
+            <span className="jl-kicker">Pricing</span>
+            <h1>Pay for what your search is actually worth.</h1>
+            <p>The free tier is permanent, not a trick to get your card details. Upgrade when the automation proves its value.</p>
+            <CurrencyPicker current={currency} currencies={[...SUPPORTED_CURRENCIES]} />
+            <p className="jl-currency-note">
+              {currency === 'NGN'
+                ? 'Prices shown in Naira (₦).'
+                : `Prices shown in ${currency} as an estimate. Billing is based on Naira pricing.`}
+            </p>
+          </div>
+        </section>
 
+        <section className="jl-sec tint">
+          <div className="jl-shell">
             <div className="jl-plans four">
-              {PLAN_ORDER.map((code) => {
+              {PLAN_ORDER.map((code, index) => {
                 const p = PLANS[code];
                 const price = localizePrice(p.monthlyNgn, currency, rates);
                 return (
-                  <div key={code} className={`jl-plan${p.featured ? ' featured' : ''}`}>
+                  <div key={code} className={`jl-plan${p.featured ? ' featured' : ''}`} data-animate data-animate-delay={index * 70}>
                     <h3>{p.name}</h3>
                     <div className="jl-price">
-                      {p.monthlyNgn === 0 ? (
-                        price.formatted
-                      ) : (
-                        <>
-                          {price.formatted}
-                          <small> /month</small>
-                        </>
-                      )}
+                      {p.monthlyNgn === 0 ? price.formatted : <>{price.formatted}<small> /month</small></>}
                     </div>
-                    {!price.isNgn && p.monthlyNgn > 0 && (
-                      <div className="jl-price-alt">≈ {price.approximate} · billed as ₦{p.monthlyNgn.toLocaleString('en-NG')}</div>
-                    )}
+                    {!price.isNgn && p.monthlyNgn > 0 && <div className="jl-price-alt">Estimate: {price.approximate}</div>}
                     <p className="jl-plan-tag">{p.tagline}</p>
-                    <ul>
-                      {p.features.map((f) => (
-                        <li key={f}>
-                          <span className="jl-tick">
-                            <svg width="10" height="8" viewBox="0 0 10 8" fill="none" aria-hidden="true">
-                              <path d="M1 4l2.5 2.5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          </span>
-                          {f}
-                        </li>
-                      ))}
-                    </ul>
-                    <Link className={`jl-btn-${p.featured ? 'solid' : 'outline'} jl-plan-cta`} href={p.ctaHref} style={{ textAlign: 'center' }}>
-                      {p.cta}
-                    </Link>
+                    <ul>{p.features.map((f) => <li key={f}><span className="jl-tick">✓</span>{f}</li>)}</ul>
+                    <Link className={`jl-btn-${p.featured ? 'solid' : 'outline'} jl-plan-cta`} href={p.ctaHref} style={{ textAlign: 'center' }}>{p.cta}</Link>
                   </div>
                 );
               })}
+            </div>
+            <p className="jl-trial-note center">Start free with no card. Upgrade only when you are ready for more volume and approved automation.</p>
+          </div>
+        </section>
+
+        <section className="jl-sec">
+          <div className="jl-shell">
+            <div className="jl-sec-head center">
+              <span className="jl-kicker">Problems solved</span>
+              <h2>Choose based on the bottleneck in your search.</h2>
+            </div>
+            <div className="jl-compare-wrap">
+              <table className="jl-compare">
+                <thead><tr><th>Problem it solves</th><th>Feature</th><th>Available on</th></tr></thead>
+                <tbody>{PROBLEM_ROWS.map(([problem, feature, plan]) => <tr key={problem}><td>{problem}</td><td>{feature}</td><td>{plan}</td></tr>)}</tbody>
+              </table>
             </div>
           </div>
         </section>
@@ -146,30 +145,22 @@ export default async function PricingPage({
             <div className="jl-compare-wrap">
               <table className="jl-compare">
                 <thead>
-                  <tr>
-                    <th> </th>
-                    {PLAN_ORDER.map((c) => (
-                      <th key={c}>{PLANS[c].name}</th>
-                    ))}
-                  </tr>
+                  <tr><th> </th>{PLAN_ORDER.map((c) => <th key={c}>{PLANS[c].name}</th>)}</tr>
                 </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr key={row.label}>
-                      <td>{row.label}</td>
-                      {PLAN_ORDER.map((c) => (
-                        <td key={c} className={c === 'PREMIUM' ? 'col-featured' : undefined}>
-                          {row.values[c]}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
+                <tbody>{rows.map((row) => <tr key={row.label}><td>{row.label}</td>{PLAN_ORDER.map((c) => <td key={c} className={c === 'PREMIUM' ? 'col-featured' : undefined}>{row.values[c]}</td>)}</tr>)}</tbody>
               </table>
             </div>
-            <p className="jl-trial-note center">
-              Free forever: 3 AI documents in total plus 10 tool uses a day. Basic adds 3 documents a day and 2 auto-apply trial uses — no card required to start.
-            </p>
+          </div>
+        </section>
+
+        <section className="jl-sec">
+          <div className="jl-shell jl-faq-wrap">
+            <div className="jl-sec-head center"><span className="jl-kicker">FAQ</span><h2>Pricing questions, answered.</h2></div>
+            <div className="faq">{FAQ.map((item) => <details className="faq-item" key={item.q}><summary className="faq-q">{item.q}</summary><div className="faq-a open"><div><p>{item.a}</p></div></div></details>)}</div>
+            <div className="pastor-response" style={{ marginTop: 34 }}>
+              <h2>Start with Free. Upgrade when you are ready.</h2>
+              <Link className="jl-btn-solid" href="/signup">Start Free</Link>
+            </div>
           </div>
         </section>
       </main>

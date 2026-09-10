@@ -21,9 +21,10 @@ export function JobletFooter() {
             <div>
               <h4>Product</h4>
               <ul>
-                <li><a href="/#how">How it works</a></li>
+                <li><a href="/how-it-works">How it works</a></li>
                 <li><a href="/#tools">Free tools</a></li>
-                <li><a href="/#pricing">Pricing</a></li>
+                <li><a href="/pricing">Pricing</a></li>
+                <li><a href="/blog">Blog</a></li>
                 <li><a href="/jobs">Browse jobs</a></li>
               </ul>
             </div>
@@ -32,7 +33,7 @@ export function JobletFooter() {
               <ul>
                 <li><a href="/signup">Start free</a></li>
                 <li><a href="/login">Sign in</a></li>
-                <li><a href="/pricing">Pricing</a></li>
+                <li><a href="/about">About</a></li>
                 <li><a href="/#faq">Help</a></li>
               </ul>
             </div>

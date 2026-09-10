@@ -11,6 +11,7 @@ const NAV = [
   { href: '/admin/users', key: 'users', label: 'Users' },
   { href: '/admin/credentials', key: 'credentials', label: 'AI credentials' },
   { href: '/admin/security', key: 'security', label: 'Security' },
+  { href: '/admin/seo', key: 'seo', label: 'SEO Mission Control' },
 ] as const;
 
 export function AdminShell({ active, children }: { active: (typeof NAV)[number]['key']; children: ReactNode }) {

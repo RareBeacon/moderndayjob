@@ -19,6 +19,10 @@ const schema = z.object({
   // Resend transactional email.
   RESEND_API_KEY: z.string().default(''),
   RESEND_FROM: z.string().default('hello@jobiest.com'),
+  NEXT_PUBLIC_APP_URL: z.string().url().default('https://jobiest.com'),
+  GOOGLE_CLIENT_ID: z.string().default(''),
+  GOOGLE_CLIENT_SECRET: z.string().default(''),
+  GOOGLE_REDIRECT_URI: z.string().url().or(z.literal('')).default(''),
 });
 export const env = schema.parse({
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -37,4 +41,8 @@ export const env = schema.parse({
   OLLAMA_API_KEY: process.env.OLLAMA_API_KEY,
   RESEND_API_KEY: process.env.RESEND_API_KEY,
   RESEND_FROM: process.env.RESEND_FROM,
+  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+  GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
 });
