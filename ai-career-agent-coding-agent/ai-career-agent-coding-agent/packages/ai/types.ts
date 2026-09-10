@@ -60,6 +60,9 @@ export interface AITask<Input, Output> {
   readonly id: string;
   readonly version: number;
   readonly schema: ZodType<Output, ZodTypeDef, unknown>;
+  /** Maximum completion tokens; forwarded to the provider to bound cost and
+   *  latency on slow (CPU) models. Undefined = provider default. */
+  readonly maxTokens?: number;
   buildMessages(input: Input): AIMessage[];
 }
 

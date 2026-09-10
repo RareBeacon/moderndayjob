@@ -53,7 +53,11 @@ export class AIGateway {
       const messages = task.buildMessages(input);
       let res: ChatResponse;
       try {
-        res = await provider.chat(messages, { responseFormat: 'json', temperature: 0.2 });
+        res = await provider.chat(messages, {
+          responseFormat: 'json',
+          temperature: 0.2,
+          maxTokens: task.maxTokens,
+        });
       } catch (err) {
         attempts.push({ provider: provider.name, message: errMsg(err) });
         continue; // provider failure → fall back (§13)
