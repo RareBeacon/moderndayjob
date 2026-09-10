@@ -25,11 +25,19 @@ export interface ParsedDocument {
 }
 
 interface CvJson {
+  templateId?: string;
+  templateName?: string;
+  contact?: { name?: string; email?: string; phone?: string; location?: string; website?: string; linkedin?: string; github?: string };
   headline?: string;
   summary?: string;
-  experiences?: { company?: string; title?: string; start?: string; end?: string; bullets?: string[] }[];
+  experiences?: { company?: string; title?: string; location?: string; start?: string; end?: string; bullets?: string[] }[];
   skills?: string[];
-  education?: { institution?: string; qualification?: string }[];
+  education?: { institution?: string; qualification?: string; start?: string; end?: string; achievements?: string }[];
+  projects?: { name?: string; description?: string; technologies?: string[]; url?: string; achievements?: string[] }[];
+  certifications?: { name?: string; issuer?: string; date?: string }[];
+  achievements?: string[];
+  additional?: string;
+  references?: string;
   answers?: { question?: string; answer?: string }[];
   body?: string;
 }
@@ -49,17 +57,23 @@ export function parseDocumentContent(kind: string, content: string): ParsedDocum
     json = null;
   }
 
-  if (kind === 'CV' && json && (json.headline || json.summary || json.experiences)) {
+  if (kind === 'CV' && json && (json.headline || json.summary || json.experiences || json.contact)) {
     const sections: ExportSection[] = [];
-    const h = firstNonEmpty(json.headline);
+    const h = firstNonEmpty(json.contact?.name) ?? firstNonEmpty(json.headline);
+    const headline = firstNonEmpty(json.headline);
     const s = firstNonEmpty(json.summary);
     if (h) sections.push({ heading: undefined, lines: [h] });
+    const contact = [json.contact?.email, json.contact?.phone, json.contact?.location, json.contact?.website, json.contact?.linkedin, json.contact?.github]
+      .map((x) => (x ? String(x).trim() : ''))
+      .filter(Boolean);
+    if (contact.length) sections.push({ heading: undefined, lines: [contact.join(' | ')] });
+    if (headline && headline !== h) sections.push({ heading: undefined, lines: [headline] });
     if (s) sections.push({ heading: 'Professional summary', lines: [s] });
     if (json.experiences?.length) {
       const lines: string[] = [];
       const bullets: boolean[] = [];
       for (const e of json.experiences) {
-        const head = [e.title, e.company].filter((x) => x && String(x).trim()).join(' - ');
+        const head = [e.title, e.company, e.location].filter((x) => x && String(x).trim()).join(' | ');
         const when = [e.start, e.end].filter((x) => x && String(x).trim()).join(' to ');
         if (head || when) {
           lines.push([head, when].filter(Boolean).join(', '));
@@ -71,16 +85,40 @@ export function parseDocumentContent(kind: string, content: string): ParsedDocum
       }
       sections.push({ heading: 'Experience', lines, bullets });
     }
+    if (json.projects?.length) {
+      const lines: string[] = [];
+      const bullets: boolean[] = [];
+      for (const p of json.projects) {
+        const head = [p.name, p.url].filter((x) => x && String(x).trim()).join(' | ');
+        if (head) { lines.push(head); bullets.push(false); }
+        if (p.description) { lines.push(p.description.trim()); bullets.push(true); }
+        if (p.technologies?.length) { lines.push(`Tools: ${p.technologies.join(', ')}`); bullets.push(true); }
+        for (const a of p.achievements ?? []) { if (a?.trim()) { lines.push(a.trim()); bullets.push(true); } }
+      }
+      sections.push({ heading: 'Projects', lines, bullets });
+    }
     if (json.skills?.length) {
       sections.push({ heading: 'Skills', lines: [json.skills.join(', ')] });
     }
     if (json.education?.length) {
       sections.push({
         heading: 'Education',
-        lines: json.education.map((e) => [e.qualification, e.institution].filter((x) => x && String(x).trim()).join(' - ')).filter(Boolean),
+        lines: json.education.map((e) => {
+          const main = [e.qualification, e.institution].filter((x) => x && String(x).trim()).join(' | ');
+          const when = [e.start, e.end].filter((x) => x && String(x).trim()).join(' to ');
+          return [main, when, e.achievements].filter((x) => x && String(x).trim()).join(', ');
+        }).filter(Boolean),
       });
     }
-    return { title: h ?? 'Resume', sections };
+    if (json.certifications?.length) {
+      sections.push({ heading: 'Certifications', lines: json.certifications.map((c) => [c.name, c.issuer, c.date].filter((x) => x && String(x).trim()).join(' | ')).filter(Boolean) });
+    }
+    if (json.achievements?.length) {
+      sections.push({ heading: 'Achievements', lines: json.achievements.filter(Boolean), bullets: json.achievements.map(() => true) });
+    }
+    if (json.additional) sections.push({ heading: 'Additional information', lines: [json.additional] });
+    if (json.references) sections.push({ heading: 'References', lines: [json.references] });
+    return { title: h ?? headline ?? 'Resume', sections };
   }
 
   if (kind === 'ANSWERS' && json?.answers?.length) {

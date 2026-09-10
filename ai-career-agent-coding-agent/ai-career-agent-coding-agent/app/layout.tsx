@@ -43,6 +43,7 @@ export const metadata: Metadata = {
   },
   twitter: { card: 'summary_large_image', title: 'Jobiest · your AI career agent', description: 'Your AI career agent. Truthful applications, full tracking, you in control.' },
   robots: { index: true, follow: true },
+  verification: { google: 'IFlK-iarS16eAascWNcpjO_H98qhdlIkN_3GfxyBiyk' },
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },

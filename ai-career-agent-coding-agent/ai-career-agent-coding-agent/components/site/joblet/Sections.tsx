@@ -100,6 +100,21 @@ const AFTER = [
   'One dashboard for every application and status',
 ];
 
+const RESUME_HEADLINES = [
+  {
+    title: 'AI Experience Builder',
+    body: 'Tell Jobiest what you actually did in plain English. The assistant asks useful follow-up questions and turns your real work into stronger resume bullets.',
+  },
+  {
+    title: '50-template library',
+    body: 'Choose from Minimal, Modern, Professional, Creative and Executive resume systems. Switching templates changes the presentation without losing your content.',
+  },
+  {
+    title: 'Live preview',
+    body: 'Watch your resume update as you build it. The desktop studio shows preview side by side, while mobile keeps preview one tap away.',
+  },
+];
+
 export function JobletAbout() {
   return (
     <section className="jl-sec tint" id="solution">
@@ -114,6 +129,15 @@ export function JobletAbout() {
           <p>Jobiest connects to verified ATS sources, scores listings against your actual profile, writes personalized CVs and cover letters from your verified history, and prepares applications for your approval.</p>
           <p>No invention. No embellishment. No application leaves without your explicit say-so.</p>
           <p>The job search does not have to cost you this much. It has to be done smarter.</p>
+        </div>
+        <div className="resume-headlines-grid">
+          {RESUME_HEADLINES.map((item, i) => (
+            <div className="resume-headline-card" key={item.title} data-animate data-animate-delay={110 + i * 70}>
+              <span>Resume Studio</span>
+              <h3>{item.title}</h3>
+              <p>{item.body}</p>
+            </div>
+          ))}
         </div>
       </div>
     </section>

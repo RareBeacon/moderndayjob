@@ -11,6 +11,7 @@ export interface PersistInput {
   content: string;
   report: TruthfulnessReport;
   provider: string;
+  extraSourceFacts?: Record<string, unknown>;
 }
 
 export interface PersistedDocument {
@@ -43,6 +44,7 @@ export async function persistGeneratedDocument(input: PersistInput): Promise<Per
   const version = ((existing?.[0]?.version as number | undefined) ?? 0) + 1;
 
   const sourceFacts = {
+    ...(input.extraSourceFacts ?? {}),
     provider: input.provider,
     truthfulnessPassed: input.report.passed,
     supported: input.report.supported.map((c) => ({ category: c.category, value: c.value })),
