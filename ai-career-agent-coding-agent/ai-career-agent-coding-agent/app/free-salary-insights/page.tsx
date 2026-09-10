@@ -3,8 +3,10 @@ import Link from 'next/link';
 import { getUser } from '@/lib/auth';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { SalaryInsightsTool } from '@/components/freetools/SalaryInsightsTool';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
+  alternates: { canonical: `${SITE_URL}/free-salary-insights` },
   title: 'Free Salary Insights, only what listings actually state',
   description:
     'We read real job listings for your role and report only the pay ranges they explicitly state, no estimates, no invented market averages. Honest salary signals, free.',

@@ -3,8 +3,10 @@ import Link from 'next/link';
 import { getUser } from '@/lib/auth';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { LinkedInHeadlineTool } from '@/components/freetools/LinkedInHeadlineTool';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
+  alternates: { canonical: `${SITE_URL}/free-linkedin-headline-builder` },
   title: 'Free LinkedIn Headline Builder, honest, buzzword-free options',
   description:
     'Five LinkedIn headline options built from your verified profile facts, role-first, skills-first, and a plain conservative one. Truthfulness-checked. Free.',

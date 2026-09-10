@@ -3,8 +3,10 @@ import Link from 'next/link';
 import { getUser } from '@/lib/auth';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { ResumeSummaryTool } from '@/components/freetools/ResumeSummaryTool';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
+  alternates: { canonical: `${SITE_URL}/free-resume-summary-generator` },
   title: 'Free Resume Summary Generator, from your verified facts only',
   description:
     'Three professional resume summary options written only from your verified profile facts, checked by a truthfulness gate before you see them. Free.',

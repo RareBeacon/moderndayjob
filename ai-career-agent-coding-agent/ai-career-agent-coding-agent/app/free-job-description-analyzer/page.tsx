@@ -3,8 +3,10 @@ import Link from 'next/link';
 import { getUser } from '@/lib/auth';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { JDAnalyzerTool } from '@/components/freetools/JDAnalyzerTool';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
+  alternates: { canonical: `${SITE_URL}/free-job-description-analyzer` },
   title: 'Free Job Description Analyzer, skills, keywords & gaps in seconds',
   description:
     'Paste any job description and get a structured breakdown: required skills, keywords, core responsibilities, plus which requirements your profile already matches. Free, truthful, nothing invented.',

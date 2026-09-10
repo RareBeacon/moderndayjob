@@ -3,8 +3,10 @@ import Link from 'next/link';
 import { getUser } from '@/lib/auth';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { AtsScannerTool } from '@/components/freetools/AtsScannerTool';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
+  alternates: { canonical: `${SITE_URL}/free-ats-resume-scanner` },
   title: 'Free ATS Resume Scanner, deterministic checks, no AI credits',
   description:
     'Paste your CV and get an instant parseability score: contact details, sections, dates, action verbs, and keyword match against any job description. Deterministic checks, free, unlimited.',

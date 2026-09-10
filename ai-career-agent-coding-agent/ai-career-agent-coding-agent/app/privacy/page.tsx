@@ -1,6 +1,8 @@
 import { LegalPage } from '@/components/site/LegalPage';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata = {
+  alternates: { canonical: `${SITE_URL}/privacy` },
   title: 'Privacy Policy',
   description: 'How Jobiest collects, uses and protects your data.',
 };

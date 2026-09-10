@@ -3,8 +3,10 @@ import Link from 'next/link';
 import { getUser } from '@/lib/auth';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { CoverLetterTool } from '@/components/freetools/CoverLetterTool';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
+  alternates: { canonical: `${SITE_URL}/free-cover-letter-writer` },
   title: 'Free Cover Letter Writer, truthful letters from your real profile',
   description:
     'Generate a concise, professional cover letter built only from your verified profile facts. A built-in truthfulness checker rejects any claim your profile can’t support. Free.',

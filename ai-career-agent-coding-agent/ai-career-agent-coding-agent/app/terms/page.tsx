@@ -1,6 +1,8 @@
 import { LegalPage } from '@/components/site/LegalPage';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata = {
+  alternates: { canonical: `${SITE_URL}/terms` },
   title: 'Terms of Service',
   description: 'The terms that govern your use of Jobiest.',
 };

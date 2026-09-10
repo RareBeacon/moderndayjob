@@ -3,8 +3,10 @@ import Link from 'next/link';
 import { getUser } from '@/lib/auth';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { FollowupEmailTool } from '@/components/freetools/FollowupEmailTool';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
+  alternates: { canonical: `${SITE_URL}/free-follow-up-email-writer` },
   title: 'Free Follow-up Email Writer, polite, honest nudges',
   description:
     'Draft a short, polite follow-up email after a job application, built only from the facts you provide. No invented names, dates, or conversations. Free.',

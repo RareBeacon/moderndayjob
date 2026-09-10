@@ -3,8 +3,10 @@ import Link from 'next/link';
 import { getUser } from '@/lib/auth';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { CareerPathsTool } from '@/components/freetools/CareerPathsTool';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
+  alternates: { canonical: `${SITE_URL}/free-career-path-explorer` },
   title: 'Free Career Path Explorer, directions grown from your real skills',
   description:
     'Three career directions worth exploring, based only on the skills in your verified profile, each citing the exact skills it builds on. Checked, grounded, free.',

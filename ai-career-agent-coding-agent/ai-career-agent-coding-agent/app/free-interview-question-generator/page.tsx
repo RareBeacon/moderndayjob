@@ -3,8 +3,10 @@ import Link from 'next/link';
 import { getUser } from '@/lib/auth';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { InterviewQuestionsTool } from '@/components/freetools/InterviewQuestionsTool';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
+  alternates: { canonical: `${SITE_URL}/free-interview-question-generator` },
   title: 'Free Interview Question Generator, practice from the real listing',
   description:
     'Paste any job description and get realistic interview practice questions with what each one tests, plus preparation tips. Grounded in what the listing actually states. Free.',

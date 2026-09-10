@@ -1,3 +1,5 @@
+import type { Metadata } from 'next';
+import { SITE_URL } from '@/lib/site';
 import { supabaseAdmin } from '@/lib/supabase';
 import { JobletNavbar } from '@/components/site/joblet/Navbar';
 import { JobletHero } from '@/components/site/joblet/Hero';
@@ -9,6 +11,10 @@ import { JobletFooter } from '@/components/site/joblet/Footer';
    minutes, so the live-listings note shows recent counts without hammering
    the database on every visit. */
 export const revalidate = 300;
+
+export const metadata: Metadata = {
+  alternates: { canonical: SITE_URL },
+};
 
 /** Live market counts from the job pool. Honest on failure: empty means we
  *  show nothing rather than inventing numbers. */

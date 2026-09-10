@@ -3,8 +3,10 @@ import Link from 'next/link';
 import { getUser } from '@/lib/auth';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { SkillsMatcherTool } from '@/components/freetools/SkillsMatcherTool';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
+  alternates: { canonical: `${SITE_URL}/free-skills-matcher` },
   title: 'Free Skills Matcher, see which of your skills a job rewards',
   description:
     'Score the jobs in your pool against your real profile with explainable results: fit score, strengths, gaps, and the reasons, not a black box. Free.',

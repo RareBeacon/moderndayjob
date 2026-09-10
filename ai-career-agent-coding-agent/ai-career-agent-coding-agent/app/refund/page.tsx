@@ -1,6 +1,8 @@
 import { LegalPage } from '@/components/site/LegalPage';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata = {
+  alternates: { canonical: `${SITE_URL}/refund` },
   title: 'Refund Policy',
   description: 'Jobiest refund policy for paid subscriptions.',
 };
