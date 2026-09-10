@@ -556,8 +556,7 @@ export async function runPublicUrlAudit(project: SeoProject, actorUserId?: strin
       const indexingState = googleInspectionState(inspection?.status as string | undefined);
       const hasTechnicalBlocker = errors.some((error) => ['HTTP_NOT_200', 'ROBOTS_BLOCKED_OR_NOT_PUBLIC_ALLOWLIST', 'NOINDEX_PRESENT', 'SERVER_RENDER_CHECK_FAILED'].includes(error));
       const googleIndexed = indexingState === 'INDEXED_CONFIRMED_BY_GOOGLE';
-      const googleNotIndexed = /not indexed|not on google|excluded|fail/i.test(indexingState);
-      const status = noindex ? 'NOINDEX' : hasTechnicalBlocker ? 'ERROR' : errors.length || googleNotIndexed ? 'WARNING' : googleIndexed ? 'PASS' : 'WAITING_FOR_GOOGLE';
+      const status = noindex ? 'NOINDEX' : hasTechnicalBlocker ? 'ERROR' : errors.length ? 'WARNING' : googleIndexed ? 'PASS' : 'WAITING_FOR_GOOGLE';
 
       return {
         project_id: project.id,
@@ -630,7 +629,7 @@ export async function inspectImportantUrls(project: SeoProject, actorUserId?: st
       indexing_state: normalizedState,
       last_inspected_at: new Date().toISOString(),
       google_response: result,
-      status: normalizedState === 'INDEXED_CONFIRMED_BY_GOOGLE' ? 'PASS' : normalizedState === 'WAITING_FOR_GOOGLE' ? 'WAITING_FOR_GOOGLE' : 'WARNING',
+      status: normalizedState === 'INDEXED_CONFIRMED_BY_GOOGLE' ? 'PASS' : 'WAITING_FOR_GOOGLE',
       updated_at: new Date().toISOString(),
     }).eq('project_id', project.id).eq('url', normalizeComparableUrl(url) ?? url);
   }
@@ -759,7 +758,7 @@ export async function inspectAndRecordUrl(project: SeoProject, url: string, acto
       indexing_state: normalizedState,
       last_inspected_at: new Date().toISOString(),
       google_response: result,
-      status: normalizedState === 'INDEXED_CONFIRMED_BY_GOOGLE' ? 'PASS' : normalizedState === 'WAITING_FOR_GOOGLE' ? 'WAITING_FOR_GOOGLE' : 'WARNING',
+      status: normalizedState === 'INDEXED_CONFIRMED_BY_GOOGLE' ? 'PASS' : 'WAITING_FOR_GOOGLE',
       updated_at: new Date().toISOString(),
     }).eq('project_id', project.id).eq('url', normalizeComparableUrl(url) ?? url).then(undefined, () => undefined);
     await finishSeoTask(taskId, 'SUCCEEDED', { url, status });
