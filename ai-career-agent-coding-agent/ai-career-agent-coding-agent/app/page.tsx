@@ -140,7 +140,7 @@ function LandingNav() {
 }
 
 function AgentPreview({ liveTotal, liveSources }: { liveTotal: number; liveSources: string[] }) {
-  const liveCopy = liveTotal > 0 ? `${liveTotal.toLocaleString()} roles scanned` : 'Verified sources';
+  const liveCopy = liveTotal > 0 ? `${liveTotal.toLocaleString()} roles scanned` : 'Source scan active';
   return (
     <div className="ja-agent-card animate-gentle-float" data-animate data-animate-delay="120">
       <div className="ja-agent-top">
@@ -180,6 +180,7 @@ function AgentPreview({ liveTotal, liveSources }: { liveTotal: number; liveSourc
 export default async function HomePage() {
   const market = await getLiveMarket();
   const liveTotal = market.total;
+  const roleStat = liveTotal > 0 ? liveTotal.toLocaleString() : 'Live';
 
   return (
     <div className="ja-page">
@@ -206,7 +207,7 @@ export default async function HomePage() {
             <AgentPreview liveTotal={liveTotal} liveSources={market.sources} />
           </div>
           <div className="ja-container ja-hero-bottom" data-animate data-animate-delay="260">
-            <div><strong>{liveTotal.toLocaleString()}</strong><span>roles reviewed from your live job pool</span></div>
+            <div><strong>{roleStat}</strong><span>roles reviewed from verified sources</span></div>
             <div><strong>100%</strong><span>human approval before applications move</span></div>
             <div><strong>0</strong><span>fabricated CV claims by design</span></div>
             <div><strong>Live</strong><span>systems operational</span></div>
@@ -217,7 +218,7 @@ export default async function HomePage() {
           <div className="ja-container ja-social-grid">
             <p data-animate>A better process for people with better things to do.</p>
             <div className="ja-social-stats" data-animate data-animate-delay="90">
-              <span><b>{liveTotal.toLocaleString()}</b> live roles</span>
+              <span><b>{roleStat}</b> role scan</span>
               <span><b>SEO</b> public pages ready</span>
               <span><b>100%</b> approval control</span>
             </div>
