@@ -15,7 +15,7 @@ async function checkDb(): Promise<'ok' | 'error'> {
   try {
     const { error } = await supabaseAdmin
       .from('profiles')
-      .select('id', { count: 'exact', head: true })
+      .select('user_id', { count: 'exact', head: true })
       .limit(1);
     return error ? 'error' : 'ok';
   } catch {
