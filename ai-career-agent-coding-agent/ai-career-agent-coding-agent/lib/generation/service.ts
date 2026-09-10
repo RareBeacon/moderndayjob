@@ -1,6 +1,7 @@
 import type { AITask } from '@packages/ai/types';
 import type { TruthfulProfile, VerificationInput } from '@/lib/truthfulness/types';
 import { verifyDocument } from '@/lib/truthfulness/verify';
+import { stripDashes } from '@/lib/ai/sanitize';
 import { ANSWERS_TASK, COVER_LETTER_TASK, CV_TASK } from './tasks';
 import type {
   AnswersOutput,
@@ -44,7 +45,7 @@ export async function generateDocument(input: GenerateInput): Promise<Generation
     return {
       kind: 'CV',
       title: input.job ? `CV, ${input.job.title}` : 'CV, General',
-      content: JSON.stringify(data, null, 2),
+      content: stripDashes(JSON.stringify(data, null, 2)),
       report,
       provider,
     };
@@ -62,7 +63,7 @@ export async function generateDocument(input: GenerateInput): Promise<Generation
     return {
       kind: 'COVER_LETTER',
       title: input.job ? `Cover letter, ${input.job.company}` : 'Cover letter, General',
-      content: data.body,
+      content: stripDashes(data.body),
       report,
       provider,
     };
@@ -76,7 +77,7 @@ export async function generateDocument(input: GenerateInput): Promise<Generation
     job: input.job,
     questions,
   });
-  const text = data.answers.map((a) => `${a.question}\n${a.answer}`).join('\n\n');
+  const text = stripDashes(data.answers.map((a) => `${a.question}\n${a.answer}`).join('\n\n'));
   const report = verifyDocument(
     { claimedEmployers: data.references.employers, claimedSchools: data.references.schools, claimedSkills: data.references.skills, text },
     truthfulProfile,
@@ -84,7 +85,7 @@ export async function generateDocument(input: GenerateInput): Promise<Generation
   return {
     kind: 'ANSWERS',
     title: input.job ? `Answers, ${input.job.company}` : 'Answers, General',
-    content: JSON.stringify(data, null, 2),
+    content: stripDashes(JSON.stringify(data, null, 2)),
     report,
     provider,
   };

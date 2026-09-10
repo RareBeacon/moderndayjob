@@ -10,6 +10,15 @@ const schema = z.object({
   ENCRYPTION_MASTER_KEY: z.string().min(32).default('development-only-key-must-be-replaced'),
   OPENROUTER_BASE_URL: z.string().url().default('https://openrouter.ai/api/v1'),
   HUGGINGFACE_BASE_URL: z.string().url().default('https://router.huggingface.co/v1'),
+  // Ollama-first self-hosted AI (Oracle VM). Empty base URL disables Ollama
+  // and the gateway falls back to user-stored credentials only.
+  OLLAMA_BASE_URL: z.string().default(''),
+  OLLAMA_MODEL: z.string().default('qwen2.5:7b'),
+  OLLAMA_FALLBACK_MODEL: z.string().default('llama3.2:3b'),
+  OLLAMA_API_KEY: z.string().default(''),
+  // Resend transactional email.
+  RESEND_API_KEY: z.string().default(''),
+  RESEND_FROM: z.string().default('no-reply@jobiest.com'),
 });
 export const env = schema.parse({
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -22,4 +31,10 @@ export const env = schema.parse({
   ENCRYPTION_MASTER_KEY: process.env.ENCRYPTION_MASTER_KEY,
   OPENROUTER_BASE_URL: process.env.OPENROUTER_BASE_URL,
   HUGGINGFACE_BASE_URL: process.env.HUGGINGFACE_BASE_URL,
+  OLLAMA_BASE_URL: process.env.OLLAMA_BASE_URL,
+  OLLAMA_MODEL: process.env.OLLAMA_MODEL,
+  OLLAMA_FALLBACK_MODEL: process.env.OLLAMA_FALLBACK_MODEL,
+  OLLAMA_API_KEY: process.env.OLLAMA_API_KEY,
+  RESEND_API_KEY: process.env.RESEND_API_KEY,
+  RESEND_FROM: process.env.RESEND_FROM,
 });

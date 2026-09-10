@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { sendWelcomeEmail } from '@/lib/email/resend';
 
 /**
  * POST /api/auth/signup · create an account that works immediately.
@@ -50,6 +51,12 @@ export async function POST(req: Request) {
       );
     }
     return NextResponse.json({ error: 'We could not create your account just now. Please try again.' }, { status: 500 });
+  }
+
+  // Best-effort welcome email (Resend). Fire-and-forget: never delays or fails
+  // the sign-up response.
+  if (data.user?.email) {
+    sendWelcomeEmail(data.user.email, name).catch(() => {});
   }
 
   return NextResponse.json({ ok: true, user: { id: data.user?.id ?? null } });

@@ -1,7 +1,8 @@
 import { supabaseAdmin } from '@/lib/supabase';
+import { env } from '@/lib/env';
 import { decryptSecret } from '@packages/security/crypto';
 import { AIGateway, AIGatewayError } from '@packages/ai/gateway';
-import { OpenAICompatProvider, httpChat } from '@packages/ai/providers';
+import { OpenAICompatProvider, OllamaProvider, httpChat } from '@packages/ai/providers';
 import type { AIProvider, UsageMeter } from '@packages/ai/types';
 
 /** Thrown when the user has no active AI credential configured. */
@@ -20,11 +21,47 @@ interface CredentialRow {
   key_version: number;
 }
 
+/** True when a self-hosted Ollama endpoint is configured (Ollama-first mode). */
+export function ollamaConfigured(): boolean {
+  return env.OLLAMA_BASE_URL.trim().length > 0;
+}
+
 /**
- * Build a gateway for a user from their active ai_credentials rows. Credentials
- * are decrypted here (server-only) and never logged. Rows are ordered by
- * key_version desc then created_at desc, so the newest/most-trusted key is the
- * primary and older keys form the fallback chain (ARCHITECTURE §13).
+ * The local provider chain: the strongest practical model first, the lighter
+ * local fallback second (spec §4). Both hit the same secret-gated gateway.
+ */
+function buildOllamaProviders(): AIProvider[] {
+  if (!ollamaConfigured()) return [];
+  const providers: AIProvider[] = [
+    new OllamaProvider({
+      name: 'ollama',
+      model: env.OLLAMA_MODEL,
+      baseUrl: env.OLLAMA_BASE_URL,
+      apiKey: env.OLLAMA_API_KEY,
+      priority: 0,
+    }),
+  ];
+  if (env.OLLAMA_FALLBACK_MODEL && env.OLLAMA_FALLBACK_MODEL !== env.OLLAMA_MODEL) {
+    providers.push(
+      new OllamaProvider({
+        name: 'ollama-fallback',
+        model: env.OLLAMA_FALLBACK_MODEL,
+        baseUrl: env.OLLAMA_BASE_URL,
+        apiKey: env.OLLAMA_API_KEY,
+        priority: 1,
+      }),
+    );
+  }
+  return providers;
+}
+
+/**
+ * Build a gateway for a user. Provider order (ARCHITECTURE §13):
+ *   1. Ollama strong model (env-configured, when present)
+ *   2. Ollama fallback model (env-configured, when different)
+ *   3. the user's active ai_credentials rows, newest key first
+ *
+ * Credentials are decrypted here (server-only) and never logged.
  */
 export async function buildGatewayForUser(userId: string): Promise<AIGateway> {
   const { data: creds, error } = await supabaseAdmin
@@ -36,21 +73,27 @@ export async function buildGatewayForUser(userId: string): Promise<AIGateway> {
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  if (!creds || creds.length === 0) throw new AICredentialMissingError();
 
-  const providers: AIProvider[] = (creds as CredentialRow[]).map((c, idx) => {
+  const ollama = buildOllamaProviders();
+  if ((!creds || creds.length === 0) && ollama.length === 0) throw new AICredentialMissingError();
+
+  const providers: AIProvider[] = [...ollama];
+  let priority = ollama.length;
+  for (const c of (creds ?? []) as CredentialRow[]) {
     const apiKey = decryptSecret(c.ciphertext);
-    return new OpenAICompatProvider(
-      {
-        name: c.provider,
-        model: c.model,
-        baseUrl: c.base_url,
-        apiKey,
-        priority: idx,
-      },
-      httpChat,
+    providers.push(
+      new OpenAICompatProvider(
+        {
+          name: c.provider,
+          model: c.model,
+          baseUrl: c.base_url,
+          apiKey,
+          priority: priority++,
+        },
+        httpChat,
+      ),
     );
-  });
+  }
   return new AIGateway(providers);
 }
 
