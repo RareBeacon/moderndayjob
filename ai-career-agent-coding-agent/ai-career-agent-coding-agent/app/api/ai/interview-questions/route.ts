@@ -4,7 +4,7 @@ import { requireUser } from '@/lib/auth';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { assertEntitlement } from '@packages/security/entitlements';
 import { AIGatewayError } from '@packages/ai/gateway';
-import { AICredentialMissingError, buildGatewayForUser, createToolMeter } from '@/lib/ai/server';
+import { createToolMeter } from '@/lib/ai/server';
 import { generateInterviewQuestions } from '@/lib/analysis/service';
 
 const body = z.object({ jobDescription: z.string().min(30).max(30000) });
@@ -15,8 +15,7 @@ export const maxDuration = 300;
  * POST /api/ai/interview-questions, free-tool interview practice generator.
  *
  * Questions are derived only from what the listing states. Costs one daily
- * AI credit, refunded when the provider fails. Public tool pages gate this
- * behind a free account.
+ * free-tool use. Public tool pages gate this behind a free account.
  */
 export async function POST(req: Request) {
   const user = await requireUser().catch(() => null);
@@ -37,15 +36,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'DAILY_TOOL_USES_EXHAUSTED' }, { status: 429 });
   }
 
-  let gateway;
-  try {
-    gateway = await buildGatewayForUser(user.id);
-  } catch (err) {
-    if (err instanceof AICredentialMissingError) {
-      return NextResponse.json({ error: 'AI_CREDENTIAL_NOT_CONFIGURED' }, { status: 503 });
-    }
-    throw err;
-  }
 
   const meter = createToolMeter(user.id);
   try {
@@ -58,7 +48,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await generateInterviewQuestions({ gateway, jobDescription });
+    const result = await generateInterviewQuestions({ jobDescription, deterministicOnly: true });
     return NextResponse.json({ result });
   } catch (err) {
     await meter.refund();

@@ -75,9 +75,9 @@ export interface JobMatch {
 export interface MatchOptions {
   /** Minimum score (0-100) to include in the shortlist. Default 60. */
   threshold?: number;
-  /** Max jobs to send to AI scoring after deterministic filtering. Default 10. */
+  /** Max jobs to score after deterministic filtering. Default 10. */
   maxScored?: number;
-  /** Concurrency for AI scoring. Default 3. */
+  /** Concurrency for scoring. Default 3. */
   concurrency?: number;
 }
 

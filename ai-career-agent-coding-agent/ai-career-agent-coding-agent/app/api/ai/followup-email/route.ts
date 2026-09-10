@@ -4,7 +4,7 @@ import { requireUser } from '@/lib/auth';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { assertEntitlement } from '@packages/security/entitlements';
 import { AIGatewayError } from '@packages/ai/gateway';
-import { AICredentialMissingError, buildGatewayForUser, createToolMeter } from '@/lib/ai/server';
+import { createToolMeter } from '@/lib/ai/server';
 import { generateFollowupEmail } from '@/lib/analysis/service';
 import { supabaseAdmin } from '@/lib/supabase';
 
@@ -21,8 +21,8 @@ export const maxDuration = 300;
 
 /**
  * POST /api/ai/followup-email, polite follow-up drafted from facts the user
- * supplies (or from a real tracked application). No qualification claims →
- * no truthfulness gate. One AI credit, refunded on provider failure.
+ * supplies (or from a real tracked application). No qualification claims, so
+ * no truthfulness gate. Costs one daily free-tool use.
  */
 export async function POST(req: Request) {
   const user = await requireUser().catch(() => null);
@@ -62,15 +62,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'DAILY_TOOL_USES_EXHAUSTED' }, { status: 429 });
   }
 
-  let gateway;
-  try {
-    gateway = await buildGatewayForUser(user.id);
-  } catch (err) {
-    if (err instanceof AICredentialMissingError) {
-      return NextResponse.json({ error: 'AI_CREDENTIAL_NOT_CONFIGURED' }, { status: 503 });
-    }
-    throw err;
-  }
 
   const meter = createToolMeter(user.id);
   try {
@@ -83,7 +74,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await generateFollowupEmail({ gateway, company, role, daysSinceApplied: days, contactName: b.contactName, note: b.note });
+    const result = await generateFollowupEmail({ company, role, daysSinceApplied: days, contactName: b.contactName, note: b.note, deterministicOnly: true });
     return NextResponse.json({ email: result });
   } catch (err) {
     await meter.refund();

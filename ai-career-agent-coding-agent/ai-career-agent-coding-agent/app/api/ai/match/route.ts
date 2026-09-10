@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { requireUser } from '@/lib/auth';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { assertEntitlement } from '@packages/security/entitlements';
-import { AICredentialMissingError, buildGatewayForUser, createToolMeter } from '@/lib/ai/server';
+import { createToolMeter } from '@/lib/ai/server';
 import { loadMatchInputs } from '@/lib/ai/matching-loader';
 import { runMatching } from '@/lib/matching/engine';
 import { AIGatewayError } from '@packages/ai/gateway';
@@ -20,8 +20,8 @@ export const maxDuration = 300;
  *
  * Scores the user's job pool against their profile with explainable results,
  * excluding already-applied jobs and preference mismatches deterministically.
- * Costs exactly one daily tool use per session (refunded only if every job's
- * AI scoring fails).
+ * Costs exactly one daily tool use per session. Scoring is deterministic in
+ * the public route, so provider failure cannot block results.
  */
 export async function POST(req: Request) {
   const user = await requireUser().catch(() => null);
@@ -50,15 +50,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ matches: [], excludedCount: 0, cappedCount: 0, scoredCount: 0, failures: [] });
   }
 
-  let gateway;
-  try {
-    gateway = await buildGatewayForUser(user.id);
-  } catch (err) {
-    if (err instanceof AICredentialMissingError) {
-      return NextResponse.json({ error: 'AI_CREDENTIAL_NOT_CONFIGURED' }, { status: 503 });
-    }
-    throw err;
-  }
 
   // Session-level metering: one credit reserves the whole match session.
   const meter = createToolMeter(user.id);
@@ -76,7 +67,7 @@ export async function POST(req: Request) {
     profile,
     prefs,
     appliedJobIds,
-    gateway,
+    deterministicOnly: true,
     options: { threshold: parsed.data.threshold, maxScored: parsed.data.maxScored },
   });
 

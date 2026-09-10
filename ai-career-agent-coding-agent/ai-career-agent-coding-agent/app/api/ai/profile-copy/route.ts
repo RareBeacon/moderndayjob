@@ -4,7 +4,7 @@ import { requireUser } from '@/lib/auth';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { assertEntitlement } from '@packages/security/entitlements';
 import { AIGatewayError } from '@packages/ai/gateway';
-import { AICredentialMissingError, buildGatewayForUser, createToolMeter } from '@/lib/ai/server';
+import { createToolMeter } from '@/lib/ai/server';
 import { generateProfileCopy } from '@/lib/analysis/service';
 import { loadGenerationProfile } from '@/lib/generation/loader';
 
@@ -43,15 +43,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'CAREER_PROFILE_REQUIRED' }, { status: 400 });
   }
 
-  let gateway;
-  try {
-    gateway = await buildGatewayForUser(user.id);
-  } catch (err) {
-    if (err instanceof AICredentialMissingError) {
-      return NextResponse.json({ error: 'AI_CREDENTIAL_NOT_CONFIGURED' }, { status: 503 });
-    }
-    throw err;
-  }
 
   const meter = createToolMeter(user.id);
   try {
@@ -64,7 +55,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await generateProfileCopy({ gateway, kind, profile });
+    const result = await generateProfileCopy({ kind, profile, deterministicOnly: true });
     if (!result.report.passed) {
       // Unsupported claims, reject and refund, exactly like document generation.
       await meter.refund();

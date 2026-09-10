@@ -4,7 +4,7 @@ import { requireUser } from '@/lib/auth';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { assertEntitlement } from '@packages/security/entitlements';
 import { AIGatewayError } from '@packages/ai/gateway';
-import { AICredentialMissingError, buildGatewayForUser, createToolMeter } from '@/lib/ai/server';
+import { createToolMeter } from '@/lib/ai/server';
 import { analyzeJob } from '@/lib/analysis/service';
 import { supabaseAdmin } from '@/lib/supabase';
 
@@ -15,10 +15,10 @@ export const maxDuration = 300;
 /**
  * POST /api/ai/analyze-job, free-tool job-description analysis.
  *
- * The AI extracts ONLY what the listing states (skills, keywords,
- * responsibilities); required skills are then compared against the user's
- * profile skills deterministically. Costs one daily AI credit, refunded when
- * the provider fails. Public tool pages gate this behind a free account.
+ * Deterministically extracts what the listing states (skills, keywords,
+ * responsibilities), then compares required skills against the user's profile
+ * skills. Costs one daily free-tool use. Public tool pages gate this behind a
+ * free account.
  */
 export async function POST(req: Request) {
   const user = await requireUser().catch(() => null);
@@ -48,15 +48,6 @@ export async function POST(req: Request) {
     .maybeSingle();
   const userSkills = Array.isArray(career?.skills) ? (career.skills as string[]) : [];
 
-  let gateway;
-  try {
-    gateway = await buildGatewayForUser(user.id);
-  } catch (err) {
-    if (err instanceof AICredentialMissingError) {
-      return NextResponse.json({ error: 'AI_CREDENTIAL_NOT_CONFIGURED' }, { status: 503 });
-    }
-    throw err;
-  }
 
   const meter = createToolMeter(user.id);
   try {
@@ -69,10 +60,9 @@ export async function POST(req: Request) {
   }
 
   try {
-    const analysis = await analyzeJob({ gateway, jobDescription, userSkills });
+    const analysis = await analyzeJob({ jobDescription, userSkills, deterministicOnly: true });
     return NextResponse.json({ analysis, profileSkillsCount: userSkills.length });
   } catch (err) {
-    // Provider failure, refund and surface as an upstream error.
     await meter.refund();
     if (err instanceof AIGatewayError) {
       return NextResponse.json({ error: err.code, detail: String(err.message ?? '').slice(0, 500) }, { status: 502 });

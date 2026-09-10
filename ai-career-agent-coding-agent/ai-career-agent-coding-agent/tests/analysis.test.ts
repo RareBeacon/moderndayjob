@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { AITask } from '../packages/ai/types';
-import { analyzeJob, compareSkills, generateCareerPaths, generateFollowupEmail, generateInterviewQuestions, generateProfileCopy, generateSalaryInsights } from '../lib/analysis/service';
+import { SAFE_ANALYSIS_PROVIDER, analyzeJob, compareSkills, generateCareerPaths, generateFollowupEmail, generateInterviewQuestions, generateProfileCopy, generateSalaryInsights } from '../lib/analysis/service';
 import {
   ANALYZE_JOB_TASK,
   INTERVIEW_QUESTIONS_TASK,
@@ -168,7 +168,7 @@ describe('generateProfileCopy, truthful summaries & headlines', () => {
     expect(res.report.passed).toBe(true);
   });
 
-  it('fails truthfulness when the model invents an employer', async () => {
+  it('falls back instead of returning profile copy with an invented employer', async () => {
     const res = await generateProfileCopy({
       gateway: mockGateway(() => ({
         options: ['Ex-Google customer success lead with deep enterprise experience.'],
@@ -177,8 +177,9 @@ describe('generateProfileCopy, truthful summaries & headlines', () => {
       kind: 'SUMMARY',
       profile,
     });
-    expect(res.report.passed).toBe(false);
-    expect(res.report.unsupported.length).toBeGreaterThan(0);
+    expect(res.report.passed).toBe(true);
+    expect(res.provider).toBe(SAFE_ANALYSIS_PROVIDER);
+    expect(res.options.join(' ')).not.toContain('Google');
   });
 
   it('routes HEADLINE to the headline task', async () => {
@@ -220,15 +221,16 @@ describe('career paths, deterministic skill-citation guard', () => {
     expect(res.paths).toHaveLength(2);
   });
 
-  it('fails when the model invents a skill the profile lacks', async () => {
+  it('falls back when the model cites a skill the profile lacks', async () => {
     const res = await generateCareerPaths({
       gateway: gw({ paths: [
         { direction: 'ML engineering', why: 'You know Python.', buildingOn: ['Python', 'deep learning'], explore: ['courses'] },
       ], summary: 'Direction based on skills.' }),
       profile, // profile.skills = Customer success, Salesforce, Onboarding
     });
-    expect(res.verified).toBe(false);
-    expect(res.unsupportedSkills.length).toBeGreaterThan(0);
+    expect(res.verified).toBe(true);
+    expect(res.provider).toBe(SAFE_ANALYSIS_PROVIDER);
+    expect(res.unsupportedSkills).toHaveLength(0);
   });
 });
 
@@ -247,12 +249,27 @@ describe('salary insights, citation guard', () => {
     expect(res.ranges[0].jobId).toBe('j1');
   });
 
-  it('fails when a cited job was never scanned (fabrication)', async () => {
+  it('falls back when a cited job was never scanned (fabrication)', async () => {
     const res = await generateSalaryInsights({
       gateway: mockGateway(() => ({ statedRanges: [{ jobId: 'ghost-9', min: 1, max: 2, exact: null, currency: 'NGN', period: 'month' }], notes: 'x' })),
       jobs,
     });
-    expect(res.verified).toBe(false);
+    expect(res.verified).toBe(true);
+    expect(res.provider).toBe(SAFE_ANALYSIS_PROVIDER);
+    expect(res.ranges.every((r) => r.jobId !== 'ghost-9')).toBe(true);
+  });
+});
+
+describe('deterministic free-tool fallbacks', () => {
+  it('return usable outputs without a gateway', async () => {
+    const jd = 'Role: AI Engineer. Requirements: Python, n8n, LangChain. Build automations for customers.';
+    const analysis = await analyzeJob({ jobDescription: jd, userSkills: ['Python', 'n8n'], deterministicOnly: true });
+    const interview = await generateInterviewQuestions({ jobDescription: jd, deterministicOnly: true });
+    const followup = await generateFollowupEmail({ company: 'Acme', role: 'AI Engineer', daysSinceApplied: 3, deterministicOnly: true });
+    expect(analysis.provider).toBe(SAFE_ANALYSIS_PROVIDER);
+    expect(analysis.matchedSkills).toEqual(expect.arrayContaining(['Python', 'n8n']));
+    expect(interview.questions.length).toBeGreaterThanOrEqual(4);
+    expect(followup.body).toContain('3 day(s) ago');
   });
 });
 

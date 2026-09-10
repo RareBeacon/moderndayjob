@@ -4,7 +4,7 @@ import { requireUser } from '@/lib/auth';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { assertEntitlement } from '@packages/security/entitlements';
 import { AIGatewayError } from '@packages/ai/gateway';
-import { AICredentialMissingError, buildGatewayForUser, createToolMeter } from '@/lib/ai/server';
+import { createToolMeter } from '@/lib/ai/server';
 import { generateSalaryInsights } from '@/lib/analysis/service';
 import { supabaseAdmin } from '@/lib/supabase';
 
@@ -56,15 +56,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'DAILY_TOOL_USES_EXHAUSTED' }, { status: 429 });
   }
 
-  let gateway;
-  try {
-    gateway = await buildGatewayForUser(user.id);
-  } catch (err) {
-    if (err instanceof AICredentialMissingError) {
-      return NextResponse.json({ error: 'AI_CREDENTIAL_NOT_CONFIGURED' }, { status: 503 });
-    }
-    throw err;
-  }
 
   const meter = createToolMeter(user.id);
   try {
@@ -77,7 +68,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await generateSalaryInsights({ gateway, jobs });
+    const result = await generateSalaryInsights({ jobs, deterministicOnly: true });
     if (!result.verified) {
       // A cited listing we never scanned = fabrication → reject + refund.
       await meter.refund();
