@@ -18,7 +18,7 @@ const schema = z.object({
   OLLAMA_API_KEY: z.string().default(''),
   // Resend transactional email.
   RESEND_API_KEY: z.string().default(''),
-  RESEND_FROM: z.string().default('no-reply@jobiest.com'),
+  RESEND_FROM: z.string().default('hello@jobiest.com'),
 });
 export const env = schema.parse({
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,

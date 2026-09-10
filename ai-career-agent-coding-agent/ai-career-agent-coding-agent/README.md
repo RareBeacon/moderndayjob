@@ -5,10 +5,10 @@ Production-oriented multi-tenant AI career/job-application SaaS foundation.
 **Start with `START_HERE.md`.** Coding agents should then read `AGENTS.md` and `docs/CODING_AGENT.md`.
 
 ## Product model
-- Free forever: 2 AI career/document credits/day.
-- 7-day automation trial: 15 automated applications total.
-- Basic: NGN 5,000/month, 10 automated applications/day.
-- Premium: NGN 10,000/month, 20 automated applications/day.
+- Free forever: 3 AI documents in total (not daily), 10 career-tool uses/day, manual apply only.
+- Basic: NGN 5,000/month, 3 AI documents/day, 2 lifetime auto-apply trial uses, 50 tool uses/day.
+- Premium: NGN 10,000/month, 10 AI documents/day, 10 auto-apply slots/day (agent mode), unlimited tools.
+- Max: NGN 20,000/month, 20 AI documents/day, 20 auto-apply slots/day (agent mode), unlimited everything.
 - Flutterwave payments.
 - Per-user/workspace OpenRouter and Hugging Face credentials, encrypted at rest.
 - User-supplied application email only; no Gmail/inbox access.

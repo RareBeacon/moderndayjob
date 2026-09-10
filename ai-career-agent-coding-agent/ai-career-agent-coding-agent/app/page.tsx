@@ -2,7 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { JobletNavbar } from '@/components/site/joblet/Navbar';
 import { JobletHero } from '@/components/site/joblet/Hero';
 import { JobletFeatureCards } from '@/components/site/joblet/FeatureCards';
-import { JobletTools, JobletHow, JobletPricing, JobletAbout, JobletFaq } from '@/components/site/joblet/Sections';
+import { JobletTools, JobletHow, JobletPricing, JobletAbout, JobletMission, JobletFaq } from '@/components/site/joblet/Sections';
 import { JobletBanner } from '@/components/site/joblet/Banner';
 import { JobletFooter } from '@/components/site/joblet/Footer';
 
@@ -46,6 +46,7 @@ export default async function HomePage() {
         <JobletHow />
         <JobletPricing />
         <JobletAbout />
+        <JobletMission />
         <JobletFaq />
         <JobletBanner />
       </main>

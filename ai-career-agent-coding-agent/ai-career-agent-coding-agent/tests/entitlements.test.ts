@@ -79,10 +79,11 @@ describe('createUsageMeter (daily AI credit quota)', () => {
     await expect(createUsageMeter('u1').reserve()).rejects.toMatchObject({ message: 'SOME_DB_ERROR' });
   });
 
-  it('refund() decrements the counter best-effort', async () => {
-    mocks.single.mockResolvedValue({ data: { ai_used: 3 }, error: null });
+  it('refund() decrements both daily and lifetime counters best-effort', async () => {
+    mocks.single.mockResolvedValue({ data: { ai_used: 3, docs_used: 2 }, error: null });
     await expect(createUsageMeter('u1').refund()).resolves.toBeUndefined();
     expect(mocks.update).toHaveBeenCalledWith({ ai_used: 2 });
+    expect(mocks.update).toHaveBeenCalledWith({ docs_used: 1 });
   });
 
   it('refund() never throws, even when the DB is down', async () => {

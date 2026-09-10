@@ -149,11 +149,12 @@ export function ashbyAdapter(org: string, fetchImpl: FetchLike): SourceAdapter {
 }
 
 /* ============================================================
-   Board registry, defaults verified live 2026-09-02; env-overridable.
+   Board registry, remote-first curation verified live 2026-09-10;
+   env-overridable. Boards below all returned live postings on that date.
    ============================================================ */
-export const DEFAULT_GREENHOUSE_BOARDS = 'stripe,airbnb,dropbox';
+export const DEFAULT_GREENHOUSE_BOARDS = 'gitlab,anthropic,coinbase';
 export const DEFAULT_LEVER_BOARDS = 'spotify';
-export const DEFAULT_ASHBY_BOARDS = 'ashby,ramp';
+export const DEFAULT_ASHBY_BOARDS = 'openai,linear';
 
 function csv(value: string | undefined, fallback: string): string[] {
   return (value ?? fallback)

@@ -83,12 +83,13 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string): Prom
 export async function sendVerificationEmail(to: string, verifyUrl: string): Promise<SendEmailResult> {
   const html = [
     '<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1a1a2e;line-height:1.6">',
-    '<h2 style="margin:0 0 12px">Verify your Jobiest email</h2>',
-    '<p style="margin:0 0 16px">Please confirm your email address to finish setting up your Jobiest account.</p>',
-    `<p style="margin:0 0 16px"><a href="${escapeHtml(verifyUrl)}" style="background:#2b6cb0;color:#ffffff;padding:12px 20px;border-radius:6px;text-decoration:none;display:inline-block">Verify email</a></p>`,
-    '<p style="margin:0;color:#64748b">This link expires shortly. If you did not create a Jobiest account, you can safely ignore this email.</p>',
+    '<h2 style="margin:0 0 12px">Verify your JOBIEST account</h2>',
+    '<p style="margin:0 0 16px">You are one step away from finding your next opportunity.</p>',
+    `<p style="margin:0 0 16px"><a href="${escapeHtml(verifyUrl)}" style="background:#2b6cb0;color:#ffffff;padding:12px 20px;border-radius:6px;text-decoration:none;display:inline-block">Verify my email</a></p>`,
+    '<p style="margin:0 0 8px">This verification link expires in 30 minutes.</p>',
+    '<p style="margin:0;color:#64748b">Did not create this account? You can safely ignore this email.</p>',
     '</div>',
   ].join('\n');
-  const text = `Verify your Jobiest email address: ${verifyUrl} (expires shortly; ignore if you did not sign up).`;
-  return sendEmail({ to, subject: 'Verify your Jobiest email', html, text });
+  const text = `Verify your JOBIEST account: ${verifyUrl} (this link expires in 30 minutes; ignore if you did not sign up).`;
+  return sendEmail({ to, subject: 'Verify your JOBIEST account', html, text });
 }

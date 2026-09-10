@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
+import { getUser } from '@/lib/auth';
 import { JobletNavbar } from '@/components/site/joblet/Navbar';
 import { JobletFooter } from '@/components/site/joblet/Footer';
 import { CurrencyPicker } from '@/components/site/CurrencyPicker';
@@ -28,6 +29,7 @@ export default async function PricingPage({
   const h = await headers();
   const ipCountry = h.get('x-vercel-ip-country');
   const locale = h.get('accept-language');
+  const user = await getUser();
   const currency = resolveCurrency(ipCountry, locale, params.currency);
   const rates = await getFxRates();
 
@@ -42,12 +44,12 @@ export default async function PricingPage({
       },
     },
     {
-      label: 'AI documents / day',
-      values: { FREE: '3', BASIC: '10', PREMIUM: '20', MAX: '40' },
+      label: 'AI documents',
+      values: { FREE: '3 total', BASIC: '3 / day', PREMIUM: '10 / day', MAX: '20 / day' },
     },
     {
-      label: 'Auto-apply slots / day',
-      values: { FREE: '—', BASIC: '10', PREMIUM: '20', MAX: '40' },
+      label: 'Auto-apply slots',
+      values: { FREE: '—', BASIC: '2 total (trial)', PREMIUM: '10 / day', MAX: '20 / day' },
     },
     {
       label: 'Free career tools',
@@ -59,7 +61,7 @@ export default async function PricingPage({
     },
     {
       label: 'Approval-mode workflow',
-      values: { FREE: 'Manual', BASIC: '✓', PREMIUM: '✓', MAX: '✓' },
+      values: { FREE: 'Manual', BASIC: 'Trial', PREMIUM: '✓', MAX: '✓' },
     },
     {
       label: 'Support',
@@ -73,7 +75,7 @@ export default async function PricingPage({
 
   return (
     <div className="jl-page">
-      <JobletNavbar />
+      <JobletNavbar authenticated={!!user} />
       <main id="main">
         <section className="jl-sec">
           <div className="jl-shell">
@@ -166,7 +168,7 @@ export default async function PricingPage({
               </table>
             </div>
             <p className="jl-trial-note center">
-              <b>7-day automation trial</b> on every new account — try paid features free, no card required.
+              Free forever: 3 AI documents in total plus 10 tool uses a day. Basic adds 3 documents a day and 2 auto-apply trial uses — no card required to start.
             </p>
           </div>
         </section>

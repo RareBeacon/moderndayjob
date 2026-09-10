@@ -42,6 +42,19 @@ describe('auth middleware', () => {
     expect(res.headers.get('location')).toBeNull();
   });
 
+  it('redirects a visitor with a session cookie from / to /dashboard', async () => {
+    const r = new NextRequest('http://localhost:3000/', {
+      headers: { cookie: 'sb-testref-auth-token=some.jwt.token' },
+    });
+    const res = await middleware(r);
+    expect(new URL(res.headers.get('location')!).pathname).toBe('/dashboard');
+  });
+
+  it('shows the marketing homepage to visitors without a session cookie', async () => {
+    const res = await middleware(req('/'));
+    expect(res.headers.get('location')).toBeNull();
+  });
+
   it('fails open (no redirect) when Supabase env vars are missing', async () => {
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', '');
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', '');

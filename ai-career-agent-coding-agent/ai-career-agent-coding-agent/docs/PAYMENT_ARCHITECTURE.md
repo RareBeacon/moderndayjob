@@ -1,9 +1,10 @@
 # Payment Architecture, Flutterwave
 
 ## Plans
-- FREE: ₦0; 2 AI career credits/day; no autonomous applications.
-- BASIC: ₦5,000/month; 10 automated applications/day.
-- PREMIUM: ₦10,000/month; 20 automated applications/day.
+- FREE: ₦0; 3 AI documents in total (not daily), 10 tool uses/day; manual apply only.
+- BASIC: ₦5,000/month; 3 AI documents/day, 2 lifetime auto-apply trial uses, 50 tool uses/day.
+- PREMIUM: ₦10,000/month; 10 AI documents/day, 10 auto-apply slots/day (agent mode), unlimited tools.
+- MAX: ₦20,000/month; 20 AI documents/day, 20 auto-apply slots/day (agent mode), unlimited everything.
 - Automation trial: 7 days; 15 total automated applications.
 
 ## Flow

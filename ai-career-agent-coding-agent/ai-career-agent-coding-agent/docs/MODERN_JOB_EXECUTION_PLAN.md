@@ -7,10 +7,11 @@
 - Product is a profession-agnostic, multi-tenant career workspace.
 - No Gmail inbox access, Gmail OAuth, mailbox monitoring, or stored email passwords.
 - Users provide an application email address only.
-- Free: 2 AI career/document credits daily, no autonomous applications.
+- Free: 3 AI documents in total (not daily), 10 career-tool uses/day, manual apply only.
 - Automation trial: 7 days, 15 total applications.
-- Basic: NGN 5,000/month, 10 automated applications daily.
-- Premium: NGN 10,000/month, 20 automated applications daily.
+- Basic: NGN 5,000/month, 3 AI documents/day, 2 lifetime auto-apply trial uses, 50 tool uses/day.
+- Premium: NGN 10,000/month, 10 AI documents/day, 10 auto-apply slots/day (agent mode), unlimited tools.
+- Max: NGN 20,000/month, 20 AI documents/day, 20 auto-apply slots/day (agent mode), unlimited everything.
 - Flutterwave is the payment provider. Subscription access is granted only after server-side verification.
 - Vercel hosts the public web application. Render hosts durable agent, browser, and scheduler workers. Supabase provides Auth, PostgreSQL, RLS, and private storage.
 - Approval/assist is the initial application mode. Autonomous submission is disabled until every operational and security gate passes.

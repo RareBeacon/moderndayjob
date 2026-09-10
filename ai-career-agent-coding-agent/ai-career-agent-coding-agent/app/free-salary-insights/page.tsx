@@ -51,7 +51,7 @@ export default async function FreeSalaryInsightsPage() {
             <div className="ft-faq">
               <details>
                 <summary>Is it really free?</summary>
-                <p>Yes. It uses one of your daily AI credits, the free plan includes 2 every day, forever.</p>
+                <p>Yes. It uses your free career-tool allowance — 10 uses a day on the free plan, forever.</p>
               </details>
               <details>
                 <summary>Why do so few listings show a range?</summary>

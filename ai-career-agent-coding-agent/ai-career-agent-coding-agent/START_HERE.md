@@ -5,11 +5,11 @@ Read this file first. Then read `AGENTS.md` and `docs/CODING_AGENT.md` before ch
 ## Product
 - Profession-agnostic accounts/workspaces: AI Engineer, Content Creator, Developer, etc.
 - User provides an application email address; the platform has NO Gmail/inbox access and NO inbox OAuth scope.
-- Free forever: 2 AI career/document credits per day.
+- Free forever: 3 AI documents in total (not daily), 10 career-tool uses/day, manual apply only.
 - Free tools: personalized CV/resume, ATS analysis, job-description analysis, matching, tracking and documented career tools.
-- 7-day automation trial: 15 automated applications total.
-- Basic: NGN 5,000/month, 10 automated applications/day.
-- Premium: NGN 10,000/month, 20 automated applications/day.
+- Basic: NGN 5,000/month, 3 AI documents/day, 2 lifetime auto-apply trial uses, 50 tool uses/day.
+- Premium: NGN 10,000/month, 10 AI documents/day, 10 auto-apply slots/day (agent mode), unlimited tools.
+- Max: NGN 20,000/month, 20 AI documents/day, 20 auto-apply slots/day (agent mode), unlimited everything.
 - Flutterwave is the payment gateway.
 - OpenRouter and Hugging Face credentials are admin-assigned per user/workspace and encrypted at rest.
 - Render is the deployment target.

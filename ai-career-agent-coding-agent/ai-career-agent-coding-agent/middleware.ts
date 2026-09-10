@@ -12,10 +12,28 @@ function isProtected(pathname: string): boolean {
   return PROTECTED.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
+/**
+ * Fast session-cookie presence check for the marketing homepage only. The
+ * homepage is high-traffic and must not pay for a full getUser() roundtrip;
+ * a stale cookie simply means /dashboard re-validates (requireUser) and bounces
+ * to /login. Real gating always happens server-side in route handlers.
+ */
+function hasSessionCookie(request: NextRequest): boolean {
+  return request.cookies.getAll().some((c) => c.name.startsWith('sb-') && c.name.includes('auth-token'));
+}
+
 export async function middleware(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return NextResponse.next();
+  const { pathname } = request.nextUrl;
+
+  // Authenticated visitors never see the marketing homepage: one clear home.
+  if (pathname === '/' && hasSessionCookie(request)) {
+    const redirect = request.nextUrl.clone();
+    redirect.pathname = '/dashboard';
+    return NextResponse.redirect(redirect);
+  }
 
   let response = NextResponse.next({ request });
   const supabase = createServerClient(url, key, {
@@ -30,7 +48,6 @@ export async function middleware(request: NextRequest) {
   });
 
   const { data: { user } } = await supabase.auth.getUser();
-  const { pathname } = request.nextUrl;
 
   if (isProtected(pathname) && !user) {
     const redirect = request.nextUrl.clone();
@@ -49,5 +66,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/onboarding', '/profile', '/documents', '/applications', '/billing', '/jobs', '/match', '/generate', '/login', '/signup'],
+  matcher: ['/', '/dashboard/:path*', '/onboarding', '/profile', '/documents', '/applications', '/billing', '/jobs', '/match', '/generate', '/login', '/signup'],
 };

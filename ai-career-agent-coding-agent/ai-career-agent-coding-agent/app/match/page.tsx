@@ -57,9 +57,17 @@ export default function MatchPage() {
             title: 'Connect an AI provider',
             detail: 'Add an OpenRouter or Hugging Face API key in Settings to power matching.',
           },
+          AI_QUOTA_EXHAUSTED: {
+            title: 'AI limit reached',
+            detail: 'You have reached your plan’s AI limit. Upgrade for more.',
+          },
+          TOOL_QUOTA_EXHAUSTED: {
+            title: 'Daily tool uses used up',
+            detail: 'Your plan’s free career-tool uses for today are exhausted. They reset tomorrow, or upgrade for more.',
+          },
           DAILY_AI_CREDITS_EXHAUSTED: {
-            title: 'Daily AI credits used up',
-            detail: 'Your plan’s daily AI credits are exhausted. They reset tomorrow, or upgrade for more.',
+            title: 'AI limit reached',
+            detail: 'You have reached your plan’s AI limit. Upgrade for more.',
           },
           CAREER_PROFILE_REQUIRED: {
             title: 'Complete your profile first',

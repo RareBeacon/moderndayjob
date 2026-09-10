@@ -82,7 +82,8 @@ export default function GeneratePage() {
       if (!res.ok) {
         const map: Record<string, { title: string; detail: string }> = {
           AI_CREDENTIAL_NOT_CONFIGURED: { title: 'Connect an AI provider', detail: 'Add an OpenRouter or Hugging Face API key in Settings.' },
-          DAILY_AI_CREDITS_EXHAUSTED: { title: 'Out of AI credits', detail: 'Your daily AI credits are used up. They reset tomorrow.' },
+          AI_QUOTA_EXHAUSTED: { title: 'Out of AI documents', detail: 'You have reached your plan\u2019s AI document limit. Upgrade for more.' },
+          DAILY_AI_CREDITS_EXHAUSTED: { title: 'Out of AI documents', detail: 'You have reached your plan\u2019s AI document limit. Upgrade for more.' },
           CAREER_PROFILE_REQUIRED: { title: 'Complete your profile', detail: 'Generation needs your career profile first.' },
           RATE_LIMITED: { title: 'Slow down', detail: 'Too many requests. Wait a moment.' },
           TRUTHFULNESS_FAILED: { title: 'Rejected: unsupported facts', detail: 'The draft contained claims not in your profile, so it was not saved. Review the flags and try again.' },

@@ -21,13 +21,19 @@ function BrandMark() {
   );
 }
 
-export function JobletNavbar() {
+/**
+ * Marketing navbar. `authenticated` is set server-side (never by the browser):
+ * signed-in visitors get one clear home — the dashboard — instead of
+ * sign-in prompts, and the brand mark takes them there.
+ */
+export function JobletNavbar({ authenticated = false }: { authenticated?: boolean }) {
   const [open, setOpen] = useState(false);
+  const homeHref = authenticated ? '/dashboard' : '/';
 
   return (
     <nav className="jl-nav" aria-label="Primary">
       <div className="jl-shell jl-nav-inner">
-        <a className="jl-brand" href="/">
+        <a className="jl-brand" href={homeHref}>
           <span className="jl-brand-mark">
             <BrandMark />
           </span>
@@ -46,8 +52,14 @@ export function JobletNavbar() {
           <a className="jl-nav-search" href="/jobs" aria-label="Search jobs">
             <IconSearch size={20} />
           </a>
-          <a className="jl-btn-ghost" href="/login">Sign In</a>
-          <a className="jl-btn-solid" href="/signup">Get Started</a>
+          {authenticated ? (
+            <a className="jl-btn-solid" href="/dashboard">Go to Dashboard</a>
+          ) : (
+            <>
+              <a className="jl-btn-ghost" href="/login">Sign In</a>
+              <a className="jl-btn-solid" href="/signup">Get Started</a>
+            </>
+          )}
           <button
             type="button"
             className="jl-burger"
@@ -72,8 +84,14 @@ export function JobletNavbar() {
               {l.label}
             </a>
           ))}
-          <a href="/login" onClick={() => setOpen(false)}>Sign In</a>
-          <a href="/signup" onClick={() => setOpen(false)}>Get Started</a>
+          {authenticated ? (
+            <a href="/dashboard" onClick={() => setOpen(false)}>Go to Dashboard</a>
+          ) : (
+            <>
+              <a href="/login" onClick={() => setOpen(false)}>Sign In</a>
+              <a href="/signup" onClick={() => setOpen(false)}>Get Started</a>
+            </>
+          )}
         </div>
       )}
     </nav>

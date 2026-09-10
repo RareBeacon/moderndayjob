@@ -4,10 +4,10 @@ This repository now contains the implementation scaffold, executable SQL migrati
 
 ## Included
 - Profession-agnostic multi-tenant workspace creation on signup.
-- Free forever: 2 AI career/document credits/day.
-- 7-day automation trial with 15 total application capacity represented in the product architecture.
-- Basic ₦5,000/month, 10 automated applications/day.
-- Premium ₦10,000/month, 20 automated applications/day.
+- Free forever: 3 AI documents in total (not daily), 10 career-tool uses/day, manual apply only.
+- Basic ₦5,000/month, 3 AI documents/day, 2 lifetime auto-apply trial uses, 50 tool uses/day.
+- Premium ₦10,000/month, 10 AI documents/day, 10 auto-apply slots/day (agent mode), unlimited tools.
+- Max ₦20,000/month, 20 AI documents/day, 20 auto-apply slots/day (agent mode), unlimited everything.
 - Flutterwave checkout and webhook verification path.
 - Per-user encrypted OpenRouter/Hugging Face credentials.
 - No Gmail inbox access; application email is just a user-provided field.

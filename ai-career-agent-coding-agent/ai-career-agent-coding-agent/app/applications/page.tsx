@@ -467,7 +467,8 @@ function friendly(code: string, message?: string): string {
 
 function genError(code: string): string {
   switch (code) {
-    case 'DAILY_AI_CREDITS_EXHAUSTED': return 'Daily AI credits used up — they reset tomorrow.';
+    case 'AI_QUOTA_EXHAUSTED': return 'AI document limit reached for your plan — upgrade for more.';
+    case 'DAILY_AI_CREDITS_EXHAUSTED': return 'AI document limit reached for your plan — upgrade for more.';
     case 'AI_CREDENTIAL_NOT_CONFIGURED': return 'Connect an AI provider key in Settings first.';
     case 'CAREER_PROFILE_REQUIRED': return 'Complete your career profile first.';
     case 'TRUTHFULNESS_FAILED': return 'The draft used unsupported facts and was rejected. Edit your profile and try again.';

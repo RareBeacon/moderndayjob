@@ -9,7 +9,12 @@ import { classifyRegistrationRisk, isRegistrationBlocked } from '@/lib/security/
 /**
  * POST /api/auth/signup · create an account that must be email-verified.
  *
+ * Deliberately minimal: email + password only. Profile details are collected
+ * after authentication (onboarding/profile), never at registration.
+ *
  * Security layers (server-side only):
+ *  - email normalized (trim + lowercase) and format-validated; uniqueness is
+ *    enforced by the database (GoTrue) and reported with a friendly 409;
  *  - strict per-IP rate limit;
  *  - server-issued device cookie + registration-velocity risk score
  *    (hashed IP + device signals; EXTREME velocity is blocked, HIGH is
@@ -24,17 +29,15 @@ export async function POST(req: Request) {
   const rl = await enforceRateLimit(`auth:signup:${ip}`, 5, '1 h');
   if (!rl.allowed) return NextResponse.json({ error: 'RATE_LIMITED' }, { status: 429 });
 
-  let body: { name?: string; email?: string; password?: string };
+  let body: { email?: string; password?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'Invalid request.' }, { status: 400 });
   }
-  const name = (body.name ?? '').trim();
   const email = (body.email ?? '').trim().toLowerCase();
   const password = body.password ?? '';
 
-  if (!name) return NextResponse.json({ error: 'Please tell us your name.' }, { status: 400 });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
     return NextResponse.json({ error: 'That email address does not look right.' }, { status: 400 });
   }
@@ -74,7 +77,6 @@ export async function POST(req: Request) {
     email,
     password,
     email_confirm: false,
-    user_metadata: { full_name: name },
   });
 
   if (error) {

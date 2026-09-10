@@ -60,7 +60,7 @@ export default async function FreeInterviewQuestionsPage() {
             <div className="ft-faq">
               <details>
                 <summary>Is it really free?</summary>
-                <p>Yes. It uses one of your daily AI credits, the free plan includes 2 every day, forever.</p>
+                <p>Yes. It uses your free career-tool allowance — 10 uses a day on the free plan, forever.</p>
               </details>
               <details>
                 <summary>Are these the exact questions I&apos;ll be asked?</summary>

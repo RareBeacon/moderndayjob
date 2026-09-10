@@ -1467,3 +1467,11 @@ select { cursor: pointer; }
 /* Responsive: 4 → 2 → 1 columns */
 @media (max-width: 1180px) { .jl-plans.four { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 620px) { .jl-plans.four { grid-template-columns: 1fr; } }
+
+/* Hero primary journey CTAs (Start your job search / Explore jobs). */
+.jl-hero-cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 22px 0 6px; }
+.jl-hero-primary, .jl-hero-secondary { padding: 14px 26px; font-size: 1rem; }
+/* Dashboard primary action row. */
+.dd-cta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin: 16px 0 4px; }
+/* Closing banner CTA. */
+.jl-banner-inner { flex-wrap: wrap; gap: 18px; }

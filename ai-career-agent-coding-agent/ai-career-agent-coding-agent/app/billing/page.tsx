@@ -19,19 +19,19 @@ const PLANS: { code: PaidPlan; name: string; price: string; blurb: string }[] = 
     code: 'BASIC',
     name: 'Basic',
     price: '₦5,000 / month',
-    blurb: '10 AI documents and 10 auto-apply slots a day. 50 tool uses a day.',
+    blurb: '3 AI documents a day and 2 auto-apply trial uses. 50 tool uses a day.',
   },
   {
     code: 'PREMIUM',
     name: 'Premium',
     price: '₦10,000 / month',
-    blurb: '20 AI documents and 20 auto-apply slots a day. Unlimited tool uses.',
+    blurb: '10 AI documents and 10 auto-apply slots a day. Unlimited tool uses.',
   },
   {
     code: 'MAX',
     name: 'Max',
     price: '₦20,000 / month',
-    blurb: '40 AI documents and 40 auto-apply slots a day. Human-reviewed applications.',
+    blurb: '20 AI documents and 20 auto-apply slots a day. Human-reviewed applications.',
   },
 ];
 
@@ -70,9 +70,9 @@ export default function Billing() {
         {entitlement && (
           <div className="usage-strip">
             <span><b>{entitlement.plan}</b> current plan</span>
-            <span><b>{entitlement.ai_credits_remaining}</b> AI documents today</span>
+            <span><b>{entitlement.ai_credits_remaining}</b> {entitlement.plan === 'FREE' ? 'free documents left' : 'AI documents today'}</span>
             <span><b>{entitlement.tool_uses_remaining === null ? 'Unlimited' : entitlement.tool_uses_remaining}</b> tool uses today</span>
-            <span><b>{entitlement.applications_remaining}</b> automation slots today</span>
+            <span><b>{entitlement.applications_remaining}</b> {entitlement.plan === 'BASIC' ? 'trial auto-applies left' : 'automation slots today'}</span>
           </div>
         )}
         {message && <p className="form-status">{message}</p>}
@@ -81,7 +81,7 @@ export default function Billing() {
         <article className="card">
           <p className="eyebrow">FREE</p>
           <h2>₦0</h2>
-          <p className="muted">3 AI documents every day. All 10 career tools (10 uses a day), job matching and tracking.</p>
+          <p className="muted">3 AI documents in total, free forever. All 10 career tools (10 uses a day), job matching and tracking.</p>
           <strong>Your career workspace stays yours.</strong>
         </article>
         {PLANS.map((p) => (

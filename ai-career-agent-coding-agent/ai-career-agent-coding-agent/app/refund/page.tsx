@@ -16,8 +16,7 @@ export default function RefundPage() {
 
       <h2>1. Free plan</h2>
       <p>
-        The free plan is free and requires no payment, so no refunds apply. New accounts include a
-        7-day automation trial of paid features at no charge and with no card required.
+        The free plan is free and requires no payment, so no refunds apply. New accounts start free at no charge and with no card required; Basic includes 2 auto-apply trial uses.
       </p>
 
       <h2>2. 7-day money-back guarantee</h2>

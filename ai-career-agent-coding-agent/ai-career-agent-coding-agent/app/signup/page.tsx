@@ -8,7 +8,6 @@ import { humanizeAuthError } from '@/lib/auth-messages';
 
 export default function SignupPage() {
   const router = useRouter();
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
@@ -27,7 +26,7 @@ export default function SignupPage() {
     const res = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ email, password }),
     }).catch(() => null);
 
     if (res && res.status === 409) {
@@ -44,7 +43,6 @@ export default function SignupPage() {
       const { data, error } = await supabaseBrowser().auth.signUp({
         email,
         password,
-        options: { data: { full_name: name } },
       });
       if (error) {
         setError(humanizeAuthError(error.message));
@@ -65,23 +63,18 @@ export default function SignupPage() {
     //    mandatory email verification means the account is locked until the
     //    owner clicks the link in their inbox.
     setBusy(false);
-    setNotice(`Check your inbox at ${email} — we sent a verification link. Click it, then sign in.`);
+    setNotice(`Check your inbox at ${email} — we sent a verification link (expires in 30 minutes). Click it, then sign in.`);
   }
 
   return (
-    <AuthShell title="Create your free account" subtitle="Build your profile once and let your career agent take it from there.">
+    <AuthShell title="Create your account" subtitle="One step. Your career profile comes after — when it matters.">
       <form onSubmit={submit} className="auth-form" noValidate>
         {error ? <div className="auth-error" role="alert">{error}</div> : null}
-        {notice ? <div className="auth-success" role="status">{notice}</div> : null}
-        <label>
-          Full name
-          <input
-            autoComplete="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-        </label>
+        {notice ? (
+          <div className="auth-success" role="status">
+            {notice} Didn&apos;t get it? You can resend it from the <Link href="/login">sign-in page</Link>.
+          </div>
+        ) : null}
         <label>
           Email
           <input
@@ -115,14 +108,14 @@ export default function SignupPage() {
           <span className="hint">At least 8 characters.</span>
         </label>
         <button type="submit" className="btn btn-block" disabled={busy}>
-          {busy ? 'Creating account…' : 'Create free account'}
+          {busy ? 'Creating account…' : 'Create account'}
         </button>
       </form>
       <p className="auth-foot">
         Already have an account? <Link href="/login">Sign in</Link>
       </p>
       <p className="auth-foot legal">
-        By continuing you agree to our <Link href="/">Terms</Link> and <Link href="/">Privacy Policy</Link>.
+        By continuing you agree to our <Link href="/terms">Terms</Link> and <Link href="/privacy">Privacy Policy</Link>.
       </p>
     </AuthShell>
   );

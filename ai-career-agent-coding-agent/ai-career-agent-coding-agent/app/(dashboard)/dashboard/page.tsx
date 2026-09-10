@@ -12,14 +12,18 @@ type DraftApp = {
   created_at: string;
   jobs: { company: string | null; title: string | null; url: string | null } | null;
 };
-type FreshJob = { id: string; title: string | null; company: string | null; location: string | null; source: string | null; created_at: string | null };
+
+function greetingForHour(hour: number): string {
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
 
 /**
- * Daily Digest, the "morning paper" dashboard (Broadstreet Journal, v3).
- * Every number on this page is a real count from the database: drafts awaiting
- * approval, applications in flight, listings synced in the last 24h. We never
- * claim scans or "discarded" totals we do not track, the trust banner states
- * what WE guarantee (free to apply, approval-gated), nothing more.
+ * Dashboard, the one clear home for a signed-in user. A greeting, one primary
+ * action (Find jobs for me), honest counts from the database, drafts awaiting
+ * approval, and the next step — nothing else. Job discovery lives at /jobs
+ * and /match; this page never dumps the raw pool.
  */
 export default async function Dashboard() {
   const user = await requireUser();
@@ -28,85 +32,68 @@ export default async function Dashboard() {
     { data: career },
     entitlement,
     completeness,
-    { data: prefs },
   ] = await Promise.all([
     supabaseAdmin.from('profiles').select('full_name,target_roles,account_status').eq('user_id', user.id).single(),
     supabaseAdmin.from('career_profiles').select('headline,skills').eq('user_id', user.id).maybeSingle(),
     getEntitlement(user.id),
     getProfileCompleteness(user.id),
-    supabaseAdmin.from('job_preferences').select('remote_types,locations,application_mode,daily_target').eq('user_id', user.id).maybeSingle(),
   ]);
 
-  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const [
     { count: applicationCount },
-    { count: submittedCount },
+    { count: inFlightCount },
     { count: interviewCount },
-    { count: taskCount },
     { count: draftCount },
-    { count: newJobsCount },
     { data: drafts },
-    { data: freshJobs },
   ] = await Promise.all([
     supabaseAdmin.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
     supabaseAdmin.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).in('status', ['SUBMITTED', 'INTERVIEW']),
     supabaseAdmin.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'INTERVIEW'),
-    supabaseAdmin.from('agent_tasks').select('*', { count: 'exact', head: true }).eq('user_id', user.id).in('status', ['QUEUED', 'RUNNING']),
     supabaseAdmin.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'DRAFT'),
-    supabaseAdmin.from('jobs').select('*', { count: 'exact', head: true }).gt('created_at', since24h),
     supabaseAdmin.from('applications').select('id,created_at,jobs(company,title,url)').eq('user_id', user.id).eq('status', 'DRAFT').order('created_at', { ascending: false }).limit(4),
-    supabaseAdmin.from('jobs').select('id,title,company,location,source,created_at').order('created_at', { ascending: false }).limit(4),
   ]);
 
   const draftApps = (drafts ?? []) as unknown as DraftApp[];
-  const jobs = (freshJobs ?? []) as unknown as FreshJob[];
   const draftsWaiting = draftCount ?? 0;
-  const inFlight = submittedCount ?? 0;
-  const newToday = newJobsCount ?? 0;
+  const inFlight = inFlightCount ?? 0;
   const interviews = interviewCount ?? 0;
   const responseRate = inFlight > 0 ? Math.round((interviews / inFlight) * 100) : 0;
 
-  const prefSummary = [
-    prefs?.remote_types?.length ? prefs.remote_types.slice(0, 2).join('/') : null,
-    prefs?.locations?.length ? prefs.locations.slice(0, 2).join(', ') : null,
-    prefs?.application_mode ? `${prefs.application_mode} mode` : null,
-    prefs?.daily_target ? `${prefs.daily_target}/day` : null,
-  ].filter(Boolean).join(' · ');
+  const firstName = (profile?.full_name || user.email?.split('@')[0] || 'there').split(' ')[0];
+  const lagosHour = Number(
+    new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hour12: false, timeZone: 'Africa/Lagos' }).format(new Date()),
+  );
+  const greeting = greetingForHour(Number.isFinite(lagosHour) ? lagosHour : 12);
 
-  const firstName = (profile?.full_name || 'there').split(' ')[0];
-  const dateLine = new Date().toLocaleDateString('en-GB', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Africa/Lagos',
-  });
+  // Plan-aware quota line: FREE counts lifetime documents, paid plans daily.
+  const quotaLine =
+    entitlement.plan === 'FREE'
+      ? `${entitlement.ai_credits_remaining} of 3 free documents left`
+      : `${entitlement.ai_credits_remaining} AI documents today`;
 
-  // Honest digest sentence, only real counts, never scan totals we don't track.
-  const parts: string[] = [];
-  if (draftsWaiting > 0) parts.push(`${draftsWaiting} draft${draftsWaiting === 1 ? '' : 's'} waiting for your approval`);
-  if (inFlight > 0) parts.push(`${inFlight} application${inFlight === 1 ? '' : 's'} in flight`);
-  if (newToday > 0) parts.push(`${newToday} listing${newToday === 1 ? '' : 's'} synced to your pool since yesterday`);
-  const summary = parts.length
-    ? `${parts.join(', ')}. Nothing is sent until you approve it.`
-    : 'A quiet day, your pool is ready when you are. Nothing is ever sent without your approval.';
-
-  // Deterministic, real-derived next steps (no fabricated suggestions)
+  // Deterministic, real-derived next steps (no fabricated suggestions).
   const suggestions: { text: string; href: string }[] = [];
   if (completeness.percent < 100) suggestions.push({ text: `Finish your profile, ${completeness.percent}% complete for stronger matches.`, href: '/profile' });
   if ((applicationCount ?? 0) === 0) suggestions.push({ text: 'Track your first application to start your history.', href: '/applications' });
-  if (entitlement.automation_enabled && (taskCount ?? 0) === 0) suggestions.push({ text: 'Your agent is ready. Find matches to begin automation.', href: '/match' });
-  suggestions.push({ text: 'Refresh your CV and run an ATS check for your next role.', href: '/generate' });
+  if (entitlement.automation_enabled) suggestions.push({ text: 'Agent mode is on for your plan — review matches to begin.', href: '/match' });
+  if (suggestions.length === 0) suggestions.push({ text: 'Refresh your CV and run an ATS check for your next role.', href: '/generate' });
 
   return (
-    <AppShell active="dashboard" title="Daily digest">
-      {/* Trust banner, statements about us, provably true */}
+    <AppShell active="dashboard" title="Dashboard">
       <div className="dd-banner" role="note">
         Your application is free. Jobiest never asks candidates for money, and nothing is ever sent
         without your approval.
       </div>
 
       <header className="dd-head">
-        <span className="dd-over">Daily digest</span>
-        <h1>{dateLine}</h1>
-        <p>{summary}</p>
-        <span className="dd-meta">Plan · {entitlement.plan} · {entitlement.ai_credits_remaining} AI credits today</span>
+        <span className="dd-over">Dashboard</span>
+        <h1>{greeting}, {firstName}.</h1>
+        <p>Let&apos;s find your next opportunity.</p>
+        <div className="dd-cta-row">
+          <Link className="btn" href="/match">Find jobs for me</Link>
+          <Link className="inline-link" href="/jobs">or browse all jobs →</Link>
+        </div>
+        <span className="dd-meta">Plan · {entitlement.plan} · {quotaLine}</span>
       </header>
       <div className="dd-rule" aria-hidden="true" />
 
@@ -140,34 +127,14 @@ export default async function Dashboard() {
             </section>
           )}
 
-          <section className="dd-sec" aria-label="New in your pool">
-            <span className="dd-over">New in your pool</span>
-            {jobs.length === 0 ? (
-              <div className="dd-empty">
-                <p className="muted">No listings synced yet.</p>
-                <Link className="inline-link" href="/jobs">Browse jobs →</Link>
-              </div>
-            ) : (
-              <>
-                <div className="dd-articles">
-                  {jobs.map((j) => (
-                    <article className="dd-article" key={j.id}>
-                      <span className="dd-art-over">
-                        {(j.source || 'Synced').toLowerCase()} · {j.created_at ? j.created_at.slice(0, 10) : 'recent'}
-                      </span>
-                      <h2>{j.title || 'Untitled role'}</h2>
-                      <p className="dd-art-meta">
-                        {j.company || 'Unknown company'}{j.location ? ` · ${j.location}` : ''}
-                      </p>
-                    </article>
-                  ))}
-                </div>
-                <p className="muted dd-note">
-                  Latest listings, as synced.{' '}
-                  <Link href="/match" className="inline-link">Run matching →</Link> to see which ones actually fit.
-                </p>
-              </>
-            )}
+          <section className="dd-sec" aria-label="Recommended jobs">
+            <span className="dd-over">Recommended jobs</span>
+            <div className="dd-empty">
+              <p className="muted">
+                Your matches are computed from your profile — job pools change daily, so we score them fresh on every run.
+              </p>
+              <Link className="inline-link" href="/match">Run matching →</Link>
+            </div>
           </section>
         </div>
 
@@ -188,9 +155,6 @@ export default async function Dashboard() {
             <ProfileReadiness />
           </section>
 
-          {prefSummary && (
-            <p className="muted dd-note" style={{ marginTop: 18 }}>{prefSummary}</p>
-          )}
           {career?.headline && <p className="muted dd-note">{career.headline}</p>}
         </aside>
       </div>

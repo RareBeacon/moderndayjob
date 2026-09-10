@@ -1,12 +1,11 @@
+import Link from 'next/link';
 import {
   IconBolt,
   IconShield,
   IconUsers,
   IconBriefcase,
   IconChart,
-  IconArrowRight,
 } from './Icons';
-import { JobletSearch } from './JobletSearch';
 
 const FLOATS = [
   { icon: IconBriefcase, title: 'Remote Jobs', sub: 'Work from anywhere' },
@@ -14,7 +13,7 @@ const FLOATS = [
   { icon: IconUsers, title: 'Top Employers', sub: 'Leading companies' },
 ];
 
-/** Hand-drawn yellow underline beneath "Your Future". */
+/** Hand-drawn yellow underline beneath "career agent". */
 function HandUnderline() {
   return (
     <svg viewBox="0 0 220 22" fill="none" preserveAspectRatio="none" aria-hidden="true">
@@ -47,27 +46,29 @@ export function JobletHero({ liveTotal, liveSources }: { liveTotal: number; live
         <div>
           <span className="jl-eyebrow" data-animate>
             <span className="jl-dot" aria-hidden="true" />
-            Your next opportunity is here
+            Your AI career agent
           </span>
 
           <h1 className="jl-headline" data-animate data-animate-delay="70">
-            Find a Job That
+            Your AI
             <br />
-            Fits{' '}
             <span className="jl-hl-yellow">
-              Your Future
+              career agent
               <HandUnderline />
             </span>
           </h1>
 
           <p className="jl-sub" data-animate data-animate-delay="140">
-            Jobiest connects talented people with great companies. Search, apply,
-            and take the next step in your career — faster and easier.
+            Find the right jobs. Build stronger applications. Apply with confidence.
+            Jobiest finds opportunities that fit your profile, prepares tailored
+            applications from your verified experience, and lets you approve
+            everything before it goes out.
           </p>
 
-          {/* Search — connects to the real job browser at /jobs */}
-          <div data-animate data-animate-delay="210">
-            <JobletSearch />
+          {/* Primary journey: one clear action, one secondary */}
+          <div className="jl-hero-cta" data-animate data-animate-delay="210">
+            <Link className="jl-btn-solid jl-hero-primary" href="/signup">Start your job search</Link>
+            <Link className="jl-btn-outline jl-hero-secondary" href="/jobs">Explore jobs</Link>
           </div>
 
           <div className="jl-trust" data-animate data-animate-delay="280">
@@ -106,7 +107,6 @@ export function JobletHero({ liveTotal, liveSources }: { liveTotal: number; live
                   <b>{f.title}</b>
                   <span>{f.sub}</span>
                 </span>
-                <span className="jl-float-arrow"><IconArrowRight /></span>
               </div>
             ))}
           </div>

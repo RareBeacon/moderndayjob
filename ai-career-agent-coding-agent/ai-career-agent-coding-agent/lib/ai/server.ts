@@ -98,8 +98,11 @@ export async function buildGatewayForUser(userId: string): Promise<AIGateway> {
 }
 
 /**
- * Daily-AI-credit meter backed by the consume_ai_credit RPC (atomic
- * check+increment with FOR UPDATE locking) and a best-effort refund.
+ * AI-document meter backed by the consume_ai_credit RPC (atomic check+increment
+ * with FOR UPDATE locking) and a best-effort refund. Quota model v2: FREE gets
+ * 3 documents LIFETIME (usage_lifetime.docs_used); paid plans get a DAILY
+ * allowance (usage_daily.ai_used). The RPC enforces both; the refund below
+ * restores whichever counter was consumed.
  */
 export function createUsageMeter(userId: string): UsageMeter {
   return {
@@ -107,15 +110,17 @@ export function createUsageMeter(userId: string): UsageMeter {
       const { error } = await supabaseAdmin.rpc('consume_ai_credit', { p_user_id: userId });
       if (error) {
         if (error.message.includes('AI_QUOTA_EXHAUSTED')) {
-          throw new AIGatewayError('AI_QUOTA_EXHAUSTED', 'Daily AI credit limit reached.');
+          throw new AIGatewayError('AI_QUOTA_EXHAUSTED', 'AI document limit reached for your plan.');
         }
         throw error;
       }
     },
     async refund() {
-      // Best-effort decrement; never throws (callers ignore refund failures).
+      // Best-effort decrement of both counters; never throws (callers ignore
+      // refund failures). Each block is independent and clamped at zero, so a
+      // missing row (e.g. lifetime row for a paid user) is a harmless no-op.
+      const today = new Date().toISOString().slice(0, 10);
       try {
-        const today = new Date().toISOString().slice(0, 10);
         const { data } = await supabaseAdmin
           .from('usage_daily')
           .select('ai_used')
@@ -131,6 +136,19 @@ export function createUsageMeter(userId: string): UsageMeter {
       } catch {
         /* refund is best-effort */
       }
+      try {
+        const { data } = await supabaseAdmin
+          .from('usage_lifetime')
+          .select('docs_used')
+          .eq('user_id', userId)
+          .single();
+        if (data) {
+          const used = Math.max(0, ((data as { docs_used?: number }).docs_used ?? 1) - 1);
+          await supabaseAdmin.from('usage_lifetime').update({ docs_used: used }).eq('user_id', userId);
+        }
+      } catch {
+        /* refund is best-effort */
+      }
     },
   };
 }
@@ -139,8 +157,8 @@ export function createUsageMeter(userId: string): UsageMeter {
  * Daily free-career-tool meter backed by the consume_tool_use RPC (atomic,
  * FOR UPDATE). Tools are free for everyone: FREE gets 10 uses/day, BASIC 50,
  * PREMIUM/MAX unlimited (enforced in SQL). Used by the 10 career-tool routes
- * instead of the document-credit meter, so the free tier's 3 daily documents
- * stay reserved for resumes, cover letters and answers.
+ * instead of the document-credit meter, so the free tier's 3 lifetime
+ * documents stay reserved for resumes, cover letters and answers.
  */
 export function createToolMeter(userId: string): UsageMeter {
   return {

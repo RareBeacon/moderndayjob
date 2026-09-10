@@ -88,7 +88,7 @@ export function JobletPricing() {
             <h3>Free</h3>
             <div className="jl-price">₦0<small> /month</small></div>
             <ul>
-              <li><Tick />3 AI documents / day</li>
+              <li><Tick />3 AI documents, total — free forever</li>
               <li><Tick />All 10 career tools — 10 uses / day</li>
               <li><Tick />ATS scanner &amp; job matching</li>
               <li><Tick />Application tracking</li>
@@ -100,8 +100,8 @@ export function JobletPricing() {
             <div className="jl-price">₦5,000<small> /month</small></div>
             <ul>
               <li><Tick />Everything in Free</li>
-              <li><Tick />10 AI documents / day</li>
-              <li><Tick />10 auto-apply slots / day</li>
+              <li><Tick />3 AI documents / day</li>
+              <li><Tick />2 auto-apply trial uses</li>
               <li><Tick />50 tool uses / day</li>
             </ul>
             <Link className="jl-btn-outline jl-plan-cta" href="/signup" style={{ textAlign: 'center' }}>Choose Basic</Link>
@@ -111,8 +111,8 @@ export function JobletPricing() {
             <div className="jl-price">₦10,000<small> /month</small></div>
             <ul>
               <li><Tick />Everything in Basic</li>
-              <li><Tick />20 AI documents / day</li>
-              <li><Tick />20 auto-apply slots / day</li>
+              <li><Tick />10 AI documents / day</li>
+              <li><Tick />10 auto-apply slots / day</li>
               <li><Tick />Unlimited tool uses</li>
             </ul>
             <Link className="jl-btn-solid jl-plan-cta" href="/signup" style={{ textAlign: 'center' }}>Choose Premium</Link>
@@ -122,14 +122,14 @@ export function JobletPricing() {
             <div className="jl-price">₦20,000<small> /month</small></div>
             <ul>
               <li><Tick />Everything in Premium</li>
-              <li><Tick />40 AI documents / day</li>
-              <li><Tick />40 auto-apply slots / day</li>
+              <li><Tick />20 AI documents / day</li>
+              <li><Tick />20 auto-apply slots / day</li>
               <li><Tick />Human-reviewed applications</li>
             </ul>
             <Link className="jl-btn-outline jl-plan-cta" href="/signup" style={{ textAlign: 'center' }}>Choose Max</Link>
           </div>
         </div>
-        <p className="jl-trial-note" data-animate data-animate-delay="240"><b>7-day automation trial</b> on every new account — try Basic features free, no card required.</p>
+        <p className="jl-trial-note" data-animate data-animate-delay="240">Free forever, no card required. <Link href="/pricing">Compare all plans →</Link></p>
       </div>
     </section>
   );
@@ -159,6 +159,20 @@ export function JobletAbout() {
               <p>{a.body}</p>
             </div>
           ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function JobletMission() {
+  return (
+    <section className="jl-sec" id="mission">
+      <div className="jl-shell">
+        <div className="jl-sec-head center" data-animate>
+          <span className="jl-kicker">Our mission</span>
+          <h2>Every job seeker deserves an agent in their corner.</h2>
+          <p>Applying for jobs is a full-time job. Jobiest exists to carry that weight: finding the roles that fit, preparing honest applications from your verified experience, and keeping you in control of every send.</p>
         </div>
       </div>
     </section>

@@ -34,11 +34,11 @@ Browser ──HTTPS──▶ Vercel Edge (platform WAF/DDoS) ──▶ Next.js s
 
 ---
 
-## 2. API inventory (44 route handlers)
+## 2. API inventory (45 route handlers)
 
 | Area | Routes |
 |---|---|
-| Auth | `signup`, `signout`, `confirm`, `forgot-password`, `reset-password` |
+| Auth | `signup`, `signout`, `resend-verification`, `forgot-password`, `reset-password` |
 | AI | `resume`, `analyze-job`, `match`, `interview-questions`, `career-paths`, `followup-email`, `profile-copy`, `salary-insights` |
 | ATS | `ats/scan` |
 | Documents | `documents`, `documents/generate`, `documents/generated`, `documents/[id]/download`, `documents/[id]/export` |
@@ -50,11 +50,11 @@ Browser ──HTTPS──▶ Vercel Edge (platform WAF/DDoS) ──▶ Next.js s
 | Jobs | `jobs` |
 | Entitlements | `entitlements` |
 | Tasks | `tasks/[id]/cancel` |
-| Cron | `cron/daily-pipeline` |
+| Cron | `cron/daily-pipeline`, `cron/security-digest` |
 | Tally (webhook) | `tally/webhook` |
 | Health | `health` (internal, non-sensitive) |
 
-**Auth coverage:** 35 route handlers call `requireUser()`. The remaining routes are either public-by-design (`health`, auth endpoints, webhooks) or protected by webhook signature verification (Flutterwave `verif-hash`, timing-safe compare).
+**Auth coverage:** 35 route handlers call `requireUser()`. The remaining routes are either public-by-design (`health`, auth endpoints), `CRON_SECRET`-gated (cron), or protected by webhook signature verification (Flutterwave `verif-hash`, timing-safe compare).
 
 ---
 
@@ -86,6 +86,7 @@ Browser ──HTTPS──▶ Vercel Edge (platform WAF/DDoS) ──▶ Next.js s
 - **RLS enabled** on user-data tables (profiles, applications, documents, generated_documents, preferences, payments, etc.) with `auth.uid() = user_id` select/insert policies; no `UPDATE` policy on append-only tables (generated_documents).
 - **`generated_documents`** is append-only + versioned with a `content_hash` (SHA-256) for immutability/verifiability, plus `source_facts` for traceability.
 - **`public.audit_logs`** (migration `011`, **applied 2026-09-10 via Management API**): RLS enabled, **no policies** — deny-by-default, so neither `anon` nor `authenticated` can read/write; only the service role (server) writes. Verified live: a real signup produced a `USER_SIGNUP` row.
+- **`public.usage_lifetime`** (migration `013`): lifetime quota counters (FREE docs cap 3, BASIC auto-apply trial cap 2). RLS enabled, **no policies** — deny-by-default, service-role (server) only, same pattern as `audit_logs`.
 - Service-role key exists **only** in server env; never shipped to the client.
 
 ---
@@ -216,7 +217,7 @@ All run against the real code on 2026-09-10:
 | Gate | Result |
 |---|---|
 | `npx tsc --noEmit` | ✅ clean |
-| `npx vitest run` | ✅ **349 passed** (40 files) |
+| `npx vitest run` | ✅ **375 passed** (42 files) |
 | `npm run build` (Next production build) | ✅ succeeded |
 | `npm audit --omit=dev` | ✅ **0 vulnerabilities** |
 | gitleaks full-history scan | ✅ 0 findings |
@@ -265,6 +266,8 @@ New suites added this pass:
 4. **Rate limits fail open** when Upstash is unreachable (availability over strictness) — acceptable for this scale, worth revisiting if abuse is observed.
 5. **Oracle A1 self-hosted gateway** is not yet provisioned (Oracle "Out of host capacity"; background retry loop continues). AI falls back to user-stored credentials meanwhile.
 6. **Verification email delivery depends on Resend**: if Resend is down, a new user is locked out until they resend from the login page (self-serve recovery exists). Acceptable trade-off for mandatory verification.
+7. ~~**OUTAGE (found 2026-09-10 via digest live test): Resend rejects all mail**~~ — **fixed 2026-09-10:** `jobiest.com` added in Resend, DKIM + SPF records added to Vercel DNS, domain status `verified`; `RESEND_API_KEY` rotated to the key whose account holds the verified domain and `RESEND_FROM` set to `hello@jobiest.com`. Delivery goes live with the next production deploy (env change requires redeploy); confirm by re-triggering `/api/cron/security-digest` and expecting `emailed: true`.
+8. **Prod/view edge quirk (cosmetic, no privilege impact):** the live `v_workspace_entitlements` treats a NULL plan (user with no `subscriptions` row) as paid-daily, while the `consume_*`/`reserve_*` RPCs correctly treat it as FREE — display-only mismatch. The repo `013_entitlement_quotas_v2.sql` coalesces NULL to FREE in the view; applying it removes the quirk. Unreachable in practice (`handle_new_user` always inserts a `subscriptions` row).
 
 *Previously-open risks now resolved: Supabase migration `011_audit_logs.sql` applied + verified live; mandatory email verification enabled; `postcss`/`auth-js` advisories cleared (0 vulnerabilities).*
 
@@ -274,7 +277,7 @@ New suites added this pass:
 
 1. Enable the OWASP CRS **managed rules** in the dashboard (Firewall → Managed Rules): xss/sqli/lfi/rfi/rce → deny, sd/ma/php → log. Custom rules are already live via the API.
 2. Add Turnstile/hCaptcha to signup **only if** signup abuse is observed (human-in-the-loop handoff until then).
-3. ~~Introduce structured log export/alerting on `audit_logs` (e.g. daily digest of `SUSPICIOUS_REGISTRATION`).~~ **Done in code 2026-09-10:** `GET /api/cron/security-digest` (CRON_SECRET-gated, Vercel Cron daily 07:00 UTC) aggregates the last 24h of `audit_logs` and emails counts + suspicious-registration/admin-action flags via Resend; skips gracefully while `ADMIN_ALERT_EMAIL` is unset; 11 unit tests green (suite now 374 passed). Live email pending: set `ADMIN_ALERT_EMAIL` in Vercel env.
+3. ~~Introduce structured log export/alerting on `audit_logs` (e.g. daily digest of `SUSPICIOUS_REGISTRATION`).~~ **Done in code 2026-09-10:** `GET /api/cron/security-digest` (CRON_SECRET-gated, Vercel Cron daily 07:00 UTC) aggregates the last 24h of `audit_logs` and emails counts + suspicious-registration/admin-action flags via Resend; skips gracefully while `ADMIN_ALERT_EMAIL` is unset; 11 unit tests green (suite now 374 passed). `ADMIN_ALERT_EMAIL` set live 2026-09-10; digest emails flow once the Resend fix deploys (see §19.7).
 4. Consider a `next@16` major upgrade on its own schedule (Turbopack default, `proxy.ts` rename) — no longer security-driven, since the `postcss` advisory is cleared via `overrides`.
 5. Provision the Oracle A1 VM to make Ollama-first the default AI path and remove third-party API dependence.
 

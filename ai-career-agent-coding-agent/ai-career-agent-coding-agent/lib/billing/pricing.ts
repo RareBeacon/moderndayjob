@@ -2,7 +2,7 @@
  * Jobiest pricing catalog — single source of truth for plan names, prices,
  * quotas and feature copy. Consumed by the marketing pricing page, the
  * in-app billing page, and the billing guards (which enforce the same numbers
- * in SQL — see supabase/migrations/012_pricing_tiers.sql).
+ * in SQL — see supabase/migrations/013_entitlement_quotas_v2.sql).
  *
  * Prices are set in Naira (₦) as the billing base currency; the pricing page
  * converts them for display using lib/billing/currency.ts.
@@ -16,10 +16,14 @@ export interface PlanDefinition {
   tagline: string;
   /** Monthly price in Naira (major units). FREE is 0. */
   monthlyNgn: number;
-  /** AI document generations per day (resume, cover letter, answers). */
+  /** AI document generations per day (0 for FREE: FREE uses lifetimeDocs). */
   documentCredits: number;
-  /** Auto-apply automation slots per day (0 = not entitled). */
+  /** Total AI documents ever on FREE (null = not applicable). */
+  lifetimeDocs: number | null;
+  /** Auto-apply agent-mode slots per day (0 = no daily allowance). */
   automationSlots: number;
+  /** Total auto-apply trial uses on BASIC (null = not applicable). */
+  lifetimeAutomation: number | null;
   /** Free career-tool uses per day (null = unlimited). */
   toolUses: number | null;
   highlight: string;
@@ -35,12 +39,14 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
     name: 'Free',
     tagline: 'Everything you need to start applying, free forever.',
     monthlyNgn: 0,
-    documentCredits: 3,
+    documentCredits: 0,
+    lifetimeDocs: 3,
     automationSlots: 0,
+    lifetimeAutomation: null,
     toolUses: 10,
     highlight: '₦0 forever',
     features: [
-      '3 AI documents a day (resume, cover letter, answers)',
+      '3 AI documents in total, free forever (resume, cover letter, answers)',
       'All 10 career tools — 10 uses a day',
       'ATS resume scanner',
       'Job search & match scoring',
@@ -53,17 +59,19 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
   BASIC: {
     code: 'BASIC',
     name: 'Basic',
-    tagline: 'For active job seekers who want automation on their side.',
+    tagline: 'Daily documents plus a first taste of agent-mode automation.',
     monthlyNgn: 5000,
-    documentCredits: 10,
-    automationSlots: 10,
+    documentCredits: 3,
+    lifetimeDocs: null,
+    automationSlots: 0,
+    lifetimeAutomation: 2,
     toolUses: 50,
     highlight: '₦5,000 / month',
     features: [
       'Everything in Free',
-      '10 AI documents a day',
+      '3 AI documents a day',
+      '2 auto-apply trial uses (agent mode)',
       '50 career-tool uses a day',
-      '10 auto-apply slots a day (approval mode)',
       'Follow-up email writer',
       'Priority email support',
     ],
@@ -73,17 +81,19 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
   PREMIUM: {
     code: 'PREMIUM',
     name: 'Premium',
-    tagline: 'Double the volume, unlimited tools, faster everything.',
+    tagline: 'Agent mode unlocked, with room to run.',
     monthlyNgn: 10000,
-    documentCredits: 20,
-    automationSlots: 20,
+    documentCredits: 10,
+    lifetimeDocs: null,
+    automationSlots: 10,
+    lifetimeAutomation: null,
     toolUses: null,
     highlight: '₦10,000 / month',
     features: [
       'Everything in Basic',
-      '20 AI documents a day',
+      '10 AI documents a day',
+      '10 auto-apply slots a day (agent mode)',
       'Unlimited career-tool uses',
-      '20 auto-apply slots a day',
       'Priority AI processing & faster queue',
       'Salary insights & interview prep unlimited',
     ],
@@ -96,14 +106,16 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
     name: 'Max',
     tagline: 'For power users and agencies. Everything, with a human in the loop.',
     monthlyNgn: 20000,
-    documentCredits: 40,
-    automationSlots: 40,
+    documentCredits: 20,
+    lifetimeDocs: null,
+    automationSlots: 20,
+    lifetimeAutomation: null,
     toolUses: null,
     highlight: '₦20,000 / month',
     features: [
       'Everything in Premium',
-      '40 AI documents a day',
-      '40 auto-apply slots a day',
+      '20 AI documents a day',
+      '20 auto-apply slots a day (agent mode)',
       'Unlimited everything',
       'Human-reviewed applications',
       'Concierge support & early access',
