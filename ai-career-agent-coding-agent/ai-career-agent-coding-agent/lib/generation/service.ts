@@ -1,7 +1,8 @@
 import type { AITask } from '@packages/ai/types';
 import type { TruthfulProfile, VerificationInput } from '@/lib/truthfulness/types';
 import { verifyDocument } from '@/lib/truthfulness/verify';
-import { stripDashes } from '@/lib/ai/sanitize';
+import { stripDashes, stripPlaceholders } from '@/lib/ai/sanitize';
+import { isPlaceholder } from '@/lib/truthfulness/extract';
 import { ANSWERS_TASK, COVER_LETTER_TASK, CV_TASK } from './tasks';
 import type {
   AnswersOutput,
@@ -27,6 +28,9 @@ export interface GenerateInput {
   gateway: GenerationGateway;
 }
 
+/** Apply both content sanitizers: dashes first, then placeholder cleanup. */
+const clean = (text: string) => stripPlaceholders(stripDashes(text));
+
 /**
  * Generate a career document and verify it for truthfulness.
  *
@@ -45,7 +49,7 @@ export async function generateDocument(input: GenerateInput): Promise<Generation
     return {
       kind: 'CV',
       title: input.job ? `CV, ${input.job.title}` : 'CV, General',
-      content: stripDashes(JSON.stringify(data, null, 2)),
+      content: clean(JSON.stringify(data, null, 2)),
       report,
       provider,
     };
@@ -57,13 +61,13 @@ export async function generateDocument(input: GenerateInput): Promise<Generation
       job: input.job,
     });
     const report = verifyDocument(
-      { claimedEmployers: data.references.employers, claimedSchools: data.references.schools, claimedSkills: data.references.skills, text: data.body },
+      { claimedEmployers: data.references.employers.filter((e) => !isPlaceholder(e ?? '')), claimedSchools: data.references.schools.filter((s) => !isPlaceholder(s ?? '')), claimedSkills: data.references.skills.filter((s) => !isPlaceholder(s ?? '')), text: data.body },
       truthfulProfile,
     );
     return {
       kind: 'COVER_LETTER',
       title: input.job ? `Cover letter, ${input.job.company}` : 'Cover letter, General',
-      content: stripDashes(data.body),
+      content: clean(data.body),
       report,
       provider,
     };
@@ -77,15 +81,15 @@ export async function generateDocument(input: GenerateInput): Promise<Generation
     job: input.job,
     questions,
   });
-  const text = stripDashes(data.answers.map((a) => `${a.question}\n${a.answer}`).join('\n\n'));
+  const text = clean(data.answers.map((a) => `${a.question}\n${a.answer}`).join('\n\n'));
   const report = verifyDocument(
-    { claimedEmployers: data.references.employers, claimedSchools: data.references.schools, claimedSkills: data.references.skills, text },
+    { claimedEmployers: data.references.employers.filter((e) => !isPlaceholder(e ?? '')), claimedSchools: data.references.schools.filter((s) => !isPlaceholder(s ?? '')), claimedSkills: data.references.skills.filter((s) => !isPlaceholder(s ?? '')), text },
     truthfulProfile,
   );
   return {
     kind: 'ANSWERS',
     title: input.job ? `Answers, ${input.job.company}` : 'Answers, General',
-    content: stripDashes(JSON.stringify(data, null, 2)),
+    content: clean(JSON.stringify(data, null, 2)),
     report,
     provider,
   };
@@ -110,9 +114,9 @@ function cvVerification(cv: CVOutput): VerificationInput {
     ...cv.experiences.flatMap((e) => e.bullets),
   ].join('\n');
   return {
-    claimedEmployers: cv.experiences.map((e) => e.company),
-    claimedSchools: cv.education.map((e) => e.institution),
-    claimedSkills: cv.skills,
+    claimedEmployers: cv.experiences.map((e) => e.company).filter((c) => !isPlaceholder(c ?? '')),
+    claimedSchools: cv.education.map((e) => e.institution).filter((s) => !isPlaceholder(s ?? '')),
+    claimedSkills: cv.skills.filter((s) => !isPlaceholder(s ?? '')),
     text,
   };
 }

@@ -34,16 +34,36 @@ export function extractMetrics(text: string): string[] {
 }
 
 /**
+ * Placeholder tokens models emit for missing facts. These assert nothing, so
+ * they must never fail verification (a model writing "N/A" for an unknown
+ * company is being honest, not fabricating). Checked only AFTER a profile
+ * match fails, so a real entity that happens to look like one still passes
+ * via the profile first.
+ */
+const PLACEHOLDERS = new Set([
+  'n/a', 'n.a.', 'na', 'none', 'nil', 'null', 'undefined',
+  'unknown', 'tbd', 'tba', 'tbc', '-', '--', 'not specified', 'not applicable',
+]);
+
+/** True when the value is a placeholder token (or empty), not a real asserted entity. */
+export function isPlaceholder(value: string): boolean {
+  const n = norm(value ?? '');
+  return n === '' || PLACEHOLDERS.has(n);
+}
+
+/**
  * Does `claimed` match any known value? Bidirectional substring match after
  * normalization so "Google" matches "Google LLC" and vice-versa.
  */
 export function matchesAny(claimed: string, known: string[]): boolean {
   const c = norm(claimed);
   if (!c) return true; // empty claim = nothing asserted
-  return known.some((k) => {
+  const hit = known.some((k) => {
     const n = norm(k);
     return n && (c === n || c.includes(n) || n.includes(c));
   });
+  if (hit) return true;
+  return isPlaceholder(c); // placeholder with no profile grounding = nothing asserted
 }
 
 /**

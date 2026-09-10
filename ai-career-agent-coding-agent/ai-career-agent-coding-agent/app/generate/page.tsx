@@ -268,7 +268,7 @@ function ContentRender({ kind, content }: { kind: Kind; content: string }) {
           <p className="muted" style={{ marginTop: 6 }}>{data.summary}</p>
           {data.experiences?.map((e: { company: string; title: string; bullets: string[] }, i: number) => (
             <div key={i} style={{ marginTop: 14 }}>
-              <strong>{e.title}</strong> · <span className="muted">{e.company}</span>
+              <strong>{e.title}</strong>{e.company ? <> · <span className="muted">{e.company}</span></> : null}
               <ul style={{ margin: '6px 0 0', paddingLeft: 20 }}>
                 {e.bullets?.map((b: string, j: number) => <li key={j} style={{ fontSize: 14, color: 'var(--ink-2)' }}>{b}</li>)}
               </ul>

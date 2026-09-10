@@ -119,3 +119,36 @@ describe('toTruthfulProfile', () => {
     expect(tp.experienceText).toContain('80%');
   });
 });
+
+describe('generateDocument, company-less experience (N/A regression)', () => {
+  const soloProfile: GenerationProfile = {
+    headline: 'AI Engineer',
+    summary: 'I have over 3 years of experience in building AI agents and automations.',
+    skills: ['n8n', 'LangChain', 'LangGraph'],
+    targetRoles: ['AI Engineer'],
+    experience: [{ company: '', title: 'AI Engineer', description: 'Developed and maintained AI agents and automations using n8n and LangChain and LangGraph.' }],
+    education: [],
+  };
+  const naCV: CVOutput = {
+    headline: 'AI Engineer',
+    summary: 'Engineer with 3 years building AI agents and automations.',
+    experiences: [
+      { company: 'N/A', title: 'AI Engineer', start: null, end: null, bullets: ['Developed and maintained AI agents and automations.'] },
+    ],
+    skills: ['n8n', 'LangChain', 'LangGraph'],
+    education: [],
+  };
+  it('passes and scrubs N/A when the model emits a placeholder company', async () => {
+    const res = await generateDocument({ kind: 'CV', profile: soloProfile, gateway: mockGateway(() => naCV) });
+    expect(res.report.passed).toBe(true);
+    expect(res.report.unsupported).toHaveLength(0);
+    expect(res.content).not.toContain('N/A');
+    expect(res.content).toContain('AI Engineer');
+  });
+  it('passes when the model omits the company with an empty string', async () => {
+    const emptyCompany = { ...naCV, experiences: [{ ...naCV.experiences[0], company: '' }] };
+    const res = await generateDocument({ kind: 'CV', profile: soloProfile, gateway: mockGateway(() => emptyCompany) });
+    expect(res.report.passed).toBe(true);
+    expect(res.content).toContain('"company": ""');
+  });
+});

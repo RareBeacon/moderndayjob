@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { verifyDocument } from '../lib/truthfulness/verify';
-import { extractCredentials, extractMetrics, matchesAny } from '../lib/truthfulness/extract';
+import { extractCredentials, extractMetrics, isPlaceholder, matchesAny } from '../lib/truthfulness/extract';
 import type { TruthfulProfile } from '../lib/truthfulness/types';
 
 const profile: TruthfulProfile = {
@@ -94,5 +94,36 @@ describe('extract helpers', () => {
     expect(matchesAny('Google LLC', ['Google'])).toBe(true);
     expect(matchesAny('Facebook', ['Google'])).toBe(false);
     expect(matchesAny('', ['Google'])).toBe(true);
+  });
+});
+
+describe('verifyDocument, placeholder claims (missing-fact honesty)', () => {
+  const noCompany: TruthfulProfile = {
+    summary: 'I build AI agents and automations.',
+    skills: ['n8n', 'LangChain'],
+    employers: [],
+    schools: [],
+    experienceText: 'Developed and maintained AI agents and automations.',
+  };
+  it.each(['N/A', 'n/a', 'Unknown', 'TBD', '-', 'Not specified'])(
+    'passes when the model writes %s for a missing company',
+    (token) => {
+      const r = verifyDocument({ claimedEmployers: [token], text: 'Built automations.' }, noCompany);
+      expect(r.passed).toBe(true);
+      expect(r.unsupported).toHaveLength(0);
+    },
+  );
+  it('still fails a genuinely fabricated employer', () => {
+    const r = verifyDocument({ claimedEmployers: ['Facebook'], text: '' }, noCompany);
+    expect(r.passed).toBe(false);
+    expect(r.unsupported[0].value).toBe('Facebook');
+  });
+  it('isPlaceholder recognizes placeholder tokens only', () => {
+    for (const t of ['N/A', 'n.a.', 'NA', '-', 'unknown', 'tbd', 'Not applicable', '']) {
+      expect(isPlaceholder(t)).toBe(true);
+    }
+    for (const t of ['Google', 'Acme Inc', 'University of Lagos']) {
+      expect(isPlaceholder(t)).toBe(false);
+    }
   });
 });
