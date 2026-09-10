@@ -129,7 +129,14 @@ Upstash Redis `@upstash/ratelimit` sliding-window, applied server-side with a sh
 
 ## 9. WAF / edge protection
 
-**Platform-reliant (not custom-built).** No custom WAF module was created (the spec explicitly forbids fake WAF UI). JOBIEST runs on Vercel's edge, which provides its managed Web Application Firewall, TLS termination, and origin shielding. Documented as the current posture; custom WAF rules (e.g. via Vercel Firewall config) are a recommended hardening item.
+**Platform WAF with custom firewall rules (configured 2026-09-10 via the Vercel API).** No custom WAF module was created (the spec explicitly forbids fake WAF UI); JOBIEST uses Vercel's edge firewall with two project rules, verified live (`/.env` → 403, `/wp-admin` → 403, `sqlmap` UA → 403, homepage → 200):
+
+| Rule | Action | Effect |
+|---|---|---|
+| Block sensitive-file and admin scanner paths (`.env`, `.git`, `wp-admin`, `wp-login`, `xmlrpc`, `phpmyadmin`) | deny | Stops config-exfil / scanner probes at the edge |
+| Block obvious scanner and automation user-agents (`sqlmap`, `nikto`, `nmap`, `masscan`, `gobuster`, `dirbuster`) | deny | Stops common tooling at the edge |
+
+> The OWASP CRS **managed rules** (xss/sqli/lfi/rfi/rce categories) are exposed by the API but the activation schema is not reliably honored via `PUT` (empirically the `crs` block resets to defaults). They should be enabled via the dashboard **Firewall → Managed Rules** tab — noted in §20.
 
 ---
 
@@ -217,6 +224,8 @@ All run against the real code on 2026-09-10:
 | Live `jobiest.com` response headers | ✅ CSP + nosniff + DENY + referrer + permissions + HSTS present |
 | Live `/api/health` | ✅ `ok: true`, database ok, AI gateway ok, email configured |
 | Live audit trail (`audit_logs`) | ✅ migration applied; real signup wrote `USER_SIGNUP` row |
+| Live email verification | ✅ signup → `verificationRequired`, unconfirmed sign-in blocked, resend OK, click link → sign-in works |
+| Live Vercel Firewall | ✅ `/.env`→403, `/wp-admin`→403, `sqlmap` UA→403, homepage→200 |
 
 **Security-relevant suites** (selected): `admin-security`, `admin-users-list`, `auth-signup-route`, `security-risk`, `rate-limit`, `ssrf`, `truthfulness`, `browser-worker-auth`, `apply-stop-conditions`, `automation-killswitch`, `billing-webhook`, `crypto`, `entitlements`, `plans`, `middleware`, `documents-export`, `resend-verification`, `api-gateway`.
 
@@ -251,7 +260,7 @@ New suites added this pass:
 ## 19. Known remaining risks
 
 1. **Device-linking is best-effort**: a user can clear cookies or switch browsers to evade device velocity. By design (no CAPTCHA); EXTREME/IP limits remain as backstop.
-2. **No custom WAF/DDoS module** — relies on Vercel platform edge; custom firewall rules not yet configured in the Vercel dashboard.
+2. **OWASP CRS managed rules not yet active** — custom firewall rules are live, but the managed XSS/SQLi/LFI/RFI ruleset should be enabled in the dashboard WAF tab (the API activation schema was not reliably honored).
 3. **Flutterwave is test-mode only** — the real-mode close loop (live keys + live webhook verification) is not activated pending authorization.
 4. **Rate limits fail open** when Upstash is unreachable (availability over strictness) — acceptable for this scale, worth revisiting if abuse is observed.
 5. **Oracle A1 self-hosted gateway** is not yet provisioned (Oracle "Out of host capacity"; background retry loop continues). AI falls back to user-stored credentials meanwhile.
@@ -263,7 +272,7 @@ New suites added this pass:
 
 ## 20. Recommended future hardening
 
-1. Configure Vercel Firewall custom rules (bot detection, geo-block where appropriate) for defense-in-depth beyond headers.
+1. Enable the OWASP CRS **managed rules** in the dashboard (Firewall → Managed Rules): xss/sqli/lfi/rfi/rce → deny, sd/ma/php → log. Custom rules are already live via the API.
 2. Add Turnstile/hCaptcha to signup **only if** signup abuse is observed (human-in-the-loop handoff until then).
 3. Introduce structured log export/alerting on `audit_logs` (e.g. daily digest of `SUSPICIOUS_REGISTRATION`).
 4. Consider a `next@16` major upgrade on its own schedule (Turbopack default, `proxy.ts` rename) — no longer security-driven, since the `postcss` advisory is cleared via `overrides`.
