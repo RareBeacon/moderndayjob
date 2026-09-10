@@ -3,6 +3,7 @@ import type { AIGatewayRunOptions, AITask, AIProvider, ChatResponse } from './ty
 /** Stable gateway error codes (used by routes + logs). */
 export type AIGatewayErrorCode =
   | 'AI_QUOTA_EXHAUSTED'
+  | 'TOOL_QUOTA_EXHAUSTED'
   | 'AI_OUTPUT_INVALID'
   | 'AI_ALL_PROVIDERS_FAILED'
   | 'AI_NO_PROVIDERS';

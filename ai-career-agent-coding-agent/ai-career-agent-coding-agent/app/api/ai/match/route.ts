@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { requireUser } from '@/lib/auth';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { assertEntitlement } from '@packages/security/entitlements';
-import { AICredentialMissingError, buildGatewayForUser, createUsageMeter } from '@/lib/ai/server';
+import { AICredentialMissingError, buildGatewayForUser, createToolMeter } from '@/lib/ai/server';
 import { loadMatchInputs } from '@/lib/ai/matching-loader';
 import { runMatching } from '@/lib/matching/engine';
 import { AIGatewayError } from '@packages/ai/gateway';
@@ -34,8 +34,9 @@ export async function POST(req: Request) {
   // Entitlement + hard pre-check on remaining credits (backstop before the
   // atomic RPC reserve, for a clean 429 without a DB write).
   const entitlement = await assertEntitlement(user.id, 'ai');
-  if (Number(entitlement.ai_credits_remaining) <= 0) {
-    return NextResponse.json({ error: 'DAILY_AI_CREDITS_EXHAUSTED' }, { status: 429 });
+  const toolsLeft = entitlement.tool_uses_remaining;
+  if (toolsLeft !== null && Number(toolsLeft) <= 0) {
+    return NextResponse.json({ error: 'DAILY_TOOL_USES_EXHAUSTED' }, { status: 429 });
   }
 
   const { profile, prefs, jobs, appliedJobIds } = await loadMatchInputs(user.id);
@@ -57,12 +58,12 @@ export async function POST(req: Request) {
   }
 
   // Session-level metering: one credit reserves the whole match session.
-  const meter = createUsageMeter(user.id);
+  const meter = createToolMeter(user.id);
   try {
     await meter.reserve();
   } catch (err) {
-    if (err instanceof AIGatewayError && err.code === 'AI_QUOTA_EXHAUSTED') {
-      return NextResponse.json({ error: 'DAILY_AI_CREDITS_EXHAUSTED' }, { status: 429 });
+    if (err instanceof AIGatewayError && err.code === 'TOOL_QUOTA_EXHAUSTED') {
+      return NextResponse.json({ error: 'DAILY_TOOL_USES_EXHAUSTED' }, { status: 429 });
     }
     throw err;
   }

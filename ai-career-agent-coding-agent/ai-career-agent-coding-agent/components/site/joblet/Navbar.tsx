@@ -6,7 +6,7 @@ import { IconSearch, IconMenu, IconClose } from './Icons';
 const LINKS = [
   { label: 'Home', href: '/', active: true },
   { label: 'Jobs', href: '/jobs', active: false },
-  { label: 'Employers', href: '/#employers', active: false },
+  { label: 'Pricing', href: '/pricing', active: false },
   { label: 'Resources', href: '/#tools', active: false },
   { label: 'About', href: '/#about', active: false },
 ];

@@ -81,41 +81,52 @@ export function JobletPricing() {
         <div className="jl-sec-head center" data-animate>
           <span className="jl-kicker">Pricing</span>
           <h2>Start free. Upgrade when you’re ready to automate.</h2>
-          <p>Prices in Naira. Cancel anytime.</p>
+          <p>Prices in Naira. Cancel anytime. <Link href="/pricing">See local-currency pricing →</Link></p>
         </div>
-        <div className="jl-plans">
+        <div className="jl-plans four">
           <div className="jl-plan" data-animate>
             <h3>Free</h3>
             <div className="jl-price">₦0<small> /month</small></div>
             <ul>
-              <li><Tick />2 AI career credits / day</li>
-              <li><Tick />CV builder &amp; ATS tools</li>
-              <li><Tick />Job analysis &amp; matching</li>
+              <li><Tick />3 AI documents / day</li>
+              <li><Tick />All 10 career tools — 10 uses / day</li>
+              <li><Tick />ATS scanner &amp; job matching</li>
               <li><Tick />Application tracking</li>
             </ul>
             <Link className="jl-btn-outline jl-plan-cta" href="/signup" style={{ textAlign: 'center' }}>Start free</Link>
           </div>
-          <div className="jl-plan featured" data-animate data-animate-delay="90">
+          <div className="jl-plan" data-animate data-animate-delay="70">
             <h3>Basic</h3>
             <div className="jl-price">₦5,000<small> /month</small></div>
             <ul>
               <li><Tick />Everything in Free</li>
-              <li><Tick />Application automation</li>
-              <li><Tick />10 applications / day</li>
-              <li><Tick />Approval-mode workflow</li>
+              <li><Tick />10 AI documents / day</li>
+              <li><Tick />10 auto-apply slots / day</li>
+              <li><Tick />50 tool uses / day</li>
             </ul>
-            <Link className="jl-btn-solid jl-plan-cta" href="/signup" style={{ textAlign: 'center' }}>Choose Basic</Link>
+            <Link className="jl-btn-outline jl-plan-cta" href="/signup" style={{ textAlign: 'center' }}>Choose Basic</Link>
           </div>
-          <div className="jl-plan" data-animate data-animate-delay="180">
+          <div className="jl-plan featured" data-animate data-animate-delay="140">
             <h3>Premium</h3>
             <div className="jl-price">₦10,000<small> /month</small></div>
             <ul>
               <li><Tick />Everything in Basic</li>
-              <li><Tick />20 applications / day</li>
-              <li><Tick />Advanced intelligence</li>
-              <li><Tick />Priority processing</li>
+              <li><Tick />20 AI documents / day</li>
+              <li><Tick />20 auto-apply slots / day</li>
+              <li><Tick />Unlimited tool uses</li>
             </ul>
-            <Link className="jl-btn-outline jl-plan-cta" href="/signup" style={{ textAlign: 'center' }}>Choose Premium</Link>
+            <Link className="jl-btn-solid jl-plan-cta" href="/signup" style={{ textAlign: 'center' }}>Choose Premium</Link>
+          </div>
+          <div className="jl-plan" data-animate data-animate-delay="210">
+            <h3>Max</h3>
+            <div className="jl-price">₦20,000<small> /month</small></div>
+            <ul>
+              <li><Tick />Everything in Premium</li>
+              <li><Tick />40 AI documents / day</li>
+              <li><Tick />40 auto-apply slots / day</li>
+              <li><Tick />Human-reviewed applications</li>
+            </ul>
+            <Link className="jl-btn-outline jl-plan-cta" href="/signup" style={{ textAlign: 'center' }}>Choose Max</Link>
           </div>
         </div>
         <p className="jl-trial-note" data-animate data-animate-delay="240"><b>7-day automation trial</b> on every new account — try Basic features free, no card required.</p>

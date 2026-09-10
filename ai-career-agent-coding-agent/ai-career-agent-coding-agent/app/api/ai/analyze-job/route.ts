@@ -4,7 +4,7 @@ import { requireUser } from '@/lib/auth';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { assertEntitlement } from '@packages/security/entitlements';
 import { AIGatewayError } from '@packages/ai/gateway';
-import { AICredentialMissingError, buildGatewayForUser, createUsageMeter } from '@/lib/ai/server';
+import { AICredentialMissingError, buildGatewayForUser, createToolMeter } from '@/lib/ai/server';
 import { analyzeJob } from '@/lib/analysis/service';
 import { supabaseAdmin } from '@/lib/supabase';
 
@@ -32,8 +32,9 @@ export async function POST(req: Request) {
   const { jobDescription } = parsed.data;
 
   const entitlement = await assertEntitlement(user.id, 'ai');
-  if (Number(entitlement.ai_credits_remaining) <= 0) {
-    return NextResponse.json({ error: 'DAILY_AI_CREDITS_EXHAUSTED' }, { status: 429 });
+  const toolsLeft = entitlement.tool_uses_remaining;
+  if (toolsLeft !== null && Number(toolsLeft) <= 0) {
+    return NextResponse.json({ error: 'DAILY_TOOL_USES_EXHAUSTED' }, { status: 429 });
   }
 
   // Profile skills are optional, analysis still works without a profile;
@@ -55,12 +56,12 @@ export async function POST(req: Request) {
     throw err;
   }
 
-  const meter = createUsageMeter(user.id);
+  const meter = createToolMeter(user.id);
   try {
     await meter.reserve();
   } catch (err) {
-    if (err instanceof AIGatewayError && err.code === 'AI_QUOTA_EXHAUSTED') {
-      return NextResponse.json({ error: 'DAILY_AI_CREDITS_EXHAUSTED' }, { status: 429 });
+    if (err instanceof AIGatewayError && err.code === 'TOOL_QUOTA_EXHAUSTED') {
+      return NextResponse.json({ error: 'DAILY_TOOL_USES_EXHAUSTED' }, { status: 429 });
     }
     throw err;
   }

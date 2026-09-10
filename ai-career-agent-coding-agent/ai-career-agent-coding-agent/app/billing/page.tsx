@@ -6,10 +6,34 @@ type Entitlement = {
   plan: string;
   ai_credits_remaining: number;
   applications_remaining: number;
+  tool_uses_remaining: number | null;
   automation_enabled: boolean;
   subscription_status: string | null;
   trial_ends_at: string | null;
 };
+
+type PaidPlan = 'BASIC' | 'PREMIUM' | 'MAX';
+
+const PLANS: { code: PaidPlan; name: string; price: string; blurb: string }[] = [
+  {
+    code: 'BASIC',
+    name: 'Basic',
+    price: '₦5,000 / month',
+    blurb: '10 AI documents and 10 auto-apply slots a day. 50 tool uses a day.',
+  },
+  {
+    code: 'PREMIUM',
+    name: 'Premium',
+    price: '₦10,000 / month',
+    blurb: '20 AI documents and 20 auto-apply slots a day. Unlimited tool uses.',
+  },
+  {
+    code: 'MAX',
+    name: 'Max',
+    price: '₦20,000 / month',
+    blurb: '40 AI documents and 40 auto-apply slots a day. Human-reviewed applications.',
+  },
+];
 
 export default function Billing() {
   const [entitlement, setEntitlement] = useState<Entitlement | null>(null);
@@ -23,7 +47,7 @@ export default function Billing() {
       .catch(() => setMessage('Unable to load plan information.'));
   }, []);
 
-  async function buy(plan: 'BASIC' | 'PREMIUM') {
+  async function buy(plan: PaidPlan) {
     setLoading(plan);
     setMessage('');
     const r = await fetch('/api/billing/flutterwave/create', {
@@ -42,11 +66,12 @@ export default function Billing() {
       <section className="workspace-hero">
         <p className="eyebrow">PLAN &amp; USAGE</p>
         <h1>Keep control of your momentum.</h1>
-        <p>Your plan, credits, and automation allowance are calculated securely on the server-not in your browser.</p>
+        <p>Your plan, credits, and automation allowance are calculated securely on the server — not in your browser.</p>
         {entitlement && (
           <div className="usage-strip">
             <span><b>{entitlement.plan}</b> current plan</span>
-            <span><b>{entitlement.ai_credits_remaining}</b> AI credits today</span>
+            <span><b>{entitlement.ai_credits_remaining}</b> AI documents today</span>
+            <span><b>{entitlement.tool_uses_remaining === null ? 'Unlimited' : entitlement.tool_uses_remaining}</b> tool uses today</span>
             <span><b>{entitlement.applications_remaining}</b> automation slots today</span>
           </div>
         )}
@@ -56,22 +81,23 @@ export default function Billing() {
         <article className="card">
           <p className="eyebrow">FREE</p>
           <h2>₦0</h2>
-          <p className="muted">2 AI career/document credits every day. Track applications and build your career profile.</p>
+          <p className="muted">3 AI documents every day. All 10 career tools (10 uses a day), job matching and tracking.</p>
           <strong>Your career workspace stays yours.</strong>
         </article>
-        <article className="card">
-          <p className="eyebrow">BASIC</p>
-          <h2>₦5,000 <small>/ month</small></h2>
-          <p className="muted">10 automation slots per day when approved adapters and workflows are available.</p>
-          <button className="btn" disabled={!!loading} onClick={() => buy('BASIC')}>{loading === 'BASIC' ? 'Preparing checkout…' : 'Choose Basic'}</button>
-        </article>
-        <article className="card featured-plan">
-          <p className="eyebrow">PREMIUM</p>
-          <h2>₦10,000 <small>/ month</small></h2>
-          <p className="muted">20 automation slots per day with the same human-control and approval safeguards.</p>
-          <button className="btn" disabled={!!loading} onClick={() => buy('PREMIUM')}>{loading === 'PREMIUM' ? 'Preparing checkout…' : 'Choose Premium'}</button>
-        </article>
+        {PLANS.map((p) => (
+          <article key={p.code} className={`card${p.code === 'PREMIUM' ? ' featured-plan' : ''}`}>
+            <p className="eyebrow">{p.name.toUpperCase()}</p>
+            <h2>{p.price}</h2>
+            <p className="muted">{p.blurb}</p>
+            <button className="btn" disabled={!!loading} onClick={() => buy(p.code)}>
+              {loading === p.code ? 'Preparing checkout…' : `Choose ${p.name}`}
+            </button>
+          </article>
+        ))}
       </section>
+      <p className="form-hint">
+        Prices are in Naira. See <a href="/pricing" style={{ color: 'var(--brand)' }}>the public pricing page</a> for local-currency estimates and full plan details.
+      </p>
     </AppShell>
   );
 }

@@ -102,10 +102,11 @@ export async function verifyFlutterwaveTransaction(transactionId: string | numbe
 /* Known plan amounts in NGN naira (must match subscription_plans.amount and
    the apply_verified_payment threshold). Used to guard the webhook against
    under/over-payment before granting a plan. */
-export const PLAN_AMOUNTS_NGN = { BASIC: 5000, PREMIUM: 10000 } as const;
-export type PaidPlan = 'BASIC' | 'PREMIUM';
+export const PLAN_AMOUNTS_NGN = { BASIC: 5000, PREMIUM: 10000, MAX: 20000 } as const;
+export type PaidPlan = 'BASIC' | 'PREMIUM' | 'MAX';
 
 export function planForAmount(amount: number): PaidPlan | null {
+  if (amount === PLAN_AMOUNTS_NGN.MAX) return 'MAX';
   if (amount === PLAN_AMOUNTS_NGN.PREMIUM) return 'PREMIUM';
   if (amount === PLAN_AMOUNTS_NGN.BASIC) return 'BASIC';
   return null;

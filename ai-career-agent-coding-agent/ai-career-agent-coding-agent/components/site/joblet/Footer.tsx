@@ -32,8 +32,16 @@ export function JobletFooter() {
               <ul>
                 <li><a href="/signup">Start free</a></li>
                 <li><a href="/login">Sign in</a></li>
+                <li><a href="/pricing">Pricing</a></li>
                 <li><a href="/#faq">Help</a></li>
-                <li><a href="/#about">About</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4>Legal</h4>
+              <ul>
+                <li><a href="/terms">Terms of service</a></li>
+                <li><a href="/privacy">Privacy policy</a></li>
+                <li><a href="/refund">Refund policy</a></li>
               </ul>
             </div>
           </div>

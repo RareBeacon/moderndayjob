@@ -90,6 +90,7 @@ describe('planForAmount (webhook guard)', () => {
   it('maps known plan amounts', () => {
     expect(planForAmount(PLAN_AMOUNTS_NGN.BASIC)).toBe('BASIC');
     expect(planForAmount(PLAN_AMOUNTS_NGN.PREMIUM)).toBe('PREMIUM');
+    expect(planForAmount(PLAN_AMOUNTS_NGN.MAX)).toBe('MAX');
   });
 
   it('rejects unexpected amounts (under/over-payment)', () => {
@@ -97,5 +98,6 @@ describe('planForAmount (webhook guard)', () => {
     expect(planForAmount(4999)).toBeNull();
     expect(planForAmount(0)).toBeNull();
     expect(planForAmount(7000)).toBeNull();
+    expect(planForAmount(15000)).toBeNull(); // between tiers — no such plan
   });
 });

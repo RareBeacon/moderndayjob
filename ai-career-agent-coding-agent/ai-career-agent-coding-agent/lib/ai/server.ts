@@ -134,3 +134,44 @@ export function createUsageMeter(userId: string): UsageMeter {
     },
   };
 }
+
+/**
+ * Daily free-career-tool meter backed by the consume_tool_use RPC (atomic,
+ * FOR UPDATE). Tools are free for everyone: FREE gets 10 uses/day, BASIC 50,
+ * PREMIUM/MAX unlimited (enforced in SQL). Used by the 10 career-tool routes
+ * instead of the document-credit meter, so the free tier's 3 daily documents
+ * stay reserved for resumes, cover letters and answers.
+ */
+export function createToolMeter(userId: string): UsageMeter {
+  return {
+    async reserve() {
+      const { error } = await supabaseAdmin.rpc('consume_tool_use', { p_user_id: userId });
+      if (error) {
+        if (error.message.includes('TOOL_QUOTA_EXHAUSTED')) {
+          throw new AIGatewayError('TOOL_QUOTA_EXHAUSTED', 'Daily free-tool limit reached.');
+        }
+        throw error;
+      }
+    },
+    async refund() {
+      // Best-effort decrement; never throws.
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        const { data } = await supabaseAdmin
+          .from('usage_daily')
+          .select('tools_used')
+          .eq('user_id', userId)
+          .eq('day', today)
+          .single();
+        const used = Math.max(0, (data?.tools_used ?? 1) - 1);
+        await supabaseAdmin
+          .from('usage_daily')
+          .update({ tools_used: used })
+          .eq('user_id', userId)
+          .eq('day', today);
+      } catch {
+        /* refund is best-effort */
+      }
+    },
+  };
+}
