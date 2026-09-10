@@ -19,6 +19,7 @@ type FormState = {
   locations: string;
   employment_types: string[];
   salary_min: string;
+  currency: string;
   application_mode: Mode;
   daily_target: string;
 };
@@ -45,10 +46,12 @@ const MODES: { value: Mode; label: string; desc: string }[] = [
 // 6 steps per design plan §6.2 (Gmail removed per D-001)
 const STEPS = ['You', 'Targets', 'Where & how', 'Your CV', 'Experience', 'Ready'];
 
+const CURRENCIES = ['NGN', 'USD', 'GBP', 'EUR', 'GHS', 'KES', 'ZAR', 'CAD'];
+
 const EMPTY: FormState = {
   full_name: '', target_roles: '', headline: '', summary: '', skills: '', application_email: '',
   experience: [], education: [],
-  remote_types: [], locations: '', employment_types: [], salary_min: '', application_mode: 'approval', daily_target: '10',
+  remote_types: [], locations: '', employment_types: [], salary_min: '', currency: 'NGN', application_mode: 'approval', daily_target: '10',
 };
 
 /**
@@ -91,6 +94,7 @@ export function SetupWizard({ onFinish, onSkip }: { onFinish: () => void; onSkip
           locations: Array.isArray(pr.locations) ? pr.locations.join(', ') : '',
           employment_types: Array.isArray(pr.employment_types) ? pr.employment_types : [],
           salary_min: pr.salary_min != null ? String(pr.salary_min) : '',
+          currency: pr.currency || 'NGN',
           application_mode: (pr.application_mode as Mode) || 'approval',
           daily_target: pr.daily_target != null ? String(pr.daily_target) : '10',
         });
@@ -101,7 +105,7 @@ export function SetupWizard({ onFinish, onSkip }: { onFinish: () => void; onSkip
   }, []);
 
   function field<K extends keyof FormState>(key: K) {
-    return (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    return (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
       setForm((f) => ({ ...f, [key]: e.target.value } as FormState));
   }
 
@@ -148,7 +152,7 @@ export function SetupWizard({ onFinish, onSkip }: { onFinish: () => void; onSkip
       locations: split(form.locations),
       employment_types: form.employment_types,
       salary_min: form.salary_min ? Number(form.salary_min) : null,
-      currency: 'NGN',
+      currency: form.currency || 'NGN',
       application_mode: form.application_mode,
       daily_target: Number(form.daily_target) || 10,
     };
@@ -249,7 +253,10 @@ export function SetupWizard({ onFinish, onSkip }: { onFinish: () => void; onSkip
                   <button type="button" key={o.value} className="chip" aria-pressed={form.employment_types.includes(o.value)} onClick={() => toggle('employment_types', o.value)}>{o.label}</button>
                 ))}
               </div>
-              <label>Salary floor (optional, NGN)<input type="number" min={0} value={form.salary_min} onChange={field('salary_min')} placeholder="e.g. 250000" /></label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 132px', gap: 10 }}>
+                <label>Salary floor (optional)<input type="number" min={0} value={form.salary_min} onChange={field('salary_min')} placeholder="e.g. 250000" /></label>
+                <label>Currency<select value={form.currency} onChange={field('currency')}>{CURRENCIES.map((c) => (<option key={c} value={c}>{c}</option>))}</select></label>
+              </div>
             </div>
           )}
 

@@ -8,7 +8,8 @@ import { supabaseAdmin } from '@/lib/supabase';
  * and the table model are ready for it. SELECT-only by RLS owner policy.
  */
 export async function GET() {
-  const user = await requireUser();
+  const user = await requireUser().catch(() => null);
+  if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const { data, error } = await supabaseAdmin
     .from('generated_documents')
     .select('id,kind,title,version,is_active,created_at,application_id,content,source_facts')

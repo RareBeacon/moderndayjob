@@ -467,12 +467,12 @@ function friendly(code: string, message?: string): string {
 
 function genError(code: string): string {
   switch (code) {
-    case 'AI_QUOTA_EXHAUSTED': return 'AI document limit reached for your plan — upgrade for more.';
-    case 'DAILY_AI_CREDITS_EXHAUSTED': return 'AI document limit reached for your plan — upgrade for more.';
-    case 'AI_CREDENTIAL_NOT_CONFIGURED': return 'Connect an AI provider key in Settings first.';
+    case 'AI_QUOTA_EXHAUSTED': return 'AI document limit reached for your plan - upgrade for more.';
+    case 'DAILY_AI_CREDITS_EXHAUSTED': return 'AI document limit reached for your plan - upgrade for more.';
+    case 'AI_CREDENTIAL_NOT_CONFIGURED': return 'Jobiest AI is temporarily unavailable. Please try again in a moment.';
     case 'CAREER_PROFILE_REQUIRED': return 'Complete your career profile first.';
     case 'TRUTHFULNESS_FAILED': return 'The draft used unsupported facts and was rejected. Edit your profile and try again.';
-    case 'RATE_LIMITED': return 'Too many requests — slow down a moment.';
+    case 'RATE_LIMITED': return 'Too many requests - slow down a moment.';
     default: return 'Generation failed. Please try again.';
   }
 }

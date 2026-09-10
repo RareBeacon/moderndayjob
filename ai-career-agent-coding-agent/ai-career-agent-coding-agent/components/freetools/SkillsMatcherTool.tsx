@@ -32,10 +32,11 @@ const VERDICT_LABEL: Record<Verdict, string> = {
 const ERRORS: Record<string, { title: string; detail: string }> = {
   UNAUTHENTICATED: { title: 'Sign in to continue', detail: 'Create a free account to run matching, it takes a minute.' },
   CAREER_PROFILE_REQUIRED: { title: 'Complete your profile first', detail: 'Matching needs your career profile. Fill it in under Profile, then come back.' },
-  DAILY_AI_CREDITS_EXHAUSTED: { title: 'Daily AI credits used up', detail: 'Your free daily credits are exhausted. They reset tomorrow, or upgrade for more.' },
-  AI_CREDENTIAL_NOT_CONFIGURED: { title: 'Connect an AI provider', detail: 'Add an OpenRouter or Hugging Face API key in Settings to power matching.' },
+  DAILY_AI_CREDITS_EXHAUSTED: { title: 'Daily AI limit reached', detail: 'You have used up the AI allowance for today. It resets tomorrow, or upgrade for more.' },
+  DAILY_TOOL_USES_EXHAUSTED: { title: 'Daily tool uses used up', detail: 'Your free career-tool uses for today are exhausted. They reset tomorrow, or upgrade for more.' },
+  AI_CREDENTIAL_NOT_CONFIGURED: { title: 'AI temporarily unavailable', detail: 'Jobiest AI could not be reached. Please try again in a moment.' },
   RATE_LIMITED: { title: 'Slow down', detail: 'Too many requests. Wait a moment and try again.' },
-  AI_MATCH_FAILED: { title: 'Matching failed', detail: 'The AI provider could not score these jobs. Your credit was refunded.' },
+  AI_MATCH_FAILED: { title: 'Matching failed', detail: 'The AI provider could not score these jobs. Your tool use was refunded.' },
 };
 
 export function SkillsMatcherTool({ signedIn }: { signedIn: boolean }) {

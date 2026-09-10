@@ -8,7 +8,8 @@ const body = z.object({ userId: z.string().uuid(), relatedUserIds: z.array(z.str
 
 export async function POST(req: Request) {
   try {
-    const admin = await requireUser();
+    const admin = await requireUser().catch(() => null);
+    if (!admin) return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
     const { data: a } = await supabaseAdmin
       .from('admin_users')
       .select('user_id')

@@ -18,11 +18,12 @@ const body = z.object({
  *
  * Scores the user's job pool against their profile with explainable results,
  * excluding already-applied jobs and preference mismatches deterministically.
- * Costs exactly one daily AI credit per session (refunded only if every job's
+ * Costs exactly one daily tool use per session (refunded only if every job's
  * AI scoring fails).
  */
 export async function POST(req: Request) {
-  const user = await requireUser();
+  const user = await requireUser().catch(() => null);
+  if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const rl = await enforceRateLimit(`ai:match:${requestIp(req)}:${user.id}`, 10, '1 m');
   if (!rl.allowed) return NextResponse.json({ error: 'RATE_LIMITED' }, { status: 429 });
 

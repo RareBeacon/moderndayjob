@@ -13,7 +13,8 @@ export async function POST(req: Request) {
   if (!process.env.FLW_SECRET_KEY || !process.env.FLW_SECRET_HASH) {
     return Response.json({ error: 'BILLING_NOT_CONFIGURED' }, { status: 503 });
   }
-  const user = await requireUser();
+  const user = await requireUser().catch(() => null);
+  if (!user) return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const rate = await enforceRateLimit(`payment:${requestIp(req)}:${user.id}`, 5, '1 h');
   if (!rate.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
 

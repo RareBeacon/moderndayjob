@@ -11,7 +11,8 @@ const body = z.object({ active: z.boolean() });
  * re-checks this server-side before any automatic submission.
  */
 export async function POST(req: Request) {
-  const user = await requireUser();
+  const user = await requireUser().catch(() => null);
+  if (!user) return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const rl = await enforceRateLimit(`preferences:agent:${requestIp(req)}:${user.id}`, 20, '1 m');
   if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
 

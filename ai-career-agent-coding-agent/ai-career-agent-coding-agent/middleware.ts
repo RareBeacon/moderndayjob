@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
 /** Pages that require an authenticated session. */
-const PROTECTED = ['/dashboard', '/onboarding', '/profile', '/documents', '/applications', '/billing', '/jobs', '/match', '/generate'];
+const PROTECTED = ['/dashboard', '/onboarding', '/profile', '/documents', '/applications', '/billing', '/match', '/generate'];
 /** Auth pages an already-signed-in user should not see. */
 const AUTH_PAGES = ['/login', '/signup'];
 

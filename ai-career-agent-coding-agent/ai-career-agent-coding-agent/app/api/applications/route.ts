@@ -17,13 +17,15 @@ const manual = z.object({
 
 /** List the user's applications, each with its job (normalized to `.job`). */
 export async function GET() {
-  const u = await requireUser();
+  const u = await requireUser().catch(() => null);
+  if (!u) return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const applications = await listApplications(u.id);
   return Response.json({ applications, automationEnabled: isAutomationEnabled() });
 }
 
 export async function POST(req: Request) {
-  const u = await requireUser();
+  const u = await requireUser().catch(() => null);
+  if (!u) return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const rl = await enforceRateLimit(`application:${requestIp(req)}:${u.id}`, 10, '1 m');
   if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
 

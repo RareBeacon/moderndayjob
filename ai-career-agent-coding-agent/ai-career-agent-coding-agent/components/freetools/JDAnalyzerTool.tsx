@@ -19,9 +19,10 @@ type Analysis = {
 
 const ERRORS: Record<string, { title: string; detail: string }> = {
   UNAUTHENTICATED: { title: 'Sign in to continue', detail: 'Create a free account to run the analyzer, it takes a minute.' },
-  DAILY_AI_CREDITS_EXHAUSTED: { title: 'Daily AI credits used up', detail: 'Your free daily credits are exhausted. They reset tomorrow, or upgrade for more.' },
-  AI_CREDENTIAL_NOT_CONFIGURED: { title: 'Connect an AI provider', detail: 'Add an OpenRouter or Hugging Face API key in Settings to power analysis.' },
-  AI_ALL_PROVIDERS_FAILED: { title: 'Analysis failed', detail: 'The AI provider could not analyze this listing. Your credit was refunded.' },
+  DAILY_AI_CREDITS_EXHAUSTED: { title: 'Daily AI limit reached', detail: 'You have used up the AI allowance for today. It resets tomorrow, or upgrade for more.' },
+  DAILY_TOOL_USES_EXHAUSTED: { title: 'Daily tool uses used up', detail: 'Your free career-tool uses for today are exhausted. They reset tomorrow, or upgrade for more.' },
+  AI_CREDENTIAL_NOT_CONFIGURED: { title: 'AI temporarily unavailable', detail: 'Jobiest AI could not be reached. Please try again in a moment.' },
+  AI_ALL_PROVIDERS_FAILED: { title: 'Analysis failed', detail: 'The AI provider could not analyze this listing. Your tool use was refunded.' },
   RATE_LIMITED: { title: 'Slow down', detail: 'Too many requests. Wait a moment and try again.' },
   INVALID_BODY: { title: 'Paste a bit more', detail: 'The job description needs to be at least 30 characters.' },
 };

@@ -54,14 +54,14 @@ export default function MatchPage() {
       if (!res.ok) {
         const map: Record<string, { title: string; detail: string }> = {
           AI_CREDENTIAL_NOT_CONFIGURED: {
-            title: 'Connect an AI provider',
-            detail: 'Add an OpenRouter or Hugging Face API key in Settings to power matching.',
+            title: 'AI temporarily unavailable',
+            detail: 'Jobiest AI could not be reached. Please try again in a moment.',
           },
           AI_QUOTA_EXHAUSTED: {
             title: 'AI limit reached',
             detail: 'You have reached your plan’s AI limit. Upgrade for more.',
           },
-          TOOL_QUOTA_EXHAUSTED: {
+          DAILY_TOOL_USES_EXHAUSTED: {
             title: 'Daily tool uses used up',
             detail: 'Your plan’s free career-tool uses for today are exhausted. They reset tomorrow, or upgrade for more.',
           },
@@ -76,7 +76,7 @@ export default function MatchPage() {
           RATE_LIMITED: { title: 'Slow down', detail: 'Too many requests. Wait a moment and try again.' },
           AI_MATCH_FAILED: {
             title: 'Matching failed',
-            detail: 'The AI provider(s) could not score these jobs. Your credit was refunded.',
+            detail: 'The AI provider(s) could not score these jobs. Your tool use was refunded.',
           },
         };
         const known = map[json?.error] ?? {

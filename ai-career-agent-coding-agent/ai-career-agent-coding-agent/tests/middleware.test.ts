@@ -38,6 +38,12 @@ describe('auth middleware', () => {
 
   it('lets a signed-in user through a protected page', async () => {
     getUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    const res = await middleware(req('/applications'));
+    expect(res.headers.get('location')).toBeNull();
+  });
+
+  it('lets visitors browse the public jobs pool', async () => {
+    getUser.mockResolvedValue({ data: { user: null } });
     const res = await middleware(req('/jobs'));
     expect(res.headers.get('location')).toBeNull();
   });

@@ -81,7 +81,7 @@ export default function GeneratePage() {
       const json = await res.json();
       if (!res.ok) {
         const map: Record<string, { title: string; detail: string }> = {
-          AI_CREDENTIAL_NOT_CONFIGURED: { title: 'Connect an AI provider', detail: 'Add an OpenRouter or Hugging Face API key in Settings.' },
+          AI_CREDENTIAL_NOT_CONFIGURED: { title: 'AI temporarily unavailable', detail: 'Jobiest AI could not be reached. Please try again in a moment.' },
           AI_QUOTA_EXHAUSTED: { title: 'Out of AI documents', detail: 'You have reached your plan\u2019s AI document limit. Upgrade for more.' },
           DAILY_AI_CREDITS_EXHAUSTED: { title: 'Out of AI documents', detail: 'You have reached your plan\u2019s AI document limit. Upgrade for more.' },
           CAREER_PROFILE_REQUIRED: { title: 'Complete your profile', detail: 'Generation needs your career profile first.' },

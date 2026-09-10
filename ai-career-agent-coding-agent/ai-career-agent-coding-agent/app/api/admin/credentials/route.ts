@@ -23,7 +23,8 @@ const actionBody = z.object({
 });
 
 async function requireAdmin() {
-  const admin = await requireUser();
+  const admin = await requireUser().catch(() => null);
+  if (!admin) throw new Error('UNAUTHENTICATED');
   const { data } = await supabaseAdmin
     .from('admin_users')
     .select('user_id')
@@ -35,6 +36,7 @@ async function requireAdmin() {
 
 function handleError(error: unknown): Response {
   const message = error instanceof Error ? error.message : 'INTERNAL';
+  if (message === 'UNAUTHENTICATED') return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   if (message === 'FORBIDDEN') return Response.json({ error: 'FORBIDDEN' }, { status: 403 });
   if (message === 'NOT_FOUND') return Response.json({ error: 'NOT_FOUND' }, { status: 404 });
   if (error instanceof z.ZodError) return Response.json({ error: error.issues[0]?.message ?? 'BAD_REQUEST' }, { status: 400 });

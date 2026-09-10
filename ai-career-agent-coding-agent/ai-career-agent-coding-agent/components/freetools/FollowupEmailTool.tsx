@@ -5,11 +5,12 @@ import { CopyButton } from './CopyButton';
 
 const ERRORS: Record<string, { title: string; detail: string }> = {
   UNAUTHENTICATED: { title: 'Sign in to continue', detail: 'Create a free account to draft your email, it takes a minute.' },
-  DAILY_AI_CREDITS_EXHAUSTED: { title: 'Out of AI credits', detail: 'Your daily AI credits are used up. They reset tomorrow.' },
-  AI_CREDENTIAL_NOT_CONFIGURED: { title: 'Connect an AI provider', detail: 'Add an OpenRouter or Hugging Face API key in Settings.' },
+  DAILY_AI_CREDITS_EXHAUSTED: { title: 'Daily AI limit reached', detail: 'You have used up the AI allowance for today. It resets tomorrow, or upgrade for more.' },
+  DAILY_TOOL_USES_EXHAUSTED: { title: 'Daily tool uses used up', detail: 'Your free career-tool uses for today are exhausted. They reset tomorrow, or upgrade for more.' },
+  AI_CREDENTIAL_NOT_CONFIGURED: { title: 'AI temporarily unavailable', detail: 'Jobiest AI could not be reached. Please try again in a moment.' },
   RATE_LIMITED: { title: 'Slow down', detail: 'Too many requests. Wait a moment.' },
   APPLICATION_NOT_FOUND: { title: 'Application not found', detail: 'We could not find that application in your tracker.' },
-  AI_ALL_PROVIDERS_FAILED: { title: 'AI provider failed', detail: 'The provider could not generate. Your credit was refunded.' },
+  AI_ALL_PROVIDERS_FAILED: { title: 'AI provider failed', detail: 'The provider could not generate. Your tool use was refunded.' },
 };
 
 export function FollowupEmailTool({ signedIn }: { signedIn: boolean }) {

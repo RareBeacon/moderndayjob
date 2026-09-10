@@ -5,7 +5,8 @@ import { requireUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET() {
-  const user = await requireUser();
+  const user = await requireUser().catch(() => null);
+  if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const [profileRes, careerRes] = await Promise.all([
     supabaseAdmin
       .from('profiles')
@@ -22,7 +23,8 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const user = await requireUser();
+  const user = await requireUser().catch(() => null);
+  if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
 
   let body;
   try {
@@ -71,7 +73,8 @@ export async function PUT(request: Request) {
  * auth-tied `profiles` row, see DECISIONS.md D-003.
  */
 export async function DELETE() {
-  const user = await requireUser();
+  const user = await requireUser().catch(() => null);
+  if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const { error } = await supabaseAdmin.from('career_profiles').delete().eq('user_id', user.id);
   if (error) return NextResponse.json({ error: 'CAREER_PROFILE_DELETE_FAILED' }, { status: 500 });
   return NextResponse.json({ ok: true });
