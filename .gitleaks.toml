@@ -1,0 +1,11 @@
+# Gitleaks secret-scanning configuration for JOBIEST.
+# Extends the default ruleset with a minimal allowlist of known false
+# positives (documentation/design text). Real secrets are NOT allowlisted.
+
+[allowlist]
+  description = "Known documentation/design false positives"
+  regexes = [
+    # Font pairing "Satoshi+Inter" in the UI implementation plan trips the
+    # generic-api-key entropy rule. It is a typeface name, not a credential.
+    '''(?i)^satoshi\+inter$''',
+  ]

@@ -8,9 +8,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
  * RPC. Replays must be safe (DB-level dedup by tx_ref + event_id).
  */
 
-const { rpc, upsert } = vi.hoisted(() => ({ rpc: vi.fn(), upsert: vi.fn() }));
+const { rpc, upsert, dedupQuery } = vi.hoisted(() => ({ rpc: vi.fn(), upsert: vi.fn(), dedupQuery: vi.fn() }));
 vi.mock('@/lib/supabase', () => ({
-  supabaseAdmin: { rpc, from: () => ({ upsert }) },
+  supabaseAdmin: {
+    rpc,
+    from: () => ({
+      upsert,
+      select: () => ({ eq: () => ({ maybeSingle: dedupQuery }) }),
+    }),
+  },
 }));
 
 import { POST } from '@/app/api/billing/flutterwave/webhook/route';
@@ -38,6 +44,7 @@ beforeEach(() => {
   process.env.FLW_SECRET_KEY = 'sk_test';
   rpc.mockReset().mockResolvedValue({ data: null, error: null });
   upsert.mockReset().mockResolvedValue({ error: null });
+  dedupQuery.mockReset().mockResolvedValue({ data: null, error: null });
 });
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -127,14 +134,34 @@ describe('server-side re-verification and guards', () => {
 });
 
 describe('replay / idempotency contract', () => {
-  it('a replayed webhook re-runs the idempotent RPC and upserts with ignoreDuplicates', async () => {
+  it('first delivery processes; a replayed event_id is short-circuited before re-verification', async () => {
     stubVerify({ id: 99, tx_ref: 'aca_u1', amount: 10000, currency: 'NGN', status: 'successful', customer: { email: 'a@b.co' } });
     await POST(req(completed, SECRET));
-    await POST(req(completed, SECRET));
-    // The route is stateless; the DB is the idempotency guard (payments.tx_ref
-    // unique + payment_events.event_id dedup) so replays are harmless.
-    expect(rpc).toHaveBeenCalledTimes(2);
-    expect(upsert).toHaveBeenCalledTimes(2);
-    expect(upsert.mock.calls[1][1]).toEqual({ onConflict: 'event_id', ignoreDuplicates: true });
+    expect(rpc).toHaveBeenCalledTimes(1);
+
+    // The event is now recorded in payment_events — simulate a replay.
+    dedupQuery.mockResolvedValue({ data: { event_id: 'evt_1' }, error: null });
+    const res = await POST(req(completed, SECRET));
+    expect(await res.json()).toEqual({ ok: true, duplicate: true });
+    expect(rpc).toHaveBeenCalledTimes(1); // no re-processing
+    expect(upsert).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails open on a dedup lookup error (DB is the final idempotency guard)', async () => {
+    stubVerify({ id: 99, tx_ref: 'aca_u1', amount: 10000, currency: 'NGN', status: 'successful', customer: { email: 'a@b.co' } });
+    dedupQuery.mockRejectedValue(new Error('db down'));
+    const res = await POST(req(completed, SECRET));
+    expect(res.status).toBe(200);
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('payload size cap', () => {
+  it('rejects oversized bodies with 413 before any DB or external work', async () => {
+    const big = JSON.stringify({ ...completed, pad: 'x'.repeat(70 * 1024) });
+    const res = await POST(req(big, SECRET));
+    expect(res.status).toBe(413);
+    expect(rpc).not.toHaveBeenCalled();
+    expect(upsert).not.toHaveBeenCalled();
   });
 });

@@ -2,11 +2,19 @@ import crypto from 'node:crypto';
 import { supabaseAdmin } from '@/lib/supabase';
 import { verifyFlutterwaveTransaction, planForAmount } from '@packages/billing/flutterwave';
 
-/* Flutterwave webhook → verify signature → re-verify the transaction on the
-   server → guard the amount → invoke the idempotent apply_verified_payment DB
-   function. Idempotent end-to-end (payments.tx_ref unique; subscription upsert;
-   payment_events.event_id dedup). */
+/** Flutterwave events are a few KB; anything larger is not a legitimate
+ *  webhook and is rejected up-front (memory-DoS guard). */
+const MAX_BODY_BYTES = 64 * 1024;
+
+/* Flutterwave webhook → size cap → verify signature → replay short-circuit →
+   re-verify the transaction on the server → guard the amount → invoke the
+   idempotent apply_verified_payment DB function. Idempotent end-to-end
+   (payments.tx_ref unique; subscription upsert; payment_events.event_id dedup). */
 export async function POST(req: Request) {
+  // 0. Reject oversized payloads before buffering the body.
+  const contentLength = Number(req.headers.get('content-length') ?? '0');
+  if (contentLength > MAX_BODY_BYTES) return new Response('too large', { status: 413 });
+
   // 1. Verify webhook signature (verif-hash == FLW_SECRET_HASH, timing-safe)
   const signature = req.headers.get('verif-hash');
   const secret = process.env.FLW_SECRET_HASH;
@@ -17,8 +25,10 @@ export async function POST(req: Request) {
     return new Response('invalid', { status: 401 });
   }
 
-  // 2. Parse payload
+  // 2. Parse payload (bounded — the size cap above plus this belt-and-braces
+  //    check guards against chunked/absent content-length).
   const raw = await req.text();
+  if (raw.length > MAX_BODY_BYTES) return new Response('too large', { status: 413 });
   let payload: {
     event?: string;
     event_id?: string;
@@ -38,7 +48,24 @@ export async function POST(req: Request) {
   if (data.status !== 'successful') return Response.json({ ok: true, status: data.status });
   if (!data.id) return Response.json({ ok: true, noId: true });
 
-  // 3. Re-verify the transaction server-side (never trust the payload)
+  // 3. Replay short-circuit: if this exact event_id was already recorded, stop
+  //    before any external re-verification or DB grant. Best-effort — the DB
+  //    (payment_events.event_id unique) is the final guard, so a race here is
+  //    still safe via the idempotent apply_verified_payment RPC.
+  if (payload.event_id) {
+    try {
+      const { data: seen } = await supabaseAdmin
+        .from('payment_events')
+        .select('event_id')
+        .eq('event_id', payload.event_id)
+        .maybeSingle();
+      if (seen) return Response.json({ ok: true, duplicate: true });
+    } catch {
+      // fall through to normal processing; final dedup still applies
+    }
+  }
+
+  // 4. Re-verify the transaction server-side (never trust the payload)
   let verified;
   try {
     verified = await verifyFlutterwaveTransaction(data.id);
@@ -47,14 +74,14 @@ export async function POST(req: Request) {
   }
   if (verified.status !== 'successful') return Response.json({ ok: true, verifyStatus: verified.status });
 
-  // 4. Guard: amount must match a known NGN plan, with a reachable email
+  // 5. Guard: amount must match a known NGN plan, with a reachable email
   const amount = Number(verified.amount);
   const plan = planForAmount(amount);
   if (!plan || verified.currency !== 'NGN' || !verified.customer?.email) {
     return Response.json({ ok: false, unexpectedAmount: amount, currency: verified.currency }, { status: 202 });
   }
 
-  // 5. Apply upgrade via the idempotent DB function, then record the event
+  // 6. Apply upgrade via the idempotent DB function, then record the event
   try {
     const { error } = await supabaseAdmin.rpc('apply_verified_payment', {
       p_transaction_id: String(verified.id),
