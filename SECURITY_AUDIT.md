@@ -274,7 +274,7 @@ New suites added this pass:
 
 1. Enable the OWASP CRS **managed rules** in the dashboard (Firewall → Managed Rules): xss/sqli/lfi/rfi/rce → deny, sd/ma/php → log. Custom rules are already live via the API.
 2. Add Turnstile/hCaptcha to signup **only if** signup abuse is observed (human-in-the-loop handoff until then).
-3. Introduce structured log export/alerting on `audit_logs` (e.g. daily digest of `SUSPICIOUS_REGISTRATION`).
+3. ~~Introduce structured log export/alerting on `audit_logs` (e.g. daily digest of `SUSPICIOUS_REGISTRATION`).~~ **Done in code 2026-09-10:** `GET /api/cron/security-digest` (CRON_SECRET-gated, Vercel Cron daily 07:00 UTC) aggregates the last 24h of `audit_logs` and emails counts + suspicious-registration/admin-action flags via Resend; skips gracefully while `ADMIN_ALERT_EMAIL` is unset; 11 unit tests green (suite now 374 passed). Live email pending: set `ADMIN_ALERT_EMAIL` in Vercel env.
 4. Consider a `next@16` major upgrade on its own schedule (Turbopack default, `proxy.ts` rename) — no longer security-driven, since the `postcss` advisory is cleared via `overrides`.
 5. Provision the Oracle A1 VM to make Ollama-first the default AI path and remove third-party API dependence.
 
