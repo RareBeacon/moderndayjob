@@ -10,6 +10,8 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 const body = z.object({ jobDescription: z.string().min(30).max(30000) });
 
+export const maxDuration = 300;
+
 /**
  * POST /api/ai/analyze-job, free-tool job-description analysis.
  *

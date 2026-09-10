@@ -17,6 +17,8 @@ const manual = z.object({
   applicationId: z.string().uuid().optional(),
 });
 
+export const maxDuration = 300;
+
 /**
  * POST /api/ai/followup-email, polite follow-up drafted from facts the user
  * supplies (or from a real tracked application). No qualification claims →

@@ -1,5 +1,8 @@
 import type { AIGatewayRunOptions, AITask, AIProvider, ChatResponse } from './types';
 
+/** Previous-output context budget for a repair retry (chars). */
+const REPAIR_CONTEXT_CHARS = 2000;
+
 /** Stable gateway error codes (used by routes + logs). */
 export type AIGatewayErrorCode =
   | 'AI_QUOTA_EXHAUSTED'
@@ -52,35 +55,38 @@ export class AIGateway {
 
     for (const provider of ordered) {
       const messages = task.buildMessages(input);
+      const chatOpts = {
+        responseFormat: 'json' as const,
+        temperature: 0.2,
+        maxTokens: task.maxTokens,
+      };
       let res: ChatResponse;
       try {
-        res = await provider.chat(messages, {
-          responseFormat: 'json',
-          temperature: 0.2,
-          maxTokens: task.maxTokens,
-        });
+        res = await provider.chat(messages, chatOpts);
       } catch (err) {
         attempts.push({ provider: provider.name, message: errMsg(err) });
         continue; // provider failure → fall back (§13)
       }
 
       // Parse + validate. A provider that returns non-JSON or schema-violating
-      // output is treated as a failed attempt and we fall back to the next.
-      const parsed = parseJsonContent(res.content);
-      if (!parsed.ok) {
-        attempts.push({ provider: provider.name, message: `Unparseable JSON: ${parsed.error}` });
-        continue;
+      // output gets exactly one repair retry with the failure explained, then
+      // we fall back to the next provider. Small local models usually fix
+      // their own JSON when shown the error; without this, one malformed
+      // response fails the whole run.
+      const first = parseAndValidate(task, res.content);
+      if (first.ok) return { data: first.data, provider: res.provider };
+      attempts.push({ provider: provider.name, message: first.message });
+      try {
+        const repairRes = await provider.chat(
+          [...messages, { role: 'user', content: repairPrompt(res.content, first.message) }],
+          chatOpts,
+        );
+        const second = parseAndValidate(task, repairRes.content);
+        if (second.ok) return { data: second.data, provider: repairRes.provider };
+        attempts.push({ provider: `${provider.name}:repair`, message: second.message });
+      } catch (err) {
+        attempts.push({ provider: `${provider.name}:repair`, message: errMsg(err) });
       }
-      const result = task.schema.safeParse(parsed.value);
-      if (!result.success) {
-        attempts.push({
-          provider: provider.name,
-          message: `Schema validation failed: ${formatZodError(result.error)}`,
-        });
-        continue;
-      }
-
-      return { data: result.data, provider: res.provider };
     }
 
     // Every provider failed — refund the reserved credit (best-effort).
@@ -149,4 +155,31 @@ function formatZodError(e: {
   issues: { path: PropertyKey[]; message: string }[];
 }): string {
   return e.issues.map((i) => `${i.path.join('.') || '<root>'}: ${i.message}`).join(', ');
+}
+
+/** Parse + schema-validate one model response into a run-friendly result. */
+function parseAndValidate<I, O>(
+  task: AITask<I, O>,
+  content: string,
+): { ok: true; data: O } | { ok: false; message: string } {
+  const parsed = parseJsonContent(content);
+  if (!parsed.ok) return { ok: false, message: `Unparseable JSON: ${parsed.error}` };
+  const result = task.schema.safeParse(parsed.value);
+  if (!result.success) {
+    return { ok: false, message: `Schema validation failed: ${formatZodError(result.error)}` };
+  }
+  return { ok: true, data: result.data };
+}
+
+/**
+ * Repair prompt: show the model its broken output plus the exact failure so
+ * the retry fixes the JSON instead of repeating the mistake.
+ */
+function repairPrompt(previousContent: string, failure: string): string {
+  const prev = (previousContent ?? '').slice(0, REPAIR_CONTEXT_CHARS);
+  return (
+    `Your previous response could not be used (${failure}). ` +
+    `Reply with ONLY the corrected JSON object matching the requested schema. ` +
+    `No prose, no code fences. Previous response for reference: ${prev}`
+  );
 }

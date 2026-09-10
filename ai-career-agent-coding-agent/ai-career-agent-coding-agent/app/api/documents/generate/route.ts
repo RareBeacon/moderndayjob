@@ -20,6 +20,8 @@ const body = z.object({
   questions: z.array(z.string().trim().min(1).max(1000)).min(1).max(20).optional(),
 });
 
+export const maxDuration = 300;
+
 /**
  * POST /api/documents/generate, Phase 7 application intelligence.
  *

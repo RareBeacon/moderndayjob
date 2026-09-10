@@ -12,6 +12,8 @@ const body = z.object({ role: z.string().trim().min(2).max(60) });
 
 const SCAN_LIMIT = 20;
 
+export const maxDuration = 300;
+
 /**
  * POST /api/ai/salary-insights, report ONLY pay ranges explicitly stated
  * in real listings from the job pool. No estimates, no averages, no market

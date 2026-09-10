@@ -183,3 +183,76 @@ describe('parseJsonContent', () => {
     expect(parseJsonContent('totally not json').ok).toBe(false);
   });
 });
+
+describe('AIGateway repair retry', () => {
+  it('retries once with feedback when the first response is unparseable', async () => {
+    let calls = 0;
+    let repairMsg = '';
+    const gw = new AIGateway([
+      mockProvider({
+        name: 'p1',
+        priority: 0,
+        respond: (msgs) => {
+          calls++;
+          if (msgs.length === 1) return json('not json at all');
+          repairMsg = msgs[msgs.length - 1].content;
+          return json('{"answer":"fixed"}');
+        },
+      }),
+    ]);
+    const res = await gw.run(task, {});
+    expect(res.data).toEqual({ answer: 'fixed' });
+    expect(calls).toBe(2);
+    expect(repairMsg).toContain('Unparseable JSON');
+    expect(repairMsg).toContain('ONLY the corrected JSON');
+  });
+
+  it('retries with the schema error explained when validation fails', async () => {
+    let repairMsg = '';
+    const gw = new AIGateway([
+      mockProvider({
+        name: 'p1',
+        priority: 0,
+        respond: (msgs) => {
+          if (msgs.length === 1) return json('{"answer":""}');
+          repairMsg = msgs[msgs.length - 1].content;
+          return json('{"answer":"valid now"}');
+        },
+      }),
+    ]);
+    const res = await gw.run(task, {});
+    expect(res.data).toEqual({ answer: 'valid now' });
+    expect(repairMsg).toContain('Schema validation failed');
+    expect(repairMsg).toContain('{"answer":""}');
+  });
+
+  it('falls back after the repair also fails, recording both attempts', async () => {
+    const gw = new AIGateway([
+      mockProvider({ name: 'p1', priority: 0, respond: () => json('garbage {{{') }),
+      mockProvider({ name: 'p2', priority: 1, respond: () => json('{"answer":"from p2"}') }),
+    ]);
+    const res = await gw.run(task, {});
+    expect(res.data).toEqual({ answer: 'from p2' });
+  });
+
+  it('throws with repair attempts recorded when every provider fails twice', async () => {
+    const gw = new AIGateway([
+      mockProvider({ name: 'p1', priority: 0, respond: () => json('garbage {{{') }),
+    ]);
+    const err = await gw.run(task, {}).catch((e) => e);
+    expect(err).toBeInstanceOf(AIGatewayError);
+    expect(err.code).toBe('AI_ALL_PROVIDERS_FAILED');
+    expect(err.message).toContain('p1(');
+    expect(err.message).toContain('p1:repair(');
+  });
+
+  it('refunds the meter when all providers and repairs fail', async () => {
+    const gw = new AIGateway([
+      mockProvider({ name: 'p1', priority: 0, respond: () => json('garbage {{{') }),
+    ]);
+    const { meter, counts } = mockMeter();
+    await gw.run(task, {}, { meter }).catch(() => undefined);
+    expect(counts.reserved).toBe(1);
+    expect(counts.refunded).toBe(1);
+  });
+});

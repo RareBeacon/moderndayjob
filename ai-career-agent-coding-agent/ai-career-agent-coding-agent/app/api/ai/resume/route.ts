@@ -46,6 +46,8 @@ const RESUME_TASK: AITask<{ profile: Record<string, unknown>; jobDescription: st
   ],
 };
 
+export const maxDuration = 300;
+
 /** The model sometimes returns an array of lines; normalize to one string. */
 function resumeToText(resume: string | string[]): string {
   return Array.isArray(resume) ? resume.join('\n') : resume;

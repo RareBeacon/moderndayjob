@@ -7,6 +7,8 @@ import { AICredentialMissingError, buildGatewayForUser, createToolMeter } from '
 import { generateCareerPaths } from '@/lib/analysis/service';
 import { loadGenerationProfile } from '@/lib/generation/loader';
 
+export const maxDuration = 300;
+
 /**
  * POST /api/ai/career-paths, exploratory direction suggestions from
  * verified skills. Deterministic guard: skills cited as "building on" must

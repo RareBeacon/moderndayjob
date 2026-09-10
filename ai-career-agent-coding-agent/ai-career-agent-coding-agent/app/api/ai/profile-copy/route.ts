@@ -10,6 +10,8 @@ import { loadGenerationProfile } from '@/lib/generation/loader';
 
 const body = z.object({ kind: z.enum(['SUMMARY', 'HEADLINE']) });
 
+export const maxDuration = 300;
+
 /**
  * POST /api/ai/profile-copy, free-tool resume summaries & LinkedIn headlines.
  *

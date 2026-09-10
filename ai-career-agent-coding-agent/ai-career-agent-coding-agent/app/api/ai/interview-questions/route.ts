@@ -9,6 +9,8 @@ import { generateInterviewQuestions } from '@/lib/analysis/service';
 
 const body = z.object({ jobDescription: z.string().min(30).max(30000) });
 
+export const maxDuration = 300;
+
 /**
  * POST /api/ai/interview-questions, free-tool interview practice generator.
  *

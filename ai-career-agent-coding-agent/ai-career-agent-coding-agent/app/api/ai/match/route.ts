@@ -13,6 +13,8 @@ const body = z.object({
   maxScored: z.number().int().min(1).max(20).optional(),
 });
 
+export const maxDuration = 300;
+
 /**
  * POST /api/ai/match, Phase 6 matching.
  *
