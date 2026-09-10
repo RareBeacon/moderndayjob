@@ -22,8 +22,8 @@ export default function SignupPage() {
     setError('');
     setNotice('');
 
-    // 1. Create the account server-side, pre-confirmed: no email
-    //    round-trip, the account works the second it exists.
+    // 1. Create the account server-side (unverified): the server emails a
+    //    verification link; the account cannot sign in until it is confirmed.
     const res = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -61,15 +61,11 @@ export default function SignupPage() {
       return;
     }
 
-    // 2. Account exists and is confirmed: sign straight in.
-    const { error: signInError } = await supabaseBrowser().auth.signInWithPassword({ email, password });
-    if (signInError) {
-      setError(humanizeAuthError(signInError.message));
-      setBusy(false);
-      return;
-    }
-    router.push('/dashboard');
-    router.refresh();
+    // 2. Account created and verification email sent. Do not sign in yet —
+    //    mandatory email verification means the account is locked until the
+    //    owner clicks the link in their inbox.
+    setBusy(false);
+    setNotice(`Check your inbox at ${email} — we sent a verification link. Click it, then sign in.`);
   }
 
   return (

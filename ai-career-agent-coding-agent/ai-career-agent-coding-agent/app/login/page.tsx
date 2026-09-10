@@ -20,18 +20,18 @@ export default function LoginPage() {
     setError('');
     let { error } = await supabaseBrowser().auth.signInWithPassword({ email, password });
 
-    // Legacy accounts created before auto-confirmation: if the password
-    // was right but the email was never confirmed, confirm it now and
-    // retry, so nobody is locked out of an account they own.
+    // Mandatory email verification: an unverified account cannot sign in.
+    // Send a fresh verification link (best-effort) and explain the next step —
+    // we never auto-confirm on demand, because that would defeat verification.
     if (error && (error.code === 'email_not_confirmed' || /email not confirmed/i.test(error.message))) {
-      const res = await fetch('/api/auth/confirm', {
+      setBusy(false);
+      setError('Your email address is not verified yet. We sent a new verification link — check your inbox and click it, then sign in again.');
+      fetch('/api/auth/resend-verification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
-      }).catch(() => null);
-      if (res && res.ok) {
-        ({ error } = await supabaseBrowser().auth.signInWithPassword({ email, password }));
-      }
+      }).catch(() => {});
+      return;
     }
 
     setBusy(false);

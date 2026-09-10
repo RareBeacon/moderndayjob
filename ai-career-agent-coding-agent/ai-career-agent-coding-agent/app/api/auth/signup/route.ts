@@ -1,21 +1,22 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { sendWelcomeEmail } from '@/lib/email/resend';
+import { sendVerificationEmail } from '@/lib/email/resend';
 import { auditEvent } from '@/lib/audit';
 import { enforceRateLimit, getRedis, requestIp } from '@/lib/rate-limit';
 import { DEVICE_COOKIE, hashSignal, issueDeviceId, readDeviceId } from '@/lib/security/device';
 import { classifyRegistrationRisk, isRegistrationBlocked } from '@/lib/security/risk';
 
 /**
- * POST /api/auth/signup · create an account that works immediately.
+ * POST /api/auth/signup · create an account that must be email-verified.
  *
  * Security layers (server-side only):
  *  - strict per-IP rate limit;
  *  - server-issued device cookie + registration-velocity risk score
  *    (hashed IP + device signals; EXTREME velocity is blocked, HIGH is
  *    flagged in the audit trail but allowed so shared devices stay usable);
- *  - admin-API account creation with email_confirm: true (the hosted project
- *    requires confirmation, so signup -> sign-in -> operate is one motion).
+ *  - admin-API account creation with email_confirm: false, then a signup
+ *    confirmation link is issued and emailed; the account cannot be used
+ *    until the owner clicks the link (mandatory email verification).
  */
 export async function POST(req: Request) {
   const ip = requestIp(req);
@@ -72,7 +73,7 @@ export async function POST(req: Request) {
   const { data, error } = await supabaseAdmin.auth.admin.createUser({
     email,
     password,
-    email_confirm: true,
+    email_confirm: false,
     user_metadata: { full_name: name },
   });
 
@@ -93,19 +94,34 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'We could not create your account just now. Please try again.' }, { status: 500 });
   }
 
-  // Best-effort welcome email (Resend). Fire-and-forget: never delays or fails
-  // the sign-up response.
+  // Issue the signup confirmation link and email it. Best-effort: if the email
+  // cannot be sent, the user can resend it from the login page, so signup still
+  // succeeds — but the account stays locked until it is verified.
   if (data.user?.email) {
-    sendWelcomeEmail(data.user.email, name).catch(() => {});
+    try {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://jobiest.com';
+      const { data: link, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'signup',
+        email: data.user.email,
+        password,
+        options: { redirectTo: `${appUrl}/login` },
+      });
+      if (!linkError && link?.properties?.action_link) {
+        await sendVerificationEmail(data.user.email, link.properties.action_link).catch(() => {});
+      }
+    } catch {
+      // Verification email is best-effort; the login page offers a resend.
+    }
   }
+
   void auditEvent({
     action: 'USER_SIGNUP',
     resource: 'auth',
     userId: data.user?.id ?? null,
-    meta: { email_confirmed: true, risk },
+    meta: { email_confirmed: false, risk },
   });
 
-  const res = NextResponse.json({ ok: true, user: { id: data.user?.id ?? null } });
+  const res = NextResponse.json({ ok: true, verificationRequired: true, user: { id: data.user?.id ?? null } });
   res.cookies.set(DEVICE_COOKIE, deviceId, {
     httpOnly: true,
     sameSite: 'lax',

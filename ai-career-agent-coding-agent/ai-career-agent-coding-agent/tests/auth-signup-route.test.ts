@@ -1,16 +1,18 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 /**
- * /api/auth/signup · the no-email-verification account creator.
- * The route must create users pre-confirmed (email_confirm: true) so
- * signup → sign-in works in one motion, and must translate raw Supabase
- * errors into honest, actionable messages.
+ * /api/auth/signup · mandatory-email-verification account creator.
+ * The route must create users UNconfirmed (email_confirm: false), issue a
+ * signup confirmation link through the admin API, email it, and translate raw
+ * Supabase errors into honest, actionable messages.
  */
 
-const { createUser } = vi.hoisted(() => ({ createUser: vi.fn() }));
+const { createUser, generateLink } = vi.hoisted(() => ({ createUser: vi.fn(), generateLink: vi.fn() }));
+const { sendVerificationEmail } = vi.hoisted(() => ({ sendVerificationEmail: vi.fn() }));
 vi.mock('@/lib/supabase', () => ({
-  supabaseAdmin: { auth: { admin: { createUser } } },
+  supabaseAdmin: { auth: { admin: { createUser, generateLink } } },
 }));
+vi.mock('@/lib/email/resend', () => ({ sendVerificationEmail }));
 
 import { POST } from '@/app/api/auth/signup/route';
 
@@ -22,20 +24,41 @@ function req(body: unknown) {
   });
 }
 
-beforeEach(() => createUser.mockReset());
+beforeEach(() => {
+  createUser.mockReset();
+  generateLink.mockReset();
+  sendVerificationEmail.mockReset();
+  createUser.mockResolvedValue({ data: { user: { id: 'u1', email: 'ada@example.com' } }, error: null });
+  generateLink.mockResolvedValue({ data: { properties: { action_link: 'https://jobiest.com/verify?token=abc' } }, error: null });
+  sendVerificationEmail.mockResolvedValue({ ok: true });
+});
 
 describe('POST /api/auth/signup', () => {
-  it('creates the account pre-confirmed so no email round-trip is needed', async () => {
-    createUser.mockResolvedValue({ data: { user: { id: 'u1' } }, error: null });
+  it('creates the account unconfirmed and emails a verification link', async () => {
     const res = await POST(req({ name: 'Ada', email: 'Ada@Example.com ', password: 'longenough1' }));
     expect(res.status).toBe(200);
     expect(createUser).toHaveBeenCalledWith({
       email: 'ada@example.com', // normalized
       password: 'longenough1',
-      email_confirm: true,
+      email_confirm: false,
       user_metadata: { full_name: 'Ada' },
     });
-    await expect(res.json()).resolves.toEqual({ ok: true, user: { id: 'u1' } });
+    expect(generateLink).toHaveBeenCalledWith({
+      type: 'signup',
+      email: 'ada@example.com',
+      password: 'longenough1',
+      options: { redirectTo: expect.stringMatching(/\/login$/) },
+    });
+    expect(sendVerificationEmail).toHaveBeenCalledWith('ada@example.com', 'https://jobiest.com/verify?token=abc');
+    await expect(res.json()).resolves.toEqual({ ok: true, verificationRequired: true, user: { id: 'u1' } });
+  });
+
+  it('still succeeds (locked account) when the verification email cannot be sent', async () => {
+    generateLink.mockResolvedValue({ data: null, error: { message: 'boom' } });
+    const res = await POST(req({ name: 'Ada', email: 'a@b.co', password: 'longenough1' }));
+    expect(res.status).toBe(200);
+    expect(sendVerificationEmail).not.toHaveBeenCalled();
+    await expect(res.json()).resolves.toEqual({ ok: true, verificationRequired: true, user: { id: 'u1' } });
   });
 
   it('rejects a missing name', async () => {

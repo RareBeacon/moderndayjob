@@ -65,9 +65,10 @@ Browser ──HTTPS──▶ Vercel Edge (platform WAF/DDoS) ──▶ Next.js s
 - **Signup hardening** (`app/api/auth/signup/route.ts`):
   - Strict per-IP rate limit (`auth:signup:<ip>` = 5 / 1 h).
   - Server-issued device cookie + registration-velocity risk score.
-  - Admin-API account creation with `email_confirm: true` so signup → sign-in works in one motion.
+  - Admin-API account creation with `email_confirm: false` + a signup confirmation link issued and emailed via Resend — **mandatory email verification** (account is locked until the owner clicks the link).
+- **Verification resend** (`app/api/auth/resend-verification/route.ts`): rate-limited (3/h per IP), never reveals account existence, no side effects for unknown emails (verified empirically against GoTrue). The legacy auto-confirm route (`/api/auth/confirm`) was **removed** — it would have defeated verification.
 - **Password reset** (`forgot-password` / `reset-password`): GoTrue recovery tokens are hashed (SHA-256, lowercase hex) via `lib/auth/recovery.ts` and delivered through Resend; reset links are one-time and short-lived (GoTrue policy).
-- **Account enumeration mitigation**: signup returns a generic 409 for existing emails (no field-level detail beyond "sign in instead"); login errors are generic.
+- **Account enumeration mitigation**: signup returns a generic 409 for existing emails (no field-level detail beyond "sign in instead"); login/forgot-password/resend-verification responses are generic.
 
 ---
 
@@ -192,10 +193,12 @@ Thresholds are deliberately generous so families, offices, and cybercafes are no
 
 ## 16. Dependency / security scanning
 
-- `npm audit --omit=dev` run on 2026-09-10.
-- **Fixed:** `sharp` ≤ 0.35.4-rc.0 had inherited libvips/libheif CVEs (CVE-2026-33327, CVE-2026-33328, CVE-2026-35590, CVE-2026-35591, plus libheif advisories) → **upgraded to `sharp@0.35.4`**. `next` upgraded to `15.5.25` (in-range).
-- **Secret scanning** performed across source, git history, and the built client bundle: **no real secrets** (no `SUPABASE_SERVICE_ROLE`, Resend keys, Flutterwave secret keys, GitHub/Vercel tokens, or private keys) found. Git-history hits are documentation placeholders containing ellipses only.
-- CI (` .github/workflows/ci.yml`) runs `npm ci` → typecheck → unit tests → production build on every push/PR with non-secret placeholder env.
+- **`npm audit --omit=dev`** run on 2026-09-10 (latest pass): **0 vulnerabilities**.
+  - `sharp` upgraded to `0.35.4` (libvips/libheif CVEs).
+  - `postcss` forced to `8.5.28` via `overrides` (clears the stringify-XSS + source-map advisories without a breaking Next 16 major bump).
+  - `@supabase/supabase-js` pinned to `2.58.0` (bundles patched `@supabase/auth-js@2.72.0` for GHSA-8r88-6cj9-9fh5 while keeping `realtime-js@2.15.5`, which is Node-20 compatible).
+- **Secret scanning**: gitleaks runs in CI on every push/PR (`.github/workflows/ci.yml` + `.gitleaks.toml`). A manual full-history scan reports **0 findings**; CI also runs `npm audit --omit=dev --audit-level=high` as a gate.
+- **Secret scanning** performed across source, git history, and the built client bundle: **no real secrets** found.
 
 ---
 
@@ -206,18 +209,21 @@ All run against the real code on 2026-09-10:
 | Gate | Result |
 |---|---|
 | `npx tsc --noEmit` | ✅ clean |
-| `npx vitest run` | ✅ **343 passed** (39 files) |
+| `npx vitest run` | ✅ **349 passed** (40 files) |
 | `npm run build` (Next production build) | ✅ succeeded |
+| `npm audit --omit=dev` | ✅ **0 vulnerabilities** |
+| gitleaks full-history scan | ✅ 0 findings |
 | Live E2E: `GET /api/documents/[id]/export` | ✅ owner→200 `%PDF`/`PK`, anon→401, non-owner→404, bad format→400 |
 | Live `jobiest.com` response headers | ✅ CSP + nosniff + DENY + referrer + permissions + HSTS present |
 | Live `/api/health` | ✅ `ok: true`, database ok, AI gateway ok, email configured |
 | Live audit trail (`audit_logs`) | ✅ migration applied; real signup wrote `USER_SIGNUP` row |
 
-**Security-relevant suites** (selected): `admin-security`, `admin-users-list`, `auth-signup-route`, `security-risk`, `rate-limit`, `ssrf`, `truthfulness`, `browser-worker-auth`, `apply-stop-conditions`, `automation-killswitch`, `billing-webhook`, `crypto`, `entitlements`, `plans`, `middleware`, `documents-export`, `api-gateway`.
+**Security-relevant suites** (selected): `admin-security`, `admin-users-list`, `auth-signup-route`, `security-risk`, `rate-limit`, `ssrf`, `truthfulness`, `browser-worker-auth`, `apply-stop-conditions`, `automation-killswitch`, `billing-webhook`, `crypto`, `entitlements`, `plans`, `middleware`, `documents-export`, `resend-verification`, `api-gateway`.
 
 New suites added this pass:
 - `tests/documents-export.test.ts` — parses CV/cover-letter/answers content and asserts real output buffers (`%PDF` magic for PDF, `PK` zip magic for DOCX).
 - `tests/security-risk.test.ts` — LOW/MEDIUM/HIGH/EXTREME classification and block-only-at-EXTREME behavior.
+- `tests/resend-verification.test.ts` — verification-email resend: never reveals existence, no side effects for unknown emails, rate-limited.
 
 ---
 
@@ -235,20 +241,23 @@ New suites added this pass:
 | Health endpoint could leak internals | rewritten to report component status only, always 200, no secrets/hostnames |
 | Auto-apply worker had single point of failure / no auth surfaced | multi-URL failover + `/healthz` probe + Bearer secret + authoritative HTTP-error handling |
 | Documents not exportable by users | new `GET /api/documents/[id]/export?format=pdf|docx` (auth + ownership enforced) |
+| Signup auto-confirmed accounts (no verification) | `email_confirm: false` + emailed confirmation link; legacy auto-confirm route removed; login resends instead |
+| Flutterwave webhook had no size cap or replay short-circuit | 64 KB body cap (413) + early `event_id` dedup before external re-verification |
+| `postcss` stringify-XSS / source-map advisories (build-time) | `overrides` pin to `postcss@8.5.28` (no breaking upgrade needed) |
+| `@supabase/auth-js` ≤ 2.69.1 path-routing advisory | `@supabase/supabase-js@2.58.0` (bundles `auth-js@2.72.0`) |
 
 ---
 
 ## 19. Known remaining risks
 
-1. **Email verification is not mandatory at signup** (`email_confirm: true` is a deliberate product trade-off for one-motion signup). If strict verification becomes required, flip the flag and gate sign-in on confirmation.
-2. **`postcss` advisory** (build-time only; XSS via `</style>` stringify and source-map auto-loading) remains because the fix requires a breaking `next@16` upgrade. Documented as accepted build-time risk pending a planned major upgrade.
-3. **Device-linking is best-effort**: a user can clear cookies or switch browsers to evade device velocity. By design (no CAPTCHA); EXTREME/IP limits remain as backstop.
-4. **No custom WAF/DDoS module** — relies on Vercel platform edge; custom firewall rules not yet configured in the Vercel dashboard.
-5. **Flutterwave is test-mode only** — the real-mode close loop (live keys + live webhook verification) is not activated pending authorization.
-6. **Rate limits fail open** when Upstash is unreachable (availability over strictness) — acceptable for this scale, worth revisiting if abuse is observed.
-7. **Oracle A1 self-hosted gateway** is not yet provisioned (Oracle "Out of host capacity"; background retry loop continues). AI falls back to user-stored credentials meanwhile.
+1. **Device-linking is best-effort**: a user can clear cookies or switch browsers to evade device velocity. By design (no CAPTCHA); EXTREME/IP limits remain as backstop.
+2. **No custom WAF/DDoS module** — relies on Vercel platform edge; custom firewall rules not yet configured in the Vercel dashboard.
+3. **Flutterwave is test-mode only** — the real-mode close loop (live keys + live webhook verification) is not activated pending authorization.
+4. **Rate limits fail open** when Upstash is unreachable (availability over strictness) — acceptable for this scale, worth revisiting if abuse is observed.
+5. **Oracle A1 self-hosted gateway** is not yet provisioned (Oracle "Out of host capacity"; background retry loop continues). AI falls back to user-stored credentials meanwhile.
+6. **Verification email delivery depends on Resend**: if Resend is down, a new user is locked out until they resend from the login page (self-serve recovery exists). Acceptable trade-off for mandatory verification.
 
-*Previously-open risk now resolved: Supabase migration `011_audit_logs.sql` was applied on 2026-09-10 via the Management API (user-provided PAT) and the audit trail was verified live.*
+*Previously-open risks now resolved: Supabase migration `011_audit_logs.sql` applied + verified live; mandatory email verification enabled; `postcss`/`auth-js` advisories cleared (0 vulnerabilities).*
 
 ---
 
@@ -256,12 +265,9 @@ New suites added this pass:
 
 1. Configure Vercel Firewall custom rules (bot detection, geo-block where appropriate) for defense-in-depth beyond headers.
 2. Add Turnstile/hCaptcha to signup **only if** signup abuse is observed (human-in-the-loop handoff until then).
-3. Plan a `next@16` major upgrade to clear the `postcss` advisory.
-4. Enable mandatory email verification once onboarding friction is acceptable.
-5. Add secret scanning (e.g. `trufflehog` / gitleaks) to CI for pre-push enforcement.
-6. Introduce structured log export/alerting on `audit_logs` (e.g. daily digest of `SUSPICIOUS_REGISTRATION`).
-7. Rate-limit webhook endpoints by source + signature and add replay protection for Flutterwave webhooks.
-8. Provision the Oracle A1 VM to make Ollama-first the default AI path and remove third-party API dependence.
+3. Introduce structured log export/alerting on `audit_logs` (e.g. daily digest of `SUSPICIOUS_REGISTRATION`).
+4. Consider a `next@16` major upgrade on its own schedule (Turbopack default, `proxy.ts` rename) — no longer security-driven, since the `postcss` advisory is cleared via `overrides`.
+5. Provision the Oracle A1 VM to make Ollama-first the default AI path and remove third-party API dependence.
 
 ---
 
