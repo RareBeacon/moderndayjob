@@ -209,8 +209,11 @@ All run against the real code on 2026-09-10:
 | Gate | Result |
 |---|---|
 | `npx tsc --noEmit` | ✅ clean |
-| `npx vitest run` | ✅ **318 passed** (35 files) |
+| `npx vitest run` | ✅ **343 passed** (39 files) |
 | `npm run build` (Next production build) | ✅ succeeded |
+| Live E2E: `GET /api/documents/[id]/export` | ✅ owner→200 `%PDF`/`PK`, anon→401, non-owner→404, bad format→400 |
+| Live `jobiest.com` response headers | ✅ CSP + nosniff + DENY + referrer + permissions + HSTS present |
+| Live `/api/health` | ✅ `ok: true`, database ok, AI gateway ok, email configured |
 
 **Security-relevant suites** (selected): `admin-security`, `admin-users-list`, `auth-signup-route`, `security-risk`, `rate-limit`, `ssrf`, `truthfulness`, `browser-worker-auth`, `apply-stop-conditions`, `automation-killswitch`, `billing-webhook`, `crypto`, `entitlements`, `plans`, `middleware`, `documents-export`, `api-gateway`.
 
