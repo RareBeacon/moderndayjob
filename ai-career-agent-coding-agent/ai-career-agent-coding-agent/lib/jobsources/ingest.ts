@@ -13,6 +13,8 @@ export interface IngestOptions {
   limit?: number;
   /** Delay between boards to stay rate-limit friendly (default 250ms). */
   pauseMs?: number;
+  /** Circuit-breaker hook (B-147): called after each source, ok/fail. */
+  onSourceOutcome?: (sourceId: string, ok: boolean) => void | Promise<void>;
 }
 
 export interface IngestReport {
@@ -41,6 +43,7 @@ export async function runIngestion(options: IngestOptions): Promise<IngestReport
       const rows = await adapter.fetchBatch(limit);
       const upserted = rows.length > 0 ? await options.store.upsertJobs(rows) : 0;
       sources.push({ source: adapter.id, fetched: rows.length, upserted, ok: true });
+      if (options.onSourceOutcome) await options.onSourceOutcome(adapter.id, true);
     } catch (err) {
       sources.push({
         source: adapter.id,
@@ -49,6 +52,7 @@ export async function runIngestion(options: IngestOptions): Promise<IngestReport
         ok: false,
         error: err instanceof Error ? err.message : 'UNKNOWN',
       });
+      if (options.onSourceOutcome) await options.onSourceOutcome(adapter.id, false);
     }
     if (pauseMs > 0) await sleep(pauseMs);
   }

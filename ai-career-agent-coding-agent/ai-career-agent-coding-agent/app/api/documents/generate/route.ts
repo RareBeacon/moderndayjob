@@ -9,6 +9,7 @@ import { generateDocument } from '@/lib/generation/service';
 import { trackGeneration } from '@/lib/ai/usage';
 import { persistGeneratedDocument } from '@/lib/generation/persist';
 import { loadGenerationJob, loadGenerationProfile } from '@/lib/generation/loader';
+import { partitionQuestions } from '@/lib/apply/sensitive';
 
 const body = z.object({
   kind: z.enum(['CV', 'COVER_LETTER', 'ANSWERS']),
@@ -43,6 +44,31 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'ANSWERS_REQUIRES_QUESTIONS' }, { status: 400 });
   }
 
+  // Sensitive-question policy (B-184): work authorization, salary, demographic,
+  // criminal and legal questions are NEVER auto-answered. They are surfaced
+  // back with guidance so the user answers them personally.
+  let sensitive: Array<{ question: string; category: string; guidance: string }> = [];
+  let autoQuestions = questions;
+  if (kind === 'ANSWERS' && questions) {
+    const partitioned = partitionQuestions(questions);
+    sensitive = partitioned.sensitive.map((s) => ({
+      question: s.question,
+      category: s.match.category,
+      guidance: s.match.guidance,
+    }));
+    autoQuestions = partitioned.auto;
+    if (autoQuestions.length === 0) {
+      return NextResponse.json(
+        {
+          error: 'ALL_QUESTIONS_SENSITIVE',
+          sensitive,
+          message: 'Every question needs your personal answer. Jobiest never fills these in for you.',
+        },
+        { status: 422 },
+      );
+    }
+  }
+
   const entitlement = await assertEntitlement(user.id, 'ai');
   if (Number(entitlement.ai_credits_remaining) <= 0) {
     return NextResponse.json({ error: 'DAILY_AI_CREDITS_EXHAUSTED' }, { status: 429 });
@@ -72,7 +98,7 @@ export async function POST(req: Request) {
 
   let result;
   try {
-    result = await trackGeneration({ userId: user.id, feature: `document.${String(kind).toLowerCase()}` }, () => generateDocument({ kind, profile, job, questions, deterministicOnly: true }));
+    result = await trackGeneration({ userId: user.id, feature: `document.${String(kind).toLowerCase()}` }, () => generateDocument({ kind, profile, job, questions: autoQuestions, deterministicOnly: true }));
   } catch (err) {
     await meter.refund();
     if (err instanceof AIGatewayError) {
@@ -101,7 +127,7 @@ export async function POST(req: Request) {
   });
 
   return NextResponse.json(
-    { document: { id: persisted.id, version: persisted.version, contentHash: persisted.contentHash, kind, title: result.title, content: result.content }, report: result.report },
+    { document: { id: persisted.id, version: persisted.version, contentHash: persisted.contentHash, kind, title: result.title, content: result.content }, report: result.report, ...(sensitive.length ? { sensitive } : {}) },
     { status: 201 },
   );
 }

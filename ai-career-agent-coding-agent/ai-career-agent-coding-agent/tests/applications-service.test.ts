@@ -77,6 +77,7 @@ import {
   requestAutoSubmit,
 } from '@/lib/applications/service';
 import { AppActionError } from '@/lib/applications/service';
+import { computeApprovalSnapshot } from '@/lib/apply/snapshot';
 
 type Row = Record<string, unknown>;
 
@@ -159,6 +160,15 @@ function mkResolver(db: Db) {
   };
 }
 
+/** Bind a fresh, matching approval snapshot onto the fixture app (B-181). */
+async function withValidApproval(db: Db) {
+  db.app = {
+    ...(db.app as Row),
+    approved_at: new Date().toISOString(),
+    approval_snapshot: await computeApprovalSnapshot('user-1', 'app-1'),
+  };
+}
+
 function setup(overrides: Partial<Db> = {}) {
   const db = defaultDb(overrides);
   m.trace.length = 0;
@@ -234,7 +244,9 @@ describe('approveApplication (server-side gates)', () => {
     const detail = await approveApplication('user-1', 'app-1');
     expect(detail.application.status).toBe('APPROVED');
     const update = m.trace.find((q) => q.updatePayload && q.table === 'applications');
-    expect(update!.updatePayload).toEqual({ status: 'APPROVED' });
+    expect(update!.updatePayload).toMatchObject({ status: 'APPROVED' });
+    expect(update!.updatePayload!.approved_at).toBeTruthy();
+    expect(update!.updatePayload!.approval_snapshot).toMatchObject({ v: 1 });
     expect(update!.eqs).toMatchObject({ id: 'app-1', user_id: 'user-1' });
     const event = m.trace.find((q) => q.insertPayload && q.table === 'agent_tasks');
     expect((event!.insertPayload!.result as { event: string }).event).toBe('APPROVED');
@@ -269,7 +281,8 @@ describe('requestAutoSubmit (kill switch + entitlement + idempotency)', () => {
 
   it('reuses an already-queued submission task (idempotent)', async () => {
     vi.stubEnv('AUTOMATION_SUBMIT_ENABLED', 'true');
-    setup({ app: { id: 'app-1', user_id: 'user-1', job_id: 'job-1', email: 'a@b.co', status: 'APPROVED', submitted_at: null, created_at: new Date().toISOString(), error: null }, existingTask: { id: 'task-9' } });
+    const db = setup({ app: { id: 'app-1', user_id: 'user-1', job_id: 'job-1', email: 'a@b.co', status: 'APPROVED', submitted_at: null, created_at: new Date().toISOString(), error: null }, existingTask: { id: 'task-9' } });
+    await withValidApproval(db);
     const { taskId } = await requestAutoSubmit('user-1', 'app-1');
     expect(taskId).toBe('task-9');
     expect(m.trace.some((q) => q.insertPayload && q.table === 'agent_tasks')).toBe(false);
@@ -277,13 +290,25 @@ describe('requestAutoSubmit (kill switch + entitlement + idempotency)', () => {
 
   it('enqueues a QUEUED APPLICATION task and records a SUBMISSION_REQUESTED event', async () => {
     vi.stubEnv('AUTOMATION_SUBMIT_ENABLED', 'true');
-    setup({ app: { id: 'app-1', user_id: 'user-1', job_id: 'job-1', email: 'a@b.co', status: 'APPROVED', submitted_at: null, created_at: new Date().toISOString(), error: null } });
+    const db = setup({ app: { id: 'app-1', user_id: 'user-1', job_id: 'job-1', email: 'a@b.co', status: 'APPROVED', submitted_at: null, created_at: new Date().toISOString(), error: null } });
+    await withValidApproval(db);
     const { taskId } = await requestAutoSubmit('user-1', 'app-1');
     expect(taskId).toBe('task-1');
     const insert = m.trace.find((q) => q.insertPayload && q.table === 'agent_tasks');
     expect(insert!.insertPayload).toMatchObject({ type: 'APPLICATION', status: 'QUEUED', application_id: 'app-1' });
     const event = m.trace.find((q) => q.insertPayload && q.table === 'agent_tasks' && (q.insertPayload!.result as { event: string } | undefined)?.event === 'SUBMISSION_REQUESTED');
     expect(event).toBeTruthy();
+  });
+
+  it('rejects and reverts when the approval is stale (B-181)', async () => {
+    vi.stubEnv('AUTOMATION_SUBMIT_ENABLED', 'true');
+    const db = setup({ app: { id: 'app-1', user_id: 'user-1', job_id: 'job-1', email: 'a@b.co', status: 'APPROVED', submitted_at: null, created_at: new Date().toISOString(), error: null } });
+    await withValidApproval(db);
+    // the package changes after approval
+    db.docs.push({ id: 'd2', kind: 'ANSWERS', title: 'A', version: 1, created_at: new Date().toISOString(), content: '{}', source_facts: { truthfulnessPassed: true } });
+    await expect(requestAutoSubmit('user-1', 'app-1')).rejects.toMatchObject({ code: 'APPROVAL_STALE' });
+    expect((db.app as Row).status).toBe('AWAITING_APPROVAL');
+    expect(m.trace.some((q) => q.insertPayload && q.table === 'agent_tasks' && (q.insertPayload.type === 'APPLICATION'))).toBe(false);
   });
 
   it('is an AppActionError subclass for route mapping', () => {

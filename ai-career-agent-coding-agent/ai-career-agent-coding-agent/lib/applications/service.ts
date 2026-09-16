@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import { assertEntitlement } from '@packages/security/entitlements';
 import { detectApplyAdapter } from '@/lib/apply/registry';
+import { computeApprovalSnapshot, verifyApprovalAndRevert } from '@/lib/apply/snapshot';
 import {
   decideApprove,
   decidePrepare,
@@ -35,7 +36,10 @@ export type AppErrorCode =
   | 'AUTOMATION_DISABLED'
   | 'NOT_ENTITLED'
   | 'UNSUPPORTED_PLATFORM'
-  | 'POLICY_RESTRICTED';
+  | 'POLICY_RESTRICTED'
+  | 'APPROVAL_MISSING'
+  | 'APPROVAL_STALE'
+  | 'APPROVAL_EXPIRED';
 
 export class AppActionError extends Error {
   code: AppErrorCode;
@@ -321,8 +325,18 @@ export async function approveApplication(userId: string, id: string): Promise<Ap
   });
   if (decision.code === 'ALREADY_IN_STATE') return getApplication(userId, id);
   if (!decision.ok || !decision.next) throw new AppActionError(decision.code ?? 'INVALID_TRANSITION', messageFor(decision.code));
-  await supabaseAdmin.from('applications').update({ status: decision.next }).eq('id', id).eq('user_id', userId);
-  await writeEvent(ready, 'APPROVED');
+  // B-181: bind the approval to the exact package being approved.
+  const snapshot = await computeApprovalSnapshot(userId, id);
+  await supabaseAdmin
+    .from('applications')
+    .update({
+      status: decision.next,
+      approved_at: new Date().toISOString(),
+      approval_snapshot: snapshot,
+    })
+    .eq('id', id)
+    .eq('user_id', userId);
+  await writeEvent(ready, 'APPROVED', { snapshotHash: snapshot.hash });
   return getApplication(userId, id);
 }
 
@@ -354,6 +368,13 @@ export async function submitApplication(userId: string, id: string): Promise<App
   const decision = decideSubmit(app.status as ApplicationStatus);
   if (decision.code === 'ALREADY_IN_STATE') return getApplication(userId, id);
   if (!decision.ok || !decision.next) throw new AppActionError(decision.code ?? 'INVALID_TRANSITION', messageFor(decision.code));
+  // B-181: the approval must still match the current package, within 24h.
+  if (app.status === 'APPROVED') {
+    const verification = await verifyApprovalAndRevert(userId, id);
+    if (!verification.ok) {
+      throw new AppActionError(verification.code, messageFor(verification.code));
+    }
+  }
   await supabaseAdmin
     .from('applications')
     .update({ status: decision.next, submitted_at: new Date().toISOString() })
@@ -384,6 +405,12 @@ export function messageFor(code: AppErrorCode | undefined): string {
       return 'This employer platform is not supported for automatic submission yet.';
     case 'POLICY_RESTRICTED':
       return 'Automatic submission is disabled by policy right now.';
+    case 'APPROVAL_MISSING':
+      return 'This application has no valid approval. Review and approve it first.';
+    case 'APPROVAL_STALE':
+      return 'Your package changed since you approved it. Review and approve again.';
+    case 'APPROVAL_EXPIRED':
+      return 'Your approval expired after 24 hours. Review and approve again.';
     default:
       return 'Something went wrong. Please try again.';
   }
@@ -416,6 +443,11 @@ export async function requestAutoSubmit(userId: string, id: string): Promise<{ t
   if (!detectApplyAdapter(job.url)) {
     throw new AppActionError('UNSUPPORTED_PLATFORM', 'This employer platform is not supported for automatic submission.');
   }
+
+  // B-181: enqueue only against a fresh, matching approval. The task
+  // processor re-verifies at run time; this check fails fast for the user.
+  const verification = await verifyApprovalAndRevert(userId, id);
+  if (!verification.ok) throw new AppActionError(verification.code, messageFor(verification.code));
 
   // Idempotent: reuse an already-queued/running submission task for this app.
   const { data: existing } = await supabaseAdmin

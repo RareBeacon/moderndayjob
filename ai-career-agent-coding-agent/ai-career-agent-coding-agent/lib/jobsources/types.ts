@@ -10,6 +10,7 @@
  */
 
 /** Canonical job row shape (maps 1:1 to the public.jobs table). */
+import { assertPublicHttpsUrl } from '../agent/egress';
 export interface NormalizedJob {
   source: 'GREENHOUSE' | 'LEVER' | 'ASHBY';
   external_id: string;
@@ -36,9 +37,11 @@ export interface FetchJson {
 
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
-/** Default: global fetch with a hard 10s timeout (rate-limit friendly: no retries). */
+/** Default: global fetch with a hard 10s timeout (rate-limit friendly: no
+ *  retries). Egress-guarded (B-223): only public https URLs are ever fetched. */
 export function defaultFetchImpl(): FetchLike {
   return (url, init) => {
+    assertPublicHttpsUrl(url);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 10_000);
     return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));

@@ -5,6 +5,8 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { defaultAdapters } from '@/lib/jobsources/boards';
 import { runIngestion } from '@/lib/jobsources/ingest';
 import { supabaseJobStore } from '@/lib/jobsources/store';
+import { loadRegistryAdapters, recordSourceOutcome } from '@/lib/jobsources/registry';
+import { defaultFetchImpl } from '@/lib/jobsources/types';
 
 const body = z.object({
   /** Optional explicit board lists; defaults come from env/registry. */
@@ -39,12 +41,23 @@ export async function POST(req: Request) {
   }
   const { greenhouse, lever, ashby, limit } = parsed.data;
 
-  const adapters = defaultAdapters({
-    ...(greenhouse ? { JOB_SOURCE_GREENHOUSE_BOARDS: greenhouse.join(',') } : {}),
-    ...(lever ? { JOB_SOURCE_LEVER_BOARDS: lever.join(',') } : {}),
-    ...(ashby ? { JOB_SOURCE_ASHBY_BOARDS: ashby.join(',') } : {}),
-  } as NodeJS.ProcessEnv);
+  const explicit = greenhouse || lever || ashby;
+  // Registry-driven by default (B-140/B-147): enabled, non-cooling sources
+  // from job_sources (with circuit-breaker bookkeeping). Explicit board
+  // lists keep the old env-override behavior, without breaker bookkeeping.
+  const adapters = explicit
+    ? defaultAdapters({
+        ...(greenhouse ? { JOB_SOURCE_GREENHOUSE_BOARDS: greenhouse.join(',') } : {}),
+        ...(lever ? { JOB_SOURCE_LEVER_BOARDS: lever.join(',') } : {}),
+        ...(ashby ? { JOB_SOURCE_ASHBY_BOARDS: ashby.join(',') } : {}),
+      } as NodeJS.ProcessEnv)
+    : await loadRegistryAdapters(defaultFetchImpl(), () => defaultAdapters());
 
-  const report = await runIngestion({ adapters, store: supabaseJobStore, limit });
+  const report = await runIngestion({
+    adapters,
+    store: supabaseJobStore,
+    limit,
+    ...(explicit ? {} : { onSourceOutcome: recordSourceOutcome }),
+  });
   return NextResponse.json({ report });
 }

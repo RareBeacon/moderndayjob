@@ -4,6 +4,7 @@ import { decryptSecret } from '@packages/security/crypto';
 import { AIGateway, AIGatewayError } from '@packages/ai/gateway';
 import { OpenAICompatProvider, OllamaProvider, httpChat } from '@packages/ai/providers';
 import type { AIProvider, UsageMeter } from '@packages/ai/types';
+import { assertPublicHttpsUrl } from '@/lib/agent/egress';
 
 /** Thrown when the user has no active AI credential configured. */
 export class AICredentialMissingError extends Error {
@@ -62,6 +63,8 @@ function buildOllamaProviders(): AIProvider[] {
  *   3. the user's active ai_credentials rows, newest key first
  *
  * Credentials are decrypted here (server-only) and never logged.
+ * Every base URL (env Ollama AND user-supplied credentials) passes the
+ * egress guard (B-223): a private/loopback/metadata target fails closed.
  */
 export async function buildGatewayForUser(userId: string): Promise<AIGateway> {
   const { data: creds, error } = await supabaseAdmin
@@ -79,7 +82,15 @@ export async function buildGatewayForUser(userId: string): Promise<AIGateway> {
 
   const providers: AIProvider[] = [...ollama];
   let priority = ollama.length;
+  let skipped = 0;
   for (const c of (creds ?? []) as CredentialRow[]) {
+    try {
+      assertPublicHttpsUrl(c.base_url);
+    } catch {
+      // Egress policy violation: never fetch this target, never log the URL.
+      skipped += 1;
+      continue;
+    }
     const apiKey = decryptSecret(c.ciphertext);
     providers.push(
       new OpenAICompatProvider(
@@ -93,6 +104,10 @@ export async function buildGatewayForUser(userId: string): Promise<AIGateway> {
         httpChat,
       ),
     );
+  }
+  if (providers.length === 0) throw new AICredentialMissingError();
+  if (skipped > 0 && providers.length === ollama.length && skipped === (creds?.length ?? 0)) {
+    throw new AICredentialMissingError();
   }
   return new AIGateway(providers);
 }

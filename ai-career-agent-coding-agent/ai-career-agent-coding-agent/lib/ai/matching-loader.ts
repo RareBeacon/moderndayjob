@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase';
+import { findDuplicateIds, isStale } from '@/lib/jobsources/dedup';
 import type { EmploymentType, RemoteType } from '@/lib/jobs/types';
 import type {
   MatchableJob,
@@ -54,7 +55,7 @@ export async function loadMatchInputs(userId: string): Promise<MatchInputs> {
       .single(),
     supabaseAdmin
       .from('jobs')
-      .select('id, source, external_id, company, title, description, location, metadata')
+      .select('id, source, external_id, company, title, description, location, metadata, duplicate_key, last_seen_at, created_at')
       .order('created_at', { ascending: false })
       .limit(200),
     supabaseAdmin.from('applications').select('job_id').eq('user_id', userId),
@@ -84,22 +85,36 @@ export async function loadMatchInputs(userId: string): Promise<MatchInputs> {
     locations: prefsRow?.locations ?? [],
   };
 
-  const jobs: MatchableJob[] = ((jobsRes.data as Array<Record<string, unknown>>) ?? []).map((j) => {
-    const m = (j.metadata ?? {}) as JobMetadata;
-    return {
+  // Freshness + cross-source dedup (B-144/B-145): drop rows not seen by
+  // ingestion within 30 days, then collapse tier-2 duplicates keeping the
+  // earliest listing. The match pool stays honest without deleting rows.
+  const freshJobs = ((jobsRes.data as Array<Record<string, unknown>>) ?? [])
+    .filter((j) => !isStale({ last_seen_at: (j.last_seen_at as string) ?? null, created_at: (j.created_at as string) ?? null }));
+  const duplicateIds = findDuplicateIds(
+    freshJobs.map((j) => ({
       id: String(j.id),
-      source: (j.source as string) ?? 'UNKNOWN',
-      externalId: (j.external_id as string) ?? '',
-      company: (j.company as string) ?? '',
-      title: (j.title as string) ?? '',
-      description: (j.description as string) ?? '',
-      location: (j.location as string) ?? '',
-      remoteType: m.remote_type ?? 'unknown',
-      employmentType: m.employment_type ?? 'unknown',
-      seniority: m.seniority ?? undefined,
-      canonicalUrl: m.canonical_url ?? undefined,
-    };
-  });
+      duplicate_key: (j.duplicate_key as string) ?? null,
+      created_at: (j.created_at as string) ?? null,
+    })),
+  );
+  const jobs: MatchableJob[] = freshJobs
+    .filter((j) => !duplicateIds.has(String(j.id)))
+    .map((j) => {
+      const m = (j.metadata ?? {}) as JobMetadata;
+      return {
+        id: String(j.id),
+        source: (j.source as string) ?? 'UNKNOWN',
+        externalId: (j.external_id as string) ?? '',
+        company: (j.company as string) ?? '',
+        title: (j.title as string) ?? '',
+        description: (j.description as string) ?? '',
+        location: (j.location as string) ?? '',
+        remoteType: m.remote_type ?? 'unknown',
+        employmentType: m.employment_type ?? 'unknown',
+        seniority: m.seniority ?? undefined,
+        canonicalUrl: m.canonical_url ?? undefined,
+      };
+    });
 
   const appliedJobIds = new Set<string>(
     ((appsRes.data as Array<{ job_id: string }>) ?? [])

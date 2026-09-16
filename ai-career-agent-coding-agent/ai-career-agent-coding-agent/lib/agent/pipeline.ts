@@ -3,6 +3,8 @@ import { supabaseAdmin } from '../supabase';
 import { defaultAdapters } from '../jobsources/boards';
 import { runIngestion, type IngestReport, type JobStore } from '../jobsources/ingest';
 import { supabaseJobStore } from '../jobsources/store';
+import { loadRegistryAdapters, recordSourceOutcome } from '../jobsources/registry';
+import { defaultFetchImpl } from '../jobsources/types';
 import type { SourceAdapter } from '../jobsources/types';
 import { processApplicationTask } from '../apply/task';
 
@@ -31,14 +33,32 @@ const CLAIM_BATCH = 10;
 
 export interface PipelineDeps {
   db: SupabaseClient;
-  adapters: SourceAdapter[];
+  /** Static adapter list (tests). Production uses loadAdapters instead. */
+  adapters?: SourceAdapter[];
+  /** Registry loader (B-140): resolves enabled, non-cooling adapters. */
+  loadAdapters?: () => Promise<SourceAdapter[]>;
   store: JobStore;
   limit?: number;
   pauseMs?: number;
 }
 
+async function resolveAdapters(deps: PipelineDeps): Promise<SourceAdapter[]> {
+  // Explicit adapters (tests, admin overrides) win; the registry loader is
+  // the production default.
+  if (deps.adapters && deps.adapters.length > 0) return deps.adapters;
+  if (deps.loadAdapters) return deps.loadAdapters();
+  return [];
+}
+
 function defaultDeps(): PipelineDeps {
-  return { db: supabaseAdmin, adapters: defaultAdapters(), store: supabaseJobStore };
+  return {
+    db: supabaseAdmin,
+    // Registry-driven (B-140/B-147): enabled + not-cooling sources from the
+    // job_sources table; falls back to env defaults when the table is empty.
+    adapters: [],
+    store: supabaseJobStore,
+    loadAdapters: () => loadRegistryAdapters(defaultFetchImpl(), () => defaultAdapters()),
+  };
 }
 
 /** True when the pool was ingested recently (skip duplicate work). */
@@ -51,7 +71,15 @@ export async function poolIsFresh(db: SupabaseClient): Promise<boolean> {
 /** Ingest now (or skip if fresh). Returns what happened. */
 export async function refreshPoolIfStale(deps: PipelineDeps): Promise<IngestReport | { skipped: 'pool_already_fresh' }> {
   if (await poolIsFresh(deps.db)) return { skipped: 'pool_already_fresh' };
-  return runIngestion({ adapters: deps.adapters, store: deps.store, limit: deps.limit ?? 30, pauseMs: deps.pauseMs ?? 250 });
+  const adapters = await resolveAdapters(deps);
+  return runIngestion({
+    adapters,
+    store: deps.store,
+    limit: deps.limit ?? 30,
+    pauseMs: deps.pauseMs ?? 250,
+    // Circuit-breaker bookkeeping only in the registry-driven production path.
+    ...(deps.adapters && deps.adapters.length > 0 ? {} : { onSourceOutcome: recordSourceOutcome }),
+  });
 }
 
 /** Process one claimed task. Pure decision logic, completion is the caller's job. */

@@ -39,9 +39,12 @@ async function isHealthy(base: string): Promise<boolean> {
 }
 
 /** One submission attempt. Returns 'RETRY' only for network-level failures
- *  (timeout / connection refused / DNS). Any HTTP response is authoritative:
- *  a 401/403 is an auth problem to surface, a 400 a payload problem; neither
- *  is fixed by trying another worker, so neither triggers failover. */
+ *  (connection refused / DNS). Any HTTP response is authoritative: a 401/403
+ *  is an auth problem to surface, a 400 a payload problem; neither is fixed
+ *  by trying another worker, so neither triggers failover.
+ *  B-186: a TIMEOUT is NOT retryable. The worker may have already submitted
+ *  the form; retrying (here or on another worker) risks a double submission.
+ *  It surfaces as UNKNOWN for manual reconciliation. */
 async function submitOnce(
   base: string,
   req: BrowserSubmitRequest,
@@ -67,7 +70,16 @@ async function submitOnce(
       };
     }
     return (await res.json()) as ApplyOutcome;
-  } catch {
+  } catch (err) {
+    const name = err instanceof DOMException ? err.name : (err as { name?: string } | null)?.name ?? '';
+    if (name === 'TimeoutError' || name === 'AbortError') {
+      return {
+        outcome: 'UNKNOWN',
+        code: 'SUBMIT_TIMEOUT',
+        message:
+          'The submission took too long and its result is unknown. It may or may not have gone through. Check the employer site before submitting again. Jobiest will not retry it automatically.',
+      };
+    }
     return 'RETRY';
   }
 }
@@ -98,6 +110,7 @@ export async function submitViaBrowser(req: BrowserSubmitRequest): Promise<Apply
 
   // Failover mode: prefer a healthy worker (primary first), fall through on
   // network-level failures. All workers down ⇒ safe STOP, never a retry storm.
+  // A TIMEOUT never fails over (B-186): the first worker may have submitted.
   const health = await Promise.all(urls.map(async (u) => ({ u, ok: await isHealthy(u) })));
   const ordered = [
     ...health.filter((h) => h.ok).map((h) => h.u),

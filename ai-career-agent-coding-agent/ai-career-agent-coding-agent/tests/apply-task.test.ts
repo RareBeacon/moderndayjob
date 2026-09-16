@@ -66,6 +66,7 @@ vi.mock('@/lib/applications/service', async (importOriginal) => {
 });
 
 import { processApplicationTask } from '@/lib/apply/task';
+import { computeApprovalSnapshot } from '@/lib/apply/snapshot';
 
 const URL = 'https://boards.greenhouse.io/acme/jobs/123';
 const NOW = new Date().toISOString();
@@ -82,7 +83,7 @@ function goodDb(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function reset(overrides: Record<string, unknown> = {}) {
+async function reset(overrides: Record<string, unknown> = {}) {
   Object.assign(m.db, goodDb(overrides));
   m.updates.length = 0;
   m.assertEntitlement.mockReset().mockResolvedValue(undefined); // entitled by default
@@ -90,9 +91,17 @@ function reset(overrides: Record<string, unknown> = {}) {
   m.appendApplicationEvent.mockReset().mockResolvedValue(undefined);
   m.createSignedUrl.mockReset().mockResolvedValue({ data: { signedUrl: null }, error: null });
   vi.stubEnv('AUTOMATION_SUBMIT_ENABLED', 'true');
+  delete process.env.AGENT_DRY_RUN;
+  // B-181: bind a fresh, matching approval snapshot (overridable per test).
+  const snap = await computeApprovalSnapshot('user-1', 'app-1');
+  m.db.applications = {
+    ...(m.db.applications as Record<string, unknown>),
+    approved_at: new Date().toISOString(),
+    approval_snapshot: snap,
+  };
 }
 
-beforeEach(() => reset());
+beforeEach(async () => { await reset(); });
 afterEach(() => vi.unstubAllEnvs());
 
 describe('processApplicationTask — early returns', () => {

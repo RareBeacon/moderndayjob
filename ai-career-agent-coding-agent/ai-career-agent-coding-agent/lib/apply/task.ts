@@ -4,6 +4,8 @@ import { appendApplicationEvent, JOB_EXPIRY_MS } from '@/lib/applications/servic
 import { decideAutoSubmit, messageForGate } from './gate';
 import { detectApplyAdapter } from './registry';
 import { submitViaBrowser } from './client';
+import { verifyApprovalAndRevert } from './snapshot';
+import { checkCapabilityAudited, agentDryRun } from '@/lib/agent/capabilities';
 import type { ApplyCandidate } from './types';
 
 /**
@@ -165,6 +167,35 @@ export async function processApplicationTask(payload: Record<string, unknown>): 
     return { status: 'WAITING_APPROVAL', result: { reason: decision.code, message: messageForGate(decision.code) } };
   }
 
+  // B-181: re-verify the approval against the CURRENT package at run time.
+  // A package edited after approval (or an approval older than 24h) reverts
+  // the application to AWAITING_APPROVAL; nothing is submitted.
+  const verification = await verifyApprovalAndRevert(userId, appId);
+  if (!verification.ok) {
+    return {
+      status: 'WAITING_APPROVAL',
+      result: {
+        reason: verification.code,
+        message:
+          verification.code === 'APPROVAL_EXPIRED'
+            ? 'Your approval expired after 24 hours. Review and approve again.'
+            : 'Your package changed since you approved it. Review and approve again.',
+      },
+    };
+  }
+
+  // B-224 capability gate: deny-by-default policy + global dry-run switch.
+  const capability = await checkCapabilityAudited('application.auto_submit', {
+    automationEnabled: process.env.AUTOMATION_SUBMIT_ENABLED === 'true',
+    dryRun: agentDryRun(),
+  }, { userId, applicationId: appId });
+  if (!capability.allowed) {
+    return {
+      status: 'WAITING_APPROVAL',
+      result: { reason: capability.reason, message: 'Automatic submission is blocked by policy.' },
+    };
+  }
+
   const email = prof?.application_email || app.email;
   const candidate: ApplyCandidate = {
     jobUrl: job.url!,
@@ -206,6 +237,18 @@ export async function processApplicationTask(payload: Record<string, unknown>): 
       url: outcome.url,
     });
     return { status: 'SUCCEEDED', result: { outcome: 'SUBMITTED', confirmation: outcome.confirmation } };
+  }
+
+  // B-186: unknown result (worker timeout mid-submit). Never auto-retry.
+  // The application stays APPROVED (not SUBMITTED: unconfirmed), flagged for
+  // the user to reconcile manually on the employer site.
+  if (outcome.outcome === 'UNKNOWN') {
+    await supabaseAdmin.from('applications').update({ error: outcome.message }).eq('id', appId).eq('user_id', userId);
+    await appendApplicationEvent(userId, appId, 'AUTO_SUBMIT_UNKNOWN', {
+      code: outcome.code,
+      message: outcome.message,
+    });
+    return { status: 'SUCCEEDED', result: { outcome: 'UNKNOWN', code: outcome.code, message: outcome.message } };
   }
 
   // Stopped safely: record the reason on the application so the user sees it,

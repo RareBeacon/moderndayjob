@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { submitViaBrowser } from '@/lib/apply/client';
+import type { ApplyOutcome } from '@/lib/apply/types';
 import type { ApplyCandidate } from '@/lib/apply/types';
 
 /**
@@ -25,7 +26,7 @@ const candidate: ApplyCandidate = {
 const req = { jobUrl: candidate.jobUrl, allowedDomains: ['boards.greenhouse.io'], candidate };
 
 /** Narrow the ApplyOutcome union to the STOP branch for property assertions. */
-function asStop(r: { outcome: 'SUBMITTED'; confirmation: string; url: string } | { outcome: 'STOP'; code: string; message: string }) {
+function asStop(r: ApplyOutcome) {
   if (r.outcome !== 'STOP') throw new Error(`expected STOP, got ${r.outcome}`);
   return r;
 }

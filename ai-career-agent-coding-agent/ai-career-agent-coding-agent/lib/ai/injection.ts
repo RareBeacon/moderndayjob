@@ -20,6 +20,9 @@ export const MAX_UNTRUSTED_CHARS = 12000;
 const INJECTION_PATTERNS: Array<[RegExp, string]> = [
   // "ignore all previous instructions", "disregard the above rules", ...
   [/\b(ignore|disregard|forget|override)\s+(all\s+)?(previous|prior|above|earlier|the)\s+(instructions?|rules?|prompts?|directions?)/gi, '[removed]'],
+  // ...and the object phrase on its own, so obfuscated verbs (fancy unicode,
+  // leetspeak) cannot complete the directive either (corpus B-221).
+  [/\ball\s+(previous|prior|above|earlier)\s+(instructions?|rules?|prompts?|directions?)\b/gi, '[removed]'],
   // "you are now X", "you are no longer X", "from now on you are X"
   [/\byou\s+are\s+(now|no longer|actually)\b/gi, 'you are'],
   // role markers that read like a new message from another participant
