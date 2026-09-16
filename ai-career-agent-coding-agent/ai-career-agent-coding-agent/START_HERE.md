@@ -80,7 +80,7 @@ Shipped and live:
 
 Owner answers (confirmed 2026-09-16): domain **jobiest.com**; welcome sender **Philip (Jobiest) <philip@jobiest.com>**; philip@ forwards to OgungboyeopeyemiPhilip@gmail.com; support@ forwards to philipopeyemior@gmail.com. `app_config.support_inbox` is set to philipopeyemior@gmail.com (support form delivers there now).
 
-Owner DNS actions still pending (at Vercel DNS for jobiest.com): SPF TXT `v=spf1 include:_spf.resend.com ~all`; DMARC TXT on `_dmarc` `v=DMARC1; p=none; rua=mailto:philip@jobiest.com`; MX + forwarding service (e.g. ImprovMX: mx1.improvmx.com prio 10, mx2.improvmx.com prio 20) with philip@ -> OgungboyeopeyemiPhilip@gmail.com and support@ -> philipopeyemior@gmail.com. Inbound reply-to-philip@ only works after MX + forwarder exist (outbound sending already works).
+**DNS COMPLETE (2026-09-16, configured by agent via Vercel API, verified end-to-end):** SPF TXT `v=spf1 include:_spf.resend.com ~all`; DMARC TXT `_dmarc` `v=DMARC1; p=none; rua=mailto:philip@jobiest.com`; MX @ 10 mx1.forwardemail.net + MX @ 10 mx2.forwardemail.net; TXT `forward-email=philip:OgungboyeopeyemiPhilip@gmail.com,support:philipopeyemior@gmail.com` (ForwardEmail free DNS-only forwarding — no account needed). Verified: public DNS propagation (dns.google), both aliases accept SMTP mail (250) and forward, website untouched (A/ALIAS/CNAME and ai/api/worker/send records intact). Owner should delete the two Vercel API tokens used for this (agent is done with them).
 
 ## Google sign-in (deployed 2026-09-16)
 
