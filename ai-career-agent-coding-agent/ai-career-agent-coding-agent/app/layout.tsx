@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next';
 import { DM_Sans, Space_Grotesk } from 'next/font/google';
 import { SITE_URL } from '@/lib/site';
 import { ScrollReveal } from '@/components/site/ScrollReveal';
+import { ServiceWorkerRegistrar } from '@/components/site/ServiceWorkerRegistrar';
 
 const dmSans = DM_Sans({
   subsets: ['latin'],
@@ -49,7 +50,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#062B68',
+  themeColor: '#111C35',
   width: 'device-width',
   initialScale: 1,
 };
@@ -65,6 +66,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </noscript>
         {children}
         <ScrollReveal />
+        <ServiceWorkerRegistrar />
       </body>
     </html>
   );

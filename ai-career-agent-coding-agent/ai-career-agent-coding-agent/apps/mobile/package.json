@@ -1,0 +1,23 @@
+{
+  "name": "jobiest-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Jobiest native app shells (Android + iOS) via Capacitor. The product is the web app; these shells wrap https://jobiest.com with native splash, status bar and share handling.",
+  "scripts": {
+    "bootstrap": "npm install && npx cap add android && npx cap add ios || true",
+    "sync": "npx cap sync",
+    "open:android": "npx cap open android",
+    "open:ios": "npx cap open ios"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/core": "^6.2.0",
+    "@capacitor/ios": "^6.2.0",
+    "@capacitor/splash-screen": "^6.2.0",
+    "@capacitor/status-bar": "^6.2.0",
+    "@capacitor/browser": "^6.2.0"
+  }
+}

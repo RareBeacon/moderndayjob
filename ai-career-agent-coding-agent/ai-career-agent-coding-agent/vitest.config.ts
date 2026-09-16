@@ -2,13 +2,15 @@ import { defineConfig } from 'vitest/config';
 import { fileURLToPath, URL } from 'node:url';
 
 /**
- * Vitest alias config — mirrors tsconfig `paths` so value imports of `@/...`
+ * Vitest alias config - mirrors tsconfig `paths` so value imports of `@/...`
  * and `@packages/...` resolve under the test runner (type-only imports are
  * already stripped by esbuild). Additive; does not affect `next build`.
  */
 export default defineConfig({
   test: {
-    // dummy envs — lib/env.ts validates at import time; tests never touch real services
+    // tests/e2e belongs to Playwright (npm run e2e), not vitest
+    exclude: ['**/node_modules/**', 'tests/e2e/**'],
+    // dummy envs - lib/env.ts validates at import time; tests never touch real services
     env: {
       NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321',
       NEXT_PUBLIC_SUPABASE_ANON_KEY: 'test-anon-key',

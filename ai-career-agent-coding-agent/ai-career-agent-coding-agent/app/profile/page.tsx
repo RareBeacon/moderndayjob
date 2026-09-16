@@ -161,6 +161,9 @@ export default function ProfilePage() {
         <p className="eyebrow">PROFILE</p>
         <h1>Your verified career story.</h1>
         <p>Add only information that is true. Future career tools will use this profile as their factual source.</p>
+        <p style={{ marginTop: 10 }}>
+          <a className="btn-ghost" href="/profile/ai" style={{ textDecoration: 'none' }}>Manage your AI providers</a>
+        </p>
       </section>
 
       <form className="form-stack profile-form" onSubmit={save}>

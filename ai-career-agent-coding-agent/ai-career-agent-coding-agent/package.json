@@ -12,7 +12,8 @@
     "agent": "tsx workers/agent/index.ts",
     "browser": "tsx workers/browser/index.ts",
     "api": "tsx workers/api/index.ts",
-    "scheduler": "tsx workers/scheduler/index.ts"
+    "scheduler": "tsx workers/scheduler/index.ts",
+    "e2e": "playwright test -c playwright.e2e.config.ts"
   },
   "dependencies": {
     "@supabase/ssr": "0.5.2",
@@ -34,7 +35,8 @@
     "@types/react-dom": "^19.0.4",
     "tsx": "^4.19.3",
     "typescript": "5.7.3",
-    "vitest": "^3.1.1"
+    "vitest": "^3.1.1",
+    "@playwright/test": "1.62.1"
   },
   "engines": {
     "node": ">=20 <23"

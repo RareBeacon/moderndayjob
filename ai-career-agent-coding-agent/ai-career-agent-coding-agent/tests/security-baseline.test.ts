@@ -116,6 +116,7 @@ describe('endpoint guard (B-024: deny-by-default route registry)', () => {
     '/api/auth/confirm', // legacy-account repair, gated by prior password proof
     '/api/auth/forgot-password', // rate-limited
     '/api/auth/reset-password', // token-gated, rate-limited
+    '/api/client-error', // anonymous-safe: rate-limited, bounded, writes to audit_logs only
   ]);
 
   const AUTH_MARKERS = [

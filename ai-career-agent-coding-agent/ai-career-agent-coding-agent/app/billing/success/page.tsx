@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { AppShell } from '@/components/site/AppShell';
 
@@ -13,6 +13,30 @@ function SuccessInner() {
   const status = (params.get('status') ?? '').toLowerCase();
   const txRef = params.get('tx_ref') ?? '';
   const failed = status !== '' && status !== 'success' && status !== 'successful';
+  const [checking, setChecking] = useState(false);
+  const [checkResult, setCheckResult] = useState<string | null>(null);
+
+  const checkPayment = async () => {
+    if (!txRef || checking) return;
+    setChecking(true);
+    setCheckResult(null);
+    try {
+      const res = await fetch('/api/billing/flutterwave/verify', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ tx_ref: txRef }),
+      });
+      const out = await res.json();
+      if (out.plan) setCheckResult(`Payment confirmed. ${out.plan} plan active.`);
+      else if (out.status === 'not_found') setCheckResult('We could not find this transaction yet. If you were charged, it appears within a few minutes.');
+      else if (out.status === 'successful') setCheckResult('Payment confirmed.');
+      else setCheckResult(`Current status: ${out.status ?? 'unknown'}. No charge means you can safely try again.`);
+    } catch {
+      setCheckResult('Could not reach the payment service. Please try again in a moment.');
+    } finally {
+      setChecking(false);
+    }
+  };
 
   return (
     <AppShell active="billing" title="Billing">
@@ -25,6 +49,14 @@ function SuccessInner() {
             : 'Thanks for upgrading. Your plan and automation allowance are being activated on your account.'}
         </p>
         {txRef && <p className="muted" style={{ fontSize: 12.5 }}>Reference: {txRef}</p>}
+        {txRef && (
+          <div style={{ marginTop: 16 }}>
+            <button className="btn-ghost" onClick={checkPayment} disabled={checking} style={{ cursor: 'pointer' }}>
+              {checking ? 'Checking…' : 'Check payment status'}
+            </button>
+            {checkResult && <p className="muted" style={{ marginTop: 10, fontSize: 13.5 }}>{checkResult}</p>}
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 12, marginTop: 20, flexWrap: 'wrap' }}>
           <Link className="btn" href="/dashboard">Go to dashboard</Link>
           <Link className="btn-ghost" href="/billing">View billing</Link>

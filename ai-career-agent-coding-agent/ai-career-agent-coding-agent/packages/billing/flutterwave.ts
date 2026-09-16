@@ -111,3 +111,22 @@ export function planForAmount(amount: number): PaidPlan | null {
   if (amount === PLAN_AMOUNTS_NGN.BASIC) return 'BASIC';
   return null;
 }
+
+/** Reconciliation path (missed webhooks): look up a transaction by tx_ref.
+ *  GET /transactions?tx_ref=... returns the provider's own record; callers
+ *  must still re-verify by id before granting anything. */
+export async function findFlutterwaveTransactionByRef(
+  txRef: string,
+): Promise<{ id: number; tx_ref: string; status: string } | null> {
+  if (!flutterwaveConfigured()) throw new Error('BILLING_NOT_CONFIGURED');
+  const url = `${FLW_BASE}/transactions?tx_ref=${encodeURIComponent(txRef)}`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${process.env.FLW_SECRET_KEY}` },
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error(`FLW_LOOKUP_FAILED:${res.status}${await readFlwError(res)}`);
+  const data = (await res.json()) as { status?: string; data?: Array<{ id?: number; tx_ref?: string; status?: string }> };
+  const hit = (data.data ?? []).find((t) => t.tx_ref === txRef && t.id);
+  if (!hit) return null;
+  return { id: hit.id!, tx_ref: hit.tx_ref!, status: hit.status ?? 'unknown' };
+}
