@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.jobiest.app",
+      "sha256_cert_fingerprints": ["81:32:BF:D8:A4:FB:66:37:9B:2D:3B:E0:3E:98:3D:33:34:5A:73:CF:C1:00:34:8A:0E:8B:3B:02:8A:C2:50:F5"]
+    }
+  }
+]

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Jobiest</string>
+    <string name="title_activity_main">Jobiest</string>
+    <string name="package_name">com.jobiest.app</string>
+    <string name="custom_url_scheme">com.jobiest.app</string>
+</resources>

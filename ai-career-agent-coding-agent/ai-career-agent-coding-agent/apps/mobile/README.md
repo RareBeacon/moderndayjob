@@ -1,7 +1,10 @@
 # Jobiest native apps (Android + iOS)
 
+> **Going to production? Read [`PRODUCTION_PLAN.md`](./PRODUCTION_PLAN.md)** -
+> it has the full requirements, store gates and step-by-step plan.
+
 The product is the web app at **https://jobiest.com**. These are native shells
-built with [Capacitor 6](https://capacitorjs.com): the app opens the site in a
+built with [Capacitor 8](https://capacitorjs.com): the app opens the site in a
 hardened in-app WebView with a native splash screen, styled status bar and
 safe-area handling. Product updates ship with the web deploy; the store binary
 only changes when the shell itself changes.
@@ -11,10 +14,17 @@ only changes when the shell itself changes.
 ```
 apps/mobile/
   capacitor.config.ts    shell config (loads https://jobiest.com)
-  package.json           Capacitor 6 + splash/status-bar/browser plugins
+  package.json           Capacitor 8 + splash/status-bar/browser plugins
+  android/               generated Android project (targetSdk 36, App Links,
+                         release signing via env vars, icons + splash baked)
   www/index.html         offline-first-open fallback
-  assets/                app icon set + 2732px splash (navy, gold mark)
+  assets/                icon sources + 2732px splash (navy, gold mark)
+  PRODUCTION_PLAN.md     requirements + store submission plan
 ```
+
+CI builds: push a tag (`app-v1.0.0`) or run the "Android app build" workflow
+in GitHub Actions. It produces a sideloadable debug APK (no secrets) and a
+signed Play Store AAB (needs the ANDROID_KEYSTORE_* secrets; see the plan).
 
 ## Build the Android app (debug APK in ~15 minutes, free)
 
