@@ -1729,7 +1729,7 @@ select { cursor: pointer; }
 .density-compact { font-size: 12px; line-height: 1.42; padding: 22px; }
 .density-airy { line-height: 1.75; padding: 38px; }
 @media (prefers-reduced-motion: reduce) { .resume2-progress-bar span { transition: none; } }
-@media (max-width: 1120px) { .resume2-hero, .resume2-shell { grid-template-columns: minmax(0, 1fr); } .resume2-shell > *, .resume2-hero > * { min-width: 0; } .resume2-preview-sticky { position: static; } .resume2-preview { min-height: 520px; } }
+@media (max-width: 1120px) { .resume2-hero, .resume2-shell { grid-template-columns: minmax(0, 1fr); } .resume2-shell > *, .resume2-hero > *, .resume2-left > * { min-width: 0; } .resume2-progress-card, .resume2-panel, .resume2-assistant { min-width: 0; max-width: 100%; } .resume2-preview-sticky { position: static; } .resume2-preview { min-height: 520px; } }
 @media (max-width: 760px) { .resume2-form-grid, .resume2-template-grid, .resume2-template-grid.recommended, .resume2-add-row { grid-template-columns: 1fr; } .resume2-hero h1 { font-size: 38px; } .resume2-step-tabs { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; } .resume2-step-tabs button { white-space: nowrap; } .resume2-preview { max-height: 70vh; overflow: auto; } .template-sidebar, .template-two-column, .template-modular-grid, .template-split-header header { display: block; } }
 
 .resume-headlines-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 28px; }
