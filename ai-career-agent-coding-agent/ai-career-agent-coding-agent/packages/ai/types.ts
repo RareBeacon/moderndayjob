@@ -46,6 +46,8 @@ export interface ProviderConfig {
 export interface AIProvider {
   readonly name: string;
   readonly priority: number;
+  /** Model id for the usage ledger (optional so mock providers stay valid). */
+  readonly model?: string;
   chat(
     messages: AIMessage[],
     opts?: { temperature?: number; responseFormat?: 'json' | 'text'; maxTokens?: number },
@@ -77,6 +79,27 @@ export interface UsageMeter {
   refund(): Promise<void>;
 }
 
+/**
+ * Structured record of one gateway run, handed to an injected ledger callback
+ * (B-061). Contains everything the ai_usage table stores - never prompt
+ * content, only a content hash computed by the caller if wanted.
+ */
+export interface AIRunLedgerEvent {
+  task: string;
+  taskVersion: number;
+  provider: string;
+  model?: string;
+  status: 'ok' | 'error' | 'blocked';
+  latencyMs: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  errorCode?: string;
+}
+
+export type AIRunLedger = (event: AIRunLedgerEvent) => void | Promise<void>;
+
 export interface AIGatewayRunOptions {
   meter?: UsageMeter;
+  /** Usage ledger hook (B-061). Called exactly once per run with the final outcome. */
+  ledger?: AIRunLedger;
 }

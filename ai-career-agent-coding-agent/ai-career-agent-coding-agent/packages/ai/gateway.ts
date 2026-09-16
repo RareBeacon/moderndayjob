@@ -1,4 +1,4 @@
-import type { AIGatewayRunOptions, AITask, AIProvider, ChatResponse } from './types';
+import type { AIGatewayRunOptions, AIRunLedgerEvent, AITask, AIProvider, ChatResponse } from './types';
 
 /** Previous-output context budget for a repair retry (chars). */
 const REPAIR_CONTEXT_CHARS = 2000;
@@ -42,13 +42,38 @@ export class AIGateway {
     input: Input,
     opts: AIGatewayRunOptions = {},
   ): Promise<{ data: Output; provider: string }> {
+    const t0 = Date.now();
+    const ledger = opts.ledger
+      ? async (e: Omit<AIRunLedgerEvent, 'task' | 'taskVersion' | 'latencyMs'>) => {
+          try {
+            await opts.ledger!({
+              ...e,
+              task: task.id,
+              taskVersion: task.version,
+              latencyMs: Date.now() - t0,
+            });
+          } catch {
+            /* a ledger failure must never fail the run */
+          }
+        }
+      : null;
+
     if (this.providers.length === 0) {
+      await ledger?.({ provider: 'none', status: 'error', errorCode: 'AI_NO_PROVIDERS' });
       throw new AIGatewayError('AI_NO_PROVIDERS', 'No AI providers are configured.');
     }
 
     // Reserve a credit up front (atomic check+increment). A quota exhaustion
     // here propagates immediately; no provider call is made.
-    if (opts.meter) await opts.meter.reserve();
+    if (opts.meter) {
+      try {
+        await opts.meter.reserve();
+      } catch (err) {
+        const code = err instanceof AIGatewayError ? err.code : 'AI_QUOTA_EXHAUSTED';
+        await ledger?.({ provider: 'none', status: 'blocked', errorCode: code });
+        throw err;
+      }
+    }
 
     const ordered = [...this.providers].sort((a, b) => a.priority - b.priority);
     const attempts: ProviderAttemptError[] = [];
@@ -74,7 +99,16 @@ export class AIGateway {
       // their own JSON when shown the error; without this, one malformed
       // response fails the whole run.
       const first = parseAndValidate(task, res.content);
-      if (first.ok) return { data: first.data, provider: res.provider };
+      if (first.ok) {
+        await ledger?.({
+          provider: res.provider,
+          model: provider.model,
+          status: 'ok',
+          inputTokens: res.usage?.promptTokens,
+          outputTokens: res.usage?.completionTokens,
+        });
+        return { data: first.data, provider: res.provider };
+      }
       attempts.push({ provider: provider.name, message: first.message });
       try {
         const repairRes = await provider.chat(
@@ -82,7 +116,19 @@ export class AIGateway {
           chatOpts,
         );
         const second = parseAndValidate(task, repairRes.content);
-        if (second.ok) return { data: second.data, provider: repairRes.provider };
+        if (second.ok) {
+          await ledger?.({
+            provider: repairRes.provider,
+            model: provider.model,
+            status: 'ok',
+            inputTokens:
+              (res.usage?.promptTokens ?? 0) + (repairRes.usage?.promptTokens ?? 0) || undefined,
+            outputTokens:
+              (res.usage?.completionTokens ?? 0) + (repairRes.usage?.completionTokens ?? 0) ||
+              undefined,
+          });
+          return { data: second.data, provider: repairRes.provider };
+        }
         attempts.push({ provider: `${provider.name}:repair`, message: second.message });
       } catch (err) {
         attempts.push({ provider: `${provider.name}:repair`, message: errMsg(err) });
@@ -97,6 +143,8 @@ export class AIGateway {
         /* refund is best-effort */
       }
     }
+    const lastProvider = attempts.length ? attempts[attempts.length - 1].provider : 'none';
+    await ledger?.({ provider: lastProvider, status: 'error', errorCode: 'AI_ALL_PROVIDERS_FAILED' });
     throw new AIGatewayError(
       'AI_ALL_PROVIDERS_FAILED',
       `All providers failed: ${attempts.map((a) => `${a.provider}(${a.message})`).join('; ')}`,

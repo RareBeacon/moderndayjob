@@ -42,6 +42,22 @@ export interface DigestData {
   suspicious: DigestFlagItem[];
   adminActions: DigestFlagItem[];
   flags: string[];
+  /** AI usage summary (Phase 2, B-061); omitted only if the ledger query fails. */
+  usage?: DigestUsage;
+}
+
+export interface DigestUsage {
+  runs: number;
+  errors: number;
+  blocked: number;
+  anonymous: number;
+  topFeatures: Array<{ feature: string; count: number }>;
+}
+
+export interface DigestUsageRow {
+  feature: string;
+  status: string;
+  user_id: string | null;
 }
 
 /** Max rows pulled per digest; keeps the cron bounded if volume spikes. */
@@ -98,6 +114,30 @@ export function summarizeEvents(events: DigestEvent[], now: Date = new Date()): 
   };
 }
 
+/** Pure aggregation of the ai_usage ledger for the digest window. Exported for unit tests. */
+export function summarizeUsage(rows: DigestUsageRow[]): DigestUsage {
+  const byFeature = new Map<string, number>();
+  let errors = 0;
+  let blocked = 0;
+  let anonymous = 0;
+  for (const r of rows) {
+    if (r.status === 'error' || r.status === 'timeout') errors += 1;
+    if (r.status === 'blocked') blocked += 1;
+    if (!r.user_id) anonymous += 1;
+    byFeature.set(r.feature, (byFeature.get(r.feature) ?? 0) + 1);
+  }
+  return {
+    runs: rows.length,
+    errors,
+    blocked,
+    anonymous,
+    topFeatures: [...byFeature.entries()]
+      .map(([feature, count]) => ({ feature, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5),
+  };
+}
+
 function describeMeta(meta: Record<string, unknown> | null): string {
   if (!meta || typeof meta !== 'object') return '';
   try {
@@ -139,6 +179,9 @@ export function renderDigestHtml(data: DigestData): string {
     `<table style="border-collapse:collapse;width:100%;font-size:14px"><tbody>${rows || '<tr><td>No events recorded.</td></tr>'}</tbody></table>`,
     section('Suspicious registrations', data.suspicious),
     section('Admin actions', data.adminActions),
+    data.usage
+      ? `<h3 style="margin:16px 0 8px">AI usage</h3><p style="margin:0 0 8px;font-size:13px">${data.usage.runs} run(s), ${data.usage.errors} error(s), ${data.usage.blocked} quota-block(s), ${data.usage.anonymous} anonymous.${data.usage.topFeatures.length ? ' Top: ' + data.usage.topFeatures.map((f) => `${escapeHtml(f.feature)} (${f.count})`).join(', ') + '.' : ''}</p>`
+      : '',
     '</div>',
   ].join('\n');
 }
@@ -166,6 +209,9 @@ export function renderDigestText(data: DigestData): string {
   };
   section('Suspicious registrations', data.suspicious);
   section('Admin actions', data.adminActions);
+  if (data.usage) {
+    lines.push('', `AI usage: ${data.usage.runs} run(s), ${data.usage.errors} error(s), ${data.usage.blocked} quota-block(s), ${data.usage.anonymous} anonymous.`);
+  }
   return lines.join('\n');
 }
 
@@ -173,6 +219,8 @@ export interface DigestDeps {
   /** Recipient; defaults to process.env.ADMIN_ALERT_EMAIL. Empty = skip. */
   to?: string;
   queryEvents?: (sinceIso: string) => Promise<DigestEvent[]>;
+  /** Optional ai_usage query; failures degrade to "no usage section". */
+  queryUsage?: (sinceIso: string) => Promise<DigestUsageRow[]>;
   send?: (to: string, subject: string, html: string, text: string) => Promise<{ ok: boolean; id?: string; error?: string }>;
   now?: Date;
 }
@@ -186,6 +234,17 @@ export interface DigestReport {
   emailId?: string;
   emailError?: string;
   error?: string;
+}
+
+async function defaultQueryUsage(sinceIso: string): Promise<DigestUsageRow[]> {
+  const { data, error } = await supabaseAdmin
+    .from('ai_usage')
+    .select('feature,status,user_id')
+    .gte('created_at', sinceIso)
+    .order('created_at', { ascending: false })
+    .limit(DIGEST_EVENT_LIMIT);
+  if (error) throw error;
+  return (data ?? []) as DigestUsageRow[];
 }
 
 async function defaultQueryEvents(sinceIso: string): Promise<DigestEvent[]> {
@@ -212,6 +271,20 @@ export async function runSecurityDigest(deps: DigestDeps = {}): Promise<DigestRe
     const query = deps.queryEvents ?? defaultQueryEvents;
     const events = await query(sinceIso);
     const data = summarizeEvents(events, now);
+    try {
+      const usageRows = await (deps.queryUsage ?? defaultQueryUsage)(sinceIso);
+      const usage = summarizeUsage(usageRows);
+      data.usage = usage;
+      // Cost/anomaly flags (§10.4): high error rate, anonymous volume spike.
+      if (usage.runs >= 20 && usage.errors / usage.runs > 0.1) {
+        data.flags.push(`AI error rate ${Math.round((usage.errors / usage.runs) * 100)}% over ${usage.runs} runs`);
+      }
+      if (usage.anonymous >= 800) {
+        data.flags.push(`Anonymous generation volume high: ${usage.anonymous} in 24h (global budget 2000)`);
+      }
+    } catch {
+      /* usage section is best-effort */
+    }
     const subject = data.flags.length > 0 ? `Jobiest security digest: ${data.flags.length} flag(s), ${data.total} events` : `Jobiest security digest: all quiet (${data.total} events)`;
     const send = deps.send ?? (async (toAddr: string, subj: string, html: string, text: string) => sendEmail({ to: toAddr, subject: subj, html, text }));
     const result = await send(to, subject, renderDigestHtml(data), renderDigestText(data));

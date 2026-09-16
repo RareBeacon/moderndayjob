@@ -7,6 +7,7 @@ import { AIGatewayError } from '@packages/ai/gateway';
 import { createToolMeter } from '@/lib/ai/server';
 import { analyzeJob } from '@/lib/analysis/service';
 import { supabaseAdmin } from '@/lib/supabase';
+import { trackGeneration } from '@/lib/ai/usage';
 
 const body = z.object({ jobDescription: z.string().min(30).max(30000) });
 
@@ -60,7 +61,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const analysis = await analyzeJob({ jobDescription, userSkills, deterministicOnly: true });
+    const analysis = await trackGeneration({ userId: user.id, feature: 'ai.analyze-job' }, () => analyzeJob({ jobDescription, userSkills, deterministicOnly: true }));
     return NextResponse.json({ analysis, profileSkillsCount: userSkills.length });
   } catch (err) {
     await meter.refund();

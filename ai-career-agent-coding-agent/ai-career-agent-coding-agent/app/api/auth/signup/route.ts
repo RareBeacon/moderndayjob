@@ -4,6 +4,8 @@ import { auditEvent } from '@/lib/audit';
 import { enforceRateLimit, getRedis, requestIp } from '@/lib/rate-limit';
 import { DEVICE_COOKIE, hashSignal, issueDeviceId, readDeviceId } from '@/lib/security/device';
 import { classifyRegistrationRisk, isRegistrationBlocked } from '@/lib/security/risk';
+import { hashIp } from '@/lib/ai/usage';
+import { countSignupsFromIp, logSecuritySignal, signupRisk } from '@/lib/security/abuse';
 
 function safeShort(value: unknown, max = 180) {
   if (typeof value !== 'string') return null;
@@ -64,8 +66,9 @@ async function recordSignupAttribution(input: {
  */
 export async function POST(req: Request) {
   const ip = requestIp(req);
+  const ipHash = hashIp(ip);
 
-  const rl = await enforceRateLimit(`auth:signup:${ip}`, 5, '1 h');
+  const rl = await enforceRateLimit(`auth:signup:${ip}`, 5, '1 h', ip);
   if (!rl.allowed) return NextResponse.json({ error: 'RATE_LIMITED' }, { status: 429 });
 
   let body: { email?: string; password?: string; attribution?: Record<string, unknown> };
@@ -106,10 +109,24 @@ export async function POST(req: Request) {
   }
 
   if (isRegistrationBlocked(risk)) {
-    void auditEvent({ action: 'SUSPICIOUS_REGISTRATION', resource: 'auth', meta: { risk } });
+    void auditEvent({ action: 'SUSPICIOUS_REGISTRATION', resource: 'auth', ipHash, outcome: 'deny', meta: { risk } });
     return NextResponse.json(
       { error: 'Too many sign-ups from this device or network. Please try again later.' },
       { status: 429 },
+    );
+  }
+
+  // Multi-signal signup risk (B-073): email shape + durable signup velocity
+  // from the audit trail. Non-blocking by product decision (instant access);
+  // elevated/high feeds security_events → daily digest → admin review.
+  const ipSignups24h = redis ? 0 : await countSignupsFromIp(ipHash);
+  const emailRisk = signupRisk(email, ipSignups24h);
+  if (emailRisk.level !== 'low') {
+    void logSecuritySignal(
+      'SIGNUP_ABUSE_SIGNAL',
+      emailRisk.level === 'high' ? 'WARN' : 'INFO',
+      { signals: emailRisk.signals, score: emailRisk.score, velocityRisk: risk },
+      ipHash,
     );
   }
 
@@ -140,7 +157,9 @@ export async function POST(req: Request) {
     action: 'USER_SIGNUP',
     resource: 'auth',
     userId: data.user?.id ?? null,
-    meta: { email_confirmed: true, risk, sourceArticle: attribution.sourceArticle, sourceTool: attribution.sourceTool },
+    ipHash,
+    outcome: 'allow',
+    meta: { email_confirmed: true, risk, abuseSignals: emailRisk.signals, sourceArticle: attribution.sourceArticle, sourceTool: attribution.sourceTool },
   });
   void recordSignupAttribution({ userId: data.user?.id ?? null, attribution });
 

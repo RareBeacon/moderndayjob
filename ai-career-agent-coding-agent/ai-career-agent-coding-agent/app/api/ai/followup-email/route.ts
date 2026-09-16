@@ -7,6 +7,7 @@ import { AIGatewayError } from '@packages/ai/gateway';
 import { createToolMeter } from '@/lib/ai/server';
 import { generateFollowupEmail } from '@/lib/analysis/service';
 import { supabaseAdmin } from '@/lib/supabase';
+import { trackGeneration } from '@/lib/ai/usage';
 
 const manual = z.object({
   company: z.string().trim().min(2).max(120),
@@ -74,7 +75,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await generateFollowupEmail({ company, role, daysSinceApplied: days, contactName: b.contactName, note: b.note, deterministicOnly: true });
+    const result = await trackGeneration({ userId: user.id, feature: 'ai.followup-email' }, () => generateFollowupEmail({ company, role, daysSinceApplied: days, contactName: b.contactName, note: b.note, deterministicOnly: true }));
     return NextResponse.json({ email: result });
   } catch (err) {
     await meter.refund();

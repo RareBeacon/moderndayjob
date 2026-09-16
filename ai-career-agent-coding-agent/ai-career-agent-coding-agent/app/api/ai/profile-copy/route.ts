@@ -7,6 +7,7 @@ import { AIGatewayError } from '@packages/ai/gateway';
 import { createToolMeter } from '@/lib/ai/server';
 import { generateProfileCopy } from '@/lib/analysis/service';
 import { loadGenerationProfile } from '@/lib/generation/loader';
+import { trackGeneration } from '@/lib/ai/usage';
 
 const body = z.object({ kind: z.enum(['SUMMARY', 'HEADLINE']) });
 
@@ -55,7 +56,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await generateProfileCopy({ kind, profile, deterministicOnly: true });
+    const result = await trackGeneration({ userId: user.id, feature: `ai.profile-copy.${String(kind).toLowerCase()}` }, () => generateProfileCopy({ kind, profile, deterministicOnly: true }));
     if (!result.report.passed) {
       // Unsupported claims, reject and refund, exactly like document generation.
       await meter.refund();

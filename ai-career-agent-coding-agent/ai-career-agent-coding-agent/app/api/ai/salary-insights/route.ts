@@ -7,6 +7,7 @@ import { AIGatewayError } from '@packages/ai/gateway';
 import { createToolMeter } from '@/lib/ai/server';
 import { generateSalaryInsights } from '@/lib/analysis/service';
 import { supabaseAdmin } from '@/lib/supabase';
+import { trackGeneration } from '@/lib/ai/usage';
 
 const body = z.object({ role: z.string().trim().min(2).max(60) });
 
@@ -68,7 +69,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await generateSalaryInsights({ jobs, deterministicOnly: true });
+    const result = await trackGeneration({ userId: user.id, feature: 'ai.salary-insights' }, () => generateSalaryInsights({ jobs, deterministicOnly: true }));
     if (!result.verified) {
       // A cited listing we never scanned = fabrication → reject + refund.
       await meter.refund();

@@ -11,6 +11,7 @@ import { persistGeneratedDocument } from '@/lib/generation/persist';
 import { localResumeAIProvider } from '@/lib/resume-studio/ai';
 import { cleanText, normalizeStudioDraft, scoreResumeDraft, uniqueStrings } from '@/lib/resume-studio/draft';
 import { getResumeTemplate } from '@/lib/resume-studio/templates';
+import { recordGenerationUsage } from '@/lib/ai/usage';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -92,7 +93,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'DAILY_AI_CREDITS_EXHAUSTED', message: 'You have reached your plan document limit.' }, { status: 429 });
   }
 
+  const studioT0 = Date.now();
   const { draft, selectedTemplate, content, score } = await buildResumeContent(parsed.data.draft, parsed.data.templateId);
+  void recordGenerationUsage({ userId: user.id, feature: 'resume-studio.cv', provider: 'jobiest_resume_studio_local_ai', latencyMs: Date.now() - studioT0, status: 'ok' });
   if (!content.contact.name || !content.contact.email) {
     return NextResponse.json({ error: 'CONTACT_REQUIRED', message: 'Add your name and email before generating.' }, { status: 400 });
   }
@@ -128,6 +131,7 @@ export async function POST(req: Request) {
     await meter.reserve();
   } catch (err) {
     if (err instanceof AIGatewayError && err.code === 'AI_QUOTA_EXHAUSTED') {
+      void recordGenerationUsage({ userId: user.id, feature: 'resume-studio.cv', provider: 'none', latencyMs: Date.now() - studioT0, status: 'blocked', errorCode: 'AI_QUOTA_EXHAUSTED' });
       return NextResponse.json({ error: 'DAILY_AI_CREDITS_EXHAUSTED', message: 'You have reached your plan document limit.' }, { status: 429 });
     }
     throw err;
@@ -178,6 +182,7 @@ export async function POST(req: Request) {
     }, { status: 201 });
   } catch (error) {
     await meter.refund();
+    void recordGenerationUsage({ userId: user.id, feature: 'resume-studio.cv', provider: 'none', latencyMs: Date.now() - studioT0, status: 'error', errorCode: error instanceof Error ? error.message.slice(0, 80) : 'RESUME_GENERATION_FAILED' });
     return NextResponse.json({ error: 'RESUME_GENERATION_FAILED', message: "Looks like my writing assistant took a tiny coffee break. Let's try that again.", detail: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

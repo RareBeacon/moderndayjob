@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { redactSecrets, sanitizeMeta } from '@/lib/audit';
+import { auditEvent, redactSecrets, requireAuditEvent, sanitizeMeta } from '@/lib/audit';
 
 describe('redactSecrets', () => {
   it('redacts secret-shaped key=value pairs', () => {
@@ -40,5 +40,43 @@ describe('sanitizeMeta', () => {
     const longKey = 'k'.repeat(100);
     const out = sanitizeMeta({ [longKey]: 'v' });
     expect(Object.keys(out)[0].length).toBe(64);
+  });
+});
+
+// --- Phase 2 (B-060/B-063): outcome columns + the fail-closed variant ---
+
+import { beforeEach, vi } from 'vitest';
+
+const m = vi.hoisted(() => ({ insert: vi.fn() }));
+vi.mock('@/lib/supabase', () => ({ supabaseAdmin: { from: () => ({ insert: m.insert }) } }));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  m.insert.mockResolvedValue({ error: null });
+});
+
+describe('auditEvent vs requireAuditEvent', () => {
+  it('best-effort variant swallows insert failures', async () => {
+    m.insert.mockRejectedValue(new Error('db down'));
+    await expect(
+      auditEvent({ action: 'USER_SIGNUP', resource: 'auth', outcome: 'allow', ipHash: 'h' }),
+    ).resolves.toBeUndefined();
+  });
+
+  it('fail-closed variant throws on insert failure (the read must not proceed)', async () => {
+    m.insert.mockRejectedValue(new Error('db down'));
+    await expect(
+      requireAuditEvent({ action: 'ADMIN_USER_PII_READ', resource: 'user', resourceId: 'u1', outcome: 'allow' }),
+    ).rejects.toThrow('db down');
+  });
+
+  it('writes the Phase 2 columns when provided', async () => {
+    await requireAuditEvent({
+      action: 'ADMIN_USER_PII_READ', resource: 'user', resourceId: 'u1',
+      userId: 'admin-1', outcome: 'allow', requestId: 'r-1', ipHash: 'ip-h', uaHash: 'ua-h',
+    });
+    expect(m.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'allow', request_id: 'r-1', ip_hash: 'ip-h', ua_hash: 'ua-h' }),
+    );
   });
 });

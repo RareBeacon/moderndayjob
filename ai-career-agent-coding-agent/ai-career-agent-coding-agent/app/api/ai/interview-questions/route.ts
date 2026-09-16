@@ -6,6 +6,7 @@ import { assertEntitlement } from '@packages/security/entitlements';
 import { AIGatewayError } from '@packages/ai/gateway';
 import { createToolMeter } from '@/lib/ai/server';
 import { generateInterviewQuestions } from '@/lib/analysis/service';
+import { trackGeneration } from '@/lib/ai/usage';
 
 const body = z.object({ jobDescription: z.string().min(30).max(30000) });
 
@@ -48,7 +49,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await generateInterviewQuestions({ jobDescription, deterministicOnly: true });
+    const result = await trackGeneration({ userId: user.id, feature: 'ai.interview-questions' }, () => generateInterviewQuestions({ jobDescription, deterministicOnly: true }));
     return NextResponse.json({ result });
   } catch (err) {
     await meter.refund();

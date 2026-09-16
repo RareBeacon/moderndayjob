@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { requireUser } from '@/lib/auth';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { scanResume } from '@/lib/ats/scan';
+import { recordGenerationUsage } from '@/lib/ai/usage';
 
 const body = z.object({
   resumeText: z.string().min(100).max(60000),
@@ -26,6 +27,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'INVALID_BODY', issues: parsed.error.issues }, { status: 400 });
   }
   const { resumeText, jobDescription } = parsed.data;
+  const atsT0 = Date.now();
   const result = scanResume(resumeText, jobDescription);
+  void recordGenerationUsage({ userId: user?.id ?? null, feature: 'ats.scan', provider: 'deterministic', latencyMs: Date.now() - atsT0, status: 'ok' });
   return NextResponse.json({ ...result, note: 'Deterministic checks on structure and parseability, this score never judges your worth as a candidate.' });
 }

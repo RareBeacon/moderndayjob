@@ -7,6 +7,7 @@ import { createToolMeter } from '@/lib/ai/server';
 import { loadMatchInputs } from '@/lib/ai/matching-loader';
 import { runMatching } from '@/lib/matching/engine';
 import { AIGatewayError } from '@packages/ai/gateway';
+import { recordGenerationUsage } from '@/lib/ai/usage';
 
 const body = z.object({
   threshold: z.number().int().min(0).max(100).optional(),
@@ -62,6 +63,7 @@ export async function POST(req: Request) {
     throw err;
   }
 
+  const matchT0 = Date.now();
   const outcome = await runMatching({
     jobs,
     profile,
@@ -71,9 +73,16 @@ export async function POST(req: Request) {
     options: { threshold: parsed.data.threshold, maxScored: parsed.data.maxScored },
   });
 
+  void recordGenerationUsage({
+    userId: user.id, feature: 'ai.match',
+    provider: (outcome as { matches?: Array<{ provider?: string }> }).matches?.[0]?.provider ?? 'deterministic',
+    latencyMs: Date.now() - matchT0, status: 'ok',
+  });
+
   // Total AI failure: nothing useful produced. Refund the credit.
   if (outcome.scoredCount > 0 && outcome.failures.length === outcome.scoredCount) {
     await meter.refund();
+    void recordGenerationUsage({ userId: user.id, feature: 'ai.match', provider: 'none', latencyMs: Date.now() - matchT0, status: 'error', errorCode: 'AI_MATCH_FAILED' });
     return NextResponse.json(
       { error: 'AI_MATCH_FAILED', failures: outcome.failures },
       { status: 502 },

@@ -6,6 +6,7 @@ import { assertEntitlement } from '@packages/security/entitlements';
 import { AIGatewayError } from '@packages/ai/gateway';
 import { createUsageMeter } from '@/lib/ai/server';
 import { generateDocument } from '@/lib/generation/service';
+import { trackGeneration } from '@/lib/ai/usage';
 import { persistGeneratedDocument } from '@/lib/generation/persist';
 import { loadGenerationJob, loadGenerationProfile } from '@/lib/generation/loader';
 
@@ -71,7 +72,7 @@ export async function POST(req: Request) {
 
   let result;
   try {
-    result = await generateDocument({ kind, profile, job, questions, deterministicOnly: true });
+    result = await trackGeneration({ userId: user.id, feature: `document.${String(kind).toLowerCase()}` }, () => generateDocument({ kind, profile, job, questions, deterministicOnly: true }));
   } catch (err) {
     await meter.refund();
     if (err instanceof AIGatewayError) {

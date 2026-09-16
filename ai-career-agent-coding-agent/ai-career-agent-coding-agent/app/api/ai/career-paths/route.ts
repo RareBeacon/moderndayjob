@@ -6,6 +6,7 @@ import { AIGatewayError } from '@packages/ai/gateway';
 import { createToolMeter } from '@/lib/ai/server';
 import { generateCareerPaths } from '@/lib/analysis/service';
 import { loadGenerationProfile } from '@/lib/generation/loader';
+import { trackGeneration } from '@/lib/ai/usage';
 
 export const maxDuration = 300;
 
@@ -44,7 +45,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await generateCareerPaths({ profile, deterministicOnly: true });
+    const result = await trackGeneration({ userId: user.id, feature: 'ai.career-paths' }, () => generateCareerPaths({ profile, deterministicOnly: true }));
     if (!result.verified) {
       await meter.refund();
       return NextResponse.json(

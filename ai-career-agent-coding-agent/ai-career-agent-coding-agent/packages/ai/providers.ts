@@ -61,12 +61,14 @@ function trimSlash(s: string): string {
 export class OpenAICompatProvider implements AIProvider {
   readonly name: string;
   readonly priority: number;
+  readonly model: string;
   private readonly cfg: ProviderConfig;
   private readonly chatFn: ChatFn;
 
   constructor(config: ProviderConfig, chatFn: ChatFn = httpChat) {
     this.name = config.name;
     this.priority = config.priority;
+    this.model = config.model;
     this.cfg = config;
     this.chatFn = chatFn;
   }
@@ -138,12 +140,14 @@ export const ollamaChat: ChatFn = async (req) => {
 export class OllamaProvider implements AIProvider {
   readonly name: string;
   readonly priority: number;
+  readonly model: string;
   private readonly cfg: ProviderConfig;
   private readonly chatFn: ChatFn;
 
   constructor(config: ProviderConfig, chatFn: ChatFn = ollamaChat) {
     this.name = config.name;
     this.priority = config.priority;
+    this.model = config.model;
     this.cfg = config;
     this.chatFn = chatFn;
   }

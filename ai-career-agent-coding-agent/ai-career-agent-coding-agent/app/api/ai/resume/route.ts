@@ -10,6 +10,7 @@ import { auditEvent } from '@/lib/audit';
 import { supabaseAdmin } from '@/lib/supabase';
 import { buildFallbackCV, SAFE_FALLBACK_PROVIDER } from '@/lib/generation/fallback';
 import type { CVOutput, GenerationProfile } from '@/lib/generation/types';
+import { recordGenerationUsage } from '@/lib/ai/usage';
 
 const body = z.object({
   jobDescription: z.string().min(30).max(30000),
@@ -74,11 +75,13 @@ export async function POST(req: Request) {
   ]);
   if (!career) return NextResponse.json({ error: 'CAREER_PROFILE_REQUIRED' }, { status: 400 });
 
+  const resumeT0 = Date.now();
   const meter = createUsageMeter(user.id);
   try {
     await meter.reserve();
   } catch (err) {
     if (err instanceof AIGatewayError && err.code === 'AI_QUOTA_EXHAUSTED') {
+      void recordGenerationUsage({ userId: user.id, feature: 'ai.resume', provider: 'none', latencyMs: Date.now() - resumeT0, status: 'blocked', errorCode: 'AI_QUOTA_EXHAUSTED' });
       return NextResponse.json({ error: 'DAILY_AI_CREDITS_EXHAUSTED' }, { status: 429 });
     }
     throw err;
@@ -93,6 +96,7 @@ export async function POST(req: Request) {
     education: (career.education ?? []) as GenerationProfile['education'],
   };
   const cv = buildFallbackCV(generationProfile);
+  void recordGenerationUsage({ userId: user.id, feature: 'ai.resume', provider: SAFE_FALLBACK_PROVIDER, latencyMs: Date.now() - resumeT0, status: 'ok' });
 
   void auditEvent({
     action: 'AI_RESUME_GENERATED',

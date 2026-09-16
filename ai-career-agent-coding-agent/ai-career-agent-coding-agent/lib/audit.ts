@@ -30,6 +30,11 @@ export interface AuditInput {
   resourceId?: string;
   userId?: string | null;
   meta?: Record<string, unknown>;
+  /** Phase 2 (B-060): outcome + correlation ids + hashed client signals. */
+  outcome?: 'allow' | 'deny' | 'error';
+  requestId?: string | null;
+  ipHash?: string | null;
+  uaHash?: string | null;
 }
 
 const SECRET_PATTERN =
@@ -65,14 +70,32 @@ export function sanitizeMeta(meta: Record<string, unknown>): Record<string, unkn
 /** Best-effort audit event. Never throws. */
 export async function auditEvent(input: AuditInput): Promise<void> {
   try {
-    await supabaseAdmin.from('audit_logs').insert({
-      user_id: input.userId ?? null,
-      action: String(input.action).slice(0, 100),
-      resource: input.resource?.slice(0, 100) ?? null,
-      resource_id: input.resourceId?.slice(0, 100) ?? null,
-      meta: input.meta ? sanitizeMeta(input.meta) : null,
-    });
+    await insertAuditRow(input);
   } catch {
     // audit is best-effort: a missing table or DB hiccup must not break a request
   }
+}
+
+/**
+ * Fail-closed audit event (Master Implementation Package §5.2/§5.3, B-063):
+ * if the audit row cannot be written, the audited operation must NOT
+ * proceed. Used for admin PII reads, where an unlogged disclosure is the
+ * harm being prevented. Throws on failure.
+ */
+export async function requireAuditEvent(input: AuditInput): Promise<void> {
+  await insertAuditRow(input);
+}
+
+async function insertAuditRow(input: AuditInput): Promise<void> {
+  await supabaseAdmin.from('audit_logs').insert({
+    user_id: input.userId ?? null,
+    action: String(input.action).slice(0, 100),
+    resource: input.resource?.slice(0, 100) ?? null,
+    resource_id: input.resourceId?.slice(0, 100) ?? null,
+    meta: input.meta ? sanitizeMeta(input.meta) : null,
+    outcome: input.outcome ?? null,
+    request_id: input.requestId ?? null,
+    ip_hash: input.ipHash ?? null,
+    ua_hash: input.uaHash ?? null,
+  });
 }

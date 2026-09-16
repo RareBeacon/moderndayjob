@@ -26,7 +26,7 @@ export default async function AdminUsersPage() {
 
   const rows = (data ?? []) as Array<{
     user_id: string;
-    email: string | null;
+    email_domain: string | null;
     full_name: string | null;
     plan: string | null;
     account_status: string | null;
@@ -46,7 +46,7 @@ export default async function AdminUsersPage() {
         <table className="ad-table">
           <thead>
             <tr>
-              <th>Email</th>
+              <th>Domain</th>
               <th>Name</th>
               <th>Plan</th>
               <th>Status</th>
@@ -63,7 +63,7 @@ export default async function AdminUsersPage() {
             )}
             {rows.map((x) => (
               <tr key={x.user_id}>
-                <td className="ad-mono">{x.email ?? '-'}</td>
+                <td className="ad-mono"><a className="inline-link" href={`/admin/users/${x.user_id}`}>{x.email_domain ?? '-'}</a></td>
                 <td>{x.full_name ?? '-'}</td>
                 <td>
                   <span className="ad-chip">{x.plan ?? 'unknown'}</span>
