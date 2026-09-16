@@ -140,9 +140,11 @@ export async function verifyApprovalAndRevert(
 ): Promise<Verification> {
   const verification = await verifyApprovalSnapshot(userId, applicationId);
   if (verification.ok) return verification;
+  // NOTE: applications has no updated_at column (only created_at); the
+  // revert update must not reference one or it silently fails.
   await supabaseAdmin
     .from('applications')
-    .update({ status: 'AWAITING_APPROVAL', updated_at: new Date().toISOString() })
+    .update({ status: 'AWAITING_APPROVAL' })
     .eq('id', applicationId)
     .eq('user_id', userId)
     .eq('status', 'APPROVED');
