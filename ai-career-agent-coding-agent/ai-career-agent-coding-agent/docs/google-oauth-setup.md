@@ -5,11 +5,29 @@ The full flow is implemented and deployed: "Continue with Google" on
 email verification gate at /verify-email for google-created accounts
 (6-digit code, 10 minute expiry, 8 attempt limit, hashed at rest).
 
-The single remaining step needs a Google account owner: creating the
-OAuth client credentials. Everything else can be done with the Supabase
-management API from this workspace.
+STATUS 2026-09-16: the OAuth client credentials were supplied and
+APPLIED via the management API (external_google_enabled = true, client id
++ secret set). Live probe: the authorize endpoint 302-redirects to
+accounts.google.com with state and the correct callback, so the Supabase
+side is done.
 
-## 1. Create the OAuth client (Google Cloud Console, free)
+ONE step remains, in the Google Cloud Console (owner-only): the OAuth
+client was created with NO authorized redirect URIs, so Google will
+reject the round trip with redirect_mismatch until this is added.
+
+## 1. Create the OAuth client (DONE) - only the redirect URI is missing
+
+The client exists (id 15475513822-cmsavnna...). In the console:
+APIs and Services -> Credentials -> the OAuth client -> Authorized
+redirect URIs -> ADD:
+
+    https://cbxloutahmalorumaihc.supabase.co/auth/v1/callback
+
+Also check the OAuth consent screen: while it is in testing mode, only
+accounts listed as test users can sign in (add your Gmail, or publish
+the app; email/profile scopes verify quickly).
+
+## Historical steps (already done)
 
 1. Open https://console.cloud.google.com/ and create (or pick) a project.
 2. APIs and Services -> OAuth consent screen:

@@ -73,6 +73,7 @@ Do not claim production-ready until typecheck, lint, unit, integration, RLS, pay
   (/verify-email) before using the product; password accounts unchanged.
 - Migration 025 (profiles.email_verified_at + email_verification_codes,
   service-role only) is applied to production.
-- The one missing piece is owner-side: Google Cloud OAuth credentials.
-  Exact steps: docs/google-oauth-setup.md (redirect URI
-  https://cbxloutahmalorumaihc.supabase.co/auth/v1/callback).
+- Google OAuth credentials APPLIED to Supabase (provider enabled, live
+  302 probe to accounts.google.com passes). One Google-console step left:
+  add the redirect URI https://cbxloutahmalorumaihc.supabase.co/auth/v1/callback
+  to the OAuth client (docs/google-oauth-setup.md).
