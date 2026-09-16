@@ -65,3 +65,14 @@ Do not claim production-ready until typecheck, lint, unit, integration, RLS, pay
 - E2E smoke suite: `npm run e2e` (Playwright against production).
 - Error monitoring: client errors land in `audit_logs` (`CLIENT_ERROR` action).
 - Operations: `docs/runbook.md` (deploy, backup, rollback, monitoring, incidents, known gaps).
+
+## Google sign-in (deployed 2026-09-16)
+
+- "Continue with Google" on /login and /signup (PKCE OAuth via Supabase).
+- Google-created accounts must verify their email with a 6-digit code
+  (/verify-email) before using the product; password accounts unchanged.
+- Migration 025 (profiles.email_verified_at + email_verification_codes,
+  service-role only) is applied to production.
+- The one missing piece is owner-side: Google Cloud OAuth credentials.
+  Exact steps: docs/google-oauth-setup.md (redirect URI
+  https://cbxloutahmalorumaihc.supabase.co/auth/v1/callback).

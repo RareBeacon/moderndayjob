@@ -80,3 +80,20 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string): Prom
 }
 
 /** Best-effort email-verification email. Never throws. No em/en dashes. */
+
+/** Best-effort email verification code email (google sign-up gate).
+ *  Never throws. No em/en dashes. */
+export async function sendEmailVerificationCode(to: string, code: string, firstName?: string): Promise<SendEmailResult> {
+  const name = firstName?.trim() || 'there';
+  const html = [
+    '<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1a1a2e;line-height:1.6">',
+    '<h2 style="margin:0 0 12px">Confirm your email</h2>',
+    `<p style="margin:0 0 16px">Hi ${escapeHtml(name)}, you signed in to Jobiest with Google. Enter this code to finish setting up your account:</p>`,
+    `<p style="margin:0 0 16px;font-size:30px;font-weight:700;letter-spacing:8px">${escapeHtml(code)}</p>`,
+    '<p style="margin:0 0 8px">This code expires in 10 minutes and can be used once.</p>',
+    `<p style="margin:0;color:#64748b">If you did not expect this, you can ignore this email.</p>`,
+    '</div>',
+  ].join('\n');
+  const text = `Your Jobiest verification code is ${code}. It expires in 10 minutes. If you did not expect this, ignore this email.`;
+  return sendEmail({ to, subject: 'Your Jobiest verification code', html, text });
+}
