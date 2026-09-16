@@ -1,10 +1,10 @@
-/* Flutterwave billing — Standard (v3) integration.
+/* Flutterwave billing; Standard (v3) integration.
    Auth: Bearer FLW_SECRET_KEY. Webhook secret: FLW_SECRET_HASH.
    - createFlutterwaveTransaction → hosted checkout link
    - verifyFlutterwaveTransaction → re-check a transaction server-side
    The actual plan upgrade is performed by the DB function
    apply_verified_payment(...) (idempotent), invoked from the webhook.
-   No client ever authorizes a plan — server is the single source of truth. */
+   No client ever authorizes a plan; server is the single source of truth. */
 
 const FLW_BASE = 'https://api.flutterwave.com/v3';
 
@@ -16,7 +16,7 @@ export type FlwCustomer = { email: string; name?: string };
 
 export type FlwPaymentInput = {
   tx_ref: string;
-  amount: number; // NGN, major units (naira) — must match subscription_plans.amount
+  amount: number; // NGN, major units (naira); must match subscription_plans.amount
   currency?: string;
   redirect_url: string;
   customer: FlwCustomer;
@@ -28,7 +28,7 @@ export type FlwCreateResult = { link: string };
 
 /** Best-effort read of Flutterwave's error body so failures are diagnosable
  *  (e.g. account-not-activated vs invalid redirect_url vs bad key). The 400
- *  "One or more required parameters missing" is generic — the field-level
+ *  "One or more required parameters missing" is generic; the field-level
  *  reasons live in the `errors[]` array, so surface those too. */
 async function readFlwError(res: Response): Promise<string> {
   try {

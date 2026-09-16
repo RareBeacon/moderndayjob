@@ -5,10 +5,10 @@ import { useEffect } from 'react';
 /**
  * Global scroll-motion driver.
  *
- * 1. Entrance reveals — every element marked [data-animate] gets .is-visible
+ * 1. Entrance reveals; every element marked [data-animate] gets .is-visible
  *    as it nears the viewport (IntersectionObserver). A passive scroll sweep
  *    also reveals anything at/above the fold, so nothing can stay hidden.
- * 2. Parallax — elements marked [data-parallax="0.08"] drift slightly on
+ * 2. Parallax; elements marked [data-parallax="0.08"] drift slightly on
  *    scroll (desktop only, disabled under reduced motion).
  *
  * Reliability: no-observer / reduced-motion / no-JS all fall back to fully

@@ -2,7 +2,7 @@
  * Plan quotas (mirrored in SQL: supabase/migrations/013_entitlement_quotas_v2.sql).
  * - dailyCredits      → AI document generations/day for paid plans (0 for FREE:
  *                       FREE uses lifetimeDocs instead)
- * - lifetimeDocs      → total AI documents ever on FREE (null = not applicable)
+ * - lifetimeDocs      → total AI generations ever on FREE (null = not applicable)
  * - dailyApplications → auto-apply agent-mode slots/day for PREMIUM/MAX
  *                       (0 = no daily allowance)
  * - lifetimeApplications → total auto-apply trial uses on BASIC (null = n/a)

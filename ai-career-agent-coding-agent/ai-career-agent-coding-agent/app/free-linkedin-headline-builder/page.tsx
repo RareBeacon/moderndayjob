@@ -1,13 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getUser } from '@/lib/auth';
+import { softwareAppJsonLd, jsonLdTag } from '@/lib/seo';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { LinkedInHeadlineTool } from '@/components/freetools/LinkedInHeadlineTool';
 import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-linkedin-headline-builder` },
-  title: 'Free LinkedIn Headline Builder, honest, buzzword-free options',
+  title: 'Free LinkedIn Headline Builder',
   description:
     'Five LinkedIn headline options built from your verified profile facts, role-first, skills-first, and a plain conservative one. Truthfulness-checked. Free.',
   openGraph: {
@@ -23,6 +24,7 @@ export default async function FreeLinkedInHeadlinePage() {
       title="LinkedIn Headline Builder"
       lead="Five headline options from your verified profile facts, varied angles, no buzzword stacking, checked for truthfulness before you see them."
     >
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(softwareAppJsonLd('Free LinkedIn Headline Builder', 'Five LinkedIn headline options built from your verified profile facts, role-first, skills-first, and a plain conservative one. Truthfulness-checked. Free.', '/free-linkedin-headline-builder'))} />
       <section className="mk-section tight">
         <div className="mk-shell" style={{ maxWidth: 860 }}>
           <LinkedInHeadlineTool signedIn={!!user} />
@@ -58,7 +60,7 @@ export default async function FreeLinkedInHeadlinePage() {
             <div className="ft-faq">
               <details>
                 <summary>Is it really free?</summary>
-                <p>Yes. It uses your free career-tool allowance — 10 uses a day on the free plan, forever.</p>
+                <p>Yes. It uses your free career-tool allowance; 10 uses a day on the free plan, forever.</p>
               </details>
               <details>
                 <summary>Why no keywords like "Open to Work"?</summary>

@@ -105,7 +105,7 @@ function renderDocContent(kind: string, content: string | null) {
           {Array.isArray(o.education) &&
             o.education.map((e: { institution?: string; qualification?: string }, i: number) => (
               <p key={i} className="muted" style={{ marginTop: 8 }}>
-                {e.institution ?? ''}{e.qualification ? ` — ${e.qualification}` : ''}
+                {e.institution ?? ''}{e.qualification ? ` · ${e.qualification}` : ''}
               </p>
             ))}
         </div>
@@ -127,7 +127,7 @@ function renderDocContent(kind: string, content: string | null) {
       );
     }
   } catch {
-    /* not JSON — fall through to raw */
+    /* not JSON; fall through to raw */
   }
   return <pre>{content}</pre>;
 }
@@ -217,7 +217,7 @@ export default function Applications() {
     setBusy(null);
     if (r.ok) {
       setMsg({
-        text: 'Submission queued — the agent fills the employer form and stops for any CAPTCHA, login, or unsupported step. Watch the timeline.',
+        text: 'Submission queued; the agent fills the employer form and stops for any CAPTCHA, login, or unsupported step. Watch the timeline.',
         err: false,
       });
       const rd = await fetch(`/api/applications/${id}`);
@@ -264,7 +264,7 @@ export default function Applications() {
         <h1>Every application, in context.</h1>
         <p>
           Prepare an application for a matched job, review the generated package, approve it, and track
-          every step — with a full audit trail. Nothing is ever submitted without your approval.
+          every step; with a full audit trail. Nothing is ever submitted without your approval.
         </p>
         <div className="app-actions" style={{ marginTop: 0 }}>
           <a className="btn" href="/match">Prepare from a match</a>
@@ -272,8 +272,8 @@ export default function Applications() {
         </div>
         <p className="muted" style={{ marginTop: 12, fontSize: 13 }}>
           {automationEnabled
-            ? (agentActive !== null ? `Automatic submission is on — approved applications can be filled and sent by the agent. ` : '')
-            : 'Automatic submission is off — nothing is ever sent without an explicit go-live. '}
+            ? (agentActive !== null ? `Automatic submission is on; approved applications can be filled and sent by the agent. ` : '')
+            : 'Automatic submission is off; nothing is ever sent without an explicit go-live. '}
           {automationEnabled && agentActive !== null && (
             <button className="inline-link" style={{ fontSize: 13, margin: 0 }} onClick={toggleAgent}>
               {agentActive ? 'Pause agent' : 'Resume agent'}
@@ -303,7 +303,7 @@ export default function Applications() {
           <article className="card">
             <h2>No applications tracked yet.</h2>
             <p className="muted">
-              Head to Matches, score your job pool, and press “Prepare application” on a job you like —
+              Head to Matches, score your job pool, and press “Prepare application” on a job you like ; 
               then generate a CV or cover letter and approve it here.
             </p>
           </article>
@@ -366,7 +366,7 @@ function DetailPanel(props: {
           <p className="eyebrow">PREPARED PACKAGE</p>
           {detail.package.length === 0 ? (
             <p className="muted">
-              Nothing generated yet. Generate a CV or cover letter for this job to build your package —
+              Nothing generated yet. Generate a CV or cover letter for this job to build your package ; 
               each document is versioned, verified against your profile, and stored immutably.
             </p>
           ) : (
@@ -401,7 +401,7 @@ function DetailPanel(props: {
               {detail.timeline.map((t, i) => (
                 <li key={i}>
                   <span className="t">{EVENT_LABEL[t.event] ?? t.event}</span>{' '}
-                  <span className="when">— {new Date(t.at).toLocaleString()}</span>
+                  <span className="when">;  {new Date(t.at).toLocaleString()}</span>
                 </li>
               ))}
             </ul>
@@ -432,7 +432,7 @@ function DetailPanel(props: {
           {automationEnabled && status === 'APPROVED' && (
             <p className="muted" style={{ marginTop: 10, fontSize: 12.5 }}>
               “Submit automatically” fills the employer’s form and stops for any CAPTCHA, sign-in, or
-              unsupported form — it never bypasses security checks, and nothing is sent unless the form is
+              unsupported form; it never bypasses security checks, and nothing is sent unless the form is
               positively identified.
             </p>
           )}
@@ -441,7 +441,7 @@ function DetailPanel(props: {
 
           {job && (
             <p className="muted" style={{ marginTop: 16, fontSize: 12.5 }}>
-              {job.company} — {job.title}. Approval never submits anything automatically; “Mark as
+              {job.company}; {job.title}. Approval never submits anything automatically; “Mark as
               submitted” only records that you sent it yourself from the job link.
             </p>
           )}
@@ -460,7 +460,7 @@ function friendly(code: string, message?: string): string {
     case 'AUTOMATION_DISABLED': return 'Automatic submission is not enabled yet.';
     case 'NOT_ENTITLED': return 'Your plan does not include automatic submission.';
     case 'UNSUPPORTED_PLATFORM': return 'This employer platform is not supported for automatic submission yet.';
-    case 'RATE_LIMITED': return 'Too many requests — slow down a moment.';
+    case 'RATE_LIMITED': return 'Too many requests; slow down a moment.';
     default: return message || 'Something went wrong. Please try again.';
   }
 }

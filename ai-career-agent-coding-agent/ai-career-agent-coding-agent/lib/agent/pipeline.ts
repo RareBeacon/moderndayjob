@@ -62,9 +62,9 @@ export async function processAgentTask(task: AgentTask, deps: PipelineDeps): Pro
     return { status: 'SUCCEEDED', result: { ingested: outcome.totalUpserted, sources: outcome.sources } };
   }
   if (task.type === 'APPLICATION') {
-    // Controlled automatic submission (Phase 8). Every gate — the global kill
+    // Controlled automatic submission (Phase 8). Every gate; the global kill
     // switch, the per-user pause, APPROVED state, entitlement, supported site
-    // adapter, truthfulness — is re-checked server-side inside the processor
+    // adapter, truthfulness; is re-checked server-side inside the processor
     // before any browser is touched. With the kill switch absent (default),
     // this returns WAITING_APPROVAL and nothing is ever sent.
     return processApplicationTask((task.payload ?? {}) as Record<string, unknown>);

@@ -54,7 +54,7 @@ export interface AIProvider {
 
 /**
  * A versioned AI task: a named capability with a JSON schema (Zod) and a prompt
- * builder. ARCHITECTURE §7 — "Each task has a versioned prompt and JSON schema."
+ * builder. ARCHITECTURE §7; "Each task has a versioned prompt and JSON schema."
  */
 export interface AITask<Input, Output> {
   readonly id: string;

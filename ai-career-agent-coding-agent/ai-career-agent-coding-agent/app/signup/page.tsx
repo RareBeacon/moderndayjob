@@ -34,8 +34,8 @@ export default function SignupPage() {
       };
     })();
 
-    // 1. Create the account server-side (unverified): the server emails a
-    //    verification link; the account cannot sign in until it is confirmed.
+    // 1. Create the account server-side, ready to use: no email
+    //    round-trip, the account works the second it exists.
     const res = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -72,15 +72,19 @@ export default function SignupPage() {
       return;
     }
 
-    // 2. Account created and verification email sent. Do not sign in yet —
-    //    mandatory email verification means the account is locked until the
-    //    owner clicks the link in their inbox.
-    setBusy(false);
-    setNotice(`Check your inbox at ${email} — we sent a verification link (expires in 30 minutes). Click it, then sign in.`);
+    // 2. Account exists and is confirmed: sign straight in.
+    const { error: signInError } = await supabaseBrowser().auth.signInWithPassword({ email, password });
+    if (signInError) {
+      setError(humanizeAuthError(signInError.message));
+      setBusy(false);
+      return;
+    }
+    router.push('/dashboard');
+    router.refresh();
   }
 
   return (
-    <AuthShell title="Create your account" subtitle="One step. Your career profile comes after — when it matters.">
+    <AuthShell title="Create your account" subtitle="One step. Your career profile comes after; when it matters.">
       <form onSubmit={submit} className="auth-form" noValidate>
         {error ? <div className="auth-error" role="alert">{error}</div> : null}
         {notice ? (

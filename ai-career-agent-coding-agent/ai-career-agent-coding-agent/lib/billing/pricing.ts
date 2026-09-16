@@ -1,8 +1,8 @@
 /**
- * Jobiest pricing catalog — single source of truth for plan names, prices,
+ * Jobiest pricing catalog; single source of truth for plan names, prices,
  * quotas and feature copy. Consumed by the marketing pricing page, the
  * in-app billing page, and the billing guards (which enforce the same numbers
- * in SQL — see supabase/migrations/013_entitlement_quotas_v2.sql).
+ * in SQL; see supabase/migrations/013_entitlement_quotas_v2.sql).
  *
  * Prices are set in Naira (₦) as the billing base currency; the pricing page
  * converts them for display using lib/billing/currency.ts.
@@ -18,7 +18,7 @@ export interface PlanDefinition {
   monthlyNgn: number;
   /** AI document generations per day (0 for FREE: FREE uses lifetimeDocs). */
   documentCredits: number;
-  /** Total AI documents ever on FREE (null = not applicable). */
+  /** Total AI generations ever on FREE (null = not applicable). */
   lifetimeDocs: number | null;
   /** Auto-apply agent-mode slots per day (0 = no daily allowance). */
   automationSlots: number;
@@ -46,8 +46,8 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
     toolUses: 10,
     highlight: '₦0 forever',
     features: [
-      '3 AI documents in total, free forever (resume, cover letter, answers)',
-      'All 10 career tools — 10 uses a day',
+      '3 AI generations in total, free forever (resume, cover letter, answers)',
+      'All 10 career tools; 10 uses a day',
       'ATS resume scanner',
       'Job search & match scoring',
       'Profile builder & application tracker',
@@ -69,7 +69,7 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
     highlight: '₦5,000 / month',
     features: [
       'Everything in Free',
-      '3 AI documents a day',
+      '3 AI generations a day',
       '2 auto-apply trial uses (agent mode)',
       '50 career-tool uses a day',
       'Follow-up email writer',
@@ -91,7 +91,7 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
     highlight: '₦10,000 / month',
     features: [
       'Everything in Basic',
-      '10 AI documents a day',
+      '10 AI generations a day',
       '10 auto-apply slots a day (agent mode)',
       'Unlimited career-tool uses',
       'Priority AI processing & faster queue',
@@ -114,7 +114,7 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
     highlight: '₦20,000 / month',
     features: [
       'Everything in Premium',
-      '20 AI documents a day',
+      '20 AI generations a day',
       '20 auto-apply slots a day (agent mode)',
       'Unlimited everything',
       'Human-reviewed applications',

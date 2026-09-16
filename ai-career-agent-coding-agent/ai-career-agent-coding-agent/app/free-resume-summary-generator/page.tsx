@@ -1,13 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getUser } from '@/lib/auth';
+import { softwareAppJsonLd, jsonLdTag } from '@/lib/seo';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { ResumeSummaryTool } from '@/components/freetools/ResumeSummaryTool';
 import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-resume-summary-generator` },
-  title: 'Free Resume Summary Generator, from your verified facts only',
+  title: 'Free Resume Summary Generator',
   description:
     'Three professional resume summary options written only from your verified profile facts, checked by a truthfulness gate before you see them. Free.',
   openGraph: {
@@ -29,6 +30,7 @@ export default async function FreeResumeSummaryPage() {
       title="Resume Summary Generator"
       lead="Three summary options for the top of your CV, written from your verified facts and checked for truthfulness before you see a single word."
     >
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(softwareAppJsonLd('Free Resume Summary Generator', 'Three professional resume summary options written only from your verified profile facts, checked by a truthfulness gate before you see them. Free.', '/free-resume-summary-generator'))} />
       <section className="mk-section tight">
         <div className="mk-shell ft-split">
           <div>
@@ -62,7 +64,7 @@ export default async function FreeResumeSummaryPage() {
             <div className="ft-faq">
               <details>
                 <summary>Is it really free?</summary>
-                <p>Yes. It uses your free career-tool allowance — 10 uses a day on the free plan, forever.</p>
+                <p>Yes. It uses your free career-tool allowance; 10 uses a day on the free plan, forever.</p>
               </details>
               <details>
                 <summary>Will it make me sound more experienced than I am?</summary>

@@ -188,7 +188,7 @@ function MatchCard({ m }: { m: JobMatch }) {
         j.error === 'EXPIRED_JOB'
           ? 'This listing has expired.'
           : j.error === 'DUPLICATE'
-            ? 'Already being prepared — see Applications.'
+            ? 'Already being prepared; see Applications.'
             : 'Could not prepare this application. Try again.',
       );
     } catch {

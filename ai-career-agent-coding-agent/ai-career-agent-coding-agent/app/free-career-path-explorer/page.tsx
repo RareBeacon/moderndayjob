@@ -1,13 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getUser } from '@/lib/auth';
+import { softwareAppJsonLd, jsonLdTag } from '@/lib/seo';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { CareerPathsTool } from '@/components/freetools/CareerPathsTool';
 import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-career-path-explorer` },
-  title: 'Free Career Path Explorer, directions grown from your real skills',
+  title: 'Free Career Path Explorer',
   description:
     'Three career directions worth exploring, based only on the skills in your verified profile, each citing the exact skills it builds on. Checked, grounded, free.',
   openGraph: {
@@ -29,6 +30,7 @@ export default async function FreeCareerPathsPage() {
       title="Career Path Explorer"
       lead="Three directions worth exploring, grown from the skills you actually have, every suggestion cites the skills it builds on, and a checker rejects anything your profile can't back up."
     >
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(softwareAppJsonLd('Free Career Path Explorer', 'Three career directions worth exploring, based only on the skills in your verified profile, each citing the exact skills it builds on. Checked, grounded, free.', '/free-career-path-explorer'))} />
       <section className="mk-section tight">
         <div className="mk-shell" style={{ maxWidth: 920 }}>
           <CareerPathsTool signedIn={!!user} />
@@ -63,7 +65,7 @@ export default async function FreeCareerPathsPage() {
             <div className="ft-faq">
               <details>
                 <summary>Is it really free?</summary>
-                <p>Yes. It uses your free career-tool allowance — 10 uses a day on the free plan, forever.</p>
+                <p>Yes. It uses your free career-tool allowance; 10 uses a day on the free plan, forever.</p>
               </details>
               <details>
                 <summary>Why do suggestions only cite my existing skills?</summary>

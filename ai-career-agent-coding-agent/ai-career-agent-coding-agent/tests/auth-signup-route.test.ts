@@ -1,11 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 /**
- * /api/auth/signup · mandatory-email-verification account creator.
+ * /api/auth/signup · instant-access account creator.
  * Registration is email + password only (profile details come after auth).
- * The route must create users UNconfirmed (email_confirm: false), issue a
- * signup confirmation link through the admin API, email it, and translate raw
- * Supabase errors into honest, actionable messages.
+ * Per explicit product decision: no email verification. The route creates
+ * users pre-confirmed (email_confirm: true) so the account works the moment
+ * it exists, while keeping rate limits, risk scoring, device cookies, and
+ * the audit trail. Raw Supabase errors translate into honest messages.
  */
 
 const { createUser, generateLink } = vi.hoisted(() => ({ createUser: vi.fn(), generateLink: vi.fn() }));
@@ -35,30 +36,25 @@ beforeEach(() => {
 });
 
 describe('POST /api/auth/signup', () => {
-  it('creates the account unconfirmed and emails a verification link (email + password only)', async () => {
+  it('creates the account pre-confirmed with no email round-trip (email + password only)', async () => {
     const res = await POST(req({ email: 'Ada@Example.com ', password: 'longenough1' }));
     expect(res.status).toBe(200);
     expect(createUser).toHaveBeenCalledWith({
       email: 'ada@example.com', // normalized
       password: 'longenough1',
-      email_confirm: false,
+      email_confirm: true, // instant access: no verification link, ever
     });
-    expect(generateLink).toHaveBeenCalledWith({
-      type: 'signup',
-      email: 'ada@example.com',
-      password: 'longenough1',
-      options: { redirectTo: expect.stringMatching(/\/login$/) },
-    });
-    expect(sendVerificationEmail).toHaveBeenCalledWith('ada@example.com', 'https://jobiest.com/verify?token=abc');
-    await expect(res.json()).resolves.toEqual({ ok: true, verificationRequired: true, user: { id: 'u1' } });
+    expect(generateLink).not.toHaveBeenCalled();
+    expect(sendVerificationEmail).not.toHaveBeenCalled();
+    await expect(res.json()).resolves.toEqual({ ok: true, user: { id: 'u1' } });
   });
 
-  it('still succeeds (locked account) when the verification email cannot be sent', async () => {
-    generateLink.mockResolvedValue({ data: null, error: { message: 'boom' } });
+  it('never leaves the account locked: no email dependency exists', async () => {
+    sendVerificationEmail.mockRejectedValue(new Error('provider down'));
     const res = await POST(req({ email: 'a@b.co', password: 'longenough1' }));
     expect(res.status).toBe(200);
-    expect(sendVerificationEmail).not.toHaveBeenCalled();
-    await expect(res.json()).resolves.toEqual({ ok: true, verificationRequired: true, user: { id: 'u1' } });
+    expect(generateLink).not.toHaveBeenCalled();
+    await expect(res.json()).resolves.toEqual({ ok: true, user: { id: 'u1' } });
   });
 
   it('rejects an invalid email before touching the admin API', async () => {

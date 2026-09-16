@@ -71,7 +71,7 @@ export default async function PricingPage({
         return [code, p.monthlyNgn === 0 ? price.formatted : `${price.formatted} / month`];
       })) as Record<PlanCode, string>,
     },
-    { label: 'AI documents', values: { FREE: '3 total', BASIC: '3 / day', PREMIUM: '10 / day', MAX: '20 / day' } },
+    { label: 'AI generations', values: { FREE: '3 total', BASIC: '3 / day', PREMIUM: '10 / day', MAX: '20 / day' } },
     { label: 'Auto-apply slots', values: { FREE: '-', BASIC: '2 total trial uses', PREMIUM: '10 / day', MAX: '20 / day' } },
     { label: 'Free career tools', values: { FREE: '10 / day', BASIC: '50 / day', PREMIUM: 'Unlimited', MAX: 'Unlimited' } },
     { label: 'ATS resume scanner', values: { FREE: 'Included', BASIC: 'Included', PREMIUM: 'Included', MAX: 'Included' } },

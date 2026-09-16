@@ -3,7 +3,7 @@
  *
  * A "site apply adapter" knows ONE ATS form (Greenhouse, Lever, …). It fills
  * the form from an `ApplyCandidate` and either submits (SUBMITTED) or stops
- * with a `StopCode` + human message. Adapters never bypass a stop condition —
+ * with a `StopCode` + human message. Adapters never bypass a stop condition ; 
  * CAPTCHA, anti-bot, sign-in challenges and unparseable forms always STOP.
  *
  * `ApplyPage` is a narrow, fakeable view of a browser page so adapters and the
@@ -34,7 +34,7 @@ export interface ApplyCandidate {
   email: string;
   /** Full name from the profile (may be null → MISSING_INFO). */
   name: string | null;
-  /** Phone — the schema has no phone field today, so this is usually null. */
+  /** Phone; the schema has no phone field today, so this is usually null. */
   phone: string | null;
   /** Local path to the CV file on the browser worker (materialised from cvDownloadUrl). */
   cvPath: string | null;
@@ -67,6 +67,6 @@ export interface SiteApplyAdapter {
   domains: string[];
   /** First-pass: does this URL belong to a form this adapter understands? */
   matches(url: URL): boolean;
-  /** Fill + submit. Returns SUBMITTED or STOP — never throws for a stop. */
+  /** Fill + submit. Returns SUBMITTED or STOP; never throws for a stop. */
   apply(page: ApplyPage, candidate: ApplyCandidate): Promise<ApplyOutcome>;
 }

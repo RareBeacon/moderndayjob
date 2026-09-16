@@ -24,7 +24,7 @@ function BrandMark() {
 
 /**
  * Marketing navbar. `authenticated` is set server-side (never by the browser):
- * signed-in visitors get one clear home — the dashboard — instead of
+ * signed-in visitors get one clear home; the dashboard; instead of
  * sign-in prompts, and the brand mark takes them there.
  */
 export function JobletNavbar({ authenticated = false }: { authenticated?: boolean }) {

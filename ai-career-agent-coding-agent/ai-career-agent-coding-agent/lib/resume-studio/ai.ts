@@ -50,7 +50,7 @@ function sentence(text: string) {
 
 function roleKey(role = '') {
   const lower = role.toLowerCase();
-  if (/ai|agent|llm|machine learning|automation/.test(lower)) return 'ai';
+  if (/ai|agent|llm|machine learning|automation/.test(lower)) return 'ai'; // copy-guard:allow (matches user input text, not product copy)
   if (/software|developer|engineer|frontend|backend|full stack/.test(lower)) return 'software';
   if (/data|analyst|science|bi/.test(lower)) return 'data';
   if (/product|pm/.test(lower)) return 'product';

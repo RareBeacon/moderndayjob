@@ -1,13 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getUser } from '@/lib/auth';
+import { softwareAppJsonLd, jsonLdTag } from '@/lib/seo';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { JDAnalyzerTool } from '@/components/freetools/JDAnalyzerTool';
 import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-job-description-analyzer` },
-  title: 'Free Job Description Analyzer, skills, keywords & gaps in seconds',
+  title: 'Free Job Description Analyzer',
   description:
     'Paste any job description and get a structured breakdown: required skills, keywords, core responsibilities, plus which requirements your profile already matches. Free, truthful, nothing invented.',
   openGraph: {
@@ -30,6 +31,7 @@ export default async function FreeJDAnalyzerPage() {
       title="Job Description Analyzer"
       lead="Paste any listing. Get the required skills, keywords, and responsibilities as a scannable grid, plus which requirements you already match."
     >
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(softwareAppJsonLd('Free Job Description Analyzer', 'Paste any job description and get a structured breakdown: required skills, keywords, core responsibilities, plus which requirements your profile already matches. Free, truthful, nothing invented.', '/free-job-description-analyzer'))} />
       {/* Composition A: tool first, editorial steps below */}
       <section className="mk-section tight">
         <div className="mk-shell" style={{ maxWidth: 920 }}>
@@ -64,7 +66,7 @@ export default async function FreeJDAnalyzerPage() {
             <div className="ft-faq">
               <details>
                 <summary>Is it really free?</summary>
-                <p>Yes. It uses your free career-tool allowance — 10 uses a day on the free plan, forever.</p>
+                <p>Yes. It uses your free career-tool allowance; 10 uses a day on the free plan, forever.</p>
               </details>
               <details>
                 <summary>Do you store my job description?</summary>

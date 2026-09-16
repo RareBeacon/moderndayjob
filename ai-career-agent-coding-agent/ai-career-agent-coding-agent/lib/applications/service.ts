@@ -13,7 +13,7 @@ import {
 
 /**
  * Application approval service (Wave 3). Server-side only; the browser never
- * decides state — every transition is decided by the pure state machine and
+ * decides state; every transition is decided by the pure state machine and
  * applied here through the service role.
  *
  * Audit timeline: application events are appended as `agent_tasks` rows with
@@ -26,7 +26,7 @@ import {
  */
 
 /** Pool jobs older than this are treated as expired for NEW applications
- *  (product rule — the pool is re-ingested daily, so a 90-day-old listing is
+ *  (product rule; the pool is re-ingested daily, so a 90-day-old listing is
  *  stale; sources do not currently expose an explicit expiry). */
 export const JOB_EXPIRY_MS = 90 * 24 * 60 * 60 * 1000;
 
@@ -251,7 +251,7 @@ export async function listApplications(userId: string): Promise<ApplicationDetai
   });
 }
 
-/** Create (or return the existing) application for a job — idempotent. */
+/** Create (or return the existing) application for a job; idempotent. */
 export async function prepareApplication(
   userId: string,
   jobId: string,
@@ -292,7 +292,7 @@ export async function prepareApplication(
     .select('id')
     .single();
   if (insert.error) {
-    // Race: another request created it first — return that one.
+    // Race: another request created it first; return that one.
     const { data: raced } = await supabaseAdmin
       .from('applications')
       .select('id')
@@ -304,7 +304,7 @@ export async function prepareApplication(
   await writeEvent(
     { id: insert.data.id, user_id: userId, job_id: jobId, email, status: 'PREPARING', submitted_at: null, created_at: new Date().toISOString(), error: null },
     'PREPARED',
-    { job: `${job.company} — ${job.title}` },
+    { job: `${job.company}; ${job.title}` },
   );
   return getApplication(userId, insert.data.id);
 }
@@ -441,6 +441,6 @@ export async function requestAutoSubmit(userId: string, id: string): Promise<{ t
     .single();
   if (error) throw new AppActionError('DUPLICATE', 'A submission is already queued for this application.');
 
-  await appendApplicationEvent(userId, id, 'SUBMISSION_REQUESTED', { job: `${job.company} — ${job.title}` });
+  await appendApplicationEvent(userId, id, 'SUBMISSION_REQUESTED', { job: `${job.company}; ${job.title}` });
   return { taskId: (task as { id: string }).id };
 }

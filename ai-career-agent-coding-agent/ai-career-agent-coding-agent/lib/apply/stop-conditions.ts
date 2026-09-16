@@ -41,7 +41,7 @@ export function detectStopConditions(s: StopSignals): StopCode[] {
 export function messageForStop(code: StopCode): string {
   switch (code) {
     case 'CAPTCHA':
-      return 'The employer shows a CAPTCHA or human check. We never bypass these — please complete it yourself.';
+      return 'The employer shows a CAPTCHA or human check. We never bypass these; please complete it yourself.';
     case 'ANTI_BOT':
       return 'The employer blocked automated access. Please apply directly from the job link.';
     case 'AUTH_CHALLENGE':

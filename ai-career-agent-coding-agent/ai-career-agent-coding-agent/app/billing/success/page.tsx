@@ -21,7 +21,7 @@ function SuccessInner() {
         <h1>{failed ? 'Payment not completed.' : 'You’re all set.'}</h1>
         <p>
           {failed
-            ? 'Your payment could not be confirmed yet. If you were charged, our team reconciles it automatically — no action needed on your side.'
+            ? 'Your payment could not be confirmed yet. If you were charged, our team reconciles it automatically; no action needed on your side.'
             : 'Thanks for upgrading. Your plan and automation allowance are being activated on your account.'}
         </p>
         {txRef && <p className="muted" style={{ fontSize: 12.5 }}>Reference: {txRef}</p>}

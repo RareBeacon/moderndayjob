@@ -69,7 +69,7 @@ export default function JobsPage() {
         <h1>Discovered jobs.</h1>
         <p>Jobs are normalized from supported public sources, de-duplicated, and ready for matching. Every listing links to a real source, never fabricated.</p>
 
-        {/* Live filter — updates as you type, mirrors the homepage search */}
+        {/* Live filter; updates as you type, mirrors the homepage search */}
         <form
           className="jl-search"
           style={{ marginTop: 20, boxShadow: 'var(--shadow-sm)', border: '1px solid var(--color-border)' }}

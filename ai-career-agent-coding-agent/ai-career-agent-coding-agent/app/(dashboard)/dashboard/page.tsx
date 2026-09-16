@@ -22,7 +22,7 @@ function greetingForHour(hour: number): string {
 /**
  * Dashboard, the one clear home for a signed-in user. A greeting, one primary
  * action (Find jobs for me), honest counts from the database, drafts awaiting
- * approval, and the next step — nothing else. Job discovery lives at /jobs
+ * approval, and the next step; nothing else. Job discovery lives at /jobs
  * and /match; this page never dumps the raw pool.
  */
 export default async function Dashboard() {
@@ -69,13 +69,13 @@ export default async function Dashboard() {
   const quotaLine =
     entitlement.plan === 'FREE'
       ? `${entitlement.ai_credits_remaining} of 3 free documents left`
-      : `${entitlement.ai_credits_remaining} AI documents today`;
+      : `${entitlement.ai_credits_remaining} AI generations today`;
 
   // Deterministic, real-derived next steps (no fabricated suggestions).
   const suggestions: { text: string; href: string }[] = [];
   if (completeness.percent < 100) suggestions.push({ text: `Finish your profile, ${completeness.percent}% complete for stronger matches.`, href: '/profile' });
   if ((applicationCount ?? 0) === 0) suggestions.push({ text: 'Track your first application to start your history.', href: '/applications' });
-  if (entitlement.automation_enabled) suggestions.push({ text: 'Agent mode is on for your plan — review matches to begin.', href: '/match' });
+  if (entitlement.automation_enabled) suggestions.push({ text: 'Agent mode is on for your plan; review matches to begin.', href: '/match' });
   if (suggestions.length === 0) suggestions.push({ text: 'Refresh your CV and run an ATS check for your next role.', href: '/generate' });
 
   return (
@@ -131,7 +131,7 @@ export default async function Dashboard() {
             <span className="dd-over">Recommended jobs</span>
             <div className="dd-empty">
               <p className="muted">
-                Your matches are computed from your profile — job pools change daily, so we score them fresh on every run.
+                Your matches are computed from your profile; job pools change daily, so we score them fresh on every run.
               </p>
               <Link className="inline-link" href="/match">Run matching →</Link>
             </div>

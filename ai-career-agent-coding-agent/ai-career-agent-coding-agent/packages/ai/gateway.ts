@@ -47,7 +47,7 @@ export class AIGateway {
     }
 
     // Reserve a credit up front (atomic check+increment). A quota exhaustion
-    // here propagates immediately — no provider call is made.
+    // here propagates immediately; no provider call is made.
     if (opts.meter) await opts.meter.reserve();
 
     const ordered = [...this.providers].sort((a, b) => a.priority - b.priority);
@@ -89,7 +89,7 @@ export class AIGateway {
       }
     }
 
-    // Every provider failed — refund the reserved credit (best-effort).
+    // Every provider failed; refund the reserved credit (best-effort).
     if (opts.meter) {
       try {
         await opts.meter.refund();

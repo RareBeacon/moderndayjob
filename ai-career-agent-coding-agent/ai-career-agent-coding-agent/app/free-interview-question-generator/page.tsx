@@ -1,13 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getUser } from '@/lib/auth';
+import { softwareAppJsonLd, jsonLdTag } from '@/lib/seo';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { InterviewQuestionsTool } from '@/components/freetools/InterviewQuestionsTool';
 import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-interview-question-generator` },
-  title: 'Free Interview Question Generator, practice from the real listing',
+  title: 'Free Interview Question Generator',
   description:
     'Paste any job description and get realistic interview practice questions with what each one tests, plus preparation tips. Grounded in what the listing actually states. Free.',
   openGraph: {
@@ -29,6 +30,7 @@ export default async function FreeInterviewQuestionsPage() {
       title="Interview Question Generator"
       lead="Paste the job description. Get realistic interview questions, each with a note on what it is really testing, plus practical preparation tips."
     >
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(softwareAppJsonLd('Free Interview Question Generator', 'Paste any job description and get realistic interview practice questions with what each one tests, plus preparation tips. Grounded in what the listing actually states. Free.', '/free-interview-question-generator'))} />
       <section className="mk-section tight">
         <div className="mk-shell" style={{ maxWidth: 920 }}>
           <InterviewQuestionsTool signedIn={!!user} />
@@ -62,7 +64,7 @@ export default async function FreeInterviewQuestionsPage() {
             <div className="ft-faq">
               <details>
                 <summary>Is it really free?</summary>
-                <p>Yes. It uses your free career-tool allowance — 10 uses a day on the free plan, forever.</p>
+                <p>Yes. It uses your free career-tool allowance; 10 uses a day on the free plan, forever.</p>
               </details>
               <details>
                 <summary>Are these the exact questions I&apos;ll be asked?</summary>

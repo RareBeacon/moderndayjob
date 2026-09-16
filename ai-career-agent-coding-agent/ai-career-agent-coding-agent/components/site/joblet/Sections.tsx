@@ -185,7 +185,7 @@ export function JobletFaq() {
               <h3>Free</h3>
               <div className="jl-price">₦0<small> /month</small></div>
               <ul>
-                <li><Tick />3 AI documents total</li>
+                <li><Tick />3 AI generations total</li>
                 <li><Tick />10 career tool uses per day</li>
                 <li><Tick />CV builder and ATS scanner</li>
                 <li><Tick />Job matching and dashboard</li>
@@ -197,7 +197,7 @@ export function JobletFaq() {
               <div className="jl-price">₦5,000<small> /month</small></div>
               <ul>
                 <li><Tick />Everything in Free</li>
-                <li><Tick />3 AI documents per day</li>
+                <li><Tick />3 AI generations per day</li>
                 <li><Tick />2 agent-mode trial applications</li>
                 <li><Tick />50 tool uses per day</li>
               </ul>
@@ -208,7 +208,7 @@ export function JobletFaq() {
               <div className="jl-price">₦10,000<small> /month</small></div>
               <ul>
                 <li><Tick />Everything in Basic</li>
-                <li><Tick />10 AI documents per day</li>
+                <li><Tick />10 AI generations per day</li>
                 <li><Tick />10 auto-apply slots per day</li>
                 <li><Tick />Unlimited career tools</li>
               </ul>
@@ -219,7 +219,7 @@ export function JobletFaq() {
               <div className="jl-price">₦20,000<small> /month</small></div>
               <ul>
                 <li><Tick />Everything in Premium</li>
-                <li><Tick />20 AI documents per day</li>
+                <li><Tick />20 AI generations per day</li>
                 <li><Tick />20 auto-apply slots per day</li>
                 <li><Tick />Human-reviewed applications</li>
               </ul>

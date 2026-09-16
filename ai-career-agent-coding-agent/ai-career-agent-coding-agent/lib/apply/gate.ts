@@ -6,7 +6,7 @@ import type { StopCode } from './types';
  * unit-testable. The worker calls this BEFORE any browser is touched.
  *
  * Safety order (deliberate): the global kill switch and the user's pause are
- * checked first — before anything else — so a disabled/disable product can
+ * checked first; before anything else; so a disabled/disable product can
  * never submit regardless of the other inputs.
  */
 
@@ -25,7 +25,7 @@ export interface AutoSubmitContext {
   automationEnabled: boolean;
   /** Per-user pause: job_preferences.active === false. */
   agentPaused: boolean;
-  /** application.status — must be APPROVED (a human approved this one). */
+  /** application.status; must be APPROVED (a human approved this one). */
   appStatus: string;
   /** Automation entitlement (plan + account status), computed server-side. */
   entitled: boolean;

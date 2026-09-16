@@ -1,13 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getUser } from '@/lib/auth';
+import { softwareAppJsonLd, jsonLdTag } from '@/lib/seo';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { CoverLetterTool } from '@/components/freetools/CoverLetterTool';
 import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-cover-letter-writer` },
-  title: 'Free Cover Letter Writer, truthful letters from your real profile',
+  title: 'Free Cover Letter Writer',
   description:
     'Generate a concise, professional cover letter built only from your verified profile facts. A built-in truthfulness checker rejects any claim your profile can’t support. Free.',
   openGraph: {
@@ -30,6 +31,7 @@ export default async function FreeCoverLetterPage() {
       title="Cover Letter Writer"
       lead="A concise, professional cover letter written from your verified profile facts, checked for truthfulness before it’s saved."
     >
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(softwareAppJsonLd('Free Cover Letter Writer', 'Generate a concise, professional cover letter built only from your verified profile facts. A built-in truthfulness checker rejects any claim your profile can’t support. Free.', '/free-cover-letter-writer'))} />
       {/* Composition B: split, tool left, truth points right */}
       <section className="mk-section tight">
         <div className="mk-shell ft-split">
@@ -64,7 +66,7 @@ export default async function FreeCoverLetterPage() {
             <div className="ft-faq">
               <details>
                 <summary>Is it really free?</summary>
-                <p>Yes. It uses your free career-tool allowance — 10 uses a day on the free plan, forever.</p>
+                <p>Yes. It uses your free career-tool allowance; 10 uses a day on the free plan, forever.</p>
               </details>
               <details>
                 <summary>Can it invent achievements to make me sound better?</summary>

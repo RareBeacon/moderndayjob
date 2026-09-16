@@ -59,7 +59,7 @@ export default function RefundPage() {
       <h2>7. Chargebacks</h2>
       <p>
         If you believe a charge is fraudulent, contact your bank. We encourage you to contact us
-        first — we resolve legitimate refund requests quickly. Accounts that issue chargebacks
+        first; we resolve legitimate refund requests quickly. Accounts that issue chargebacks
         without contacting us may be suspended pending review.
       </p>
 

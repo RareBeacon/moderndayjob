@@ -6,7 +6,7 @@ function httpStatus(code: string): number {
   return code === 'NOT_FOUND' ? 404 : 409;
 }
 
-/** Mark an APPROVED application as submitted (assisted handoff — Wave 3 sends
+/** Mark an APPROVED application as submitted (assisted handoff; Wave 3 sends
  *  nothing automatically; the user confirms and we record the timestamp). */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();

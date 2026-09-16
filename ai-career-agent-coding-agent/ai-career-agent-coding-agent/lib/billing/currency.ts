@@ -1,8 +1,8 @@
 /**
  * Local-currency pricing for the marketing pricing page.
  *
- * Jobiest bills in Naira (₦) via its payment provider, but any visitor —
- * from any country — should see plan prices in their own currency as an
+ * Jobiest bills in Naira (₦) via its payment provider, but any visitor ; 
+ * from any country; should see plan prices in their own currency as an
  * approximate guide. This module:
  *   1. detects the visitor's country from Vercel's `x-vercel-ip-country`
  *      header (or an explicit `?currency=` override / Accept-Language hint);

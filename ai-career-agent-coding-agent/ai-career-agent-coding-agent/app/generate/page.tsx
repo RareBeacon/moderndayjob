@@ -846,8 +846,8 @@ function ClassicGenerator({ jobs, recent, loadRecent }: { jobs: Job[]; recent: G
       const json = await res.json();
       if (!res.ok) {
         const map: Record<string, { title: string; detail: string }> = {
-          AI_QUOTA_EXHAUSTED: { title: 'Out of AI documents', detail: 'You have reached your plan document limit.' },
-          DAILY_AI_CREDITS_EXHAUSTED: { title: 'Out of AI documents', detail: 'You have reached your plan document limit.' },
+          AI_QUOTA_EXHAUSTED: { title: 'Out of AI generations', detail: 'You have reached your plan generation limit for today.' },
+          DAILY_AI_CREDITS_EXHAUSTED: { title: 'Out of AI generations', detail: 'You have reached your plan generation limit for today.' },
           CAREER_PROFILE_REQUIRED: { title: 'Complete your profile', detail: 'Generation needs your career profile first.' },
           RATE_LIMITED: { title: 'Slow down', detail: 'Too many requests. Wait a moment.' },
           TRUTHFULNESS_FAILED: { title: 'Unsupported facts found', detail: 'The draft contained claims not in your profile, so it was not saved.' },

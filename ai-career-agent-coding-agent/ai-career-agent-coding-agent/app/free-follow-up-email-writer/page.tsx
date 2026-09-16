@@ -1,13 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getUser } from '@/lib/auth';
+import { softwareAppJsonLd, jsonLdTag } from '@/lib/seo';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { FollowupEmailTool } from '@/components/freetools/FollowupEmailTool';
 import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-follow-up-email-writer` },
-  title: 'Free Follow-up Email Writer, polite, honest nudges',
+  title: 'Free Follow-up Email Writer',
   description:
     'Draft a short, polite follow-up email after a job application, built only from the facts you provide. No invented names, dates, or conversations. Free.',
   openGraph: {
@@ -23,6 +24,7 @@ export default async function FreeFollowupPage() {
       title="Follow-up Email Writer"
       lead="A short, polite nudge to a recruiter, drafted from the facts you give us, and nothing else."
     >
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(softwareAppJsonLd('Free Follow-up Email Writer', 'Draft a short, polite follow-up email after a job application, built only from the facts you provide. No invented names, dates, or conversations. Free.', '/free-follow-up-email-writer'))} />
       <section className="mk-section tight">
         <div className="mk-shell" style={{ maxWidth: 860 }}>
           <FollowupEmailTool signedIn={!!user} />
@@ -58,7 +60,7 @@ export default async function FreeFollowupPage() {
             <div className="ft-faq">
               <details>
                 <summary>Is it really free?</summary>
-                <p>Yes. It uses your free career-tool allowance — 10 uses a day on the free plan, forever.</p>
+                <p>Yes. It uses your free career-tool allowance; 10 uses a day on the free plan, forever.</p>
               </details>
               <details>
                 <summary>When should I follow up?</summary>

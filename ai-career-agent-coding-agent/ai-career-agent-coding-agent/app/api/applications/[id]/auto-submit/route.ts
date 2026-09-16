@@ -19,7 +19,7 @@ function httpStatus(code: string): number {
 }
 
 /**
- * POST /api/applications/[id]/auto-submit — enqueue a controlled automatic
+ * POST /api/applications/[id]/auto-submit; enqueue a controlled automatic
  * submission for an APPROVED application. Server-side gates only (the browser
  * is never trusted): approved state, global kill switch, automation
  * entitlement, supported site adapter. Idempotent.

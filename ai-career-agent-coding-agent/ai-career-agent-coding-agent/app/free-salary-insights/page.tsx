@@ -1,13 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getUser } from '@/lib/auth';
+import { softwareAppJsonLd, jsonLdTag } from '@/lib/seo';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { SalaryInsightsTool } from '@/components/freetools/SalaryInsightsTool';
 import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-salary-insights` },
-  title: 'Free Salary Insights, only what listings actually state',
+  title: 'Free Salary Insights',
   description:
     'We read real job listings for your role and report only the pay ranges they explicitly state, no estimates, no invented market averages. Honest salary signals, free.',
   openGraph: {
@@ -23,6 +24,7 @@ export default async function FreeSalaryInsightsPage() {
       title="Salary Insights"
       lead="What do employers actually say they pay? We read real listings for your role and report only the pay they explicitly state, never an estimate dressed up as data."
     >
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(softwareAppJsonLd('Free Salary Insights', 'We read real job listings for your role and report only the pay ranges they explicitly state, no estimates, no invented market averages. Honest salary signals, free.', '/free-salary-insights'))} />
       <section className="mk-section tight">
         <div className="mk-shell ft-split">
           <div>
@@ -53,7 +55,7 @@ export default async function FreeSalaryInsightsPage() {
             <div className="ft-faq">
               <details>
                 <summary>Is it really free?</summary>
-                <p>Yes. It uses your free career-tool allowance — 10 uses a day on the free plan, forever.</p>
+                <p>Yes. It uses your free career-tool allowance; 10 uses a day on the free plan, forever.</p>
               </details>
               <details>
                 <summary>Why do so few listings show a range?</summary>

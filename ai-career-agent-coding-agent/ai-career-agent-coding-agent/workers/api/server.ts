@@ -6,12 +6,12 @@ import { createRateLimiter } from './rateLimit';
  * Self-hosted API gateway (Oracle Always Free). A thin, fully-controlled
  * public API in front of the isolated browser worker:
  *
- *   GET  /healthz    — liveness (no auth).
- *   POST /v1/submit  — auth (Bearer API key) + per-key rate limit, then
+ *   GET  /healthz   ; liveness (no auth).
+ *   POST /v1/submit ; auth (Bearer API key) + per-key rate limit, then
  *                      forwards to BROWSER_WORKER_URL/submit with the worker
  *                      secret and a server-side domain allowlist.
  *
- * The gateway NEVER trusts client-supplied allowedDomains — it always sends
+ * The gateway NEVER trusts client-supplied allowedDomains; it always sends
  * the canonical ATS allowlist, so a compromised key can't widen SSRF scope.
  * The worker still re-checks every navigation (SSRF + adapter match).
  */
@@ -52,7 +52,7 @@ export function createApiServer(opts: ApiGatewayOptions): http.Server {
     }
 
     if (req.method === 'POST' && req.url === '/v1/submit') {
-      // 1. Auth — fail closed.
+      // 1. Auth; fail closed.
       if (!isAuthorizedApiKey(req.headers.authorization, keys)) {
         send(res, 401, { error: 'unauthorized', message: 'Missing or invalid API key.' });
         return;

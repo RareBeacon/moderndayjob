@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     return new Response('invalid', { status: 401 });
   }
 
-  // 2. Parse payload (bounded — the size cap above plus this belt-and-braces
+  // 2. Parse payload (bounded; the size cap above plus this belt-and-braces
   //    check guards against chunked/absent content-length).
   const raw = await req.text();
   if (raw.length > MAX_BODY_BYTES) return new Response('too large', { status: 413 });
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
   if (!data.id) return Response.json({ ok: true, noId: true });
 
   // 3. Replay short-circuit: if this exact event_id was already recorded, stop
-  //    before any external re-verification or DB grant. Best-effort — the DB
+  //    before any external re-verification or DB grant. Best-effort; the DB
   //    (payment_events.event_id unique) is the final guard, so a race here is
   //    still safe via the idempotent apply_verified_payment RPC.
   if (payload.event_id) {

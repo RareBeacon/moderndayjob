@@ -7,12 +7,12 @@ import { createApiServer } from './server';
  * Caddy terminates TLS and routes api.<domain>/… here.
  *
  * Env:
- *   PORT                    — listen port (default 8081; Render/Oracle inject).
- *   API_KEYS                — comma-separated customer API keys.
- *   BROWSER_WORKER_URL      — the isolated browser worker base URL.
- *   BROWSER_WORKER_SECRET   — shared secret for the worker's /submit.
- *   RATE_LIMIT_MAX          — requests per window per key (default 30).
- *   RATE_LIMIT_WINDOW_MS    — window length in ms (default 60000).
+ *   PORT                   ; listen port (default 8081; Render/Oracle inject).
+ *   API_KEYS               ; comma-separated customer API keys.
+ *   BROWSER_WORKER_URL     ; the isolated browser worker base URL.
+ *   BROWSER_WORKER_SECRET  ; shared secret for the worker's /submit.
+ *   RATE_LIMIT_MAX         ; requests per window per key (default 30).
+ *   RATE_LIMIT_WINDOW_MS   ; window length in ms (default 60000).
  */
 const PORT = Number(process.env.PORT ?? process.env.API_PORT ?? 8081);
 

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase';
 import { SITE_URL } from '@/lib/site';
 import { JobletFooter } from '@/components/site/joblet/Footer';
+import { websiteJsonLd, organizationJsonLd, faqJsonLd, jsonLdTag } from '@/lib/seo';
 
 export const revalidate = 300;
 
@@ -81,7 +82,7 @@ const proofCards = [
 
 const plans = [
   { name: 'Free', price: 'Start free', note: 'Everything to build momentum.', features: ['CV builder and ATS scanner', 'Matching and dashboard', 'Free career tools'], cta: 'Get started free', featured: false },
-  { name: 'Premium', price: 'Upgrade when ready', note: 'For an agent that can keep up.', features: ['More daily AI documents', 'Approved application volume', 'Unlimited career tools'], cta: 'Choose Premium', featured: true },
+  { name: 'Premium', price: 'Upgrade when ready', note: 'For an agent that can keep up.', features: ['More daily AI generations', 'Approved application volume', 'Unlimited career tools'], cta: 'Choose Premium', featured: true },
 ];
 
 const faqs = [
@@ -184,6 +185,9 @@ export default async function HomePage() {
 
   return (
     <div className="ja-page">
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(websiteJsonLd())} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(organizationJsonLd())} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(faqJsonLd(faqs))} />
       <LandingNav />
       <main id="main">
         <section className="ja-hero grain">

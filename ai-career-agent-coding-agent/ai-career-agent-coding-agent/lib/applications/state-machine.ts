@@ -1,7 +1,7 @@
 /**
  * Application approval state machine (Wave 3).
  *
- * Pure decision logic — no I/O, no Supabase — so every transition and gate is
+ * Pure decision logic; no I/O, no Supabase; so every transition and gate is
  * unit-testable. The service layer (lib/applications/service.ts) collects the
  * gate context from the DB and applies the decision it gets back.
  *
@@ -14,7 +14,7 @@
  *   PREPARING|AWAITING_APPROVAL|APPROVED ─withdraw─▶ WITHDRAWN
  *
  * Autonomous submission is deliberately NOT part of this state machine
- * (Wave 4); "submit" here is the assisted handoff — the user confirms and we
+ * (Wave 4); "submit" here is the assisted handoff; the user confirms and we
  * record it, nothing is sent to a third party automatically.
  */
 
@@ -33,7 +33,7 @@ export const APPLICATION_STATUSES = [
 
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 
-/** Gate failure codes — surfaced to the UI as friendly messages. */
+/** Gate failure codes; surfaced to the UI as friendly messages. */
 export type GateCode =
   | 'NOT_FOUND'
   | 'EXPIRED_JOB'

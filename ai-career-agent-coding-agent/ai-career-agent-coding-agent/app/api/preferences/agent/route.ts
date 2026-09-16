@@ -6,7 +6,7 @@ import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 const body = z.object({ active: z.boolean() });
 
 /**
- * POST /api/preferences/agent — pause or resume the user's automation agent.
+ * POST /api/preferences/agent; pause or resume the user's automation agent.
  * Writes job_preferences.active (the per-user kill switch). The agent worker
  * re-checks this server-side before any automatic submission.
  */

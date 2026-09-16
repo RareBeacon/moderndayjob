@@ -2,15 +2,15 @@ import dns from 'node:dns/promises';
 import net from 'node:net';
 
 /**
- * Shared SSRF guard (Phase 8 — browser automation). One implementation, used
+ * Shared SSRF guard (Phase 8; browser automation). One implementation, used
  * by the browser worker for every navigation AND unit-tested in isolation.
  *
  * Enforced here, in order:
- *  1. http/https only — no file:/gopher:/ftp: etc.
+ *  1. http/https only; no file:/gopher:/ftp: etc.
  *  2. no userinfo in the URL (http://user:pass@host is a credential exfil).
  *  3. block well-known internal hostnames (localhost, cloud metadata).
  *  4. optional domain allowlist (exact host or subdomain).
- *  5. block IP literals — including obfuscated decimal/hex/octal and
+ *  5. block IP literals; including obfuscated decimal/hex/octal and
  *     IPv4-mapped IPv6 forms (classic SSRF bypasses).
  *  6. resolve the host and block ANY private/reserved address in the result
  *     (DNS rebinding can't hide behind one public answer if all are checked).

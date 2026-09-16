@@ -13,7 +13,7 @@ export function JobletBanner() {
       <div className="jl-shell jl-banner-inner">
         <span className="jl-banner-line" aria-hidden="true" />
         <span className="jl-banner-text">
-          Jobiest <b>—</b> More than just jobs.
+          Jobiest <b>; </b> More than just jobs.
         </span>
         <span className="jl-banner-line" aria-hidden="true" />
         <Link className="jl-btn-solid" href="/signup">Start your job search</Link>

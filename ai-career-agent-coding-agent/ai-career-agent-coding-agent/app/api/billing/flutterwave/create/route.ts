@@ -6,7 +6,7 @@ import { z } from 'zod';
 
 const body = z.object({ plan: z.enum(['BASIC', 'PREMIUM', 'MAX']) });
 
-/** POST /api/billing/flutterwave/create — start a hosted checkout for a paid
+/** POST /api/billing/flutterwave/create; start a hosted checkout for a paid
  *  plan. The plan amount comes from subscription_plans (server-side), never
  *  the client. Redirect back to /billing/success after payment. */
 export async function POST(req: Request) {

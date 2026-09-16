@@ -1,13 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getUser } from '@/lib/auth';
+import { softwareAppJsonLd, jsonLdTag } from '@/lib/seo';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { SkillsMatcherTool } from '@/components/freetools/SkillsMatcherTool';
 import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-skills-matcher` },
-  title: 'Free Skills Matcher, see which of your skills a job rewards',
+  title: 'Free Skills Matcher',
   description:
     'Score the jobs in your pool against your real profile with explainable results: fit score, strengths, gaps, and the reasons, not a black box. Free.',
   openGraph: {
@@ -24,6 +25,7 @@ export default async function FreeSkillsMatcherPage() {
       title="Skills Matcher"
       lead="See which of your skills a job actually rewards, with the fit score, the strengths, and the gaps explained, not a black-box number."
     >
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(softwareAppJsonLd('Free Skills Matcher', 'Score the jobs in your pool against your real profile with explainable results: fit score, strengths, gaps, and the reasons, not a black box. Free.', '/free-skills-matcher'))} />
       {/* Composition C: centered tool, editorial differentiator band below */}
       <section className="mk-section tight">
         <div className="mk-shell" style={{ maxWidth: 860 }}>
@@ -60,7 +62,7 @@ export default async function FreeSkillsMatcherPage() {
             <div className="ft-faq">
               <details>
                 <summary>Is it really free?</summary>
-                <p>Yes. A matching run uses your free career-tool allowance — 10 uses a day on the free plan, forever.</p>
+                <p>Yes. A matching run uses your free career-tool allowance; 10 uses a day on the free plan, forever.</p>
               </details>
               <details>
                 <summary>Where do the jobs come from?</summary>

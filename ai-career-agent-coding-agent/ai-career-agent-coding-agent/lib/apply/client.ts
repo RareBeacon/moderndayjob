@@ -2,7 +2,7 @@ import type { ApplyCandidate, ApplyOutcome } from './types';
 
 /**
  * Browser-worker client. The web app and the agent worker NEVER launch a
- * browser themselves — they POST to the isolated browser worker (Render,
+ * browser themselves; they POST to the isolated browser worker (Render,
  * BROWSER_WORKER_URL). This keeps Playwright and unrestricted network egress
  * out of the Vercel/serverless runtime (SECURITY_ARCHITECTURE §Browser
  * automation: isolated Playwright browser worker).
@@ -40,14 +40,14 @@ async function isHealthy(base: string): Promise<boolean> {
 
 /** One submission attempt. Returns 'RETRY' only for network-level failures
  *  (timeout / connection refused / DNS). Any HTTP response is authoritative:
- *  a 401/403 is an auth problem to surface, a 400 a payload problem — neither
+ *  a 401/403 is an auth problem to surface, a 400 a payload problem; neither
  *  is fixed by trying another worker, so neither triggers failover. */
 async function submitOnce(
   base: string,
   req: BrowserSubmitRequest,
   secret: string | undefined,
 ): Promise<ApplyOutcome | 'RETRY'> {
-  // Shared secret with the worker (never reaches the browser — this module is
+  // Shared secret with the worker (never reaches the browser; this module is
   // only imported server-side). Absent secret ⇒ the worker denies us, which
   // surfaces here as a safe STOP.
   const headers: Record<string, string> = { 'content-type': 'application/json' };

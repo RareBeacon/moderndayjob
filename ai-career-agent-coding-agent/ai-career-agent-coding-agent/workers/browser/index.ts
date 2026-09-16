@@ -12,13 +12,13 @@ import type { ApplyCandidate, ApplyOutcome, ApplyPage } from '../../lib/apply/ty
 /**
  * Isolated browser worker (Phase 8). Runs ONLY on the dedicated Render browser
  * service (BROWSER_WORKER_URL), never inside the Vercel/web runtime. No
- * database master credentials live here — it receives a pre-built candidate
+ * database master credentials live here; it receives a pre-built candidate
  * payload over HTTP and returns an ApplyOutcome.
  *
  * Security (SECURITY_ARCHITECTURE §Browser automation):
  *  - every navigation is SSRF-checked BEFORE the request AND re-checked per
  *    request via page.route (redirects can't slip past the guard);
- *  - a fresh, isolated context per submission — no cookies/storage shared
+ *  - a fresh, isolated context per submission; no cookies/storage shared
  *    between users;
  *  - the CV is materialised from a signed URL into a temp file and removed
  *    after the run.

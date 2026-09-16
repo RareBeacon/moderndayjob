@@ -34,7 +34,7 @@ export async function POST(req: Request) {
   let sent = false;
   // GoTrue's admin generateLink accepts type 'signup' WITHOUT a password for an
   // existing unconfirmed user (re-issues the confirmation link) and returns 400
-  // with no side effects for unknown emails — verified empirically against the
+  // with no side effects for unknown emails; verified empirically against the
   // live project. The supabase-js TS type requires `password`, which would
   // CREATE a user for an unknown email, so we deliberately omit it here.
   const params = {

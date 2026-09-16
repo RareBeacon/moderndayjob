@@ -4,7 +4,7 @@ import { timingSafeEqual } from 'node:crypto';
  * API-key authorization for the self-hosted API gateway (Oracle Always Free).
  * Unlike the browser worker (single shared secret), the gateway serves *many*
  * customers, so it accepts a comma-separated list of keys (API_KEYS). One key
- * per customer — you can rotate or revoke a single tenant by removing its key.
+ * per customer; you can rotate or revoke a single tenant by removing its key.
  *
  * Fails closed: no keys configured ⇒ deny everyone. The comparison is
  * timing-safe per key; lengths are compared before the constant-time compare

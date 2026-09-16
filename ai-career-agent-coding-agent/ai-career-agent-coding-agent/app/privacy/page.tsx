@@ -21,7 +21,7 @@ export default function PrivacyPage() {
         <li><b>Account data:</b> name, email address and password (stored as a one-way hash by our auth provider).</li>
         <li><b>Profile data you provide:</b> work history, skills, education, target roles, CV text and application email addresses.</li>
         <li><b>Usage data:</b> which features you use, generation and application activity, and technical logs (IP address, browser, device).</li>
-        <li><b>Payment data:</b> when you subscribe, our payment provider collects and processes payment details. We receive only a transaction reference and status — we never store your full card details.</li>
+        <li><b>Payment data:</b> when you subscribe, our payment provider collects and processes payment details. We receive only a transaction reference and status; we never store your full card details.</li>
       </ul>
 
       <h2>2. How we use your information</h2>

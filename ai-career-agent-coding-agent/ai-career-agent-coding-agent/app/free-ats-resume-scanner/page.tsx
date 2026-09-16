@@ -1,13 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getUser } from '@/lib/auth';
+import { softwareAppJsonLd, jsonLdTag } from '@/lib/seo';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { AtsScannerTool } from '@/components/freetools/AtsScannerTool';
 import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-ats-resume-scanner` },
-  title: 'Free ATS Resume Scanner, deterministic checks, no AI credits',
+  title: 'Free ATS Resume Scanner',
   description:
     'Paste your CV and get an instant parseability score: contact details, sections, dates, action verbs, and keyword match against any job description. Deterministic checks, free, unlimited.',
   openGraph: {
@@ -31,6 +32,7 @@ export default async function FreeAtsScannerPage() {
       title="ATS Resume Scanner"
       lead="Paste your CV, get a parseability score in seconds, deterministic checks, a fixed public rubric, and zero AI credits. Optionally check keyword overlap against a specific listing."
     >
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(softwareAppJsonLd('Free ATS Resume Scanner', 'Paste your CV and get an instant parseability score: contact details, sections, dates, action verbs, and keyword match against any job description. Deterministic checks, free, unlimited.', '/free-ats-resume-scanner'))} />
       <section className="mk-section tight">
         <div className="mk-shell ft-split">
           <div>

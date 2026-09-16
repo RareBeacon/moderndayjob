@@ -19,19 +19,19 @@ const PLANS: { code: PaidPlan; name: string; price: string; blurb: string }[] = 
     code: 'BASIC',
     name: 'Basic',
     price: '₦5,000 / month',
-    blurb: '3 AI documents a day and 2 auto-apply trial uses. 50 tool uses a day.',
+    blurb: '3 AI generations a day and 2 auto-apply trial uses. 50 tool uses a day.',
   },
   {
     code: 'PREMIUM',
     name: 'Premium',
     price: '₦10,000 / month',
-    blurb: '10 AI documents and 10 auto-apply slots a day. Unlimited tool uses.',
+    blurb: '10 AI generations and 10 auto-apply slots a day. Unlimited tool uses.',
   },
   {
     code: 'MAX',
     name: 'Max',
     price: '₦20,000 / month',
-    blurb: '20 AI documents and 20 auto-apply slots a day. Human-reviewed applications.',
+    blurb: '20 AI generations and 20 auto-apply slots a day. Human-reviewed applications.',
   },
 ];
 
@@ -66,11 +66,11 @@ export default function Billing() {
       <section className="workspace-hero">
         <p className="eyebrow">PLAN &amp; USAGE</p>
         <h1>Keep control of your momentum.</h1>
-        <p>Your plan, credits, and automation allowance are calculated securely on the server — not in your browser.</p>
+        <p>Your plan, credits, and automation allowance are calculated securely on the server; not in your browser.</p>
         {entitlement && (
           <div className="usage-strip">
             <span><b>{entitlement.plan}</b> current plan</span>
-            <span><b>{entitlement.ai_credits_remaining}</b> {entitlement.plan === 'FREE' ? 'free documents left' : 'AI documents today'}</span>
+            <span><b>{entitlement.ai_credits_remaining}</b> {entitlement.plan === 'FREE' ? 'free documents left' : 'AI generations today'}</span>
             <span><b>{entitlement.tool_uses_remaining === null ? 'Unlimited' : entitlement.tool_uses_remaining}</b> tool uses today</span>
             <span><b>{entitlement.applications_remaining}</b> {entitlement.plan === 'BASIC' ? 'trial auto-applies left' : 'automation slots today'}</span>
           </div>
@@ -81,7 +81,7 @@ export default function Billing() {
         <article className="card">
           <p className="eyebrow">FREE</p>
           <h2>₦0</h2>
-          <p className="muted">3 AI documents in total, free forever. All 10 career tools (10 uses a day), job matching and tracking.</p>
+          <p className="muted">3 AI generations in total, free forever. All 10 career tools (10 uses a day), job matching and tracking.</p>
           <strong>Your career workspace stays yours.</strong>
         </article>
         {PLANS.map((p) => (

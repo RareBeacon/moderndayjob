@@ -1,5 +1,5 @@
 /** Shared job-attribute enums still referenced by matching.
- *  (The legacy adapter/discovery layer that lived here was retired — the live
+ *  (The legacy adapter/discovery layer that lived here was retired; the live
  *  pipeline is `lib/jobsources`.) */
 
 export type RemoteType = 'remote' | 'hybrid' | 'onsite' | 'unknown';
