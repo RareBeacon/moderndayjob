@@ -82,7 +82,10 @@ export async function sendEmailVerificationCode(to: string, code: string, firstN
   return sendEmail({ to, subject: 'Your Jobiest verification code', html, text });
 }
 
-/** Welcome email (sent once, after the account is verified per product policy). */
+/** Welcome email (sent once, after the account is verified per product policy).
+ *  Sent from Philip's address on the verified domain (owner-confirmed:
+ *  philip@jobiest.com, forwarding to the owner's Gmail) for a personal touch;
+ *  replies land in the owner's inbox once MX/forwarding is configured. */
 export async function sendWelcomeEmail(to: string, firstName?: string): Promise<SendEmailResult> {
   const name = firstName?.trim() || 'there';
   const checklist = [
@@ -110,7 +113,13 @@ export async function sendWelcomeEmail(to: string, firstName?: string): Promise<
     'Welcome to Jobiest - your next opportunity is here',
   );
   const text = `Welcome to Jobiest, ${name}. Your account is ready. Start with the guide: ${SITE_URL}/help/getting-started. Discover jobs, build your CV, track applications. Need help? support@jobiest.com`;
-  return sendEmail({ to, subject: 'Welcome to Jobiest', html, text });
+  return sendEmail({
+    to,
+    subject: 'Welcome to Jobiest',
+    html,
+    text,
+    from: 'Philip (Jobiest) <philip@jobiest.com>',
+  });
 }
 
 /** Password reset (branded; the token link semantics are unchanged). */

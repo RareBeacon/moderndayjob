@@ -78,7 +78,9 @@ Shipped and live:
 - **Migration 026**: `profiles.welcome_email_sent_at`, `support_messages`, `app_config` (applied; RLS on, service-role only).
 - `lib/site.ts` fallback is now `https://jobiest.com` (was the legacy vercel URL) so emails/canonicals can never point at the stale host.
 
-Owner actions still pending: confirm philip/phlip + the two forwarding Gmail addresses; DNS (SPF, DMARC, MX + forwarder) at Vercel; set `app_config.support_inbox` once the support Gmail is confirmed.
+Owner answers (confirmed 2026-09-16): domain **jobiest.com**; welcome sender **Philip (Jobiest) <philip@jobiest.com>**; philip@ forwards to OgungboyeopeyemiPhilip@gmail.com; support@ forwards to philipopeyemior@gmail.com. `app_config.support_inbox` is set to philipopeyemior@gmail.com (support form delivers there now).
+
+Owner DNS actions still pending (at Vercel DNS for jobiest.com): SPF TXT `v=spf1 include:_spf.resend.com ~all`; DMARC TXT on `_dmarc` `v=DMARC1; p=none; rua=mailto:philip@jobiest.com`; MX + forwarding service (e.g. ImprovMX: mx1.improvmx.com prio 10, mx2.improvmx.com prio 20) with philip@ -> OgungboyeopeyemiPhilip@gmail.com and support@ -> philipopeyemior@gmail.com. Inbound reply-to-philip@ only works after MX + forwarder exist (outbound sending already works).
 
 ## Google sign-in (deployed 2026-09-16)
 
