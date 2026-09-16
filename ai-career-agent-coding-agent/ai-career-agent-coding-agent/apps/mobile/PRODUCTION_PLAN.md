@@ -1,7 +1,14 @@
 # Jobiest Native Apps - Production Requirements & Plan
 
-Status date: 2026-09-16. Everything repo-side is done (Phase 0 + 1 below).
-The remaining items are account creation, testing and store submission.
+Status date: 2026-09-16. Everything repo-side is done (Phases 0, 1 and 4-assets below;
+CI produced the first APK the same day). Remaining: account creation, testing,
+store submission.
+
+**Build proof:** tag `app-v1.0.0` -> green CI run -> `jobiest-debug-apk`
+artifact (also kept at the operator's `~/jobiest-v1.0.0-debug.apk`).
+Debug APK job runs without secrets; the release AAB job auto-skips until
+`ANDROID_RELEASE_ENABLED=true` (repo Actions variable) plus the keystore
+secrets are set.
 
 ## What the app is
 
@@ -98,9 +105,10 @@ Closed test with 12+ opted-in testers. Recruit on day 1; they need to open the
 app a few times over the period. Track opt-ins in Play Console; the 14-day
 clock only completes with 12 continuously opted-in.
 
-### Phase 4 - parallel during Phase 3 (me, on request)
-Store listing: screenshots, feature graphic, descriptions, data-safety form
-draft, content rating. I prepare everything; you paste into the consoles.
+### Phase 4 - assets DONE (see `store/STORE_LISTING.md`)
+Paste-ready listing: 4 phone screenshots (1080x1920), feature graphic
+(1024x500), full description, data-safety answers, content-rating answers.
+Tablet screenshot sets can be generated on request.
 
 ### Phase 5 - after day 14
 Apply for production access (short form about the test), staged rollout
