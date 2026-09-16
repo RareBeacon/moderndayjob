@@ -11,7 +11,7 @@ Read this file first. Then read `AGENTS.md` and `docs/CODING_AGENT.md` before ch
 - Premium: NGN 10,000/month, 10 AI documents/day, 10 auto-apply slots/day (agent mode), unlimited tools.
 - Max: NGN 20,000/month, 20 AI documents/day, 20 auto-apply slots/day (agent mode), unlimited everything.
 - Flutterwave is the payment gateway.
-- OpenRouter and Hugging Face credentials are admin-assigned per user/workspace and encrypted at rest.
+- AI providers: users can bring their own OpenAI-compatible endpoint credentials (encrypted at rest, egress-guarded); a server-side Ollama pair is optional. No Gmail/inbox access ever (D-001).
 - Render is the deployment target.
 
 ## Non-negotiable security
@@ -27,6 +27,9 @@ Read this file first. Then read `AGENTS.md` and `docs/CODING_AGENT.md` before ch
 - Encrypt stored provider credentials with authenticated encryption and rotate keys.
 - Browser workers are isolated and external URL navigation is SSRF-protected.
 - Validate private file uploads.
+
+## Current state (2026-09)
+Live at jobiest.com. Phases 0-5 + 7 (core) + 9 (core) of `docs/IMPLEMENTATION_ROADMAP.md` are shipped: homepage, auth, profile/documents, job discovery (registry + circuit breaker + dedup + freshness), application agent (approval snapshots, sensitive-question policy), security (capability engine, egress allowlist, injection corpus), 24 migrations applied, 578 passing tests. Auto-submit remains behind the kill switch. Run `npm ci` before `npm run typecheck` (deps are not committed).
 
 ## Implementation order
 1. Read all docs and inspect the existing scaffold.

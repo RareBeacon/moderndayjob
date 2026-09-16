@@ -16,11 +16,9 @@ Next.js / Vercel
   |
   +--> Supabase Storage
   |
-  +--> OpenRouter
+  +--> OpenAI-compatible endpoints (user credentials, encrypted)
   |
-  +--> Hugging Face
-  |
-  +--> Gmail API
+  +--> Ollama (server, optional)
   |
   +--> Job Source Adapters
   |
@@ -126,9 +124,9 @@ Adapters must return structured statuses.
 ```text
 AIService
   |
-  +--> OpenRouterProvider
+  +--> OpenAICompatProvider
   |
-  +--> HuggingFaceProvider
+  +--> OllamaProvider
   |
   +--> FutureProvider
 ```
@@ -144,27 +142,18 @@ Tasks:
 
 Each task has a versioned prompt and JSON schema.
 
-## 8. Gmail Architecture
+## 8. Email Architecture (no inbox access)
 
-```text
-Google OAuth
-  ↓
-Encrypted token storage
-  ↓
-Gmail Watch
-  ↓
-Webhook
-  ↓
-Email normalizer
-  ↓
-Classifier
-  ↓
-Application matcher
-  ↓
-Interview detector
-  ↓
-Notification
-```
+Per decision D-001 there is NO Gmail access, no inbox OAuth, and no mailbox
+reading. Email in Jobiest means exactly two things:
+
+1. The user's application email (profiles.application_email), the address
+   applications are sent from during assisted handoff or auto-submit.
+2. Notification emails Jobiest sends to the user (transactional provider).
+
+There is no Gmail API integration, no email classification pipeline, and no
+interview detection from inboxes. Interview status changes are entered by the
+user on the applications dashboard.
 
 ## 9. Scheduler Architecture
 
@@ -233,7 +222,6 @@ Each external dependency is isolated.
 
 If:
 - one job source fails → other sources continue.
-- OpenRouter fails → fallback provider.
+- A user AI provider fails → next provider in the gateway.
 - one application fails → other applications continue.
-- Gmail fails → job automation continues, email monitoring retries.
 - browser crashes → application returns to retryable state.

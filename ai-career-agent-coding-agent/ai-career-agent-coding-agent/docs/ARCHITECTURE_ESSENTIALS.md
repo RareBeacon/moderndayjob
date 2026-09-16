@@ -11,7 +11,6 @@ Never allow User A to read or modify User B's:
 - CV
 - applications
 - jobs/private match data
-- Gmail tokens
 - notifications
 - agent runs
 
@@ -22,10 +21,7 @@ Enforce isolation at the database layer with RLS, not only in application code.
 Never commit:
 - GitHub PATs.
 - Supabase service keys.
-- OpenRouter keys.
-- Hugging Face tokens.
-- Google client secrets.
-- Gmail refresh tokens.
+- AI provider API keys (user credentials, encrypted at rest).
 - production environment variables.
 
 Use environment variables or a secret manager.
@@ -96,7 +92,7 @@ Use:
 - schema validation.
 - health checks.
 
-OpenRouter's free model pool is dynamic, and its current free-plan limits can change. Build for degradation.
+Any external AI provider can rate-limit or disappear. Build for degradation: the gateway fails over to the next provider and generation has a deterministic path.
 
 ## 9. Prompt Security
 
@@ -153,7 +149,6 @@ Users can:
 - edit.
 - reject.
 - approve.
-- disconnect Gmail.
 - change daily target.
 - change application mode.
 

@@ -186,17 +186,14 @@ Then submit.
 
 Record external confirmation.
 
-## 13. Gmail
+## 13. Email (no inbox access)
 
-Use OAuth.
+Decision D-001: NO Gmail OAuth, no inbox access, no mailbox reading, ever.
 
-Never store passwords.
+- Use the user's supplied application email (profiles.application_email).
+- Never request email OAuth scopes.
+- Never store email credentials of any kind.
 
-Encrypt refresh tokens.
-
-Validate webhook events.
-
-Make email processing idempotent.
 
 ## 14. UI
 
@@ -258,8 +255,7 @@ Done means:
 - CV generation works.
 - truthfulness guard works.
 - application workflow works.
-- Gmail connection works.
-- interview detection works.
+- interview status tracking works (user-entered, no inbox access).
 - dashboard works.
 - error handling works.
 - tests pass.
