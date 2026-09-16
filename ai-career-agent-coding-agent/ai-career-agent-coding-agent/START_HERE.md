@@ -54,3 +54,14 @@ Use `.env.example` only as a template. Real secrets belong in Render environment
 
 ## Definition of done
 Do not claim production-ready until typecheck, lint, unit, integration, RLS, payment, entitlement-bypass, quota-race, duplicate-account, browser-isolation and SSRF tests pass; staging deploys successfully; controlled payment verification succeeds; and admin emergency controls work.
+
+## New since v5.3 (production-grade pass, commit 7ea380e)
+
+- Homepage buttons rethemed gold/navy (fixes black-on-black CTAs; all now 11.86-16.92:1 contrast, verified live).
+- Billing reconciliation: `/api/billing/flutterwave/verify` + "Check payment status" on `/billing/success`.
+- Bring-your-own AI provider: `/profile/ai` + `/api/credentials` (encrypted at rest, egress-guarded).
+- PWA: installable manifest + service worker + `/offline` fallback; icon set in `public/icons/`.
+- Native app shells: `apps/mobile` (Capacitor 6, wraps jobiest.com; see its README for Android/iOS builds).
+- E2E smoke suite: `npm run e2e` (Playwright against production).
+- Error monitoring: client errors land in `audit_logs` (`CLIENT_ERROR` action).
+- Operations: `docs/runbook.md` (deploy, backup, rollback, monitoring, incidents, known gaps).

@@ -202,6 +202,16 @@ Never log:
 - full private emails.
 - sensitive CV data unnecessarily.
 
+Client-side observability: unhandled errors hit `app/error.tsx`, which reports
+(bounded, rate-limited) to `/api/client-error`; rows land in `audit_logs` with
+action `CLIENT_ERROR` for weekly review (`docs/runbook.md` §5).
+
+Delivery surfaces: the web app (jobiest.com) is also an installable PWA
+(manifest + service worker with offline fallback page, `public/sw.js`), and
+`apps/mobile` provides Capacitor 6 shells for Android/iOS that render the
+same site in a hardened WebView (native splash + status bar; product updates
+ship with the web deploy, no store review).
+
 ## 12. Scaling Path
 
 ### V1

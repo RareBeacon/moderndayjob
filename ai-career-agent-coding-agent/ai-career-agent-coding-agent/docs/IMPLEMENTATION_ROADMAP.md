@@ -21,15 +21,15 @@ Statuses: ✅ done · 🟡 partial · ⬜ todo. Supabase migrations present: `00
 - Redesigned `/login` and `/signup` (branded auth card, show/hide password, loading, friendly errors, `?next=` redirect, email-confirmation handling).
 - **Infra fix:** middleware now protects `/profile`, `/documents`, `/applications`, `/billing` (was open); `?next=` honored.
 
-## Phase 2, Onboarding wizard 🟡
-- Progressive wizard matching `USER_JOURNEY_FLOW` + `UIUX_BRIEF §4`: identity → locations → target roles/keywords → background (CV upload + manual) → application email → mode (Draft/Assist/Approval/Auto) → daily target → activate.
-- Server-validated steps; resumable; profile completeness drives next step.
+## Phase 2, Onboarding ✅ (resolved by design, v5.2)
+- The forced wizard was replaced by dashboard-digest invitations: the six setup questions (locations, roles, background, application email, mode, daily target) are invited from `/dashboard`, never blocked in front of it. `app/onboarding` forwards old links.
+- Profile completeness (`lib/profile-completeness`) drives the dashboard guidance and next-step hints. Resumable by construction: everything is a saved profile field, not a wizard state.
 
 ## Phase 3, Profile & documents ✅ (partial)
 - ✅ Profile editor, prefill, validation, application email, export, delete (`ada0894`).
 - ✅ Master-CV PDF upload (private bucket, MIME + `%PDF-` signature, 5 MB, SHA-256, signed URLs).
 - ⬜ Generated document-version model (immutable versions, source-fact references).
-- ⬜ Profile completeness → drives onboarding/dashboard guidance.
+- ✅ Profile completeness → drives dashboard guidance (`lib/profile-completeness`, surfaced on `/dashboard`).
 
 ## Phase 4, Job discovery & matching ✅
 - ✅ Adapter interface with injectable fetch, 10s timeout, no retries, per-source error isolation (`lib/jobsources/`).
@@ -46,15 +46,17 @@ Statuses: ✅ done · 🟡 partial · ⬜ todo. Supabase migrations present: `00
 - ✅ Timeout reconciliation (B-186): unknown submit results surface as UNKNOWN, never auto-retried.
 - ✅ Full audit timeline (application events + audit_logs). Approval is default; **auto-submit stays behind the AUTOMATION_SUBMIT_ENABLED kill switch (default off) until launch gates pass.**
 
-## Phase 6, Billing (Flutterwave) 🟡
+## Phase 6, Billing (Flutterwave) ✅ (code-complete; live keys pending)
 - ✅ Plans, entitlements, atomic AI-credit + application-slot reservation.
-- 🟡 OAuth token acquisition + secret-hash webhook validation exist.
-- ⬜ Validate the **real** Flutterwave charge/verify contract from official docs; implement checkout → redirect → verify → idempotent entitlement update; sandbox tests for Basic & Premium. Never grant paid access from a redirect alone.
+- ✅ OAuth token acquisition + secret-hash webhook validation exist.
+- ✅ Checkout → redirect → verify → idempotent entitlement update: `/api/billing/flutterwave/create` (server-priced), signed webhook with server-side re-verify + `apply_verified_payment` RPC, and `/api/billing/flutterwave/verify` reconciliation for missed webhooks (ownership-prefixed tx_ref, server re-verify, same idempotent RPC). "Check payment status" on `/billing/success`. No grant ever comes from the redirect alone.
+- ⬜ Sandbox E2E for Basic & Premium (blocked on Flutterwave test credentials) and live key configuration.
 
-## Phase 7, AI provider layer 🟡
+## Phase 7, AI provider layer ✅
 - ✅ AES-256-GCM credential vault (`ENCRYPTION_MASTER_KEY`), service-role-only writes (`ai_credentials`).
 - ✅ Provider abstraction: OpenAI-compatible provider (any base URL, egress-guarded per B-223) + Ollama strong/fallback models; gateway failover; usage metering + ai_usage ledger.
-- 🟡 User-facing credential management UI (currently admin-managed); prompt versioning.
+- ✅ User-facing credential management: `/api/credentials` (GET/POST/DELETE; keys encrypted at rest, never returned, host-only display, egress allowlist on base_url, max 5 active, soft revoke, audited) + UI at `/profile/ai`.
+- ⬜ Prompt versioning (tracked for post-launch).
 
 ## Phase 8, Workers & scheduling 🟡
 - ✅ Lease-based agent task lifecycle; idempotent daily discovery enqueue; single pipeline implementation shared by the free production path (Vercel Cron `/api/cron/daily-pipeline`) and the always-on worker.
@@ -71,8 +73,9 @@ Statuses: ✅ done · 🟡 partial · ⬜ todo. Supabase migrations present: `00
 ## Phase 10, Launch gates 🟡
 - ✅ Unit/integration: 578 passing tests incl. security suites (admin, gateway, SSRF, injection corpus, state machine, gates).
 - ✅ Production live-verification passes on jobiest.com (design probes, API behavior, approval snapshot cycle, sensitive-question gate, DB RLS audits).
-- 🟡 E2E (onboarding/document/application) browser suite not yet built; error monitoring is healthz-level only.
-- ⬜ Backup/rollback drill, staging environment. Autonomous submission stays off until all gates pass.
+- ✅ E2E smoke suite (`npm run e2e`, Playwright, mobile + desktop projects): live health, homepage CTA contrast regression guard, mobile overflow, auth bounce, jobs API, sensitive-question gate. Authenticated cases run with `E2E_EMAIL`/`E2E_PASSWORD`.
+- ✅ Error monitoring beyond healthz: client error boundary reports to `/api/client-error` (rate-limited) into `audit_logs` as `CLIENT_ERROR`; weekly review query in `docs/runbook.md`.
+- 🟡 Backup/rollback documented in `docs/runbook.md`; the restore drill and a standing staging environment remain open (per-PR Vercel previews serve as staging). Autonomous submission stays off until all gates pass.
 
 ## Deployment
 - Web on Vercel (Next.js). Workers on Render (when budget allows). DB/Auth/Storage on Supabase. Billing on Flutterwave. AI via user-supplied OpenAI-compatible endpoints + optional server Ollama.
