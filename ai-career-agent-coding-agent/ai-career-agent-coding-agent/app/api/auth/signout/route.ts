@@ -3,9 +3,15 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { env } from '@/lib/env';
 
-export async function POST() {
+/**
+ * POST /api/auth/signout · ends the session and returns the visitor to
+ * the homepage. The app shell submits this as a plain HTML form post,
+ * so the response must be a 303 redirect, never raw JSON, otherwise
+ * the browser navigates to a JSON blob.
+ */
+export async function POST(req: Request) {
   const jar = await cookies();
-  const response = NextResponse.json({ ok: true });
+  const response = NextResponse.redirect(new URL('/', req.url), 303);
   const client = createServerClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
     cookies: {
       getAll: () => jar.getAll(),

@@ -80,16 +80,3 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string): Prom
 }
 
 /** Best-effort email-verification email. Never throws. No em/en dashes. */
-export async function sendVerificationEmail(to: string, verifyUrl: string): Promise<SendEmailResult> {
-  const html = [
-    '<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1a1a2e;line-height:1.6">',
-    '<h2 style="margin:0 0 12px">Verify your JOBIEST account</h2>',
-    '<p style="margin:0 0 16px">You are one step away from finding your next opportunity.</p>',
-    `<p style="margin:0 0 16px"><a href="${escapeHtml(verifyUrl)}" style="background:#2b6cb0;color:#ffffff;padding:12px 20px;border-radius:6px;text-decoration:none;display:inline-block">Verify my email</a></p>`,
-    '<p style="margin:0 0 8px">This verification link expires in 30 minutes.</p>',
-    '<p style="margin:0;color:#64748b">Did not create this account? You can safely ignore this email.</p>',
-    '</div>',
-  ].join('\n');
-  const text = `Verify your JOBIEST account: ${verifyUrl} (this link expires in 30 minutes; ignore if you did not sign up).`;
-  return sendEmail({ to, subject: 'Verify your JOBIEST account', html, text });
-}

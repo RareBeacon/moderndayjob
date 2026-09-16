@@ -89,7 +89,7 @@ export default function SignupPage() {
         {error ? <div className="auth-error" role="alert">{error}</div> : null}
         {notice ? (
           <div className="auth-success" role="status">
-            {notice} Didn&apos;t get it? You can resend it from the <Link href="/login">sign-in page</Link>.
+            {notice}
           </div>
         ) : null}
         <label>
