@@ -66,6 +66,20 @@ Do not claim production-ready until typecheck, lint, unit, integration, RLS, pay
 - Error monitoring: client errors land in `audit_logs` (`CLIENT_ERROR` action).
 - Operations: `docs/runbook.md` (deploy, backup, rollback, monitoring, incidents, known gaps).
 
+## Auth, Email, Support & Onboarding (2026-09)
+
+Shipped and live:
+
+- **Settings** (`/settings`, Profile -> Settings): Security (TOTP two-factor), Support links, Account (sign-out with confirmation).
+- **TOTP MFA**: Supabase native MFA (`mfa.enroll/challenge/verify/unenroll`). Enrollment with QR (Google Authenticator) + manual key at Settings; login gains a real second step at `/mfa-verify` (middleware gates aal1 sessions with enrolled factors; `requireUser` throws `MFA_REQUIRED` for APIs). Disable requires a fresh valid code. Enable/disable send branded security emails via `/api/auth/mfa/notify` (server re-verifies factor state first; never fake alerts).
+- **Branded transactional email** (`lib/email/templates.ts` + `lib/email/resend.ts`): email-safe table layout, logo `https://jobiest.com/images/email-logo.png`, sender `Jobiest <no-reply@jobiest.com>`. Verification code, welcome (once per account via `profiles.welcome_email_sent_at` marker), password reset, MFA security, support relay.
+- **Onboarding guide**: public `/help/getting-started` (7 steps, real CTAs).
+- **Support**: public `/support` form -> `/api/support` (rate-limited 5/h, zod-validated) -> stored in `support_messages` + relayed via Resend to the inbox configured in `app_config.support_inbox` (reply-to preserved). Until an inbox is configured, messages are stored and the response says so honestly.
+- **Migration 026**: `profiles.welcome_email_sent_at`, `support_messages`, `app_config` (applied; RLS on, service-role only).
+- `lib/site.ts` fallback is now `https://jobiest.com` (was the legacy vercel URL) so emails/canonicals can never point at the stale host.
+
+Owner actions still pending: confirm philip/phlip + the two forwarding Gmail addresses; DNS (SPF, DMARC, MX + forwarder) at Vercel; set `app_config.support_inbox` once the support Gmail is confirmed.
+
 ## Google sign-in (deployed 2026-09-16)
 
 - "Continue with Google" on /login and /signup (PKCE OAuth via Supabase).

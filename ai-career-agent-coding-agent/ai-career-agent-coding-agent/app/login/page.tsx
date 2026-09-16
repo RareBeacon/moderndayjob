@@ -40,6 +40,18 @@ export default function LoginPage() {
       setError(humanizeAuthError(error.message));
       return;
     }
+    // MFA is part of the real login flow: if the user has an enrolled
+    // authenticator, the session stays aal1 until the code is verified.
+    try {
+      const { data: aal } = await supabaseBrowser().auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aal?.nextLevel === 'aal2' && aal.currentLevel !== 'aal2') {
+        const nextParam = new URLSearchParams(window.location.search).get('next');
+        router.push(nextParam ? `/mfa-verify?next=${encodeURIComponent(nextParam)}` : '/mfa-verify');
+        return;
+      }
+    } catch {
+      // fall through to the dashboard; middleware re-checks
+    }
     const next = new URLSearchParams(window.location.search).get('next') || '/dashboard';
     router.push(next);
     router.refresh();

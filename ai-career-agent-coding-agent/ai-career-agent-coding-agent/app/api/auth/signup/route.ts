@@ -5,6 +5,7 @@ import { enforceRateLimit, getRedis, requestIp } from '@/lib/rate-limit';
 import { DEVICE_COOKIE, hashSignal, issueDeviceId, readDeviceId } from '@/lib/security/device';
 import { classifyRegistrationRisk, isRegistrationBlocked } from '@/lib/security/risk';
 import { hashIp } from '@/lib/ai/usage';
+import { sendWelcomeEmailOnce } from '@/lib/email/welcome';
 import { countSignupsFromIp, logSecuritySignal, signupRisk } from '@/lib/security/abuse';
 
 function safeShort(value: unknown, max = 180) {
@@ -162,6 +163,13 @@ export async function POST(req: Request) {
     meta: { email_confirmed: true, risk, abuseSignals: emailRisk.signals, sourceArticle: attribution.sourceArticle, sourceTool: attribution.sourceTool },
   });
   void recordSignupAttribution({ userId: data.user?.id ?? null, attribution });
+  // Welcome email, once per account (marker-guarded). Password accounts are
+  // confirmed at creation by explicit product decision, so the welcome mail
+  // is correct immediately; google accounts get theirs when they pass the
+  // /verify-email gate.
+  if (data.user?.id && data.user.email) {
+    void sendWelcomeEmailOnce(data.user.id, data.user.email);
+  }
 
   const res = NextResponse.json({ ok: true, user: { id: data.user?.id ?? null } });
   res.cookies.set(DEVICE_COOKIE, deviceId, {

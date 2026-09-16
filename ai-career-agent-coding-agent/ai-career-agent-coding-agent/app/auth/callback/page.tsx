@@ -38,6 +38,18 @@ function CallbackInner() {
         return;
       }
 
+      // MFA users (google-linked accounts with an enrolled authenticator)
+      // continue at the second-factor step before any app page opens.
+      try {
+        const { data: aal } = await supabaseBrowser().auth.mfa.getAuthenticatorAssuranceLevel();
+        if (aal?.nextLevel === 'aal2' && aal.currentLevel !== 'aal2') {
+          router.replace('/mfa-verify');
+          return;
+        }
+      } catch {
+        // middleware re-checks
+      }
+
       // Server decides the destination: google accounts still inside the
       // verification gate go to /verify-email, everyone else continues.
       try {

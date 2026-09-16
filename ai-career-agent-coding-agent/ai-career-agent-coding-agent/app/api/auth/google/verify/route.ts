@@ -2,6 +2,7 @@ import { requireUser } from '@/lib/auth';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { supabaseAdmin } from '@/lib/supabase';
 import { auditEvent } from '@/lib/audit';
+import { sendWelcomeEmailOnce } from '@/lib/email/welcome';
 import {
   confirmEmailVerificationCode,
   isGoogleLinkedUser,
@@ -42,7 +43,7 @@ async function verificationState(userId: string): Promise<{ verified: boolean; f
 export async function GET() {
   let user;
   try {
-    user = await requireUser();
+    user = await requireUser({ allowIncompleteMfa: true });
   } catch {
     return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   }
@@ -76,7 +77,7 @@ export async function GET() {
 export async function POST(req: Request) {
   let user;
   try {
-    user = await requireUser();
+    user = await requireUser({ allowIncompleteMfa: true });
   } catch {
     return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   }
@@ -111,6 +112,9 @@ export async function POST(req: Request) {
   const outcome = await confirmEmailVerificationCode(user, parsed.data.code);
   if (outcome === 'VERIFIED') {
     void auditEvent({ action: 'GOOGLE_VERIFY_PASSED', resource: 'auth', userId: user.id, outcome: 'allow' });
+    // First-time google sign-ups get the welcome email exactly once; the
+    // marker makes replays and refreshes harmless.
+    void sendWelcomeEmailOnce(user.id, user.email);
     return Response.json({ ok: true });
   }
   void auditEvent({ action: 'GOOGLE_VERIFY_FAILED', resource: 'auth', userId: user.id, outcome: 'deny', meta: { reason: outcome } });

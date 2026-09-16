@@ -26,6 +26,7 @@ const ICONS = {
   user: 'M12 8m-4 0a4 4 0 108 0 4 4 0 10-8 0M5 20c1.5-3.5 4-5 7-5s5.5 1.5 7 5',
   home: 'M4 11l8-7 8 7M6 10v10h12V10',
   bolt: 'M13 3L5 13h6l-1 8 8-10h-6l1-8z',
+  settings: 'M12 15.5A3.5 3.5 0 1 1 15.5 12 3.5 3.5 0 0 1 12 15.5zm7.4-2.6l1.6-1.2-1.6-2.8-1.9.7a6.9 6.9 0 0 0-1.2-.7L16.1 7h-3.2l-.2 1.9a6.9 6.9 0 0 0-1.2.7l-1.9-.7-1.6 2.8 1.6 1.2a7.3 7.3 0 0 0 0 1.4l-1.6 1.2 1.6 2.8 1.9-.7a6.9 6.9 0 0 0 1.2.7l.2 1.9h3.2l.2-1.9a6.9 6.9 0 0 0 1.2-.7l1.9.7 1.6-2.8-1.6-1.2a7.3 7.3 0 0 0 0-1.4z',
 };
 
 const NAV: NavItem[] = [
@@ -37,6 +38,7 @@ const NAV: NavItem[] = [
   { key: 'documents', href: '/documents', label: 'My documents', icon: ic(ICONS.file) },
   { key: 'billing', href: '/billing', label: 'Billing', icon: ic(ICONS.card) },
   { key: 'profile', href: '/profile', label: 'Career profile', icon: ic(ICONS.user) },
+  { key: 'settings', href: '/settings', label: 'Settings', icon: ic(ICONS.settings) },
 ];
 
 const BOTTOM: NavItem[] = [

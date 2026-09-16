@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
 /** Pages that require an authenticated session. */
-const PROTECTED = ['/dashboard', '/onboarding', '/profile', '/documents', '/applications', '/billing', '/match', '/generate', '/verify-email'];
+const PROTECTED = ['/dashboard', '/onboarding', '/profile', '/settings', '/documents', '/applications', '/billing', '/match', '/generate', '/verify-email', '/mfa-verify'];
 /** Auth pages an already-signed-in user should not see. */
 const AUTH_PAGES = ['/login', '/signup'];
 
@@ -82,6 +82,23 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirect);
   }
 
+  // MFA gate: sessions with an enrolled factor that has not been completed
+  // (aal1) go to /mfa-verify before any protected page opens. Supabase's
+  // assurance level is decoded from the session; no extra DB read.
+  if (user && pathname !== '/mfa-verify' && pathname !== '/verify-email') {
+    try {
+      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2') {
+        const redirect = request.nextUrl.clone();
+        redirect.pathname = '/mfa-verify';
+        redirect.search = '';
+        return NextResponse.redirect(redirect);
+      }
+    } catch {
+      // fail open; requireUser re-checks on data access
+    }
+  }
+
   if (user && AUTH_PAGES.includes(pathname)) {
     const redirect = request.nextUrl.clone();
     redirect.pathname = '/dashboard';
@@ -92,5 +109,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/dashboard/:path*', '/onboarding', '/profile', '/documents', '/applications', '/billing', '/jobs', '/match', '/generate', '/login', '/signup', '/verify-email'],
+  matcher: ['/', '/dashboard/:path*', '/onboarding', '/profile', '/settings', '/documents', '/applications', '/billing', '/jobs', '/match', '/generate', '/login', '/signup', '/verify-email', '/mfa-verify'],
 };
