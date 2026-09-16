@@ -73,7 +73,8 @@ Do not claim production-ready until typecheck, lint, unit, integration, RLS, pay
   (/verify-email) before using the product; password accounts unchanged.
 - Migration 025 (profiles.email_verified_at + email_verification_codes,
   service-role only) is applied to production.
-- Google OAuth credentials APPLIED to Supabase (provider enabled, live
-  302 probe to accounts.google.com passes). One Google-console step left:
-  add the redirect URI https://cbxloutahmalorumaihc.supabase.co/auth/v1/callback
-  to the OAuth client (docs/google-oauth-setup.md).
+- Google OAuth COMPLETE: provider enabled, redirect URI added, verified
+  end to end live (button on /login -> accounts.google.com sign-in page,
+  no errors). First real google sign-up goes through the /verify-email
+  code gate. Cosmetic follow-up: set the consent-screen app name to
+  Jobiest (docs/google-oauth-setup.md).

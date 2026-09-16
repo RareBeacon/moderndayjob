@@ -5,15 +5,18 @@ The full flow is implemented and deployed: "Continue with Google" on
 email verification gate at /verify-email for google-created accounts
 (6-digit code, 10 minute expiry, 8 attempt limit, hashed at rest).
 
-STATUS 2026-09-16: the OAuth client credentials were supplied and
-APPLIED via the management API (external_google_enabled = true, client id
-+ secret set). Live probe: the authorize endpoint 302-redirects to
-accounts.google.com with state and the correct callback, so the Supabase
-side is done.
+STATUS 2026-09-16: COMPLETE AND VERIFIED END TO END.
+- Credentials applied via the management API (provider enabled).
+- Redirect URI added in the Google Cloud console (owner).
+- Verified live, non-destructively: the real button on /login lands on
+  accounts.google.com with a clean sign-in page (no redirect_uri_mismatch,
+  no invalid_client), state + PKCE intact. The check stops before consent
+  by design; no test account was used.
 
-ONE step remains, in the Google Cloud Console (owner-only): the OAuth
-client was created with NO authorized redirect URIs, so Google will
-reject the round trip with redirect_mismatch until this is added.
+Optional polish (cosmetic): Google shows "to continue to
+cbxloutahmalorumaihc.supabase.co" until the OAuth consent screen has an
+App name ("Jobiest"). If the consent screen stays in testing mode, only
+test users can sign in (add them or publish the app).
 
 ## 1. Create the OAuth client (DONE) - only the redirect URI is missing
 
