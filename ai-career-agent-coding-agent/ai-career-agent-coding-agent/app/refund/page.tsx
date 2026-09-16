@@ -18,7 +18,7 @@ export default function RefundPage() {
 
       <h2>1. Free plan</h2>
       <p>
-        The free plan is free and requires no payment, so no refunds apply. New accounts start free at no charge and with no card required; Basic includes 2 auto-apply trial uses.
+        The free plan is free and requires no payment, so no refunds apply. New accounts start free at no charge and with no card required; Basic includes 2 agent-mode trial runs.
       </p>
 
       <h2>2. 7-day money-back guarantee</h2>
@@ -53,7 +53,7 @@ export default function RefundPage() {
       <p>
         Approved refunds are returned to the original payment method via our payment provider.
         Refunds are processed in the currency in which you were charged. Processing times depend on
-        your bank or card issuer and typically take 5–10 business days.
+        your bank or card issuer and typically take 5 to 10 business days.
       </p>
 
       <h2>7. Chargebacks</h2>

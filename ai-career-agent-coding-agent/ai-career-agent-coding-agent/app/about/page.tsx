@@ -5,7 +5,7 @@ import { JobletFooter } from '@/components/site/joblet/Footer';
 import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
-  title: 'About Jobiest',
+  title: 'About',
   description: 'Jobiest was built in Lagos by Phos Lab to help real candidates put their real best forward faster, more consistently, and with full approval control.',
   alternates: { canonical: `${SITE_URL}/about` },
 };

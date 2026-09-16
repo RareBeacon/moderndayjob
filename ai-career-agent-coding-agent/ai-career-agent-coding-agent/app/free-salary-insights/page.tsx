@@ -13,6 +13,7 @@ export const metadata: Metadata = {
     'We read real job listings for your role and report only the pay ranges they explicitly state, no estimates, no invented market averages. Honest salary signals, free.',
   openGraph: {
     title: 'Free Salary Insights · Jobiest',
+    images: ['/images/og-card.jpg'],
     description: 'Pay ranges as stated in real listings, nothing estimated, nothing invented. Free to use.',
   },
 };

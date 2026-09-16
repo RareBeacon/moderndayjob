@@ -2247,6 +2247,17 @@ body { background: var(--background); color: var(--foreground); font-family: var
 @keyframes ja-progress { 0%, 100% { transform: translateX(-8%) scaleX(.78); } 50% { transform: translateX(18%) scaleX(1); } }
 @keyframes ja-ring { to { transform: rotate(360deg); } }
 
+/* Free tools grid (homepage + tools hub links) */
+.ja-tool-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 38px; }
+.ja-tool-card { display: flex; flex-direction: column; gap: 8px; padding: 26px; border-radius: 26px; background: #fff; border: 1px solid var(--border); box-shadow: var(--ja-shadow-soft); transition: transform .2s ease, box-shadow .2s ease; }
+.ja-tool-card:hover { transform: translateY(-4px); box-shadow: 0 26px 50px -28px rgba(6,43,104,.35); }
+.ja-tool-card span { color: var(--accent); font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: .12em; }
+.ja-tool-card h3 { color: var(--primary); font-size: 20px; }
+.ja-tool-card p { color: var(--muted-foreground); line-height: 1.6; flex: 1; }
+.ja-tool-card em { font-style: normal; font-weight: 700; color: var(--primary); font-size: 14px; }
+/* 4-plan pricing grid */
+.ja-plan-grid-4 { grid-template-columns: repeat(4, 1fr); }
+
 @media (prefers-reduced-motion: no-preference) {
   .ja-step, .ja-proof, .ja-plan, .ja-compare, .ja-rec-row { will-change: transform; }
 }
@@ -2258,8 +2269,8 @@ body { background: var(--background); color: var(--foreground); font-family: var
   .ja-hero-grid, .ja-agent-grid, .ja-pricing-grid, .ja-faq-grid, .ja-social-grid { grid-template-columns: 1fr; }
   .ja-agent-card { max-width: 560px; margin-inline: auto; }
   .ja-hero-bottom { grid-template-columns: repeat(2, 1fr); }
-  .ja-step-grid, .ja-proof-grid { grid-template-columns: 1fr; }
-  .ja-compare-grid, .ja-plan-grid { grid-template-columns: 1fr; }
+  .ja-step-grid, .ja-proof-grid, .ja-tool-grid { grid-template-columns: 1fr; }
+  .ja-compare-grid, .ja-plan-grid, .ja-plan-grid-4 { grid-template-columns: 1fr; }
   .ja-plan-featured { transform: none; }
 }
 

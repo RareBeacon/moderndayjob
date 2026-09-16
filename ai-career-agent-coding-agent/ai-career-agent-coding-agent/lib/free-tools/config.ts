@@ -42,6 +42,8 @@ export interface FreeToolConfig {
   supportsDownload: boolean;
   supportsSave: boolean;
   requiresAuthenticationToUnlock: true;
+  /** Deterministic tools (rule-based, no AI) allow copying without an account. */
+  deterministic?: boolean;
   nextSteps: { label: string; href: string }[];
 }
 
@@ -56,7 +58,7 @@ export const FREE_TOOLS: FreeToolConfig[] = [
     category: 'resume',
     description: 'Check whether your CV is machine-readable and aligned with a target job.',
     introTitle: 'Let us check how your resume reads to an ATS.',
-    intro: 'Paste your resume text first. If you have a job description, add it so we can check keyword overlap. The result is a preview until you create or sign into a free account.',
+    intro: 'Paste your resume text first. If you have a job description, add it so we can check keyword overlap. The scan is rule-based and yours to copy. Saving it to your dashboard needs a free account.',
     outputType: 'scan',
     generationLabel: 'Scan my resume',
     progressMessages: ['Reading your resume structure', 'Checking contact details and headings', 'Comparing job keywords', 'Building your action list'],
@@ -64,6 +66,7 @@ export const FREE_TOOLS: FreeToolConfig[] = [
     supportsDownload: true,
     supportsSave: true,
     requiresAuthenticationToUnlock: true,
+    deterministic: true,
     nextSteps: [{ label: 'Build my resume', href: '/generate' }, { label: 'Analyze a job description', href: '/free-job-description-analyzer' }, { label: 'Find matching jobs', href: '/jobs' }],
     questions: [
       { id: 'resumeText', label: 'Paste your resume text', assistant: 'Paste the full text of your CV. Headings, roles, dates, bullets, everything helps.', type: 'textarea', required: true, minLength: 100, placeholder: 'Paste your CV text here...' },

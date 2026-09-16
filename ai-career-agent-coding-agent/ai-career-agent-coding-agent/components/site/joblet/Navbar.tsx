@@ -1,15 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { IconSearch, IconMenu, IconClose } from './Icons';
+import { usePathname } from 'next/navigation';
+import { IconMenu, IconClose } from './Icons';
 
 const LINKS = [
-  { label: 'Home', href: '/', active: true },
-  { label: 'How it works', href: '/how-it-works', active: false },
-  { label: 'Pricing', href: '/pricing', active: false },
-  { label: 'Resources', href: '/#tools', active: false },
-  { label: 'Blog', href: '/blog', active: false },
-  { label: 'About', href: '/about', active: false },
+  { label: 'How it works', href: '/how-it-works' },
+  { label: 'Free tools', href: '/tools' },
+  { label: 'Pricing', href: '/pricing' },
+  { label: 'Blog', href: '/blog' },
+  { label: 'About', href: '/about' },
 ];
 
 /** Jobiest wordmark + yellow ascent mark (the same mark geometry as Logo.tsx). */
@@ -29,7 +29,9 @@ function BrandMark() {
  */
 export function JobletNavbar({ authenticated = false }: { authenticated?: boolean }) {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
   const homeHref = authenticated ? '/dashboard' : '/';
+  const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
 
   return (
     <nav className="jl-nav" aria-label="Primary">
@@ -43,16 +45,13 @@ export function JobletNavbar({ authenticated = false }: { authenticated?: boolea
 
         <div className="jl-nav-links">
           {LINKS.map((l) => (
-            <a key={l.label} className={l.active ? 'active' : undefined} href={l.href}>
+            <a key={l.label} className={isActive(l.href) ? 'active' : undefined} href={l.href}>
               {l.label}
             </a>
           ))}
         </div>
 
         <div className="jl-nav-actions">
-          <a className="jl-nav-search" href="/jobs" aria-label="Search jobs">
-            <IconSearch size={20} />
-          </a>
           {authenticated ? (
             <a className="jl-btn-solid" href="/dashboard">Go to Dashboard</a>
           ) : (
@@ -78,7 +77,7 @@ export function JobletNavbar({ authenticated = false }: { authenticated?: boolea
           {LINKS.map((l) => (
             <a
               key={l.label}
-              className={l.active ? 'active' : undefined}
+              className={isActive(l.href) ? 'active' : undefined}
               href={l.href}
               onClick={() => setOpen(false)}
             >

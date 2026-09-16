@@ -13,6 +13,7 @@ export const metadata: Metadata = {
     'Generate a concise, professional cover letter built only from your verified profile facts. A built-in truthfulness checker rejects any claim your profile can’t support. Free.',
   openGraph: {
     title: 'Free Cover Letter Writer · Jobiest',
+    images: ['/images/og-card.jpg'],
     description:
       'A truthful cover letter from your verified facts, never invented employers, metrics, or skills. Free to use.',
   },

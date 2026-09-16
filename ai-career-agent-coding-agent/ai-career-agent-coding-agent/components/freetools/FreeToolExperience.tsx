@@ -175,6 +175,15 @@ export function FreeToolExperience({ toolId, signedIn }: { toolId: FreeToolId; s
     track(action === 'copy' ? 'free_tool_copy_clicked' : action === 'download' ? 'free_tool_download_clicked' : 'free_tool_save_clicked');
     if (!result) return;
     if (!signedIn) {
+      // Deterministic (rule-based) tools let anyone copy the result: the value is
+      // the check itself, and blocking Ctrl+C on a machine-generated score is a
+      // dark pattern. Download and save still need a free account.
+      if (tool.deterministic && action === 'copy') {
+        void navigator.clipboard.writeText(result.resultText).catch(() => undefined);
+        setNotice('Copied. Create a free account to download or save results.');
+        track('free_tool_result_unlocked', { action, noAccount: true });
+        return;
+      }
       setPendingAction(action);
       setGateAction(action);
       track('free_tool_auth_gate_shown', { action });
@@ -234,7 +243,7 @@ export function FreeToolExperience({ toolId, signedIn }: { toolId: FreeToolId; s
   return (
     <div className="ft2" data-tool={toolId}>
       <div className="ft2-topline">
-        <span>{stage === 'intro' ? 'Discover' : stage === 'output' ? 'Unlock' : 'AI-guided workflow'}</span>
+        <span>{stage === 'intro' ? 'Free tool' : stage === 'output' ? 'Your result' : `Question ${questionIndex + 1} of ${tool.questions.length}`}</span>
         <b>{percent}%</b>
       </div>
       <div className="ft2-progress"><span style={{ width: `${percent}%` }} /></div>
@@ -279,11 +288,10 @@ export function FreeToolExperience({ toolId, signedIn }: { toolId: FreeToolId; s
 function Intro({ tool, onStart, signedIn }: { tool: FreeToolConfig; onStart: () => void; signedIn: boolean }) {
   return (
     <div className="ft2-card ft2-intro">
-      <span className="mk-kicker">Discover</span>
+      <span className="mk-kicker">Free tool</span>
       <h2>{tool.introTitle}</h2>
       <p>{tool.intro}</p>
-      <div className="ft2-lifecycle"><span>Discover</span><span>Start</span><span>Ask</span><span>Understand</span><span>Generate</span><span>Review</span><span>Unlock</span></div>
-      <div className="ft2-actions left"><button className="btn" onClick={onStart}>Let&apos;s Start</button>{!signedIn && <span className="muted">You can preview first. Copy, download and save unlock after a free account.</span>}</div>
+      <div className="ft2-actions left"><button className="btn" onClick={onStart}>Let&apos;s Start</button>{!signedIn && <span className="muted">{tool.deterministic ? 'The result is yours to copy. Download and save unlock after a free account.' : 'You can preview the full result first. Copy, download and save unlock after a free account.'}</span>}</div>
     </div>
   );
 }
@@ -342,7 +350,7 @@ function ChipInput({ selected, suggestions, onChange }: { selected: string[]; su
 function ReviewStep({ tool, answers, onBack, onGenerate, onEdit, error }: { tool: FreeToolConfig; answers: Answers; onBack: () => void; onGenerate: () => void; onEdit: (index: number) => void; error: string }) {
   return (
     <div className="ft2-card ft2-review">
-      <span className="mk-kicker">Pre-generation review</span>
+      <span className="mk-kicker">Check your answers</span>
       <h2>Here&apos;s what I&apos;ve got.</h2>
       <p className="muted">Review the context before generation so the output does not depend on bad assumptions.</p>
       <div className="ft2-review-list">
@@ -367,10 +375,10 @@ function GeneratingStep({ tool, progressStep }: { tool: FreeToolConfig; progress
 function OutputStep({ tool, result, signedIn, notice, onCopy, onDownload, onSave, onRegenerate, onEdit, onStartOver, onBlockedCopy }: { tool: FreeToolConfig; result: GenerationResult; signedIn: boolean; notice: string; onCopy: () => void; onDownload: () => void; onSave: () => void; onRegenerate: () => void; onEdit: () => void; onStartOver: () => void; onBlockedCopy: () => void }) {
   return (
     <div className="ft2-card ft2-output">
-      <span className="mk-kicker">Review</span>
+      <span className="mk-kicker">Your result</span>
       <h2>{result.title}</h2>
-      {!signedIn && <p className="ft2-lock-note">Preview is available now. Create a free account to copy, download or save this result.</p>}
-      <div className="ft2-result" onCopy={(e) => { if (!signedIn) { e.preventDefault(); onBlockedCopy(); } }}>
+      {!signedIn && <p className="ft2-lock-note">{tool.deterministic ? 'The result is yours to copy. Create a free account to download or save it.' : 'Preview is available now. Create a free account to copy, download or save this result.'}</p>}
+      <div className="ft2-result" onCopy={(e) => { if (!signedIn && !tool.deterministic) { e.preventDefault(); onBlockedCopy(); } }}>
         {result.result.sections.map((section) => <section key={section.heading}><h3>{section.heading}</h3>{section.body && <p style={{ whiteSpace: 'pre-wrap' }}>{section.body}</p>}{section.items?.length ? <ul>{section.items.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul> : null}</section>)}
       </div>
       <div className="ft2-actions left"><button className="btn" onClick={onCopy}>Copy</button><button className="btn secondary" onClick={onDownload}>Download</button><button className="btn secondary" onClick={onSave}>Save</button><button className="btn secondary" onClick={onRegenerate}>Regenerate</button><button className="btn secondary" onClick={onEdit}>Edit</button><button className="btn secondary" onClick={onStartOver}>Start over</button></div>

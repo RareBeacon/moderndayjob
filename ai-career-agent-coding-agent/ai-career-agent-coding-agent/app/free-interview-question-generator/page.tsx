@@ -13,6 +13,7 @@ export const metadata: Metadata = {
     'Paste any job description and get realistic interview practice questions with what each one tests, plus preparation tips. Grounded in what the listing actually states. Free.',
   openGraph: {
     title: 'Free Interview Question Generator · Jobiest',
+    images: ['/images/og-card.jpg'],
     description: 'Realistic practice questions derived from the actual job listing, free to use.',
   },
 };

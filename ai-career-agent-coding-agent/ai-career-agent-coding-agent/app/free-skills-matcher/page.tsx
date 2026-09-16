@@ -13,6 +13,7 @@ export const metadata: Metadata = {
     'Score the jobs in your pool against your real profile with explainable results: fit score, strengths, gaps, and the reasons, not a black box. Free.',
   openGraph: {
     title: 'Free Skills Matcher · Jobiest',
+    images: ['/images/og-card.jpg'],
     description:
       'Explainable job matching: fit scores with the exact reasons, strengths, gaps, and the skills that matter. Free to use.',
   },

@@ -37,7 +37,7 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
   FREE: {
     code: 'FREE',
     name: 'Free',
-    tagline: 'Everything you need to start applying, free forever.',
+    tagline: 'Profile, matching, tracker, and every career tool. No card required.',
     monthlyNgn: 0,
     documentCredits: 0,
     lifetimeDocs: 3,
@@ -46,7 +46,7 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
     toolUses: 10,
     highlight: '₦0 forever',
     features: [
-      '3 AI generations in total, free forever (resume, cover letter, answers)',
+      '3 AI generations in total to try the AI writer (resume, cover letter, answers)',
       'All 10 career tools; 10 uses a day',
       'ATS resume scanner',
       'Job search & match scoring',
@@ -70,7 +70,7 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
     features: [
       'Everything in Free',
       '3 AI generations a day',
-      '2 auto-apply trial uses (agent mode)',
+      '2 agent-mode trial runs (you approve each send)',
       '50 career-tool uses a day',
       'Follow-up email writer',
       'Priority email support',
@@ -92,7 +92,7 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
     features: [
       'Everything in Basic',
       '10 AI generations a day',
-      '10 auto-apply slots a day (agent mode)',
+      '10 agent-mode applications a day, each approved by you',
       'Unlimited career-tool uses',
       'Priority AI processing & faster queue',
       'Salary insights & interview prep unlimited',
@@ -115,9 +115,9 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
     features: [
       'Everything in Premium',
       '20 AI generations a day',
-      '20 auto-apply slots a day (agent mode)',
+      '20 agent-mode applications a day, each approved by you',
       'Unlimited everything',
-      'Human-reviewed applications',
+      'Highest daily volume for heavy application runs',
       'Concierge support & early access',
     ],
     cta: 'Choose Max',

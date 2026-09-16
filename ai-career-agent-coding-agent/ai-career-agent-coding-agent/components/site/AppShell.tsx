@@ -29,21 +29,21 @@ const ICONS = {
 };
 
 const NAV: NavItem[] = [
-  { key: 'dashboard', href: '/dashboard', label: 'Overview', icon: ic(ICONS.home) },
+  { key: 'dashboard', href: '/dashboard', label: 'Today', icon: ic(ICONS.home) },
   { key: 'jobs', href: '/jobs', label: 'Jobs', icon: ic(ICONS.search) },
-  { key: 'match', href: '/match', label: 'Matches', icon: ic(ICONS.target) },
-  { key: 'generate', href: '/generate', label: 'Generate', icon: ic(ICONS.edit) },
+  { key: 'match', href: '/match', label: 'Recommended', icon: ic(ICONS.target) },
+  { key: 'generate', href: '/generate', label: 'Create', icon: ic(ICONS.edit) },
   { key: 'applications', href: '/applications', label: 'Applications', icon: ic(ICONS.layers) },
-  { key: 'documents', href: '/documents', label: 'Documents', icon: ic(ICONS.file) },
+  { key: 'documents', href: '/documents', label: 'My documents', icon: ic(ICONS.file) },
   { key: 'billing', href: '/billing', label: 'Billing', icon: ic(ICONS.card) },
-  { key: 'profile', href: '/profile', label: 'Profile', icon: ic(ICONS.user) },
+  { key: 'profile', href: '/profile', label: 'Career profile', icon: ic(ICONS.user) },
 ];
 
 const BOTTOM: NavItem[] = [
-  { key: 'dashboard', href: '/dashboard', label: 'Home', icon: ic(ICONS.home) },
+  { key: 'dashboard', href: '/dashboard', label: 'Today', icon: ic(ICONS.home) },
   { key: 'jobs', href: '/jobs', label: 'Jobs', icon: ic(ICONS.search) },
-  { key: 'applications', href: '/applications', label: 'Apps', icon: ic(ICONS.layers) },
-  { key: 'generate', href: '/generate', label: 'Make', icon: ic(ICONS.edit) },
+  { key: 'applications', href: '/applications', label: 'Applications', icon: ic(ICONS.layers) },
+  { key: 'generate', href: '/generate', label: 'Create', icon: ic(ICONS.edit) },
 ];
 
 

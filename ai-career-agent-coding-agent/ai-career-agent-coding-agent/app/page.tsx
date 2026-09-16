@@ -4,10 +4,13 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { SITE_URL } from '@/lib/site';
 import { JobletFooter } from '@/components/site/joblet/Footer';
 import { websiteJsonLd, organizationJsonLd, faqJsonLd, jsonLdTag } from '@/lib/seo';
+import { PLANS, PLAN_ORDER } from '@/lib/billing/pricing';
+import { formatNaira } from '@/lib/billing/currency';
 
 export const revalidate = 300;
 
 export const metadata: Metadata = {
+  // Root page titles do not get the layout template suffix, so the brand is included here once.
   title: 'Jobiest - Get more interviews. Not more tabs.',
   description: 'Jobiest is the AI job search agent that finds matching roles, prepares truthful applications, and waits for your approval.',
   alternates: { canonical: SITE_URL },
@@ -80,16 +83,32 @@ const proofCards = [
   { initials: 'OK', role: 'Approval control', quote: 'Keep the final decision with you. The agent prepares the work, but you choose what moves forward.' },
 ];
 
-const plans = [
-  { name: 'Free', price: 'Start free', note: 'Everything to build momentum.', features: ['CV builder and ATS scanner', 'Matching and dashboard', 'Free career tools'], cta: 'Get started free', featured: false },
-  { name: 'Premium', price: 'Upgrade when ready', note: 'For an agent that can keep up.', features: ['More daily AI generations', 'Approved application volume', 'Unlimited career tools'], cta: 'Choose Premium', featured: true },
+const plans = PLAN_ORDER.map((code) => {
+  const plan = PLANS[code];
+  return {
+    name: plan.name,
+    price: plan.monthlyNgn === 0 ? formatNaira(0) : `${formatNaira(plan.monthlyNgn)} / month`,
+    note: plan.tagline,
+    features: plan.features.slice(0, 4),
+    cta: plan.cta,
+    featured: Boolean(plan.featured),
+  };
+});
+
+const featuredTools = [
+  { name: 'ATS Resume Scanner', href: '/free-ats-resume-scanner', tag: 'Deterministic', body: 'Check whether your CV is machine-readable and aligned with a target job.' },
+  { name: 'Cover Letter Writer', href: '/free-cover-letter-writer', tag: 'AI, grounded', body: 'A concise cover letter matched to a real role and your supplied background.' },
+  { name: 'Job Description Analyzer', href: '/free-job-description-analyzer', tag: 'AI, grounded', body: 'Break a listing into requirements, responsibilities, keywords and gaps.' },
+  { name: 'Skills Matcher', href: '/free-skills-matcher', tag: 'AI, grounded', body: 'Compare your real skills to a job description with clear strengths and gaps.' },
+  { name: 'Interview Question Generator', href: '/free-interview-question-generator', tag: 'AI, grounded', body: 'Practice questions and focus notes generated from the actual listing.' },
+  { name: 'Salary Insights', href: '/free-salary-insights', tag: 'Stated pay only', body: 'Only the pay that matching listings explicitly state. Never invented averages.' },
 ];
 
 const faqs = [
   { q: 'Will Jobiest lie on my CV or applications?', a: 'Never. Every CV, cover letter, and answer is generated only from facts you verify. If something is missing or uncertain, Jobiest flags it instead of inventing it.' },
   { q: 'Does it apply to jobs without asking me?', a: 'No. Approval mode keeps you in control. Your agent can prepare the work, but you decide what goes out.' },
   { q: 'Does Jobiest read my inbox?', a: 'No. Jobiest does not need inbox access to help you discover roles, prepare documents, and track applications.' },
-  { q: 'Is it really free to start?', a: 'Yes. You can start with the free workflow and upgrade only when you want more volume.' },
+  { q: 'Is it really free to start?', a: 'Yes. The free plan is permanent and needs no card: 3 AI generations in total to try the AI writer, 10 career-tool uses a day, job matching, and your dashboard. Paid plans add daily volume and agent mode.' },
 ];
 
 function BrandMark() {
@@ -126,10 +145,10 @@ function LandingNav() {
           Jobiest
         </Link>
         <nav className="ja-nav-links" aria-label="Primary navigation">
-          <a href="#how">How it works</a>
-          <a href="#agent">Agent</a>
-          <a href="#pricing">Pricing</a>
-          <a href="/blog">Blog</a>
+          <Link href="/how-it-works">How it works</Link>
+          <Link href="/tools">Free tools</Link>
+          <Link href="/pricing">Pricing</Link>
+          <Link href="/blog">Blog</Link>
         </nav>
         <div className="ja-nav-actions">
           <Link className="ja-login" href="/login">Sign in</Link>
@@ -196,11 +215,11 @@ export default async function HomePage() {
           <div className="ja-container ja-hero-grid">
             <div className="ja-hero-copy">
               <div className="ja-pill" data-animate><span /> Approval mode. Nothing sends without you</div>
-              <h1 data-animate data-animate-delay="60">Get more <span>interviews.</span><br />Not more tabs.</h1>
+              <h1 data-animate data-animate-delay="60">Get more <span>interviews.</span> Not more tabs.</h1>
               <p data-animate data-animate-delay="120">Jobiest finds the roles that fit, prepares truthful applications, and waits for your approval before anything goes out.</p>
               <div className="ja-hero-actions" data-animate data-animate-delay="180">
                 <Link className="ja-btn ja-btn-accent" href="/signup">Get started free <Arrow /></Link>
-                <a className="ja-btn ja-btn-ghost" href="#agent">See the agent in action</a>
+                <Link className="ja-btn ja-btn-ghost" href="/tools">Try a free tool</Link>
               </div>
               <div className="ja-trust-row" data-animate data-animate-delay="240">
                 <span>No credit card</span>
@@ -214,17 +233,33 @@ export default async function HomePage() {
             <div><strong>{roleStat}</strong><span>roles reviewed from verified sources</span></div>
             <div><strong>100%</strong><span>human approval before applications move</span></div>
             <div><strong>0</strong><span>fabricated CV claims by design</span></div>
-            <div><strong>Live</strong><span>systems operational</span></div>
+            {market.sources.length ? (
+              <div><strong>{market.sources.length}</strong><span>verified job sources behind every match</span></div>
+            ) : (
+              <div><strong>10</strong><span>free career tools, no card needed</span></div>
+            )}
           </div>
         </section>
 
-        <section className="ja-section ja-social">
-          <div className="ja-container ja-social-grid">
-            <p data-animate>A better process for people with better things to do.</p>
-            <div className="ja-social-stats" data-animate data-animate-delay="90">
-              <span><b>{roleStat}</b> role scan</span>
-              <span><b>SEO</b> public pages ready</span>
-              <span><b>100%</b> approval control</span>
+        <section className="ja-section" id="tools">
+          <div className="ja-container">
+            <div className="ja-section-head" data-animate>
+              <span>Free career tools</span>
+              <h2>Start with a tool. Stay for the agent.</h2>
+              <p>Ten focused tools for the parts of the search that eat your week. Every result is grounded in the job text you provide or your verified profile facts.</p>
+            </div>
+            <div className="ja-tool-grid">
+              {featuredTools.map((tool, index) => (
+                <Link className="ja-tool-card" href={tool.href} key={tool.href} data-animate data-animate-delay={index * 60}>
+                  <span>{tool.tag}</span>
+                  <h3>{tool.name}</h3>
+                  <p>{tool.body}</p>
+                  <em>Open tool <Arrow /></em>
+                </Link>
+              ))}
+            </div>
+            <div style={{ marginTop: 26 }} data-animate>
+              <Link className="ja-inline" href="/tools">See all 10 free tools <Arrow /></Link>
             </div>
           </div>
         </section>
@@ -267,7 +302,7 @@ export default async function HomePage() {
               <Link className="ja-inline" href="/how-it-works">Explore the workflow <Arrow /></Link>
             </div>
             <div className="ja-recommendation" data-animate data-animate-delay="120">
-              <div className="ja-rec-head"><span>Recommended for you</span><em>updated now</em></div>
+              <div className="ja-rec-head"><span>Your match queue, in preview</span><em>example</em></div>
               {[
                 ['Matched role from verified source', 'Strong profile fit', 'ready to review'],
                 ['Role with useful overlap', 'Relevant skill signal', 'needs your decision'],
@@ -322,14 +357,14 @@ export default async function HomePage() {
         </section>
 
         <section className="ja-section ja-pricing" id="pricing">
-          <div className="ja-container ja-pricing-grid">
+          <div className="ja-container">
             <div className="ja-section-head" data-animate>
               <span>Simple to start</span>
               <h2>Pay when the agent proves it.</h2>
               <p>Start free. Keep your profile, matching, and career tools. Upgrade only when you want more volume.</p>
-              <small>No card. No hidden trial.</small>
+              <small>All prices in Naira (₦) a month. No card to start.</small>
             </div>
-            <div className="ja-plan-grid">
+            <div className="ja-plan-grid ja-plan-grid-4">
               {plans.map((plan, index) => (
                 <article className={plan.featured ? 'ja-plan ja-plan-featured' : 'ja-plan'} data-animate data-animate-delay={index * 80} key={plan.name}>
                   {plan.featured ? <em>Most popular</em> : null}

@@ -13,6 +13,7 @@ export const metadata: Metadata = {
     'Five LinkedIn headline options built from your verified profile facts, role-first, skills-first, and a plain conservative one. Truthfulness-checked. Free.',
   openGraph: {
     title: 'Free LinkedIn Headline Builder · Jobiest',
+    images: ['/images/og-card.jpg'],
     description: 'Headlines from your verified facts, no buzzword stacking, no emojis. Free to use.',
   },
 };

@@ -5,7 +5,7 @@ import { JobletFooter } from '@/components/site/joblet/Footer';
 import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
-  title: 'How Jobiest Works',
+  title: 'How It Works',
   description: 'Three steps between you and a working job agent: build your profile, let the agent source and prepare applications, then approve and track every send.',
   alternates: { canonical: `${SITE_URL}/how-it-works` },
 };

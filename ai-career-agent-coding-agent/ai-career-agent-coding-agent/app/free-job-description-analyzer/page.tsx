@@ -13,6 +13,7 @@ export const metadata: Metadata = {
     'Paste any job description and get a structured breakdown: required skills, keywords, core responsibilities, plus which requirements your profile already matches. Free, truthful, nothing invented.',
   openGraph: {
     title: 'Free Job Description Analyzer · Jobiest',
+    images: ['/images/og-card.jpg'],
     description:
       'Break any job listing into required skills, keywords, and responsibilities, and see what matches your profile. Free to use.',
   },

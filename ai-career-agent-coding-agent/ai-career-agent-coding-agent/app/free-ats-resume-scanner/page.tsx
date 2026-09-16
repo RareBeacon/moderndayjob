@@ -13,6 +13,7 @@ export const metadata: Metadata = {
     'Paste your CV and get an instant parseability score: contact details, sections, dates, action verbs, and keyword match against any job description. Deterministic checks, free, unlimited.',
   openGraph: {
     title: 'Free ATS Resume Scanner · Jobiest',
+    images: ['/images/og-card.jpg'],
     description: 'Instant, deterministic CV parseability scan with optional keyword matching. Free to use.',
   },
 };

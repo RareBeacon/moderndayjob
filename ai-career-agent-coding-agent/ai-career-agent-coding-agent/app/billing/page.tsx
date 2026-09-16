@@ -19,19 +19,19 @@ const PLANS: { code: PaidPlan; name: string; price: string; blurb: string }[] = 
     code: 'BASIC',
     name: 'Basic',
     price: '₦5,000 / month',
-    blurb: '3 AI generations a day and 2 auto-apply trial uses. 50 tool uses a day.',
+    blurb: '3 AI generations a day and 2 agent-mode trial runs. 50 tool uses a day.',
   },
   {
     code: 'PREMIUM',
     name: 'Premium',
     price: '₦10,000 / month',
-    blurb: '10 AI generations and 10 auto-apply slots a day. Unlimited tool uses.',
+    blurb: '10 AI generations and 10 agent-mode applications a day. Unlimited tool uses.',
   },
   {
     code: 'MAX',
     name: 'Max',
     price: '₦20,000 / month',
-    blurb: '20 AI generations and 20 auto-apply slots a day. Human-reviewed applications.',
+    blurb: '20 AI generations and 20 agent-mode applications a day. Concierge support.',
   },
 ];
 

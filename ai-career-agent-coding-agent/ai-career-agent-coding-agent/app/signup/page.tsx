@@ -84,7 +84,7 @@ export default function SignupPage() {
   }
 
   return (
-    <AuthShell title="Create your account" subtitle="One step. Your career profile comes after; when it matters.">
+    <AuthShell title="Create your account" subtitle="One step. Your career profile comes later, when it matters.">
       <form onSubmit={submit} className="auth-form" noValidate>
         {error ? <div className="auth-error" role="alert">{error}</div> : null}
         {notice ? (

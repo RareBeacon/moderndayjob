@@ -1,22 +1,16 @@
 import Link from 'next/link';
-import { headers } from 'next/headers';
 import { getUser } from '@/lib/auth';
 import { JobletNavbar } from '@/components/site/joblet/Navbar';
 import { JobletFooter } from '@/components/site/joblet/Footer';
-import { CurrencyPicker } from '@/components/site/CurrencyPicker';
 import { PLANS, PLAN_ORDER, type PlanCode } from '@/lib/billing/pricing';
-import {
-  SUPPORTED_CURRENCIES,
-  getFxRates,
-  localizePrice,
-  resolveCurrency,
-} from '@/lib/billing/currency';
+import { formatNaira } from '@/lib/billing/currency';
+import { jsonLdTag } from '@/lib/seo';
 import { SITE_URL } from '@/lib/site';
 
 export const metadata = {
-  title: 'Pricing',
+  title: 'Pricing - Free Plan and Paid Plans in Naira',
   description:
-    'Jobiest pricing: free forever, then paid plans for more CVs, cover letters, approved automation and support. No card required to start.',
+    'Jobiest pricing in Naira: a permanent free plan with 3 AI generations to try, then Basic at ₦5,000, Premium at ₦10,000 and Max at ₦20,000 a month for more daily volume. No card required to start.',
   alternates: { canonical: `${SITE_URL}/pricing` },
 };
 
@@ -25,19 +19,23 @@ export const dynamic = 'force-dynamic';
 const PROBLEM_ROWS = [
   ['I do not know if my CV is passing ATS checks', 'ATS Resume Scanner', 'All plans'],
   ['I spend hours writing cover letters for each role', 'Cover Letter Writer', 'All plans, with more daily volume on paid plans'],
-  ['I cannot apply to enough roles to get traction', 'Approved application automation', 'Premium and Max'],
+  ['I cannot apply to enough roles to get traction', 'Agent-mode applications, each approved by you', 'Premium and Max'],
   ['I lose track of where I have applied', 'Application tracker dashboard', 'All plans'],
   ['I need truthful documents, not AI hallucinations', 'Verified-facts generation and truthfulness checks', 'All plans'],
 ];
 
 const FAQ = [
   {
-    q: 'Is the free tier really free, or does it expire?',
-    a: 'It is free forever. You can keep using the free tools and your dashboard. Paid plans add more daily document volume, approved automation, priority processing and support.',
+    q: 'Is the free plan really free, or does it expire?',
+    a: 'The free plan does not expire and needs no card. It includes 3 AI generations in total so you can try the AI writer, plus 10 career-tool uses a day and the full dashboard. Paid plans add daily generation volume and agent mode.',
   },
   {
     q: 'Do I have to let Jobiest send applications without checking them?',
     a: 'No. Approval mode is the default. Nothing sends without you reviewing and confirming it first.',
+  },
+  {
+    q: 'What currency am I billed in?',
+    a: 'All plans are billed in Nigerian Naira (₦). The prices on this page are the prices you pay.',
   },
   {
     q: 'What if I am in a field Jobiest does not specialize in?',
@@ -49,30 +47,48 @@ const FAQ = [
   },
 ];
 
-export default async function PricingPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ currency?: string }>;
-}) {
-  const params = await searchParams;
-  const h = await headers();
-  const ipCountry = h.get('x-vercel-ip-country');
-  const locale = h.get('accept-language');
+/** Product + Offer structured data for the four plans (Google shopping-style rich results). */
+function pricingJsonLd() {
+  const offers = PLAN_ORDER.filter((code) => PLANS[code].monthlyNgn > 0).map((code) => {
+    const plan = PLANS[code];
+    return {
+      '@type': 'Offer',
+      name: `${plan.name} plan`,
+      description: plan.tagline,
+      price: plan.monthlyNgn,
+      priceCurrency: 'NGN',
+      url: `${SITE_URL}/pricing`,
+      availability: 'https://schema.org/InStock',
+      category: 'Subscription',
+    };
+  });
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: 'Jobiest subscription',
+    description:
+      'AI career agent plans: verified-facts documents, match scoring, and agent-mode applications approved by you. Billed monthly in Naira.',
+    brand: { '@type': 'Brand', name: 'Jobiest' },
+    url: `${SITE_URL}/pricing`,
+    offers,
+  };
+}
+
+export default async function PricingPage() {
   const user = await getUser();
-  const currency = resolveCurrency(ipCountry, locale, params.currency);
-  const rates = await getFxRates();
 
   const rows: { label: string; values: Record<PlanCode, string> }[] = [
     {
       label: 'Monthly price',
-      values: Object.fromEntries(PLAN_ORDER.map((code) => {
-        const p = PLANS[code];
-        const price = localizePrice(p.monthlyNgn, currency, rates);
-        return [code, p.monthlyNgn === 0 ? price.formatted : `${price.formatted} / month`];
-      })) as Record<PlanCode, string>,
+      values: Object.fromEntries(
+        PLAN_ORDER.map((code) => {
+          const p = PLANS[code];
+          return [code, p.monthlyNgn === 0 ? formatNaira(0) : `${formatNaira(p.monthlyNgn)} / month`];
+        }),
+      ) as Record<PlanCode, string>,
     },
     { label: 'AI generations', values: { FREE: '3 total', BASIC: '3 / day', PREMIUM: '10 / day', MAX: '20 / day' } },
-    { label: 'Auto-apply slots', values: { FREE: '-', BASIC: '2 total trial uses', PREMIUM: '10 / day', MAX: '20 / day' } },
+    { label: 'Agent-mode applications (you approve each)', values: { FREE: '-', BASIC: '2 total trial runs', PREMIUM: '10 / day', MAX: '20 / day' } },
     { label: 'Free career tools', values: { FREE: '10 / day', BASIC: '50 / day', PREMIUM: 'Unlimited', MAX: 'Unlimited' } },
     { label: 'ATS resume scanner', values: { FREE: 'Included', BASIC: 'Included', PREMIUM: 'Included', MAX: 'Included' } },
     { label: 'Approval-mode workflow', values: { FREE: 'Manual', BASIC: 'Trial', PREMIUM: 'Included', MAX: 'Included' } },
@@ -81,43 +97,15 @@ export default async function PricingPage({
 
   return (
     <div className="jl-page">
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(pricingJsonLd())} />
       <JobletNavbar authenticated={!!user} />
       <main id="main">
         <section className="jl-sec blog-hero">
           <div className="jl-shell">
             <span className="jl-kicker">Pricing</span>
             <h1>Pay for what your search is actually worth.</h1>
-            <p>The free tier is permanent, not a trick to get your card details. Upgrade when the automation proves its value.</p>
-            <CurrencyPicker current={currency} currencies={[...SUPPORTED_CURRENCIES]} />
-            <p className="jl-currency-note">
-              {currency === 'NGN'
-                ? 'Prices shown in Naira (₦).'
-                : `Prices shown in ${currency} as an estimate. Billing is based on Naira pricing.`}
-            </p>
-          </div>
-        </section>
-
-        <section className="jl-sec tint">
-          <div className="jl-shell">
-            <div className="jl-plans four">
-              {PLAN_ORDER.map((code, index) => {
-                const p = PLANS[code];
-                const price = localizePrice(p.monthlyNgn, currency, rates);
-                return (
-                  <div key={code} className={`jl-plan${p.featured ? ' featured' : ''}`} data-animate data-animate-delay={index * 70}>
-                    <h3>{p.name}</h3>
-                    <div className="jl-price">
-                      {p.monthlyNgn === 0 ? price.formatted : <>{price.formatted}<small> /month</small></>}
-                    </div>
-                    {!price.isNgn && p.monthlyNgn > 0 && <div className="jl-price-alt">Estimate: {price.approximate}</div>}
-                    <p className="jl-plan-tag">{p.tagline}</p>
-                    <ul>{p.features.map((f) => <li key={f}><span className="jl-tick">✓</span>{f}</li>)}</ul>
-                    <Link className={`jl-btn-${p.featured ? 'solid' : 'outline'} jl-plan-cta`} href={p.ctaHref} style={{ textAlign: 'center' }}>{p.cta}</Link>
-                  </div>
-                );
-              })}
-            </div>
-            <p className="jl-trial-note center">Start free with no card. Upgrade only when you are ready for more volume and approved automation.</p>
+            <p>The free plan is permanent, not a trick to get your card details. Upgrade when the automation proves its value.</p>
+            <p className="jl-currency-note">All prices in Nigerian Naira (₦). You are billed in Naira.</p>
           </div>
         </section>
 
@@ -133,6 +121,28 @@ export default async function PricingPage({
                 <tbody>{PROBLEM_ROWS.map(([problem, feature, plan]) => <tr key={problem}><td>{problem}</td><td>{feature}</td><td>{plan}</td></tr>)}</tbody>
               </table>
             </div>
+          </div>
+        </section>
+
+        <section className="jl-sec tint">
+          <div className="jl-shell">
+            <div className="jl-plans four">
+              {PLAN_ORDER.map((code, index) => {
+                const p = PLANS[code];
+                return (
+                  <div key={code} className={`jl-plan${p.featured ? ' featured' : ''}`} data-animate data-animate-delay={index * 70}>
+                    <h3>{p.name}</h3>
+                    <div className="jl-price">
+                      {p.monthlyNgn === 0 ? formatNaira(0) : <>{formatNaira(p.monthlyNgn)}<small> /month</small></>}
+                    </div>
+                    <p className="jl-plan-tag">{p.tagline}</p>
+                    <ul>{p.features.map((f) => <li key={f}><span className="jl-tick">✓</span>{f}</li>)}</ul>
+                    <Link className={`jl-btn-${p.featured ? 'solid' : 'outline'} jl-plan-cta`} href={p.ctaHref} style={{ textAlign: 'center' }}>{p.cta}</Link>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="jl-trial-note center">Start free with no card. Upgrade only when you are ready for more volume and approved automation.</p>
           </div>
         </section>
 

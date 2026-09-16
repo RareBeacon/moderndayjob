@@ -20,20 +20,20 @@ const spaceGrotesk = Space_Grotesk({
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: { default: 'Jobiest · your AI career agent', template: '%s · Jobiest' },
+  title: { default: 'Jobiest - your AI career agent', template: '%s - Jobiest' },
   description:
     'Create your professional profile once. Jobiest discovers relevant roles, scores fit, prepares truthful personalized applications from your verified facts, and tracks everything in one dashboard.',
   applicationName: 'Jobiest',
   openGraph: {
     images: ['/images/og-card.jpg'],
-    title: 'Jobiest · your AI career agent',
+    title: 'Jobiest - your AI career agent',
     description:
-      'Find roles, prepare truthful applications, and track every application in one place. Free forever; you stay in control.',
+      'Find roles, prepare truthful applications, and track every application in one place. Start free; you stay in control.',
     url: SITE_URL,
     siteName: 'Jobiest',
     type: 'website',
   },
-  twitter: { card: 'summary_large_image', title: 'Jobiest · your AI career agent', description: 'Your AI career agent. Truthful applications, full tracking, you in control.' },
+  twitter: { card: 'summary_large_image', title: 'Jobiest - your AI career agent', description: 'Your AI career agent. Truthful applications, full tracking, you in control.' },
   robots: { index: true, follow: true },
   verification: { google: 'IFlK-iarS16eAascWNcpjO_H98qhdlIkN_3GfxyBiyk' },
   icons: {
