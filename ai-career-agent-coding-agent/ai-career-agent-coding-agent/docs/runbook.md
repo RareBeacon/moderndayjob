@@ -12,7 +12,7 @@ once; then use it as the checklist for deploys, incidents and backups.
 | Database | Supabase Postgres (project `cbxloutahmalorumaihc`) | RLS on all user tables |
 | Auth | Supabase email/password, server-side sessions | `lib/auth.ts` |
 | Payments | Flutterwave Standard (v3) | `packages/billing/flutterwave.ts` |
-| Background | Worker defined in `render.yaml` (not yet deployed - see §7) | Render |
+| Background | Browser worker, Docker on Render free plan | jobiest-browser-worker.onrender.com |
 
 Environment variables the app requires: `NEXT_PUBLIC_SUPABASE_URL`,
 `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
@@ -83,8 +83,15 @@ Environment variables the app requires: `NEXT_PUBLIC_SUPABASE_URL`,
 
 ## 7. Known gaps (honest list)
 
-- **Worker (`render.yaml`) not deployed** - job scraping runs on-demand from
-  the web dyno. Deploying to Render needs a Render account (free tier works).
+- **Browser worker: deployed** - `jobiest-browser-worker` on Render (free
+  plan, Docker, Frankfurt, https://jobiest-browser-worker.onrender.com).
+  Receives pre-built application payloads over HTTP (shared-secret auth,
+  401 POLICY_RESTRICTED without it), no DB credentials. Deploys are
+  triggered via the Render API at the current `main` commit. Free-plan
+  caveat: it sleeps after 15 min idle; the first request pays a ~30-60s
+  cold start (the web app's apply client has a timeout + failover list to
+  tolerate this). Env wiring: `BROWSER_WORKER_URL` + `BROWSER_WORKER_SECRET`
+  must be set to the same values in Vercel.
 - **No staging environment** - Vercel preview deployments per PR serve this
   role; open the preview URL and run the smoke list from §2 step 4.
 - **Flutterwave live keys not configured** - billing endpoints return

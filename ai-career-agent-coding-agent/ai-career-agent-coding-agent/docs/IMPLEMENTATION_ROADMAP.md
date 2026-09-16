@@ -58,10 +58,10 @@ Statuses: ✅ done · 🟡 partial · ⬜ todo. Supabase migrations present: `00
 - ✅ User-facing credential management: `/api/credentials` (GET/POST/DELETE; keys encrypted at rest, never returned, host-only display, egress allowlist on base_url, max 5 active, soft revoke, audited) + UI at `/profile/ai`.
 - ⬜ Prompt versioning (tracked for post-launch).
 
-## Phase 8, Workers & scheduling 🟡
+## Phase 8, Workers & scheduling ✅ (worker live on Render)
 - ✅ Lease-based agent task lifecycle; idempotent daily discovery enqueue; single pipeline implementation shared by the free production path (Vercel Cron `/api/cron/daily-pipeline`) and the always-on worker.
 - ✅ SSRF-hardened, shared-secret-authenticated browser worker code (isolated Playwright host), healthz + failover client.
-- ⬜ Deploy the browser worker + scheduler to a paid host (blocked on account budget). Auto-submit stays off until then.
+- ✅ Browser worker deployed to Render (free Docker plan, Frankfurt): `jobiest-browser-worker.onrender.com`, healthz + shared-secret gate verified live, deploys via the Render API pinned to `main`. Auto-submit stays behind its kill switch (default off) as designed.
 
 ## Phase 9, Trust, admin, security ✅ (core)
 - ✅ Application event timeline, status transitions, audit log with outcome/request-id/hashed client signals (B-060), admin dashboards (users, credentials, analytics, seo) with PII-safe admin views.
@@ -78,6 +78,6 @@ Statuses: ✅ done · 🟡 partial · ⬜ todo. Supabase migrations present: `00
 - 🟡 Backup/rollback documented in `docs/runbook.md`; the restore drill and a standing staging environment remain open (per-PR Vercel previews serve as staging). Autonomous submission stays off until all gates pass.
 
 ## Deployment
-- Web on Vercel (Next.js). Workers on Render (when budget allows). DB/Auth/Storage on Supabase. Billing on Flutterwave. AI via user-supplied OpenAI-compatible endpoints + optional server Ollama.
+- Web on Vercel (Next.js). Browser worker on Render (free Docker plan, live). DB/Auth/Storage on Supabase. Billing on Flutterwave. AI via user-supplied OpenAI-compatible endpoints + optional server Ollama.
 - Vercel project: `rootDirectory` = `ai-career-agent-coding-agent/ai-career-agent-coding-agent`, `nodeVersion` = `20.x`, Git-linked; pushes to `main` auto-deploy (jobiest.com).
 - Build gate before every deploy: `npm run typecheck` && `npm test` && `npm run build` (typecheck requires `npm ci` first).
