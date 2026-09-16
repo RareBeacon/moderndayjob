@@ -33,6 +33,7 @@ jobs:
 
   release-aab:
     name: Release AAB (Play Store)
+    if: ${{ secrets.ANDROID_KEYSTORE_B64 != '' }}
     runs-on: ubuntu-latest
     defaults:
       run:
