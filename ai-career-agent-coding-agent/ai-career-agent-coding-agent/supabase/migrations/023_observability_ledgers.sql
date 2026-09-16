@@ -59,9 +59,12 @@ create index if not exists audit_logs_user_day on public.audit_logs (user_id, cr
 create index if not exists audit_logs_ip_day   on public.audit_logs (ip_hash, created_at desc);
 
 -- ============================================================================
--- 3) PII-safe admin list view (B-063): email domain instead of email
+-- 3) PII-safe admin list view (B-063): email domain instead of email.
+--    DROP + CREATE (not OR REPLACE): postgres cannot rename a view column
+--    in place, and the email column is being replaced by email_domain.
 -- ============================================================================
-create or replace view public.admin_user_overview as
+drop view if exists public.admin_user_overview;
+create view public.admin_user_overview as
 select
   p.user_id,
   split_part(p.email, '@', 2) as email_domain,
