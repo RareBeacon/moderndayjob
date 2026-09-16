@@ -33,7 +33,11 @@ jobs:
 
   release-aab:
     name: Release AAB (Play Store)
-    if: ${{ secrets.ANDROID_KEYSTORE_B64 != '' }}
+    # `secrets` is not allowed in a job-level if; gate on a repository
+    # variable instead. Set ANDROID_RELEASE_ENABLED=true in
+    # Settings > Secrets and variables > Actions > Variables once the
+    # ANDROID_KEYSTORE_* secrets exist.
+    if: vars.ANDROID_RELEASE_ENABLED == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
