@@ -117,9 +117,54 @@ class _SplashScreen extends StatelessWidget {
   }
 }
 
-/// The Jobiest wordmark as used in the product: the brand's teal "J" tile next
-/// to the product name. (The real launcher/splash artwork is the PNG set taken
-/// from the existing brand assets; this is the in-app text lockup.)
+/// The real Jobiest mark, drawn from the brand artwork's own geometry: the
+/// deep-petrol tile with the teal goal dot breaking out of the top-right
+/// corner (sampled from `assets/images/app-icon.png` — the same art used for
+/// the launcher icon, which is also bundled at full size for future use).
+class JobiestMark extends StatelessWidget {
+  const JobiestMark({super.key, this.size = 44});
+
+  final double size;
+
+  static const Color _tile = Color(0xFF0C2A2E); // artwork ink
+  static const Color _dot = Color(0xFF0AA9A6); // artwork teal
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size * 1.14,
+      height: size * 1.14,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: <Widget>[
+          Positioned(
+            left: 0,
+            bottom: 0,
+            child: Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                color: _tile,
+                borderRadius: BorderRadius.circular(size * 0.26),
+              ),
+            ),
+          ),
+          Positioned(
+            right: 0,
+            top: 0,
+            child: Container(
+              width: size * 0.32,
+              height: size * 0.32,
+              decoration: const BoxDecoration(color: _dot, shape: BoxShape.circle),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The mark plus the product name, as used on the splash and sign-in screens.
 class BrandWordmark extends StatelessWidget {
   const BrandWordmark({super.key, this.light = true});
 
@@ -130,29 +175,13 @@ class BrandWordmark extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: BrandColors.brand,
-            borderRadius: BorderRadius.circular(13),
-          ),
-          alignment: Alignment.center,
-          child: const Text(
-            'J',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
+        const JobiestMark(size: 42),
         const SizedBox(width: 12),
         Text(
           'Jobiest',
           style: TextStyle(
             color: light ? Colors.white : BrandColors.ink,
-            fontSize: 24,
+            fontSize: 25,
             fontWeight: FontWeight.w800,
             letterSpacing: -0.4,
           ),

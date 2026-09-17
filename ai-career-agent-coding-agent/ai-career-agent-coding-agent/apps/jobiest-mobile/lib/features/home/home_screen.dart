@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../app.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/util/formatters.dart';
@@ -94,18 +95,8 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: Row(
           children: <Widget>[
-            Container(
-              width: 26,
-              height: 26,
-              decoration: BoxDecoration(
-                color: BrandColors.brand,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              alignment: Alignment.center,
-              child: const Text('J',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
-            ),
-            const SizedBox(width: 9),
+            const JobiestMark(size: 22),
+            const SizedBox(width: 10),
             const Text('Jobiest'),
           ],
         ),

@@ -164,6 +164,45 @@ material is deliberately not invented; `android/app/build.gradle` reads
 
 ---
 
+## 6b. Update — PR #1 merged, brand assets folded in (2026-09-17, second pass)
+
+* **PR #1 merged** into `main` as merge commit `2130f0e` (technically a
+  squash-by-merge of 6 commits; the branch survives, per repo settings).
+  `main` now carries `apps/jobiest-mobile` (96 files) alongside the untouched
+  website, backend and Capacitor shell.
+* **A second session worked `main` in parallel**: commit `9740171`
+  ("mobile: restart with approved-plan-ready visual implementation plan; code
+  slate wiped clean") added `docs/mobile-flutter-audit.md`,
+  `docs/mobile-implementation-plan.md`, and a scaffold at `apps/mobile_flutter/`
+  — its **real brand assets and pubspec, but no Dart code**. Its audit agrees
+  with this one on the backend surface and the Bearer-auth gap, so the two are
+  complementary rather than conflicting.
+* **Their brand assets are now used by the working app**: Plus Jakarta Sans
+  (5 weights), `jobiest-logo.png`, `jobiest-mark.png`, `app-icon.png` were
+  copied from `apps/mobile_flutter/assets/` into
+  `apps/jobiest-mobile/assets/` (no duplication of the scaffold itself).
+* **Launcher icons regenerated from the real artwork**: legacy
+  `ic_launcher.png` / `ic_launcher_round.png` at 48/72/96/144/192 from
+  `app-icon.png`; adaptive icon rebuilt as `@color/jobiest_icon_ink` +
+  a generated `ic_launcher_foreground.png` (the mark's goal dot, sampled
+  `#0AA9A6` from the artwork) at 108/162/216/324/432, positioned inside the
+  66dp safe zone so no launcher mask clips it. `roundIcon` is now declared.
+* **In-app mark corrected**: the previous placeholder used a teal "J" tile that
+  does not exist in the brand kit. It is replaced by `JobiestMark`, drawn to the
+  artwork's real geometry (petrol tile `#0C2A2E` + teal dot in the top-right),
+  used on the splash, the sign-in screen and the Home app bar.
+* **Typo tokens verified against source**: `app/globals.css` has two `:root`
+  blocks; the later one (line 397+) wins — `--brand: #0ba5a0`, `--ink: #14201f`
+  — which is what the theme already used. The launcher artwork uses the older
+  pair (`#0aa9a6` / `#0C2A2E`); both are recorded in `res/values/colors.xml` so
+  the difference is explicit rather than accidental.
+* Theme now sets `fontFamily: 'PlusJakartaSans'` from the bundled assets (no
+  runtime font fetch).
+* Static verification re-run after the changes: 47 Dart files, all imports
+  resolve, every `app.dart` symbol used elsewhere has its import, `pubspec`
+  asset/font paths all exist, all nine launcher densities present at the
+  expected pixel sizes.
+
 ## 7. Not done / not claimed
 
 * **Google sign-in in the app** — not implemented. The web flow redirects to a
@@ -176,6 +215,12 @@ material is deliberately not invented; `android/app/build.gradle` reads
 * **Billing/payment flows** — the app shows real plan entitlements and links to
   `jobiest.com/billing`; no payment UI was invented.
 * **Device/emulator test run** — impossible here (no emulator, no APK yet).
+* **Planned but not built** (present in the parallel session's plan, deliberately
+  not added as unverifiable code): Google sign-in through the system browser with
+  `jobiest://auth/callback` deep links, QR display for authenticator enrolment
+  (the secret is shown as selectable text today), master-CV PDF upload,
+  share-a-job, `intl` date localisation. Each needs a new dependency and a build
+  run to verify; they are queued behind the first successful APK.
 * **Vercel preview check on PR #1 reports failure (0s)** while the GitHub Actions
   build of the same commit passes. The Vercel log needs their CLI
   (`npx vercel inspect dpl_G2MKxpheQBnsof6Nm1997P2ErCPH --logs`); no Vercel
