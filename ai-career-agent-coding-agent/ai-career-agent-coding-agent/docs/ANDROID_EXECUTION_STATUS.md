@@ -142,6 +142,9 @@ uploads it as the `jobiest-android-apk` artifact.
 
 ### Owner action (either one unblocks the APK)
 
+* **A0 —** Reconnect GitHub in Arena with an account/token that carries the
+  `workflow` scope. (Tokens pasted into chat are not accepted or stored — the
+  connection has to be made through Arena's own GitHub integration.)
 * **A —** Grant the installed GitHub App the *Workflows: Read and write*
   permission (Settings → GitHub Apps → Configure → Repository permissions), then
   tell me; I will push the workflow, watch the run and download the artifact.
