@@ -47,6 +47,8 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: scheme,
       scaffoldBackgroundColor: BrandColors.bg,
+      // Plus Jakarta Sans, bundled in assets/ (the web design system's face).
+      fontFamily: 'PlusJakartaSans',
       splashFactory: InkRipple.splashFactory,
     );
 

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive launcher icon built from the real Jobiest mark: the deep-petrol
+     tile (#0C2A2E, sampled from the brand artwork) with the teal goal dot
+     (#0AA9A6, also sampled from the artwork). The dot sits inside the 66dp
+     safe zone so no launcher mask clips it. -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background>
-        <inset android:drawable="@mipmap/ic_launcher_background" android:inset="16.7%" />
-    </background>
-    <foreground>
-        <inset android:drawable="@mipmap/ic_launcher_foreground" android:inset="16.7%" />
-    </foreground>
+    <background android:drawable="@color/jobiest_icon_ink" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
 </adaptive-icon>
