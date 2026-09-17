@@ -8,6 +8,13 @@ copy step by a maintainer.
 ## Install (one command)
 
 ```bash
+./apps/jobiest-mobile/ci/install-workflow.sh
+```
+
+The script copies the template to `.github/workflows/flutter-android.yml`,
+commits it and pushes. The manual equivalent, if you prefer to see each step:
+
+```bash
 cp apps/jobiest-mobile/ci/flutter-android.workflow.yml .github/workflows/flutter-android.yml
 git add .github/workflows/flutter-android.yml
 git commit -m "ci: build the Flutter Android APK"
