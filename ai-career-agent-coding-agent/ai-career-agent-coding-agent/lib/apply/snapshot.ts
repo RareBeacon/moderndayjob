@@ -137,8 +137,11 @@ export async function verifyApprovalSnapshot(
 export async function verifyApprovalAndRevert(
   userId: string,
   applicationId: string,
+  now: Date = new Date(),
 ): Promise<Verification> {
-  const verification = await verifyApprovalSnapshot(userId, applicationId);
+  // Injectable clock: the 24h approval window is time-based, and tests must
+  // stay deterministic instead of expiring when the real clock moves on.
+  const verification = await verifyApprovalSnapshot(userId, applicationId, now);
   if (verification.ok) return verification;
   // NOTE: applications has no updated_at column (only created_at); the
   // revert update must not reference one or it silently fails.

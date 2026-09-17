@@ -24,6 +24,15 @@ export async function GET() {
     if (error instanceof Error && error.message === 'FORBIDDEN') {
       return Response.json({ error: 'FORBIDDEN' }, { status: 403 });
     }
+    if (error instanceof Error && error.message === 'UNAUTHENTICATED') {
+      return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'MFA_REQUIRED') {
+      return Response.json({ error: 'MFA_REQUIRED' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message.startsWith('ACCOUNT_')) {
+      return Response.json({ error: error.message }, { status: 403 });
+    }
     throw error;
   }
 }
