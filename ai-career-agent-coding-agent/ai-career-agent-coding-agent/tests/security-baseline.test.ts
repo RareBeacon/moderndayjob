@@ -117,6 +117,11 @@ describe('endpoint guard (B-024: deny-by-default route registry)', () => {
     '/api/auth/forgot-password', // rate-limited
     '/api/auth/reset-password', // token-gated, rate-limited
     '/api/client-error', // anonymous-safe: rate-limited, bounded, writes to audit_logs only
+    // Native-client bootstrap for the Android app: returns only the values that
+    // are already public (NEXT_PUBLIC_SUPABASE_URL / ANON KEY, canonical app
+    // URL, support address). No user data, no server secret — see
+    // tests/mobile-config-route.test.ts, which asserts that.
+    '/api/mobile/config',
   ]);
 
   const AUTH_MARKERS = [
