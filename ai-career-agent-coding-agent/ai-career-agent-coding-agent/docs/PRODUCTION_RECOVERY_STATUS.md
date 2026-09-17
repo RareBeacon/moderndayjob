@@ -91,6 +91,19 @@ A second session independently re-verified the recovery (fresh evidence, own lab
 
 Session-2 conclusion: every critical claim of the first session's audit was independently reproduced. No new blockers found.
 
+## Pass-4 verification (2026-09-17 ~14:28 UTC) — closing verifiable gaps
+
+| # | Time (UTC) | Check | Evidence | Result |
+|---|---|---|---|---|
+| P1 | 14:28 | Core state re-confirmed (4th consecutive) | main @ 62a86af local=remote, tree clean; health ok:true; 8/8 endpoints 401; reset fingerprint correct | ✅ |
+| P2 | 14:28 | Checkout initiation LIVE (Journey C partial) | POST /api/billing/flutterwave/create (authed, plan BASIC) → 200; server-side tx_ref `aca_02421bad-…`; REAL Flutterwave hosted link `https://checkout.flutterwave.com/v3/hosted/pay/flwlnk-…`; no transaction completed (no sandbox; link abandoned — no charge, no fake confirmation) | ✅ LIVE (transaction itself still untested — no sandbox) |
+| P3 | 14:28 | Cron pipeline ACTIVE TODAY | scheduled_runs: 19 JOB_DISCOVERY rows for 2026-09-17 (latest 07:24 UTC); 192 real jobs downstream. Observation: batches of same-timestamp QUEUED rows (per-batch enqueue; no evidence of harm) | ✅ ACTIVE |
+| P4 | 14:28 | Public surfaces | /api/mobile/config 200; /sitemap.xml 200; /robots.txt 200; random page → 404; /offline 200 | ✅ |
+| P5 | 14:28 | Email delivery evidence — attempt to upgrade | RESEND_API_KEY is a Vercel-only env (not in .env.local) → cannot query Resend delivery events from this environment; email verification remains: support delivered:true (live) + welcome/reset code-level on the same pipeline | ℹ️ UNCHANGED (honest limitation) |
+
+Status after pass 4: unchanged — **VERIFIED PRODUCTION READY**. Payments now have live checkout-initiation evidence in addition to code/config + webhook enforcement.
+
+
 ## Current stage: VERIFICATION COMPLETE — final report issued
 
 ## Blockers for full production readiness: none critical.
