@@ -140,6 +140,21 @@ uploads it as the `jobiest-android-apk` artifact.
    **cannot write `.github/workflows/**`** (`workflows` permission missing) and
    cannot dispatch workflows (`gh workflow run` → HTTP 403).
 
+### Permission re-probed (evidence)
+
+`git push` of a commit that adds `.github/workflows/flutter-android.yml` was
+attempted again on 2026-09-17 and **rejected with the same message**:
+
+```
+! [remote rejected] arena/01a0aef5-moderndayjob -> arena/01a0aef5-moderndayjob
+  (refusing to allow a GitHub App to create or update workflow
+   `.github/workflows/flutter-android.yml` without `workflows` permission)
+```
+
+(The commit was reverted immediately; nothing partial was left on the remote.) A
+`git push --dry-run` appears to succeed, but it does not exercise the server-side
+workflow check, so it is not evidence — the real push above is.
+
 ### Owner action (either one unblocks the APK)
 
 * **A0 —** Reconnect GitHub in Arena with an account/token that carries the
@@ -164,10 +179,13 @@ material is deliberately not invented; `android/app/build.gradle` reads
 
 ---
 
-## 6b. Update — PR #1 merged, brand assets folded in (2026-09-17, second pass)
+## 6b. Update — PRs #1–#3 merged, brand assets folded in (2026-09-17, second pass)
 
-* **PR #1 merged** into `main` as merge commit `2130f0e` (technically a
-  squash-by-merge of 6 commits; the branch survives, per repo settings).
+* **PR #1 merged** into `main` as merge commit `2130f0e`; **PR #2** (brand
+  assets, launcher icons, typography) as `d7be677`; **PR #3** (workflow trigger
+  path fix) as `187412b`. CI on `main` is green for every merge commit
+  (`35214412792`, `35214811224`, `35215109622` — gitleaks · typecheck ·
+  full vitest suite · `next build`).
   `main` now carries `apps/jobiest-mobile` (96 files) alongside the untouched
   website, backend and Capacitor shell.
 * **A second session worked `main` in parallel**: commit `9740171`
