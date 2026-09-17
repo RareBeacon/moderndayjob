@@ -153,7 +153,7 @@ describe('verifyApprovalAndRevert (B-181)', () => {
     const app = await bindSnapshot();
     m.db.applications = app;
     (m.db.docs as Array<Record<string, unknown>>)[0] = { kind: 'COVER_LETTER', title: 'CL', content: 'Edited after approval' };
-    const v = await verifyApprovalAndRevert('user-1', 'app-1');
+    const v = await verifyApprovalAndRevert('user-1', 'app-1', NOW);
     expect(v).toMatchObject({ ok: false, code: 'APPROVAL_STALE' });
     const revert = m.updates.find((u) => u.table === 'applications' && u.values.status === 'AWAITING_APPROVAL');
     expect(revert).toBeTruthy();
@@ -163,7 +163,7 @@ describe('verifyApprovalAndRevert (B-181)', () => {
   it('does not touch a valid approval', async () => {
     const app = await bindSnapshot();
     m.db.applications = app;
-    const v = await verifyApprovalAndRevert('user-1', 'app-1');
+    const v = await verifyApprovalAndRevert('user-1', 'app-1', NOW);
     expect(v.ok).toBe(true);
     expect(m.updates.filter((u) => u.values.status === 'AWAITING_APPROVAL')).toHaveLength(0);
   });

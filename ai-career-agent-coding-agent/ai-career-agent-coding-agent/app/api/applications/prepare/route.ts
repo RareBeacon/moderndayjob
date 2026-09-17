@@ -16,19 +16,21 @@ function httpStatus(code: string): number {
 /** Start the approval workflow for a job: creates a PREPARING application
  *  (idempotent) without consuming any automation quota. */
 export async function POST(req: Request) {
-  const user = await requireUser({ req: req });
-  const rl = await enforceRateLimit(`application:prepare:${requestIp(req)}:${user.id}`, 12, '1 m');
-  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
-
-  const parsed = body.safeParse(await req.json().catch(() => ({})));
-  if (!parsed.success) return Response.json({ error: 'INVALID_BODY' }, { status: 400 });
-
   try {
+    const user = await requireUser({ req: req });
+    const rl = await enforceRateLimit(`application:prepare:${requestIp(req)}:${user.id}`, 12, '1 m');
+    if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
+    const parsed = body.safeParse(await req.json().catch(() => ({})));
+    if (!parsed.success) return Response.json({ error: 'INVALID_BODY' }, { status: 400 });
+
     const detail = await prepareApplication(user.id, parsed.data.jobId, user.email);
     return Response.json({ application: detail }, { status: 201 });
   } catch (error) {
     if (error instanceof AppActionError) return Response.json({ error: error.code }, { status: httpStatus(error.code) });
     if (error instanceof Error && error.message === 'UNAUTHENTICATED') return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    if (error instanceof Error && error.message === 'MFA_REQUIRED') return Response.json({ error: 'MFA_REQUIRED' }, { status: 401 });
+    if (error instanceof Error && error.message.startsWith('ACCOUNT_')) return Response.json({ error: error.message }, { status: 403 });
     throw error;
   }
 }
