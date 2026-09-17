@@ -24,6 +24,10 @@ export const dynamic = 'force-dynamic';
  *
  * No secret is exposed here: the service-role key, API keys, payment keys and
  * email keys never leave the server.
+ *
+ * Reviewed as intentionally public in `tests/security-baseline.test.ts`
+ * (`PUBLIC_ROUTES`), like `/api/health`: it serves no user data and every value
+ * it returns is already shipped to browsers by the web app.
  */
 export async function GET() {
   const appUrl = env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, '');
