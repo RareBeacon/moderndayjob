@@ -72,6 +72,25 @@ None identified yet.
 | 2026-09-17 ~14:30 | Repo secret scan (664 tracked files): no API keys / private keys / postgres URLs / embedded JWTs / platform tokens; only .env.example tracked; service-role literal absent from tracked files | CLEAN | git ls-files + pattern scan |
 | 2026-09-17 ~14:35 | docs/PRODUCTION_FEATURE_MATRIX.md written (40 features, evidence-based statuses) | DONE | see file |
 
+
+## Independent re-verification (session 2 · 2026-09-17 13:45–14:00 UTC)
+
+A second session independently re-verified the recovery (fresh evidence, own labeled test account `qa2.webtest@jobiest.com`, user `02421bad-0d74-4fe4-8cee-492a0bb5c373`). A duplicate of the 8-route fix was produced in parallel; `git diff` proved all 10 code files byte-identical to origin/main and the duplicate was merged with zero content delta (merge `30f7073`).
+
+| # | Time (UTC) | Check | Evidence | Result |
+|---|---|---|---|---|
+| S1 | 13:20 | Git reconciliation | remote advanced to c04086b (password-reset repair, feature matrix, E2E evidence, CI green ×5 on GitHub incl. c04086b); my 3b24518 code files byte-identical → merged | ✅ MERGED, no content delta |
+| S2 | 13:35 | Gates on merged tree (= c04086b) | tsc --noEmit 0 errors; vitest 69 files / 632 passed / 0 failed; next build ✓ | ✅ PASS |
+| S3 | 13:40 | Live: 8 bug endpoints | all 8 → 401 {"error":"UNAUTHENTICATED"} (was 500) | ✅ VERIFIED LIVE |
+| S4 | 13:40 | Live: c04086b deployed | POST /api/auth/reset-password no-token/no-session → 401 NO_RESET_SESSION (new-code fingerprint); garbage token → 400 INVALID_OR_EXPIRED_LINK; bad body → 400 INVALID_BODY | ✅ DEPLOYED + CORRECT |
+| S5 | 13:44 | Auth E2E (API, real cookie path) | signup: bad email 400, short pw 400, valid 200, duplicate 409; token grant 200; 9 authed APIs 200 (profile/completeness/entitlements/applications/saved-jobs/resume-draft/preferences/credentials/documents); cross-user /api/applications/<uuid> → 404 NOT_FOUND; profile PUT 200 persists (completeness 33%); signout 303 + cookie cleared; REPLAYED pre-signout cookie → 401 (session truly revoked); re-login 200; wrong-pw vs unknown-account byte-identical 400 | ✅ ALL PASS |
+| S6 | 13:50 | Browser E2E (Playwright/Chromium, real UI) | login UI → /dashboard; authed APIs 200 via cookies; UI profile form save → PUT 200, persisted, completeness 33%; jobs search "engineer" → 19 cards, 50 external links, real Spotify Lever URL; logout UI → /; post-logout /api/profile 401, /dashboard → /login, reload stays logged out; /reset-password renders; mobile 375px: 5 pages scrollWidth exactly 375 (zero overflow); 0 page errors. (Two initial FAILs were test-harness bugs: incomplete form fill blocked by correct required-field validation; wrong button selector) | ✅ ALL PASS (e2e-reverify.cjs, e2e-ui-save.cjs) |
+| S7 | 13:55 | DB audit (read-only, Supabase mgmt API SQL) | 41 public tables, 41/41 RLS-enabled, 20 row policies; 192 jobs, 21 profiles, 0 payments rows (confirms no real transaction ever processed) | ✅ PASS |
+| S8 | 13:55 | Infra | Render jobiest-browser-worker active (not suspended); /api/billing/flutterwave/webhook: no-sig 401, fake verif-hash 401, GET 405; verify unauth 401; /api/support invalid bodies → 400 Required | ✅ PASS |
+| S9 | 13:58 | Feature matrix review | docs/PRODUCTION_FEATURE_MATRIX.md: 27 features, statuses evidence-based, partials honestly disclosed (payments code/config-only; admin authed-testing rejected as risk) | ✅ ACCEPTED |
+
+Session-2 conclusion: every critical claim of the first session's audit was independently reproduced. No new blockers found.
+
 ## Current stage: VERIFICATION COMPLETE — final report issued
 
 ## Blockers for full production readiness: none critical.
