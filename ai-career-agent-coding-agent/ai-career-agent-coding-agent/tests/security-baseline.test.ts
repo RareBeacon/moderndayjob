@@ -210,7 +210,17 @@ describe('bundle secret scan (B-003) — runs when .next/static exists (post-bui
   const STATIC_DIR = '.next/static';
 
   it.skipIf(!existsSync(STATIC_DIR))('client bundles contain no secret material', () => {
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+    // The expected anon key must be the one the BUILD consumed, not vitest's
+    // dummy env (vitest.config.ts sets NEXT_PUBLIC_SUPABASE_ANON_KEY to a
+    // placeholder for unit tests). Resolve the real key: process env if it is
+    // an actual JWT (CI), else .env.local (local post-build runs). If neither
+    // yields a key, fail closed (every JWT is flagged).
+    const envKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+    let anonKey = envKey.startsWith('eyJ') ? envKey : '';
+    if (!anonKey && existsSync('.env.local')) {
+      const m = /^NEXT_PUBLIC_SUPABASE_ANON_KEY=(.+)$/m.exec(readFileSync('.env.local', 'utf-8'));
+      if (m && m[1].startsWith('eyJ')) anonKey = m[1].trim();
+    }
     const forbidden: RegExp[] = [
       /sk_live/,
       /sk_test/,
