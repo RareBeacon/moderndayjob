@@ -103,6 +103,19 @@ Session-2 conclusion: every critical claim of the first session's audit was inde
 
 Status after pass 4: unchanged — **VERIFIED PRODUCTION READY**. Payments now have live checkout-initiation evidence in addition to code/config + webhook enforcement.
 
+## Pass-5 full-surface verification (2026-09-17 ~14:43 UTC) — §16 "every page" + free tools
+
+| # | Time (UTC) | Check | Evidence | Result |
+|---|---|---|---|---|
+| Q1 | 14:43 | ALL 47 page routes swept (e2e-full-sweep.cjs) | Desktop 1280: every public page renders (h1 present, 0 console/page errors); all 12 authed pages render logged-in; /login,/signup,/mfa-verify,/onboarding correctly redirect authenticated users to /dashboard | ✅ |
+| Q2 | 14:43 | Mobile 375px — all 27 public routes | Dedicated 375px context: scrollWidth exactly 375 on every page, 0 overflow, 0 page errors (initial run's 29 "OVERFLOW" fails were a harness bug — viewport never resized; corrected run 27/27) | ✅ 27/27 |
+| Q3 | 14:43 | Dead-link crawl | 58 unique internal links collected from all pages, fetched same-origin: 0 dead (no 404/500) | ✅ |
+| Q4 | 14:43 | Admin pages server-side gate | /admin → 404; all 5 /admin/* sub-pages → 307 → /login?next=… (manual-redirect probe); zero admin content reachable anonymously; non-admin path returns AdminForbidden (code-verified) | ✅ |
+| Q5 | 14:43 | Free tools — LIVE generate + architecture truth | POST /api/free-tools/generate (anonymous, resume-summary-generator, honest QA input) → 200 in 1.7s, output grounded strictly in provided input. CODE FINDING (accuracy): free tools are DETERMINISTIC local generators (provider 'jobiest_free_tools_2_local_ai'; generateFreeToolResult dispatches directly, no LLM gateway call) — by design, honestly labeled, and user-facing copy says "free career tools" (no AI claim). Feature matrix corrected. Real LLM (AIGateway) is used by the authed AI features only | ✅ VERIFIED + MATRIX CORRECTED |
+
+Pass-5 conclusion: no new app bugs; 1 documentation-accuracy correction (free tools are deterministic, not LLM). Status unchanged — **VERIFIED PRODUCTION READY**.
+
+
 
 ## Current stage: VERIFICATION COMPLETE — final report issued
 
