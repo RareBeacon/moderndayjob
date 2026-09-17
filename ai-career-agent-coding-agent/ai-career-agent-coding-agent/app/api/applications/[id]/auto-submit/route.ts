@@ -25,7 +25,7 @@ function httpStatus(code: string): number {
  * entitlement, supported site adapter. Idempotent.
  */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const user = await requireUser();
+  const user = await requireUser({ req: req });
   const rl = await enforceRateLimit(`application:autosubmit:${requestIp(req)}:${user.id}`, 10, '1 m');
   if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
 

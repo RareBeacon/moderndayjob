@@ -21,7 +21,7 @@ export const maxDuration = 300;
  * claims. Empty pool → honest empty answer, no credit spent.
  */
 export async function POST(req: Request) {
-  const user = await requireUser().catch(() => null);
+  const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
 
   const rl = await enforceRateLimit(`ai:salary:${requestIp(req)}:${user.id}`, 10, '1 m');

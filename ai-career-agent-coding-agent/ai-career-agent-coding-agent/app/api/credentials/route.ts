@@ -26,8 +26,8 @@ const addBody = z.object({
   api_key: z.string().min(8).max(400),
 });
 
-export async function GET() {
-  const user = await requireUser().catch(() => null);
+export async function GET(req: Request) {
+  const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const { data, error } = await supabaseAdmin
     .from('ai_credentials')
@@ -45,7 +45,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const user = await requireUser().catch(() => null);
+  const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const rate = await enforceRateLimit(`credentials:add:${requestIp(req)}:${user.id}`, 10, '1 h');
   if (!rate.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
@@ -105,7 +105,7 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const user = await requireUser().catch(() => null);
+  const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const rate = await enforceRateLimit(`credentials:delete:${requestIp(req)}:${user.id}`, 20, '1 h');
   if (!rate.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });

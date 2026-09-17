@@ -16,7 +16,7 @@ const body = z.object({
  * parseability. Optional job description adds keyword overlap.
  */
 export async function POST(req: Request) {
-  const user = await requireUser().catch(() => null);
+  const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
 
   const rl = await enforceRateLimit(`ats:scan:${requestIp(req)}:${user.id}`, 20, '1 m');

@@ -24,8 +24,8 @@ function emptyProfile() {
   };
 }
 
-export async function GET() {
-  const user = await requireUser().catch(() => null);
+export async function GET(req: Request) {
+  const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
 
   const [{ data: draft, error: draftError }, { data: profile }, { data: career }] = await Promise.all([
@@ -67,7 +67,7 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
-  const user = await requireUser().catch(() => null);
+  const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const parsed = draftBody.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return NextResponse.json({ error: 'INVALID_BODY', issues: parsed.error.issues }, { status: 400 });

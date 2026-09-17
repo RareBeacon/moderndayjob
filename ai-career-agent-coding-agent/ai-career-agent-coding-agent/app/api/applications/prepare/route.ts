@@ -16,7 +16,7 @@ function httpStatus(code: string): number {
 /** Start the approval workflow for a job: creates a PREPARING application
  *  (idempotent) without consuming any automation quota. */
 export async function POST(req: Request) {
-  const user = await requireUser();
+  const user = await requireUser({ req: req });
   const rl = await enforceRateLimit(`application:prepare:${requestIp(req)}:${user.id}`, 12, '1 m');
   if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
 

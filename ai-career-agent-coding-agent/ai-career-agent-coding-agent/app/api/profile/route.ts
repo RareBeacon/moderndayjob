@@ -4,8 +4,8 @@ import { profileSchema } from '@/lib/schemas/profile';
 import { requireUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
-export async function GET() {
-  const user = await requireUser().catch(() => null);
+export async function GET(req: Request) {
+  const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const [profileRes, careerRes] = await Promise.all([
     supabaseAdmin
@@ -23,7 +23,7 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const user = await requireUser().catch(() => null);
+  const user = await requireUser({ req: request }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
 
   let body;
@@ -72,8 +72,8 @@ export async function PUT(request: Request) {
  * experience, education, projects, links). Does NOT delete the account or the
  * auth-tied `profiles` row, see DECISIONS.md D-003.
  */
-export async function DELETE() {
-  const user = await requireUser().catch(() => null);
+export async function DELETE(req: Request) {
+  const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const { error } = await supabaseAdmin.from('career_profiles').delete().eq('user_id', user.id);
   if (error) return NextResponse.json({ error: 'CAREER_PROFILE_DELETE_FAILED' }, { status: 500 });

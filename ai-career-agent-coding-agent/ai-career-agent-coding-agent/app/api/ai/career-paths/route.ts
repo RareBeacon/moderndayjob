@@ -16,7 +16,7 @@ export const maxDuration = 300;
  * exist in the profile or the draft is rejected + refunded.
  */
 export async function POST(req: Request) {
-  const user = await requireUser().catch(() => null);
+  const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
 
   const rl = await enforceRateLimit(`ai:careerpaths:${requestIp(req)}:${user.id}`, 10, '1 m');

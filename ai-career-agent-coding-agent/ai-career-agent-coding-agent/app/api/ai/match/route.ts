@@ -25,7 +25,7 @@ export const maxDuration = 300;
  * the public route, so provider failure cannot block results.
  */
 export async function POST(req: Request) {
-  const user = await requireUser().catch(() => null);
+  const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const rl = await enforceRateLimit(`ai:match:${requestIp(req)}:${user.id}`, 10, '1 m');
   if (!rl.allowed) return NextResponse.json({ error: 'RATE_LIMITED' }, { status: 429 });

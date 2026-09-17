@@ -12,7 +12,7 @@ function httpStatus(code: string): number {
 
 /** Approve an application that is awaiting approval (gated server-side). */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const user = await requireUser();
+  const user = await requireUser({ req: req });
   const rl = await enforceRateLimit(`application:approve:${requestIp(req)}:${user.id}`, 20, '1 m');
   if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
 

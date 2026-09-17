@@ -61,7 +61,7 @@ export async function POST(req: Request) {
 
   // Logged-in users are attributed automatically (email still taken from
   // the form so anonymous visitors can write on behalf of an account issue).
-  const user = await getUser().catch(() => null);
+  const user = await getUser(req).catch(() => null);
 
   const { error: storeError } = await supabaseAdmin.from('support_messages').insert({
     user_id: user?.id ?? null,

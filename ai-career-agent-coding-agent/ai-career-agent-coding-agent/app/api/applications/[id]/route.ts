@@ -2,8 +2,8 @@ import { requireUser } from '@/lib/auth';
 import { AppActionError, getApplication } from '@/lib/applications/service';
 
 /** Full application detail: row + job + prepared package + audit timeline. */
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const user = await requireUser();
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const user = await requireUser({ req: req });
   const { id } = await params;
   try {
     const detail = await getApplication(user.id, id);

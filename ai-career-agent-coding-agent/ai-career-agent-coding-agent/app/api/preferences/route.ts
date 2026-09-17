@@ -4,8 +4,8 @@ import { preferencesSchema } from '@/lib/schemas/preferences';
 import { requireUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
-export async function GET() {
-  const user = await requireUser().catch(() => null);
+export async function GET(req: Request) {
+  const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const { data } = await supabaseAdmin
     .from('job_preferences')
@@ -16,7 +16,7 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const user = await requireUser().catch(() => null);
+  const user = await requireUser({ req: request }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   let body;
   try {

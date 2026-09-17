@@ -80,7 +80,7 @@ async function buildResumeContent(rawDraft: Record<string, unknown>, templateId?
 }
 
 export async function POST(req: Request) {
-  const user = await requireUser().catch(() => null);
+  const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const rl = await enforceRateLimit(`resume-studio:generate:${requestIp(req)}:${user.id}`, 8, '1 m');
   if (!rl.allowed) return NextResponse.json({ error: 'RATE_LIMITED', message: 'Slow down for a moment, then try again.' }, { status: 429 });

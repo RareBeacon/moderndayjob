@@ -21,7 +21,7 @@ export const maxDuration = 300;
  * the output and refunds the credit (same contract as document generation).
  */
 export async function POST(req: Request) {
-  const user = await requireUser().catch(() => null);
+  const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
 
   const rl = await enforceRateLimit(`ai:profilecopy:${requestIp(req)}:${user.id}`, 10, '1 m');

@@ -22,7 +22,7 @@ const body = z.object({ tx_ref: z.string().trim().min(8).max(120) });
  */
 export async function POST(req: Request) {
   if (!flutterwaveConfigured()) return Response.json({ error: 'BILLING_NOT_CONFIGURED' }, { status: 503 });
-  const user = await requireUser().catch(() => null);
+  const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const rate = await enforceRateLimit(`payment-verify:${requestIp(req)}:${user.id}`, 10, '1 h');
   if (!rate.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });

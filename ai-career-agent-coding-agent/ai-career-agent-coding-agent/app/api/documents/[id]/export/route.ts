@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
  * rendered server-side and streamed as an attachment. No secrets involved.
  */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const user = await requireUser().catch(() => null);
+  const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
 
   const { id } = await params;

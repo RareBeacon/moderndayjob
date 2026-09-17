@@ -7,8 +7,8 @@ import { supabaseAdmin } from '@/lib/supabase';
  * Creation happens with the AI provider layer (Phase 5/7); this read endpoint
  * and the table model are ready for it. SELECT-only by RLS owner policy.
  */
-export async function GET() {
-  const user = await requireUser().catch(() => null);
+export async function GET(req: Request) {
+  const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const { data, error } = await supabaseAdmin
     .from('generated_documents')
