@@ -1,0 +1,6 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  language:
+    # Implicit dynamic -> concrete casts hide real bugs; make them explicit.
+    strict-casts: true
