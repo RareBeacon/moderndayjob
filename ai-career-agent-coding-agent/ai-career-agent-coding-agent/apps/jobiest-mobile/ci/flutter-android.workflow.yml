@@ -16,13 +16,13 @@ on:
     paths:
       - 'ai-career-agent-coding-agent/ai-career-agent-coding-agent/apps/jobiest-mobile/**'
       - 'ai-career-agent-coding-agent/ai-career-agent-coding-agent/app/api/mobile/**'
-      - 'ai-career-agent-coding-agent/ai-career-agent-coding-agent/.github/workflows/flutter-android.yml'
+      - '.github/workflows/flutter-android.yml'
   pull_request:
     branches: ['main']
     paths:
       - 'ai-career-agent-coding-agent/ai-career-agent-coding-agent/apps/jobiest-mobile/**'
       - 'ai-career-agent-coding-agent/ai-career-agent-coding-agent/app/api/mobile/**'
-      - 'ai-career-agent-coding-agent/ai-career-agent-coding-agent/.github/workflows/flutter-android.yml'
+      - '.github/workflows/flutter-android.yml'
 
 env:
   APP_DIR: ai-career-agent-coding-agent/ai-career-agent-coding-agent/apps/jobiest-mobile
