@@ -161,7 +161,6 @@ async function main() {
           collection_date: r.collection_date,
           country: r.country,
           language: r.language,
-          search_intent: r.search_intent,
           search_volume: "Unknown",
           volume_source: "Unknown",
           difficulty: "Unknown",
