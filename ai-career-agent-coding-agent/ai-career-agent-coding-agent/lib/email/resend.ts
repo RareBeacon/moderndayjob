@@ -78,8 +78,33 @@ export async function sendEmailVerificationCode(to: string, code: string, firstN
     ],
     'Your Jobiest verification code',
   );
-  const text = `Your Jobiest verification code is ${code}. It expires in 10 minutes. If you did not expect this, ignore this email. Need help? support@jobiest.com`;
+  const text = `Your Jobiest verification code is ${code}. It expires in 10 minutes. If you did not expect this, ignore this email. If you have any issues or enquiry, you can reach out to us at support@jobiest.com`;
   return sendEmail({ to, subject: 'Your Jobiest verification code', html, text });
+}
+
+/** Signup email verification (branded: 6-digit code cards + one-click link). */
+export async function sendSignupVerificationEmail(
+  to: string,
+  code: string,
+  verifyUrl: string,
+  firstName?: string,
+): Promise<SendEmailResult> {
+  const name = firstName?.trim() || 'there';
+  const html = composeEmail(
+    [
+      emailHero('Verify your email'),
+      emailHeading('Confirm your email address'),
+      emailParagraph(`Hi ${escapeHtmlEmail(name)}, welcome to Jobiest. Enter this code to verify your email address and activate your account:`),
+      emailCodeDisplay(code),
+      emailButton('Verify my email', verifyUrl),
+      emailButtonLinkHint(verifyUrl),
+      emailParagraph('The code expires in 10 minutes and can be used once.', { muted: true }),
+      emailAlert('If you did not create a Jobiest account, you can safely ignore this email.'),
+    ],
+    'Verify your email to activate your Jobiest account',
+  );
+  const text = `Welcome to Jobiest. Verify your email address with this code: ${code} (expires in 10 minutes). Or open: ${verifyUrl} If you did not create an account, ignore this email. If you have any issues or enquiry, you can reach out to us at support@jobiest.com`;
+  return sendEmail({ to, subject: 'Verify your email - Jobiest', html, text });
 }
 
 /** Welcome email (sent once, after the account is verified per product policy).
@@ -88,37 +113,41 @@ export async function sendEmailVerificationCode(to: string, code: string, firstN
  *  replies land in the owner's inbox once MX/forwarding is configured. */
 export async function sendWelcomeEmail(to: string, firstName?: string): Promise<SendEmailResult> {
   const name = firstName?.trim() || 'there';
-  const checklist = [
-    'Discover relevant jobs',
-    'Build your professional CV',
-    'Track every application in one place',
-    'Use AI to assist your job search',
-    'Secure your account with two-factor authentication',
+  const first = name.split(' ')[0];
+  const steps = [
+    'Complete your career profile - it powers your matches, your CV and your applications.',
+    'Review your recommended jobs and save the ones you like.',
+    'Build your first CV in the Resume Studio.',
   ]
     .map((item) => `<div style="padding:4px 0;font-size:14px;color:#333D52;">&#10003;&nbsp; ${item}</div>`)
     .join('');
   const html = composeEmail(
     [
       emailHero('Welcome'),
-      emailHeading(`Welcome to Jobiest, ${escapeHtmlEmail(name)}`),
-      emailParagraph('Your next opportunity is here. Your Jobiest account is ready, and a few small steps will get you the most from it:'),
-      emailParagraph(checklist),
+      emailHeading(`Hello ${escapeHtmlEmail(first)},`),
+      emailParagraph('This is <strong>Philip Opeyemi</strong>, the cofounder and CEO of Jobiest.'),
+      emailParagraph('I want to appreciate you for trusting the platform and creating an account with us. I do not take that lightly. Behind every new account is a person with real ambitions - someone hoping the next opportunity changes something for them and for the people who depend on them. That is exactly the person we built Jobiest for.'),
+      emailParagraph('When we started Jobiest, we kept one promise at the centre of it: <strong>your career deserves an agent of its own</strong>. Jobiest works for you - it finds real, current job openings, helps you build a CV you are proud of, keeps every application organised in one place, and never sends anything to an employer without your explicit approval.'),
+      emailParagraph('You matter here. Not as a number on a dashboard, but as a person we are privileged to serve. Here are three small steps that will make the platform work hardest for you:'),
+      emailParagraph(steps),
       emailButton('Start setting up my account', `${SITE_URL}/help/getting-started`),
-      emailInfoCard('New to Jobiest?', [
-        `Follow the step-by-step guide: <a href="${SITE_URL}/help/getting-started" style="color:#2B5BD7;">Getting started with Jobiest</a>.`,
-        'Your career profile powers everything: jobs, matching, CV and applications.',
-        'Nothing is ever sent to an employer without your approval.',
-      ]),
+      emailParagraph('We are still young and we are building fast. If anything is missing, confusing or broken, tell us - you will reach a real human who cares, and more often than not, that human is me.'),
+      emailParagraph('Thank you for being here. I am genuinely glad you joined.'),
+      emailParagraph('<strong>Thank you.</strong>'),
+      emailParagraph(
+        `<div style="padding-top:6px;font-size:15px;line-height:1.6;color:#1A2233;">Philip Opeyemi<br><span style="font-size:13px;color:#5A6579;">Cofounder &amp; CEO, Jobiest</span></div>`,
+      ),
     ],
-    'Welcome to Jobiest - your next opportunity is here',
+    'A personal welcome from Philip, cofounder and CEO of Jobiest',
   );
-  const text = `Welcome to Jobiest, ${name}. Your account is ready. Start with the guide: ${SITE_URL}/help/getting-started. Discover jobs, build your CV, track applications. Need help? support@jobiest.com`;
+  const text = `Hello ${first},\n\nThis is Philip Opeyemi, the cofounder and CEO of Jobiest.\n\nI want to appreciate you for trusting the platform and creating an account with us. I do not take that lightly. Behind every new account is a person with real ambitions, and that is exactly the person we built Jobiest for. Your career deserves an agent of its own: Jobiest finds real, current job openings, helps you build a CV you are proud of, keeps every application organised, and never contacts an employer without your approval.\n\nStart with these three steps: complete your career profile, review your recommended jobs, and build your first CV in the Resume Studio.\n\nIf anything is missing or broken, tell us - you will reach a real human who cares.\n\nThank you for being here.\n\nThank you.\n\nPhilip Opeyemi\nCofounder & CEO, Jobiest\n\nIf you have any issues or enquiry, you can reach out to us at support@jobiest.com`;
   return sendEmail({
     to,
-    subject: 'Welcome to Jobiest',
+    subject: 'Welcome to Jobiest - a note from our CEO',
     html,
     text,
-    from: 'Philip (Jobiest) <philip@jobiest.com>',
+    from: 'Philip Opeyemi <philip@jobiest.com>',
+    replyTo: 'philip@jobiest.com',
   });
 }
 
@@ -135,7 +164,7 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string): Prom
     ],
     'Reset your Jobiest password',
   );
-  const text = `Reset your Jobiest password: ${resetUrl} (expires shortly; ignore if you did not request it).`;
+  const text = `Reset your Jobiest password: ${resetUrl} (expires shortly; ignore if you did not request it). If you have any issues or enquiry, you can reach out to us at support@jobiest.com`;
   return sendEmail({ to, subject: 'Reset your Jobiest password', html, text });
 }
 
@@ -151,24 +180,27 @@ export async function sendMfaSecurityEmail(
     [
       emailHero('Security'),
       emailHeading(enabled ? 'Two-factor authentication enabled' : 'Two-factor authentication disabled'),
-      emailParagraph(`Hi ${escapeHtmlEmail(name)},`),
+      emailParagraph(`Hello ${escapeHtmlEmail(name)},`),
       emailParagraph(
         enabled
-          ? 'Two-factor authentication is now active on your Jobiest account. You will be asked for a code from your authenticator app when you sign in.'
+          ? 'This is to confirm that you have successfully setup 2FA security on your account.'
           : 'Two-factor authentication was turned off on your Jobiest account. Sign-in now needs only your email and password.',
       ),
+      enabled
+        ? emailParagraph('You will be asked for a code from your authenticator app whenever you sign in. <strong>Thank you.</strong>')
+        : emailAlert('If you did not make this change, <a href="mailto:support@jobiest.com" style="color:#4A3F14;">contact support</a> immediately and change your password.'),
       enabled
         ? emailInfoCard('Keep your codes safe', [
             'Keep your authenticator app on your phone.',
             'Losing the device means losing access; store a backup of your setup key somewhere safe.',
           ])
-        : emailAlert(`If you did not make this change, <a href="mailto:support@jobiest.com" style="color:#4A3F14;">contact support</a> immediately and change your password.`),
+        : emailParagraph('You can review your security settings at any time from your Jobiest account.', { muted: true }),
       emailButton('Review security settings', `${SITE_URL}/settings`),
     ],
     enabled ? 'Two-factor authentication enabled on your Jobiest account' : 'Two-factor authentication disabled on your Jobiest account',
   );
   const text = enabled
-    ? `Two-factor authentication is now enabled on your Jobiest account. You will be asked for an authenticator code at sign-in. Need help? support@jobiest.com`
+    ? `Hello ${name},\n\nThis is to confirm that you have successfully setup 2FA security on your account.\n\nThank you.\n\nIf you have any issues or enquiry, you can reach out to us at support@jobiest.com`
     : `Two-factor authentication was turned off on your Jobiest account. If this was not you, contact support@jobiest.com immediately.`;
   return sendEmail({ to, subject: enabled ? 'Two-factor authentication enabled' : 'Two-factor authentication disabled', html, text });
 }

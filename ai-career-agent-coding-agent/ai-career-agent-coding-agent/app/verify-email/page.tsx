@@ -6,10 +6,14 @@ import { supabaseBrowser } from '@/lib/supabase-browser';
 import { AuthShell } from '@/components/site/AuthShell';
 
 /**
- * Email verification gate for accounts created via Google. The server decides
- * who lands here (google provider + unverified profile); the page collects a
- * 6-digit code, sends new codes on request, and lets the user switch
- * accounts. Password accounts never see this page.
+ * Email verification page. Two modes:
+ *  - Password signups (no session yet): arrive with ?email=… (and, when the
+ *    emailed link was used, ?code=…). Verifies through POST /api/auth/verify
+ *    pre-session, then routes to /login to sign in.
+ *  - Google sign-ins (session exists): the server routes unverified google
+ *    sessions here; verifies through /api/auth/google/verify.
+ * The page collects a 6-digit code, sends new codes on request, and lets the
+ * user switch accounts.
  */
 export default function VerifyEmailPage() {
   const router = useRouter();
@@ -20,10 +24,31 @@ export default function VerifyEmailPage() {
   const [notice, setNotice] = useState('');
   const [cooldown, setCooldown] = useState(0);
   const [checked, setChecked] = useState(false);
+  const [passwordMode, setPasswordMode] = useState(false);
+  const [autoSubmitted, setAutoSubmitted] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     (async () => {
+      const params = new URLSearchParams(window.location.search);
+      const qEmail = params.get('email');
+      const qCode = params.get('code');
+
+      // Password-signup mode: pre-session, verify via /api/auth/verify.
+      if (qEmail && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(qEmail)) {
+        setEmail(qEmail);
+        setPasswordMode(true);
+        setChecked(true);
+        if (qCode && /^\d{6}$/.test(qCode)) {
+          setCode(qCode);
+          setNotice('Verifying the code from your link…');
+        } else {
+          setNotice('Enter the 6-digit code we emailed you. It expires in 10 minutes.');
+        }
+        return;
+      }
+
+      // Google-session mode.
       try {
         const res = await fetch('/api/auth/google/verify');
         if (res.status === 401) {
@@ -57,6 +82,7 @@ export default function VerifyEmailPage() {
     };
   }, []);
 
+
   const confirm = useCallback(async () => {
     if (busy || !/^\d{6}$/.test(code)) {
       if (!/^\d{6}$/.test(code)) setError('Enter the 6-digit code from your email.');
@@ -65,15 +91,26 @@ export default function VerifyEmailPage() {
     setBusy(true);
     setError('');
     try {
-      const res = await fetch('/api/auth/google/verify', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ action: 'confirm', code }),
-      });
+      const res = passwordMode
+        ? await fetch('/api/auth/verify', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ action: 'confirm', email, code }),
+          })
+        : await fetch('/api/auth/google/verify', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ action: 'confirm', code }),
+          });
       const out = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string };
       if (res.ok && out.ok) {
-        router.replace('/dashboard');
-        router.refresh();
+        if (passwordMode) {
+          setNotice('Your email is verified. Taking you to sign in…');
+          router.replace('/login');
+        } else {
+          router.replace('/dashboard');
+          router.refresh();
+        }
         return;
       }
       setError(out.message ?? 'That code did not work. Try again or send a new one.');
@@ -82,18 +119,33 @@ export default function VerifyEmailPage() {
     } finally {
       setBusy(false);
     }
-  }, [busy, code, router]);
+  }, [busy, code, router, email, passwordMode]);
+
+  // One-click verification: when the emailed link carried a valid code, submit
+  // it automatically once (password mode only).
+  useEffect(() => {
+    if (passwordMode && checked && /^\d{6}$/.test(code) && !autoSubmitted) {
+      setAutoSubmitted(true);
+      void confirm();
+    }
+  }, [passwordMode, checked, code, autoSubmitted, confirm]);
 
   const resend = useCallback(async () => {
     if (busy || cooldown > 0) return;
     setBusy(true);
     setError('');
     try {
-      const res = await fetch('/api/auth/google/verify', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ action: 'send' }),
-      });
+      const res = passwordMode
+        ? await fetch('/api/auth/verify', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ action: 'send', email }),
+          })
+        : await fetch('/api/auth/google/verify', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ action: 'send' }),
+          });
       const out = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string };
       if (res.ok && out.ok) {
         setNotice(out.message ?? 'New code sent. It expires in 10 minutes.');
@@ -107,12 +159,12 @@ export default function VerifyEmailPage() {
     } finally {
       setBusy(false);
     }
-  }, [busy, cooldown]);
+  }, [busy, cooldown, email, passwordMode]);
 
   const switchAccount = useCallback(async () => {
-    await supabaseBrowser().auth.signOut().catch(() => {});
+    if (!passwordMode) await supabaseBrowser().auth.signOut().catch(() => {});
     router.replace('/login');
-  }, [router]);
+  }, [router, passwordMode]);
 
   return (
     <AuthShell title="Verify your email" subtitle="One more step to finish setting up your Jobiest account.">

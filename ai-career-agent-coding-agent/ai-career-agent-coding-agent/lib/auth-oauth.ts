@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { env } from './env';
 import { supabaseAdmin } from './supabase';
-import { sendEmailVerificationCode } from './email/resend';
+import { sendEmailVerificationCode, sendSignupVerificationEmail } from './email/resend';
 
 /**
  * Google sign-in email verification gate.
@@ -47,12 +47,15 @@ function hashCode(code: string): string {
 
 export type IssueResult = { sent: boolean; cooldown: boolean; error?: string };
 
-/** Issue (or throttle) a verification code for a google-linked user. */
-export async function issueEmailVerificationCode(user: {
-  id: string;
-  email?: string | null;
-  fullName?: string | null;
-}): Promise<IssueResult> {
+/**
+ * Issue (or throttle) a verification code. `kind` selects the delivery copy:
+ * 'google' (signed-in Google gate) or 'signup' (password account activation,
+ * where the emailed link carries the code for one-click verification).
+ */
+export async function issueEmailVerificationCode(
+  user: { id: string; email?: string | null; fullName?: string | null },
+  opts: { kind?: 'google' | 'signup' } = {},
+): Promise<IssueResult> {
   // Cooldown: an unconsumed code issued seconds ago means do not spam.
   const { data: recent } = await supabaseAdmin
     .from('email_verification_codes')
@@ -77,11 +80,15 @@ export async function issueEmailVerificationCode(user: {
   });
   if (error) return { sent: false, cooldown: false, error: 'CODE_STORE_FAILED' };
 
-  const mail = await sendEmailVerificationCode(
-    user.email ?? '',
-    code,
-    user.fullName ?? undefined,
-  );
+  const mail =
+    opts.kind === 'signup'
+      ? await sendSignupVerificationEmail(
+          user.email ?? '',
+          code,
+          `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://jobiest.com'}/verify-email?email=${encodeURIComponent(user.email ?? '')}&code=${code}`,
+          user.fullName ?? undefined,
+        )
+      : await sendEmailVerificationCode(user.email ?? '', code, user.fullName ?? undefined);
   if (!mail.ok) return { sent: false, cooldown: false, error: mail.error ?? 'EMAIL_FAILED' };
   return { sent: true, cooldown: false };
 }

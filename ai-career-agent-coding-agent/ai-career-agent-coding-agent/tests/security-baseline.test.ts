@@ -114,7 +114,8 @@ describe('endpoint guard (B-024: deny-by-default route registry)', () => {
     '/api/auth/signup', // rate-limited account creation
     '/api/auth/signout', // clears cookies; nothing to protect
     '/api/auth/confirm', // legacy-account repair, gated by prior password proof
-    '/api/auth/forgot-password', // rate-limited
+    '/api/auth/forgot-password',
+    '/api/auth/verify', // rate-limited
     '/api/auth/reset-password', // token-gated, rate-limited
     '/api/client-error', // anonymous-safe: rate-limited, bounded, writes to audit_logs only
     // Native-client bootstrap for the Android app: returns only the values that

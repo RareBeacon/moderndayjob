@@ -59,6 +59,10 @@ ${opts.body}
 /** Branded header with the Jobiest logo (PNG, HTTPS, alt text). */
 export function emailHeader(): string {
   return `<tr><td style="padding:0 0 20px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
+<tr><td style="height:6px;background:${BRAND.gold};font-size:0;line-height:0;">&nbsp;</td></tr>
+<tr><td style="height:3px;background:${BRAND.navy};font-size:0;line-height:0;">&nbsp;</td></tr>
+</table>
 <a href="${SITE_URL}" style="text-decoration:none;">
 <img src="${LOGO_URL}" width="180" height="48" alt="Jobiest" style="display:block;border:0;width:180px;height:48px;max-width:100%;">
 </a>
@@ -121,7 +125,8 @@ export function emailAlert(text: string): string {
 export function emailFooter(supportEmail = 'support@jobiest.com'): string {
   return `<tr><td style="padding:22px 0 8px;border-top:1px solid ${BRAND.line};">
 <div style="font-size:13px;line-height:1.6;color:${BRAND.muted};">
-Need help? Write to <a href="mailto:${supportEmail}" style="color:#2B5BD7;">${supportEmail}</a> and a real person will reply.
+If you have any issues or enquiry, you can reach out to us at
+<a href="mailto:${supportEmail}" style="color:#2B5BD7;">${supportEmail}</a>
 </div>
 <div style="padding-top:10px;font-size:12px;line-height:1.7;color:#8892A6;">
 <strong style="color:${BRAND.navy};">Jobiest</strong> &middot; Your next opportunity is here.<br>
@@ -132,11 +137,19 @@ Need help? Write to <a href="mailto:${supportEmail}" style="color:#2B5BD7;">${su
 </td></tr>`;
 }
 
+/** Subtle brand watermark at the very bottom of every email. */
+export function emailWatermark(): string {
+  return `<tr><td align="center" style="padding:26px 0 6px;">
+<div style="font-size:22px;font-weight:bold;letter-spacing:8px;color:#D7DEEA;">JOBIEST</div>
+<div style="padding-top:6px;font-size:11px;letter-spacing:2px;color:#D7DEEA;">YOUR NEXT OPPORTUNITY IS HERE</div>
+</td></tr>`;
+}
+
 /** Assemble a full branded email from primitives. */
 export function composeEmail(sections: string[], preheader: string): string {
   return emailDocument({
     preheader,
-    body: [emailHeader(), ...sections, emailFooter()].join('\n'),
+    body: [emailHeader(), ...sections, emailFooter(), emailWatermark()].join('\n'),
   });
 }
 

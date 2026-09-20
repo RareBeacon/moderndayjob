@@ -21,18 +21,14 @@ export default function LoginPage() {
     setError('');
     let { error } = await supabaseBrowser().auth.signInWithPassword({ email, password });
 
-    // Legacy accounts created before auto-confirmation: reaching this error
-    // proves the password was correct, so confirm the account and retry.
-    // (New signups are pre-confirmed; this only repairs old ones.)
+    // Unverified accounts: send the owner to the verification page (the code
+    // was emailed at signup; a new one can be requested there). The password
+    // was proven correct to reach this error, but activation now requires
+    // the emailed 6-digit code - never a silent server-side confirm.
     if (error && (error.code === 'email_not_confirmed' || /email not confirmed/i.test(error.message))) {
-      const res = await fetch('/api/auth/confirm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      }).catch(() => null);
-      if (res && res.ok) {
-        ({ error } = await supabaseBrowser().auth.signInWithPassword({ email, password }));
-      }
+      setBusy(false);
+      router.replace(`/verify-email?email=${encodeURIComponent(email)}`);
+      return;
     }
 
     setBusy(false);

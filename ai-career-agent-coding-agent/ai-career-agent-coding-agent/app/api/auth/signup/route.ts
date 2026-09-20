@@ -5,7 +5,7 @@ import { enforceRateLimit, getRedis, requestIp } from '@/lib/rate-limit';
 import { DEVICE_COOKIE, hashSignal, issueDeviceId, readDeviceId } from '@/lib/security/device';
 import { classifyRegistrationRisk, isRegistrationBlocked } from '@/lib/security/risk';
 import { hashIp } from '@/lib/ai/usage';
-import { sendWelcomeEmailOnce } from '@/lib/email/welcome';
+import { issueEmailVerificationCode } from '@/lib/auth-oauth';
 import { countSignupsFromIp, logSecuritySignal, signupRisk } from '@/lib/security/abuse';
 
 function safeShort(value: unknown, max = 180) {
@@ -61,9 +61,10 @@ async function recordSignupAttribution(input: {
  *  - server-issued device cookie + registration-velocity risk score
  *    (hashed IP + device signals; EXTREME velocity is blocked, HIGH is
  *    flagged in the audit trail but allowed so shared devices stay usable);
- *  - admin-API account creation with email_confirm: true, so the account
- *    works the moment it exists (no email round-trip; explicit product
- *    decision: anybody can create an account and operate the platform).
+ *  - admin-API account creation with email_confirm: false - the account is
+ *    activated only after the owner verifies the emailed 6-digit code/link
+ *    (owner directive 2026-09-17: noreply@jobiest.com sends the verification
+ *    code and link; the welcome email follows verification).
  */
 export async function POST(req: Request) {
   const ip = requestIp(req);
@@ -134,7 +135,7 @@ export async function POST(req: Request) {
   const { data, error } = await supabaseAdmin.auth.admin.createUser({
     email,
     password,
-    email_confirm: true,
+    email_confirm: false,
   });
 
   if (error) {
@@ -160,18 +161,20 @@ export async function POST(req: Request) {
     userId: data.user?.id ?? null,
     ipHash,
     outcome: 'allow',
-    meta: { email_confirmed: true, risk, abuseSignals: emailRisk.signals, sourceArticle: attribution.sourceArticle, sourceTool: attribution.sourceTool },
+    meta: { email_confirmed: false, risk, abuseSignals: emailRisk.signals, sourceArticle: attribution.sourceArticle, sourceTool: attribution.sourceTool },
   });
   void recordSignupAttribution({ userId: data.user?.id ?? null, attribution });
-  // Welcome email, once per account (marker-guarded). Password accounts are
-  // confirmed at creation by explicit product decision, so the welcome mail
-  // is correct immediately; google accounts get theirs when they pass the
-  // /verify-email gate.
+  // Verification email (6-digit code + one-click link) from
+  // no-reply@jobiest.com, best-effort: a failed send never blocks signup -
+  // the user can request a new code from /verify-email or the login page.
   if (data.user?.id && data.user.email) {
-    void sendWelcomeEmailOnce(data.user.id, data.user.email);
+    void issueEmailVerificationCode(
+      { id: data.user.id, email: data.user.email, fullName: null },
+      { kind: 'signup' },
+    );
   }
 
-  const res = NextResponse.json({ ok: true, user: { id: data.user?.id ?? null } });
+  const res = NextResponse.json({ ok: true, user: { id: data.user?.id ?? null }, mustVerify: true });
   res.cookies.set(DEVICE_COOKIE, deviceId, {
     httpOnly: true,
     sameSite: 'lax',
