@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation';
 import { getUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { AdminForbidden, AdminShell } from '@/components/site/AdminShell';
-import { getSeoDashboardData } from '@/lib/seo/service';
+import { getSeoDashboardData, getSeoKeywordResearch } from '@/lib/seo/service';
+import { keywordRowView, summarizeKeywordResearch } from '@/lib/seo/keyword-view';
 import { googleOAuthConfigured } from '@/lib/seo/google';
 import { SeoControls } from './SeoControls';
 
@@ -22,6 +23,9 @@ export default async function SeoMissionControlPage() {
 
   const data = await getSeoDashboardData();
   const project = data.project;
+  const keywordResearch = await getSeoKeywordResearch(project?.id ?? null);
+  const keywordViews = keywordResearch.keywords.map(keywordRowView);
+  const keywordSummary = summarizeKeywordResearch(keywordViews);
   const connected = Boolean(project?.google_oauth_ciphertext && project.search_console_property);
   const totals = data.metrics.reduce<{ clicks: number; impressions: number; positionTotal: number; rows: number }>((acc, row) => {
     acc.clicks += Number(row.clicks ?? 0);
@@ -108,12 +112,54 @@ export default async function SeoMissionControlPage() {
               </tbody></table>
             </div>
             <div className="seo-panel">
-              <h2>Keywords</h2>
-              <table className="ad-table"><thead><tr><th>Keyword</th><th>Intent</th><th>Score</th><th>Metrics</th></tr></thead><tbody>
-                {data.keywords.length === 0 && <tr><td colSpan={4} className="ad-empty">No keyword roadmap yet.</td></tr>}
-                {data.keywords.map((k) => <tr key={String(k.id)}><td>{String(k.keyword ?? '-')}</td><td>{String(k.intent ?? '-')}</td><td className="ad-mono">{String(k.opportunity_score ?? 'unavailable')}</td><td>{String(k.metric_source ?? 'unavailable')}</td></tr>)}
-              </tbody></table>
+              <h2>Keyword research summary</h2>
+              {keywordResearch.ready ? (
+                <>
+                  <div className="seo-grid-stats">
+                    <div className="seo-stat"><span>Total keywords</span><strong>{keywordSummary.total}</strong></div>
+                    <div className="seo-stat"><span>Observed</span><strong>{keywordSummary.byConfidence.Observed ?? 0}</strong></div>
+                    <div className="seo-stat"><span>Qualitative</span><strong>{keywordSummary.byConfidence.Qualitative ?? 0}</strong></div>
+                    <div className="seo-stat"><span>Hypothesis</span><strong>{keywordSummary.byConfidence.Hypothesis ?? 0}</strong></div>
+                    <div className="seo-stat"><span>To create</span><strong>{keywordSummary.byOpportunity.Create ?? 0}</strong></div>
+                    <div className="seo-stat"><span>To update</span><strong>{keywordSummary.byOpportunity.Update ?? 0}</strong></div>
+                  </div>
+                  <p className="muted" style={{ marginTop: 10, fontSize: 13 }}>
+                    Sources: Google autocomplete and SERP observation across NG, GB, US, CA.
+                    {!keywordResearch.perMarketSchema
+                      ? ' Migration 028 pending: once applied, each market gets its own row plus structured volume, difficulty and confidence fields.'
+                      : ' Per-market rows active (migration 028 applied).'}
+                    {' '}Volume and difficulty show Unknown because no keyword volume source is accessible; see docs/KEYWORD_RESEARCH.md.
+                  </p>
+                </>
+              ) : (
+                <p className="ad-empty">Keyword data not available: {keywordResearch.error}</p>
+              )}
             </div>
+          </section>
+
+          <section className="seo-panel">
+            <h2>Keyword research database</h2>
+            {keywordResearch.ready && keywordViews.length > 0 ? (
+              <>
+                <table className="ad-table"><thead><tr><th>Keyword</th><th>Intent</th><th>Country</th><th>Volume</th><th>Difficulty</th><th>Confidence</th><th>Research date</th><th>Opportunity</th></tr></thead><tbody>
+                  {keywordViews.slice(0, 120).map((k) => (
+                    <tr key={`${k.keyword}|${k.country}`}>
+                      <td>{k.keyword}</td>
+                      <td><span className="ad-chip">{k.intent}</span></td>
+                      <td className="ad-mono">{k.country || 'Unknown'}</td>
+                      <td className="ad-mono">{k.volume}</td>
+                      <td className="ad-mono">{k.difficulty}</td>
+                      <td>{k.confidence}</td>
+                      <td className="ad-mono">{k.researchDate || 'Unknown'}</td>
+                      <td>{k.opportunity}</td>
+                    </tr>
+                  ))}
+                </tbody></table>
+                {keywordResearch.total > 120 && <p className="muted" style={{ marginTop: 8, fontSize: 13 }}>Showing 120 of {keywordResearch.total} researched keywords.</p>}
+              </>
+            ) : (
+              <p className="ad-empty">{keywordResearch.ready ? 'No keyword research rows yet.' : `Keyword data not available: ${keywordResearch.error}`}</p>
+            )}
           </section>
 
           <section className="seo-panel">

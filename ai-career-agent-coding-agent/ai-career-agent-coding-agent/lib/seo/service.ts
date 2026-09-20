@@ -858,3 +858,41 @@ export async function runSeoDailyLoop() {
   await recordSeoAudit({ projectId: project.id, action: 'SEO_DAILY_LOOP_COMPLETED', targetType: 'project', metadata: report });
   return { skipped: false, report };
 }
+
+export interface SeoKeywordResearchData {
+  keywords: Array<Record<string, unknown>>;
+  total: number;
+  /** True when migration 028 has been applied and per-market columns exist. */
+  perMarketSchema: boolean;
+  ready: boolean;
+  error?: string;
+}
+
+/**
+ * Keyword research database for the A11.1 admin panel. Reads whatever schema
+ * is live: post-028 rows carry structured per-market fields; pre-028 rows
+ * fall back to the legacy columns and the panel maps them honestly.
+ */
+export async function getSeoKeywordResearch(projectId: string | null): Promise<SeoKeywordResearchData> {
+  if (!projectId) return { keywords: [], total: 0, perMarketSchema: false, ready: true };
+  try {
+    const { data, error, count } = await supabaseAdmin
+      .from('seo_keywords')
+      .select('*', { count: 'exact' })
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false })
+      .limit(400);
+    if (error) throw new Error(error.message);
+    const rows = (data ?? []) as Array<Record<string, unknown>>;
+    const perMarketSchema = rows.length > 0 && 'country' in rows[0];
+    return { keywords: rows, total: count ?? rows.length, perMarketSchema, ready: true };
+  } catch (error) {
+    return {
+      keywords: [],
+      total: 0,
+      perMarketSchema: false,
+      ready: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
