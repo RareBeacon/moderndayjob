@@ -40,7 +40,8 @@ function bearerToken(header: string | null): string | null {
 }
 
 function aalFromJwt(token: string): 'aal1' | 'aal2' {
-  // The access token carries an `aal` claim once a factor is enrolled.
+  // The access token always carries an `aal` claim for authenticated
+  // sessions (aal1 for password-only, aal2 once MFA is completed).
   // Signature is verified separately (admin getUser); this only reads it.
   try {
     const payload = token.split('.')[1];
@@ -55,17 +56,40 @@ function aalFromJwt(token: string): 'aal1' | 'aal2' {
 async function bearerAuthContext(token: string): Promise<AuthContext> {
   const { data, error } = await supabaseAdmin.auth.getUser(token);
   if (error || !data?.user) return { user: null, needsMfa: false };
-  // needsMfa only when a factor is enrolled (the claim exists) but the
-  // session has not completed it. No claim = no factors = never gated.
-  let hasAalClaim = false;
-  try {
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString('utf-8')) as { aal?: unknown };
-    hasAalClaim = 'aal' in payload;
-  } catch {
-    hasAalClaim = false;
-  }
-  const needsMfa = hasAalClaim && aalFromJwt(token) !== 'aal2';
+  // Completed-MFA session: never gated.
+  if (aalFromJwt(token) === 'aal2') return { user: data.user, needsMfa: false };
+  // The aal claim is present on EVERY authenticated token (aal1 for plain
+  // password sessions), so it cannot tell enrolled users from plain ones.
+  // Ask the auth server for enrollment truth, mirroring the cookie path's
+  // getAuthenticatorAssuranceLevel nextLevel semantics (2026-09-20 fix:
+  // previously every aal1 Bearer token was wrongly gated with MFA_REQUIRED).
+  const needsMfa = await userHasVerifiedMfaFactor(data.user.id);
   return { user: data.user, needsMfa };
+}
+
+/**
+ * Server-side MFA enrollment truth for the Bearer path. Fail-open on
+ * transport errors, matching the cookie path's policy: a spurious error
+ * must not lock every API client behind a phantom MFA demand.
+ */
+async function userHasVerifiedMfaFactor(userId: string): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `${env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users/${encodeURIComponent(userId)}/factors`,
+      {
+        headers: {
+          apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+        signal: AbortSignal.timeout(4000),
+      },
+    );
+    if (!res.ok) return false;
+    const factors = (await res.json()) as Array<{ status?: string }>;
+    return Array.isArray(factors) && factors.some((f) => f.status === 'verified');
+  } catch {
+    return false;
+  }
 }
 
 export async function getUser(req?: Request) {
