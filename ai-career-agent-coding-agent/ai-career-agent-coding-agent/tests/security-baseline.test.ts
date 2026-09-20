@@ -121,7 +121,6 @@ describe('endpoint guard (B-024: deny-by-default route registry)', () => {
     // are already public (NEXT_PUBLIC_SUPABASE_URL / ANON KEY, canonical app
     // URL, support address). No user data, no server secret — see
     // tests/mobile-config-route.test.ts, which asserts that.
-    '/api/mobile/config',
   ]);
 
   const AUTH_MARKERS = [
