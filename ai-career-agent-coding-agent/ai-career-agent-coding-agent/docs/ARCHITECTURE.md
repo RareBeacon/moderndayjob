@@ -131,6 +131,10 @@ AIService
   +--> FutureProvider
 ```
 
+Runtime provider order (2026-09-20): self-hosted Ollama first, then the
+Cloudflare Workers AI platform fallback (`CLOUDFLARE_*` env, OpenAI-compatible
+endpoint), then the OpenRouter disaster switch, then user-stored credentials.
+
 Tasks:
 - profile extraction
 - user job-target analysis (the user brings the job; there is no listings pool)

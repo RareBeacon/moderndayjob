@@ -56,6 +56,20 @@ function buildOllamaProviders(): AIProvider[] {
   return providers;
 }
 
+/** True when the Cloudflare Workers AI fallback is configured. */
+export function cloudflareConfigured(): boolean {
+  return env.CLOUDFLARE_ACCOUNT_ID.trim().length > 0 && env.CLOUDFLARE_API_TOKEN.trim().length > 0;
+}
+
+/**
+ * Base URL of Cloudflare Workers AI's OpenAI-compatible endpoint. The account
+ * id is embedded in the path (not a secret); the token authenticates as a
+ * Bearer header via the standard httpChat transport.
+ */
+function cloudflareBaseUrl(): string {
+  return `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID.trim()}/ai/v1`;
+}
+
 /** Thrown when a caller waits too long in the concurrency queue. */
 export class AIConcurrencyTimeoutError extends Error {
   constructor() {
@@ -143,8 +157,10 @@ function boundProviders(providers: AIProvider[]): AIProvider[] {
  * Build a gateway for a user. Provider order (ARCHITECTURE §13):
  *   1. Ollama strong model (env-configured, when present)
  *   2. Ollama fallback model (env-configured, when different)
- *   3. the platform OpenRouter fallback (env OPENROUTER_API_KEY, when set)
- *   4. the user's active ai_credentials rows, newest key first
+ *   3. the Cloudflare Workers AI platform fallback (env CLOUDFLARE_ACCOUNT_ID
+ *      + CLOUDFLARE_API_TOKEN, when both are set)
+ *   4. the platform OpenRouter fallback (env OPENROUTER_API_KEY, when set)
+ *   5. the user's active ai_credentials rows, newest key first
  *
  * Credentials are decrypted here (server-only) and never logged.
  * Every base URL (env Ollama AND user-supplied credentials) passes the
@@ -162,11 +178,36 @@ export async function buildGatewayForUser(userId: string): Promise<AIGateway> {
   if (error) throw error;
 
   const ollama = buildOllamaProviders();
-  if ((!creds || creds.length === 0) && ollama.length === 0 && !env.OPENROUTER_API_KEY) throw new AICredentialMissingError();
+  if (
+    (!creds || creds.length === 0) &&
+    ollama.length === 0 &&
+    !cloudflareConfigured() &&
+    !env.OPENROUTER_API_KEY
+  ) {
+    throw new AICredentialMissingError();
+  }
 
   const providers: AIProvider[] = [...ollama];
   let priority = ollama.length;
   let skipped = 0;
+
+  // Cloudflare Workers AI platform fallback: serves inference when the
+  // self-hosted Ollama VM is unavailable, ahead of the OpenRouter disaster
+  // switch. OpenAI-compatible transport, so it reuses httpChat unchanged.
+  if (cloudflareConfigured()) {
+    providers.push(
+      new OpenAICompatProvider(
+        {
+          name: 'cloudflare-platform',
+          model: env.CLOUDFLARE_MODEL,
+          baseUrl: cloudflareBaseUrl(),
+          apiKey: env.CLOUDFLARE_API_TOKEN,
+          priority: priority++,
+        },
+        httpChat,
+      ),
+    );
+  }
 
   // Platform fallback (disaster switch): keeps AI alive if the Ollama VM is
   // unreachable (e.g. host expiry). Last in the chain so self-hosted wins.
@@ -208,7 +249,13 @@ export async function buildGatewayForUser(userId: string): Promise<AIGateway> {
     );
   }
   if (providers.length === 0) throw new AICredentialMissingError();
-  if (skipped > 0 && providers.length === ollama.length && skipped === (creds?.length ?? 0) && !env.OPENROUTER_API_KEY) {
+  if (
+    skipped > 0 &&
+    providers.length === ollama.length &&
+    skipped === (creds?.length ?? 0) &&
+    !cloudflareConfigured() &&
+    !env.OPENROUTER_API_KEY
+  ) {
     throw new AICredentialMissingError();
   }
   return new AIGateway(boundProviders(providers));

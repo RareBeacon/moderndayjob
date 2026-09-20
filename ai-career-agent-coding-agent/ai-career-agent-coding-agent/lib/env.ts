@@ -21,6 +21,13 @@ const schema = z.object({
   // through OpenRouter. Empty (default) changes nothing.
   OPENROUTER_API_KEY: z.string().default(''),
   OPENROUTER_MODEL: z.string().default(''),
+  // Cloudflare Workers AI fallback (2026-09-20): serves inference when the
+  // self-hosted Ollama VM is unavailable, ahead of the OpenRouter disaster
+  // switch. Activated only when both account id and API token are set; empty
+  // (default) changes nothing. Uses Cloudflare's OpenAI-compatible endpoint.
+  CLOUDFLARE_ACCOUNT_ID: z.string().default(''),
+  CLOUDFLARE_API_TOKEN: z.string().default(''),
+  CLOUDFLARE_MODEL: z.string().default('@cf/openai/gpt-oss-120b'),
   // Max concurrent AI provider calls per server instance. Extra requests
   // queue instead of overloading the model host (see lib/ai/server.ts).
   AI_MAX_CONCURRENCY: z.coerce.number().int().min(1).max(128).default(8),
@@ -49,6 +56,9 @@ export const env = schema.parse({
   OLLAMA_API_KEY: process.env.OLLAMA_API_KEY,
   OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
   OPENROUTER_MODEL: process.env.OPENROUTER_MODEL,
+  CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID,
+  CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN,
+  CLOUDFLARE_MODEL: process.env.CLOUDFLARE_MODEL,
   AI_MAX_CONCURRENCY: process.env.AI_MAX_CONCURRENCY,
   RESEND_API_KEY: process.env.RESEND_API_KEY,
   RESEND_FROM: process.env.RESEND_FROM,

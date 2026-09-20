@@ -114,18 +114,24 @@ describe('buildGatewayForUser platform fallback (disaster switch)', () => {
   it('throws AICredentialMissingError with no ollama, no user creds, no platform key', async () => {
     process.env.OPENROUTER_API_KEY = '';
     process.env.OLLAMA_BASE_URL = '';
+    process.env.CLOUDFLARE_ACCOUNT_ID = '';
+    process.env.CLOUDFLARE_API_TOKEN = '';
     try {
       const server = await loadServer();
       await expect(server.buildGatewayForUser('u1')).rejects.toBeInstanceOf(server.AICredentialMissingError);
     } finally {
       delete process.env.OPENROUTER_API_KEY;
       delete process.env.OLLAMA_BASE_URL;
+      delete process.env.CLOUDFLARE_ACCOUNT_ID;
+      delete process.env.CLOUDFLARE_API_TOKEN;
     }
   });
 
   it('builds a gateway from the platform OpenRouter key alone (VM down scenario)', async () => {
     process.env.OPENROUTER_API_KEY = 'sk-test-platform-key';
     process.env.OLLAMA_BASE_URL = '';
+    process.env.CLOUDFLARE_ACCOUNT_ID = '';
+    process.env.CLOUDFLARE_API_TOKEN = '';
     try {
       const server = await loadServer();
       const gw = await server.buildGatewayForUser('u1');
@@ -133,6 +139,77 @@ describe('buildGatewayForUser platform fallback (disaster switch)', () => {
     } finally {
       delete process.env.OPENROUTER_API_KEY;
       delete process.env.OLLAMA_BASE_URL;
+      delete process.env.CLOUDFLARE_ACCOUNT_ID;
+      delete process.env.CLOUDFLARE_API_TOKEN;
+    }
+  });
+
+  it('builds a gateway from Cloudflare Workers AI alone (no ollama, no openrouter)', async () => {
+    process.env.CLOUDFLARE_ACCOUNT_ID = 'test-account-id';
+    process.env.CLOUDFLARE_API_TOKEN = 'cfat-test-token';
+    process.env.OLLAMA_BASE_URL = '';
+    process.env.OPENROUTER_API_KEY = '';
+    try {
+      const server = await loadServer();
+      expect(server.cloudflareConfigured()).toBe(true);
+      const gw = await server.buildGatewayForUser('u1');
+      const providers = (gw as unknown as { providers: { name: string; priority: number }[] }).providers;
+      expect(providers.map((p) => p.name)).toEqual(['cloudflare-platform']);
+    } finally {
+      delete process.env.CLOUDFLARE_ACCOUNT_ID;
+      delete process.env.CLOUDFLARE_API_TOKEN;
+      delete process.env.OLLAMA_BASE_URL;
+      delete process.env.OPENROUTER_API_KEY;
+    }
+  });
+
+  it('is not configured when only one of account id / token is set', async () => {
+    process.env.CLOUDFLARE_ACCOUNT_ID = 'test-account-id';
+    process.env.CLOUDFLARE_API_TOKEN = '';
+    process.env.OPENROUTER_API_KEY = '';
+    process.env.OLLAMA_BASE_URL = '';
+    try {
+      const server = await loadServer();
+      expect(server.cloudflareConfigured()).toBe(false);
+      await expect(server.buildGatewayForUser('u1')).rejects.toBeInstanceOf(server.AICredentialMissingError);
+    } finally {
+      delete process.env.CLOUDFLARE_ACCOUNT_ID;
+      delete process.env.CLOUDFLARE_API_TOKEN;
+      delete process.env.OLLAMA_BASE_URL;
+      delete process.env.OPENROUTER_API_KEY;
+    }
+  });
+
+  it('orders the chain ollama -> cloudflare -> openrouter (platform tiers)', async () => {
+    process.env.OLLAMA_BASE_URL = 'https://ollama.example.test';
+    process.env.OLLAMA_MODEL = 'qwen2.5:7b';
+    process.env.OLLAMA_FALLBACK_MODEL = 'llama3.2:3b';
+    process.env.CLOUDFLARE_ACCOUNT_ID = 'test-account-id';
+    process.env.CLOUDFLARE_API_TOKEN = 'cfat-test-token';
+    process.env.CLOUDFLARE_MODEL = '@cf/openai/gpt-oss-120b';
+    process.env.OPENROUTER_API_KEY = 'sk-test-platform-key';
+    try {
+      const server = await loadServer();
+      const gw = await server.buildGatewayForUser('u1');
+      const providers = (gw as unknown as { providers: { name: string; priority: number; model?: string }[] })
+        .providers;
+      expect(providers.map((p) => p.name)).toEqual([
+        'ollama',
+        'ollama-fallback',
+        'cloudflare-platform',
+        'openrouter-platform',
+      ]);
+      expect(providers.map((p) => p.priority)).toEqual([0, 1, 2, 3]);
+      const cf = providers.find((p) => p.name === 'cloudflare-platform');
+      expect(cf?.model).toBe('@cf/openai/gpt-oss-120b');
+    } finally {
+      delete process.env.OLLAMA_BASE_URL;
+      delete process.env.OLLAMA_MODEL;
+      delete process.env.OLLAMA_FALLBACK_MODEL;
+      delete process.env.CLOUDFLARE_ACCOUNT_ID;
+      delete process.env.CLOUDFLARE_API_TOKEN;
+      delete process.env.CLOUDFLARE_MODEL;
+      delete process.env.OPENROUTER_API_KEY;
     }
   });
 });
