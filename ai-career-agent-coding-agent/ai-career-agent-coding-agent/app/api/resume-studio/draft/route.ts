@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { requireUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { completionForDraft, normalizeStudioDraft, scoreResumeDraft } from '@/lib/resume-studio/draft';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +26,9 @@ function emptyProfile() {
 }
 
 export async function GET(req: Request) {
+  const rl = await enforceRateLimit(`resume-studio:draft:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
 
@@ -67,6 +71,9 @@ export async function GET(req: Request) {
 }
 
 export async function PUT(req: Request) {
+  const rl = await enforceRateLimit(`resume-studio:draft:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const parsed = draftBody.safeParse(await req.json().catch(() => ({})));

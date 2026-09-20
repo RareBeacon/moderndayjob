@@ -8,7 +8,7 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: '*',
         allow: '/',
         // authenticated surfaces and API have no business in an index
-        disallow: ['/api/', '/dashboard', '/onboarding', '/profile', '/documents', '/applications', '/billing', '/jobs', '/match', '/generate', '/admin'],
+        disallow: ['/api/', '/dashboard', '/onboarding', '/profile', '/documents', '/applications', '/billing', '/generate', '/admin'],
       },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,

@@ -103,11 +103,9 @@ Environment variables the app requires: `NEXT_PUBLIC_SUPABASE_URL`,
 
 ## 8. Mobile apps
 
-`apps/mobile` holds the Capacitor shells (Android + iOS) that wrap
-jobiest.com. Building requires Android Studio (free) or Xcode; publishing to
-the stores requires Google Play ($25 once) / Apple Developer ($99/year).
-See `apps/mobile/README.md`. The site is also an installable PWA
-(manifest + service worker + offline page), which needs no store at all.
+Retired 2026-09-17 by owner decision; the product is web-only. The site is an
+installable PWA (manifest + service worker + offline page), which needs no
+store at all.
 
 ## 9. Secrets hygiene
 

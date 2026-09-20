@@ -59,14 +59,14 @@ const STEPS: Array<{
   },
   {
     n: 4,
-    title: 'Explore jobs',
+    title: 'Bring the job you want',
     body: (
       <>
-        <p>Jobiest discovers roles from real company job boards and scores how well each one fits your profile, with a clear reason for every match.</p>
-        <p>Search, filter and track the ones you like from a single dashboard.</p>
+        <p>Jobiest does not post jobs. When you find a role you want, paste the job link and the details, and your agent prepares the whole application.</p>
+        <p>Every application is prepared from your verified facts and tracked in one dashboard.</p>
       </>
     ),
-    cta: { href: '/jobs', label: 'Explore jobs' },
+    cta: { href: '/applications', label: 'Start an application' },
   },
   {
     n: 5,

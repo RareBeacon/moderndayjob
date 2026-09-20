@@ -109,19 +109,13 @@ describe('migration guard (Book IV D1/D2/D6 at source level)', () => {
 describe('endpoint guard (B-024: deny-by-default route registry)', () => {
   /** Intentionally public routes. Every other route needs a server auth marker. */
   const PUBLIC_ROUTES = new Set([
-    '/api/health', // status only, no data
-    '/api/jobs', // public job search, rate-limited
+    '/api/health', // status only, no data, rate-limited
     '/api/auth/signup', // rate-limited account creation
     '/api/auth/signout', // clears cookies; nothing to protect
-    '/api/auth/confirm', // legacy-account repair, gated by prior password proof
     '/api/auth/forgot-password',
     '/api/auth/verify', // rate-limited
     '/api/auth/reset-password', // token-gated, rate-limited
     '/api/client-error', // anonymous-safe: rate-limited, bounded, writes to audit_logs only
-    // Native-client bootstrap for the Android app: returns only the values that
-    // are already public (NEXT_PUBLIC_SUPABASE_URL / ANON KEY, canonical app
-    // URL, support address). No user data, no server secret — see
-    // tests/mobile-config-route.test.ts, which asserts that.
   ]);
 
   const AUTH_MARKERS = [
@@ -148,19 +142,14 @@ describe('endpoint guard (B-024: deny-by-default route registry)', () => {
     expect(unprotected, `routes without a server auth marker: ${unprotected.join(', ')}`).toEqual([]);
   });
 
-  it('high-value routes keep server-side rate limiting', () => {
-    const mustRateLimit = [
-      'app/api/free-tools/generate/route.ts',
-      'app/api/auth/signup/route.ts',
-      'app/api/jobs/route.ts',
-      'app/api/documents/generate/route.ts',
-      'app/api/resume-studio/generate/route.ts',
-      'app/api/ai/resume/route.ts',
-    ];
-    const missing = mustRateLimit.filter(
-      (f) => !readFileSync(f, 'utf-8').includes('enforceRateLimit'),
-    );
-    expect(missing, `rate limiting missing in: ${missing.join(', ')}`).toEqual([]);
+  it('EVERY API route is verified before processing: server-side rate limiting on all of them (2026-09-20 capacity mandate)', () => {
+    // Owner requirement: at 1000-user scale every request must be monitored
+    // and verified before being processed. Auth/allowlist guards above plus
+    // this rule: no route may ship without enforceRateLimit.
+    const files = listFiles(API_DIR).filter((f) => f.endsWith('route.ts'));
+    expect(files.length).toBeGreaterThan(50);
+    const missing = files.filter((f) => !readFileSync(f, 'utf-8').includes('enforceRateLimit'));
+    expect(missing, `routes without rate limiting: ${missing.join(', ')}`).toEqual([]);
   });
 });
 

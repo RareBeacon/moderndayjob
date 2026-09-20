@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { supabaseAdmin } from '@/lib/supabase';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
 /**
  * Tally form webhook. Fail closed:
@@ -12,6 +13,9 @@ import { supabaseAdmin } from '@/lib/supabase';
 const MAX_BODY_BYTES = 256 * 1024;
 
 export async function POST(req: Request) {
+  const rl = await enforceRateLimit(`tally:webhook:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   const secret = process.env.TALLY_WEBHOOK_SECRET;
   if (!secret) return new Response('not configured', { status: 503 });
 

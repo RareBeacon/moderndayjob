@@ -42,7 +42,7 @@ const GROUPS: { title: string; blurb: string; tools: { name: string; href: strin
     tools: [
       { name: 'Job Description Analyzer', href: '/free-job-description-analyzer', outcome: 'Break a listing into requirements, responsibilities, keywords and gaps.', note: 'Structured' },
       { name: 'Skills Matcher', href: '/free-skills-matcher', outcome: 'Compare your real skills to a job description with clear strengths and gaps.', note: 'Honest gaps' },
-      { name: 'Salary Insights', href: '/free-salary-insights', outcome: 'Only the pay that matching listings explicitly state. Never invented averages.', note: 'Stated pay only' },
+      { name: 'Salary Insights', href: '/free-salary-insights', outcome: 'Only the pay that your pasted listing explicitly states. Never invented averages.', note: 'Stated pay only' },
       { name: 'Career Path Explorer', href: '/free-career-path-explorer', outcome: 'Realistic career directions based on the skills you actually have.', note: 'Practical next steps' },
     ],
   },

@@ -21,9 +21,9 @@ function greetingForHour(hour: number): string {
 
 /**
  * Dashboard, the one clear home for a signed-in user. A greeting, one primary
- * action (Find jobs for me), honest counts from the database, drafts awaiting
- * approval, and the next step; nothing else. Job discovery lives at /jobs
- * and /match; this page never dumps the raw pool.
+ * action (Start an application), honest counts from the database, drafts
+ * awaiting approval, and the next step; nothing else. Users bring the jobs
+ * they want; this page never dumps a listings pool.
  */
 export default async function Dashboard() {
   const user = await requireUser();
@@ -75,7 +75,7 @@ export default async function Dashboard() {
   const suggestions: { text: string; href: string }[] = [];
   if (completeness.percent < 100) suggestions.push({ text: `Finish your profile, ${completeness.percent}% complete for stronger matches.`, href: '/profile' });
   if ((applicationCount ?? 0) === 0) suggestions.push({ text: 'Track your first application to start your history.', href: '/applications' });
-  if (entitlement.automation_enabled) suggestions.push({ text: 'Agent mode is on for your plan; review matches to begin.', href: '/match' });
+  if (entitlement.automation_enabled) suggestions.push({ text: 'Agent mode is on for your plan; bring a job link to begin.', href: '/applications' });
   if (suggestions.length === 0) suggestions.push({ text: 'Refresh your CV and run an ATS check for your next role.', href: '/generate' });
 
   return (
@@ -88,10 +88,9 @@ export default async function Dashboard() {
       <header className="dd-head">
         <span className="dd-over">Dashboard</span>
         <h1>{greeting}, {firstName}.</h1>
-        <p>Let&apos;s find your next opportunity.</p>
+        <p>Let&apos;s get your next application moving.</p>
         <div className="dd-cta-row">
-          <Link className="btn" href="/match">Find jobs for me</Link>
-          <Link className="inline-link" href="/jobs">or browse all jobs →</Link>
+          <Link className="btn" href="/applications">Start an application</Link>
         </div>
         <span className="dd-meta">Plan · {entitlement.plan} · {quotaLine}</span>
       </header>
@@ -127,13 +126,14 @@ export default async function Dashboard() {
             </section>
           )}
 
-          <section className="dd-sec" aria-label="Recommended jobs">
-            <span className="dd-over">Recommended jobs</span>
+          <section className="dd-sec" aria-label="Your next application">
+            <span className="dd-over">Your next application</span>
             <div className="dd-empty">
               <p className="muted">
-                Your matches are computed from your profile; job pools change daily, so we score them fresh on every run.
+                Bring the job you want as a link or a description. Your agent prepares a truthful,
+                tailored package and you approve every send.
               </p>
-              <Link className="inline-link" href="/match">Run matching →</Link>
+              <Link className="inline-link" href="/applications">Start an application →</Link>
             </div>
           </section>
         </div>

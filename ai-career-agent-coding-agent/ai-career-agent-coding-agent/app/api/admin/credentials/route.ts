@@ -2,6 +2,7 @@ import { requireUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { encryptSecret } from '@packages/security/crypto';
 import { z } from 'zod';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
 /* Admin-only management of per-user encrypted AI provider keys.
  * - POST   : add a new encrypted credential (insert-only, key_version 1).
@@ -44,6 +45,9 @@ function handleError(error: unknown): Response {
 }
 
 export async function POST(req: Request) {
+  const rl = await enforceRateLimit(`admin:credentials:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   try {
     const admin = await requireAdmin();
     const b = addBody.parse(await req.json());
@@ -71,6 +75,9 @@ export async function POST(req: Request) {
 }
 
 export async function PATCH(req: Request) {
+  const rl = await enforceRateLimit(`admin:credentials:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   try {
     const admin = await requireAdmin();
     const b = actionBody.parse(await req.json());

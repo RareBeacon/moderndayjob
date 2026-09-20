@@ -38,7 +38,7 @@ export default function OfflinePage() {
         </div>
         <h1 style={{ fontSize: 26, margin: '0 0 10px' }}>You are offline</h1>
         <p style={{ opacity: 0.85, lineHeight: 1.6, margin: '0 0 22px' }}>
-          Jobiest needs a connection to load your dashboard and job pool. Everything you did is saved. Reconnect and try again.
+          Jobiest needs a connection to load your dashboard and applications. Everything you did is saved. Reconnect and try again.
         </p>
         <Link
           href="/"

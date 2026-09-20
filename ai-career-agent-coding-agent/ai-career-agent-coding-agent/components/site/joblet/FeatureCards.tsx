@@ -12,9 +12,9 @@ const CARDS = [
   {
     icon: IconSearch,
     color: 'var(--jl-blue)',
-    title: 'Find Jobs',
-    body: 'Explore thousands of job opportunities across various industries.',
-    href: '/jobs',
+    title: 'Bring the Job',
+    body: 'Paste a job link you want. Your agent prepares the whole application.',
+    href: '/applications',
   },
   {
     icon: IconDocument,
@@ -33,9 +33,9 @@ const CARDS = [
   {
     icon: IconBuilding,
     color: 'var(--jl-gold)',
-    title: 'For Employers',
-    body: 'Post jobs, find top talent and grow your team.',
-    href: '/signup',
+    title: '10 Free Tools',
+    body: 'CV scanner, cover letter writer, interview prep and more. No card needed.',
+    href: '/tools',
   },
   {
     icon: IconGradCap,
@@ -63,7 +63,7 @@ export function JobletFeatureCards() {
               className="jl-feature"
               href={c.href}
               key={c.title}
-              id={c.title === 'For Employers' ? 'employers' : undefined}
+              id={c.title === '10 Free Tools' ? 'tools' : undefined}
               data-animate
               data-animate-delay={i * 60}
             >

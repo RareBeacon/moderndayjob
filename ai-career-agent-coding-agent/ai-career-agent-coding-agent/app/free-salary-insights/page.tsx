@@ -64,7 +64,7 @@ export default async function FreeSalaryInsightsPage() {
               </details>
               <details>
                 <summary>Which listings do you read?</summary>
-                <p>The newest listings in your job pool whose title matches the role you enter, up to 20 per run, each result citing the listing it came from.</p>
+                <p>The listings you paste. Bring one or more job postings that mention pay and I report only the ranges they explicitly state, each result citing the listing it came from.</p>
               </details>
             </div>
           </div>

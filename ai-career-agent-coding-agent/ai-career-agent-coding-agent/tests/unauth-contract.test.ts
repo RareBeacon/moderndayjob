@@ -72,7 +72,7 @@ describe('unauthenticated callers receive 401, never 500', () => {
 
   it('GET /api/admin/users maps UNAUTHENTICATED to 401 (not 500)', async () => {
     requireUser.mockRejectedValue(new Error('UNAUTHENTICATED'));
-    const res = await getAdminUsers();
+    const res = await getAdminUsers(req('http://localhost/api/admin/users'));
     expect(res.status).toBe(401);
     expect(await res.json()).toEqual({ error: 'UNAUTHENTICATED' });
   });

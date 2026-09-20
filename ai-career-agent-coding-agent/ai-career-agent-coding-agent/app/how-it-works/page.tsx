@@ -6,7 +6,7 @@ import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'How It Works',
-  description: 'Three steps between you and a working job agent: build your profile, let the agent source and prepare applications, then approve and track every send.',
+  description: 'Three steps between you and a working job agent: build your profile, bring the jobs you want, then approve and track every send.',
   alternates: { canonical: `${SITE_URL}/how-it-works` },
 };
 
@@ -22,18 +22,18 @@ const STEPS = [
   },
   {
     title: 'Let the agent work',
-    sub: 'Sourcing, scoring, and writing run in the background.',
+    sub: 'You bring the job. Preparation runs in the background.',
     body: [
-      'The moment your profile is live, your agent starts working. It pulls listings from verified sources like Greenhouse, Ashby, and Lever, then scores each listing against your profile.',
-      'The score looks at role fit, skills overlap, location and remote preference, and seniority signals. Low-quality noise is filtered before it reaches your dashboard.',
-      'For strong matches, Jobiest prepares a tailored CV and role-specific cover letter built entirely from your verified facts. No filler. No invented credentials.',
+      'Jobiest does not post jobs and does not run a listings board. When you find a role you want, you bring it: paste the job link, and optionally the job description.',
+      'Your agent studies the role against your profile: required skills, responsibilities, and how your verified experience lines up. Honest gaps are flagged, never papered over.',
+      'The agent then prepares a tailored CV and a role-specific cover letter built entirely from your verified facts. No filler. No invented credentials.',
     ],
   },
   {
     title: 'Approve and track',
     sub: 'You are always the one who decides what gets sent.',
     body: [
-      'Every prepared application arrives in your dashboard with a preview. You read the CV, the cover letter, and the job listing. If it looks right, you approve it. If something feels off, you skip it or edit first.',
+      'Every prepared application arrives in your dashboard with a preview. You read the CV, the cover letter, and the job details you brought. If it looks right, you approve it. If something feels off, you skip it or edit first.',
       'After submission, your dashboard tracks every application so you always know where you stand.',
     ],
   },
@@ -67,7 +67,7 @@ export default function HowItWorksPage() {
           <div className="jl-shell pastor-response">
             <span className="jl-kicker">See it in action</span>
             <h2>Start free and complete your profile today.</h2>
-            <p>Your matches and tools become useful as soon as the platform knows your verified facts.</p>
+            <p>Your applications and tools become useful as soon as the platform knows your verified facts.</p>
             <Link className="jl-btn-solid" href="/signup">Get Started Free</Link>
           </div>
         </section>

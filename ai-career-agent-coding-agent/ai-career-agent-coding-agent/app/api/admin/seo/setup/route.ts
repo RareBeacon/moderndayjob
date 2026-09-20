@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { requireAdminUser, adminErrorResponse } from '@/lib/admin';
 import { ensureSeoProject, getSeoDashboardData, selectSeoProperty, setSeoPaused } from '@/lib/seo/service';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
 const postBody = z.object({
   property: z.string().min(3).max(300),
@@ -12,7 +13,10 @@ const patchBody = z.object({
   mode: z.enum(['DRAFT', 'AUTONOMOUS']).optional(),
 });
 
-export async function GET() {
+export async function GET(req: Request) {
+  const rl = await enforceRateLimit(`admin:seo:setup:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   try {
     await requireAdminUser();
     return Response.json(await getSeoDashboardData());
@@ -22,6 +26,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const rl = await enforceRateLimit(`admin:seo:setup:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   try {
     const admin = await requireAdminUser();
     const project = await ensureSeoProject();
@@ -35,6 +42,9 @@ export async function POST(req: Request) {
 }
 
 export async function PATCH(req: Request) {
+  const rl = await enforceRateLimit(`admin:seo:setup:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   try {
     const admin = await requireAdminUser();
     const project = await ensureSeoProject();

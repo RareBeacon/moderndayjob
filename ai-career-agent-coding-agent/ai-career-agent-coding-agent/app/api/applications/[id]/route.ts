@@ -1,8 +1,12 @@
 import { requireUser } from '@/lib/auth';
 import { AppActionError, getApplication } from '@/lib/applications/service';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
 /** Full application detail: row + job + prepared package + audit timeline. */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const rl = await enforceRateLimit(`applications:id:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   try {
     const user = await requireUser({ req: req });
     const { id } = await params;

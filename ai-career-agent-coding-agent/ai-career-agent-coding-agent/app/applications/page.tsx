@@ -138,6 +138,8 @@ export default function Applications() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [openForm, setOpenForm] = useState(false);
   const [formMsg, setFormMsg] = useState('');
+  const [openTarget, setOpenTarget] = useState(false);
+  const [targetMsg, setTargetMsg] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ text: string; err: boolean } | null>(null);
   const [automationEnabled, setAutomationEnabled] = useState(false);
@@ -255,6 +257,40 @@ export default function Applications() {
     load();
   }
 
+  async function startApplication(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setBusy('target');
+    setTargetMsg('');
+    const f = new FormData(e.currentTarget);
+    const r = await fetch('/api/applications/target', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        url: f.get('url'),
+        title: f.get('title'),
+        company: f.get('company'),
+        location: f.get('location') || undefined,
+        description: f.get('description') || undefined,
+      }),
+    });
+    setBusy(null);
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      setTargetMsg(
+        j.error === 'RATE_LIMITED' ? 'You are doing that a bit fast. Wait a moment and try again.' :
+        j.error === 'INVALID_JOB_URL' ? 'That link is not a public job posting URL. Use the full https link to the job.' :
+        j.error === 'INVALID_BODY' ? 'Add the job link, role title and company, then try again.' :
+        'We could not start that application. Check the link and try again.'
+      );
+      return;
+    }
+    const j = await r.json();
+    setTargetMsg('Application started. Open it below to generate your CV and cover letter, then approve it.');
+    (e.currentTarget as HTMLFormElement).reset();
+    await load();
+    if (j.application?.id) openDetail(j.application.id);
+  }
+
   const st = detail?.application.status;
 
   return (
@@ -263,11 +299,11 @@ export default function Applications() {
         <p className="eyebrow">APPLICATIONS</p>
         <h1>Every application, in context.</h1>
         <p>
-          Prepare an application for a matched job, review the generated package, approve it, and track
-          every step; with a full audit trail. Nothing is ever submitted without your approval.
+          Bring a job you want as a link or a description, let your agent prepare the package, approve
+          it, and track every step; with a full audit trail. Nothing is ever submitted without your approval.
         </p>
         <div className="app-actions" style={{ marginTop: 0 }}>
-          <a className="btn" href="/match">Prepare from a match</a>
+          <button className="btn" onClick={() => setOpenTarget((v) => !v)}>{openTarget ? 'Close' : 'Start an application'}</button>
           <button className="btn-ghost" onClick={() => setOpenForm((v) => !v)}>{openForm ? 'Close form' : 'Track an application'}</button>
         </div>
         <p className="muted" style={{ marginTop: 12, fontSize: 13 }}>
@@ -280,6 +316,17 @@ export default function Applications() {
             </button>
           )}
         </p>
+        {openTarget && (
+          <form className="form-stack track-form" onSubmit={startApplication}>
+            <label>Job link<input name="url" type="url" required placeholder="https://boards.greenhouse.io/… / any job posting link" /></label>
+            <label>Role title<input name="title" required placeholder="Role title" /></label>
+            <label>Company<input name="company" required placeholder="Company name" /></label>
+            <label>Location (optional)<input name="location" placeholder="City, country or remote" /></label>
+            <label>Job description (optional, improves tailoring)<textarea name="description" rows={5} placeholder="Paste the job description text if you have it" /></label>
+            <button className="btn" disabled={busy !== null}>{busy === 'target' ? 'Starting…' : 'Start my application'}</button>
+          </form>
+        )}
+        {targetMsg && <p className="form-status">{targetMsg}</p>}
         {openForm && (
           <form className="form-stack track-form" onSubmit={track}>
             <label>Company<input name="company" required placeholder="Company name" /></label>
@@ -303,8 +350,8 @@ export default function Applications() {
           <article className="card">
             <h2>No applications tracked yet.</h2>
             <p className="muted">
-              Head to Matches, score your job pool, and press “Prepare application” on a job you like ; 
-              then generate a CV or cover letter and approve it here.
+              Press “Start an application” and paste a job link you want. Your agent prepares the
+              package; you review it, generate a CV or cover letter, and approve it here.
             </p>
           </article>
         ) : (

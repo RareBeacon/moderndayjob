@@ -81,7 +81,7 @@ export default function Billing() {
         <article className="card">
           <p className="eyebrow">FREE</p>
           <h2>₦0</h2>
-          <p className="muted">3 AI generations in total, free forever. All 10 career tools (10 uses a day), job matching and tracking.</p>
+          <p className="muted">3 AI generations in total, free forever. All 10 career tools (10 uses a day), the application agent and tracking.</p>
           <strong>Your career workspace stays yours.</strong>
         </article>
         {PLANS.map((p) => (

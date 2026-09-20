@@ -3,8 +3,12 @@ import type { ZodError } from 'zod';
 import { profileSchema } from '@/lib/schemas/profile';
 import { requireUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
 export async function GET(req: Request) {
+  const rl = await enforceRateLimit(`profile:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const [profileRes, careerRes] = await Promise.all([
@@ -23,6 +27,9 @@ export async function GET(req: Request) {
 }
 
 export async function PUT(request: Request) {
+  const rl = await enforceRateLimit(`profile:${requestIp(request)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   const user = await requireUser({ req: request }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
 
@@ -73,6 +80,9 @@ export async function PUT(request: Request) {
  * auth-tied `profiles` row, see DECISIONS.md D-003.
  */
 export async function DELETE(req: Request) {
+  const rl = await enforceRateLimit(`profile:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const { error } = await supabaseAdmin.from('career_profiles').delete().eq('user_id', user.id);

@@ -1,6 +1,7 @@
 import { requireUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { z } from 'zod';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
 /* Admin-only "sign out everywhere": revokes every live session for the target
  * user via Supabase Auth admin. Combined with suspend/terminate this closes
@@ -8,6 +9,9 @@ import { z } from 'zod';
 const body = z.object({ userId: z.string().uuid() });
 
 export async function POST(req: Request) {
+  const rl = await enforceRateLimit(`admin:users:signout:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   try {
     const admin = await requireUser().catch(() => null);
     if (!admin) return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });

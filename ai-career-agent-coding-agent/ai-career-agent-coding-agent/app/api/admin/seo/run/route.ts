@@ -14,6 +14,7 @@ import {
   syncStrategicSeoContent,
   verifySitemapAndRobots,
 } from '@/lib/seo/service';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
 const body = z.discriminatedUnion('action', [
   z.object({ action: z.literal('INITIAL_AUDIT') }),
@@ -30,6 +31,9 @@ const body = z.discriminatedUnion('action', [
 ]);
 
 export async function POST(req: Request) {
+  const rl = await enforceRateLimit(`admin:seo:run:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   try {
     const admin = await requireAdminUser();
     const project = await ensureSeoProject();

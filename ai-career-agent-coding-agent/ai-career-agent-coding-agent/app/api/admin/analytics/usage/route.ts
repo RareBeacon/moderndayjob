@@ -1,5 +1,6 @@
 import { requireAdminUser, adminErrorResponse } from '@/lib/admin';
 import { supabaseAdmin } from '@/lib/supabase';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
 /**
  * GET /api/admin/analytics/usage - AI usage / cost dashboard data (B-061/B-063).
@@ -17,7 +18,10 @@ interface UsageRow {
   user_id: string | null;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const rl = await enforceRateLimit(`admin:analytics:usage:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   try {
     await requireAdminUser();
     const since = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();

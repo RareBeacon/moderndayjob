@@ -1,5 +1,6 @@
 import { requireUser } from '../../../../lib/auth';
 import { supabaseAdmin } from '../../../../lib/supabase';
+import { enforceRateLimit, requestIp } from '../../../../lib/rate-limit';
 
 /** Resolve the admin and reject non-admins with FORBIDDEN (403), matching the
  *  other admin routes. requireUser() throws 'UNAUTHENTICATED' when there is
@@ -12,7 +13,10 @@ async function admin() {
 }
 
 /** List all users through the admin_user_overview security view (RLS-gated). */
-export async function GET() {
+export async function GET(req: Request) {
+  const rl = await enforceRateLimit(`admin:users:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   try {
     await admin();
     const { data } = await supabaseAdmin

@@ -20,9 +20,9 @@ export default function TermsPage() {
 
       <h2>1. The Service</h2>
       <p>
-        Jobiest is an AI-powered career agent. It discovers job listings, scores how well they match
-        your profile, generates CVs and cover letters grounded only in the facts you provide, and,
-        with your explicit approval at every step, can submit applications on your behalf. Nothing
+        Jobiest is an AI-powered career agent. You bring the roles you want as links or descriptions;
+        it generates CVs and cover letters grounded only in the facts you provide, and, with your
+        explicit approval at every step, can submit applications on your behalf. Nothing
         is fabricated on your behalf, and no application is ever submitted without your approval.
       </p>
 

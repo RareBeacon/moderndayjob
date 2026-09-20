@@ -14,3 +14,12 @@
 .workflow-section, .tools-section, .pricing-section, .faq-section{scroll-margin-top:104px}
 
 .page{box-sizing:border-box}
+
+/* Static agent-steps panel (replaces the retired interactive walkthrough demo) */
+.agent-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;border:1px solid #e1c25d;border-radius:12px;background:white;box-shadow:0 8px 28px #4e43191c;padding:24px}
+.agent-steps>div{background:#fbfaf3;border:1px solid #efe3ac;border-radius:9px;padding:22px 20px;display:flex;flex-direction:column;gap:9px}
+.agent-steps h3{font-size:1.0625rem;line-height:1.35;letter-spacing:-.02em}
+.agent-steps p{font-size:.875rem;line-height:1.7;color:#637087}
+.agent-steps .step-number{color:#8a6d1f;margin-bottom:2px}
+.source-pill{font-size:.8125rem;font-weight:600;letter-spacing:.02em;color:#4d5a70}
+@media(max-width:900px){.agent-steps{grid-template-columns:1fr}}

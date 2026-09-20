@@ -1,23 +1,23 @@
 import http from 'node:http';
 import { supabaseAdmin } from '../../lib/supabase';
 import { claimTasks, completeTask, failTask, processAgentTask, type AgentTask } from '../../lib/agent/pipeline';
-import { defaultAdapters } from '../../lib/jobsources/boards';
-import { supabaseJobStore } from '../../lib/jobsources/store';
 
 /**
  * Always-on agent worker (optional, local dev / a future paid host).
  * Production runs the same logic daily via Vercel Cron:
  * /api/cron/daily-pipeline. Both use lib/agent/pipeline.
+ *
+ * Scope note (2026-09-20): discovery/ingestion was retired. This worker now
+ * only drains application tasks for the autopilot apply agent.
  */
 
 const POLL_MS = 5000;
-const deps = { db: supabaseAdmin, adapters: defaultAdapters(), store: supabaseJobStore };
 
 async function tick() {
   const tasks = await claimTasks(supabaseAdmin, 5, 120);
   for (const task of tasks as AgentTask[]) {
     try {
-      const { status, result } = await processAgentTask(task, deps);
+      const { status, result } = await processAgentTask(task);
       await completeTask(supabaseAdmin, task, status, result);
     } catch (error) { await failTask(supabaseAdmin, task, error) }
   }

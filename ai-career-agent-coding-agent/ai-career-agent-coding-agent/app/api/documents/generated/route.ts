@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
 /**
  * Lists the user's immutable, versioned generated documents.
@@ -8,6 +9,9 @@ import { supabaseAdmin } from '@/lib/supabase';
  * and the table model are ready for it. SELECT-only by RLS owner policy.
  */
 export async function GET(req: Request) {
+  const rl = await enforceRateLimit(`documents:generated:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const { data, error } = await supabaseAdmin

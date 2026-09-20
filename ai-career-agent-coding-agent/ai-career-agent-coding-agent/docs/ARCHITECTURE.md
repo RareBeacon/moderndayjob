@@ -133,7 +133,7 @@ AIService
 
 Tasks:
 - profile extraction
-- job matching
+- user job-target analysis (the user brings the job; there is no listings pool)
 - CV tailoring
 - cover letter
 - application answers
@@ -167,7 +167,6 @@ Future:
 Cron
  ↓
 Queue
- ├── Discovery workers
  ├── AI workers
  ├── Application workers
  └── Email workers
@@ -207,10 +206,9 @@ Client-side observability: unhandled errors hit `app/error.tsx`, which reports
 action `CLIENT_ERROR` for weekly review (`docs/runbook.md` §5).
 
 Delivery surfaces: the web app (jobiest.com) is also an installable PWA
-(manifest + service worker with offline fallback page, `public/sw.js`), and
-`apps/mobile` provides Capacitor 6 shells for Android/iOS that render the
-same site in a hardened WebView (native splash + status bar; product updates
-ship with the web deploy, no store review).
+(manifest + service worker with offline fallback page, `public/sw.js`).
+(The Capacitor mobile shells were retired on 2026-09-17 by owner decision;
+the product is web-only.)
 
 ## 12. Scaling Path
 
@@ -221,7 +219,8 @@ Vercel + Supabase.
 Dedicated queue/worker.
 
 ### V3
-Separate job discovery, AI, browser, and email workers.
+Separate AI, browser, and email workers. (Job discovery workers were retired
+with the listings feature on 2026-09-20; users bring their own job targets.)
 
 ### V4
 Provider abstraction and paid/fallback AI providers.
@@ -231,7 +230,6 @@ Provider abstraction and paid/fallback AI providers.
 Each external dependency is isolated.
 
 If:
-- one job source fails → other sources continue.
 - A user AI provider fails → next provider in the gateway.
 - one application fails → other applications continue.
 - browser crashes → application returns to retryable state.

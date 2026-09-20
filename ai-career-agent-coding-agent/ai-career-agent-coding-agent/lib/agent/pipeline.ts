@@ -1,11 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '../supabase';
-import { defaultAdapters } from '../jobsources/boards';
-import { runIngestion, type IngestReport, type JobStore } from '../jobsources/ingest';
-import { supabaseJobStore } from '../jobsources/store';
-import { loadRegistryAdapters, recordSourceOutcome } from '../jobsources/registry';
-import { defaultFetchImpl } from '../jobsources/types';
-import type { SourceAdapter } from '../jobsources/types';
 import { processApplicationTask } from '../apply/task';
 
 /**
@@ -13,6 +7,12 @@ import { processApplicationTask } from '../apply/task';
  * Used by BOTH the always-on worker (workers/agent, local/dev or a future
  * paid host) and the free production path (Vercel Cron →
  * /api/cron/daily-pipeline). Same semantics, one implementation.
+ *
+ * Scope note (2026-09-20, owner decision): Jobiest does not offer job
+ * listings. The shared jobs pool ingestion, the job browser, and match
+ * scoring were removed. This pipeline now only drains application tasks
+ * (the autopilot apply agent). Legacy JOB_DISCOVERY tasks are completed as
+ * no-ops so old queue rows can never block the drain loop.
  */
 
 export interface AgentTask {
@@ -24,71 +24,21 @@ export interface AgentTask {
   payload: Record<string, unknown>;
 }
 
-/** Ingest at most once per window (upserts are idempotent anyway). */
-export const INGEST_FRESHNESS_MS = 6 * 60 * 60 * 1000;
-
 /** Daily safety bound: at most 20 claim rounds × 10 tasks per pipeline run. */
 const MAX_CLAIM_ROUNDS = 20;
 const CLAIM_BATCH = 10;
 
 export interface PipelineDeps {
   db: SupabaseClient;
-  /** Static adapter list (tests). Production uses loadAdapters instead. */
-  adapters?: SourceAdapter[];
-  /** Registry loader (B-140): resolves enabled, non-cooling adapters. */
-  loadAdapters?: () => Promise<SourceAdapter[]>;
-  store: JobStore;
   limit?: number;
-  pauseMs?: number;
-}
-
-async function resolveAdapters(deps: PipelineDeps): Promise<SourceAdapter[]> {
-  // Explicit adapters (tests, admin overrides) win; the registry loader is
-  // the production default.
-  if (deps.adapters && deps.adapters.length > 0) return deps.adapters;
-  if (deps.loadAdapters) return deps.loadAdapters();
-  return [];
 }
 
 function defaultDeps(): PipelineDeps {
-  return {
-    db: supabaseAdmin,
-    // Registry-driven (B-140/B-147): enabled + not-cooling sources from the
-    // job_sources table; falls back to env defaults when the table is empty.
-    adapters: [],
-    store: supabaseJobStore,
-    loadAdapters: () => loadRegistryAdapters(defaultFetchImpl(), () => defaultAdapters()),
-  };
-}
-
-/** True when the pool was ingested recently (skip duplicate work). */
-export async function poolIsFresh(db: SupabaseClient): Promise<boolean> {
-  const { data } = await db.from('jobs').select('created_at').order('created_at', { ascending: false }).limit(1);
-  const latest = ((data ?? []) as { created_at: string }[])[0]?.created_at;
-  return !!latest && Date.now() - new Date(latest).getTime() < INGEST_FRESHNESS_MS;
-}
-
-/** Ingest now (or skip if fresh). Returns what happened. */
-export async function refreshPoolIfStale(deps: PipelineDeps): Promise<IngestReport | { skipped: 'pool_already_fresh' }> {
-  if (await poolIsFresh(deps.db)) return { skipped: 'pool_already_fresh' };
-  const adapters = await resolveAdapters(deps);
-  return runIngestion({
-    adapters,
-    store: deps.store,
-    limit: deps.limit ?? 30,
-    pauseMs: deps.pauseMs ?? 250,
-    // Circuit-breaker bookkeeping only in the registry-driven production path.
-    ...(deps.adapters && deps.adapters.length > 0 ? {} : { onSourceOutcome: recordSourceOutcome }),
-  });
+  return { db: supabaseAdmin };
 }
 
 /** Process one claimed task. Pure decision logic, completion is the caller's job. */
-export async function processAgentTask(task: AgentTask, deps: PipelineDeps): Promise<{ status: 'SUCCEEDED' | 'WAITING_APPROVAL'; result: Record<string, unknown> }> {
-  if (task.type === 'JOB_DISCOVERY') {
-    const outcome = await refreshPoolIfStale(deps);
-    if ('skipped' in outcome) return { status: 'SUCCEEDED', result: { skipped: outcome.skipped } };
-    return { status: 'SUCCEEDED', result: { ingested: outcome.totalUpserted, sources: outcome.sources } };
-  }
+export async function processAgentTask(task: AgentTask, _deps: PipelineDeps = defaultDeps()): Promise<{ status: 'SUCCEEDED' | 'WAITING_APPROVAL'; result: Record<string, unknown> }> {
   if (task.type === 'APPLICATION') {
     // Controlled automatic submission (Phase 8). Every gate; the global kill
     // switch, the per-user pause, APPROVED state, entitlement, supported site
@@ -96,6 +46,10 @@ export async function processAgentTask(task: AgentTask, deps: PipelineDeps): Pro
     // before any browser is touched. With the kill switch absent (default),
     // this returns WAITING_APPROVAL and nothing is ever sent.
     return processApplicationTask((task.payload ?? {}) as Record<string, unknown>);
+  }
+  if (task.type === 'JOB_DISCOVERY') {
+    // Discovery is retired (2026-09-20). Complete old queue rows as no-ops.
+    return { status: 'SUCCEEDED', result: { skipped: 'discovery_retired' } };
   }
   return { status: 'SUCCEEDED', result: { message: 'No operation required.' } };
 }
@@ -121,35 +75,20 @@ export async function claimTasks(db: SupabaseClient, limit: number, leaseSeconds
 
 export interface PipelineReport {
   day: string;
-  enqueued: number;
-  poolRefresh: IngestReport | { skipped: 'pool_already_fresh' } | null;
   tasksProcessed: number;
   taskOutcomes: { id: string; type: string; status: string }[];
   errors: string[];
 }
 
 /**
- * The whole daily cycle, in order:
- *  1. enqueue today's discovery tasks (idempotent RPC, on conflict do nothing)
- *  2. refresh the job pool if stale (also covers the zero-active-users case,
- *     so free tools like Salary Insights always have a populated pool)
- *  3. claim + process tasks until drained (each completes fast; the pool is
- *     already fresh by then)
+ * The daily cycle: claim + process due tasks until drained. Application
+ * tasks run the autopilot apply agent under every server-side gate.
+ * Idempotent by design (safe if Vercel double-fires or we invoke manually).
  */
 export async function runDailyPipeline(partial: Partial<PipelineDeps> = {}): Promise<PipelineReport> {
   const deps: PipelineDeps = { ...defaultDeps(), ...partial };
-  const day = new Date().toISOString().slice(0, 10);
-  const report: PipelineReport = { day, enqueued: 0, poolRefresh: null, tasksProcessed: 0, taskOutcomes: [], errors: [] };
+  const report: PipelineReport = { day: new Date().toISOString().slice(0, 10), tasksProcessed: 0, taskOutcomes: [], errors: [] };
 
-  // 1, enqueue (idempotent)
-  const { data: enqueued, error: enqueueError } = await deps.db.rpc('enqueue_daily_discovery', { p_day: day });
-  if (enqueueError) throw enqueueError;
-  report.enqueued = Number(enqueued) || 0;
-
-  // 2, baseline pool refresh
-  report.poolRefresh = await refreshPoolIfStale(deps);
-
-  // 3, drain tasks
   for (let round = 0; round < MAX_CLAIM_ROUNDS; round++) {
     const tasks = await claimTasks(deps.db, CLAIM_BATCH, 300);
     if (!tasks.length) break;

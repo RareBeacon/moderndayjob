@@ -1,5 +1,6 @@
 import { env } from '@/lib/env';
 import { supabaseAdmin } from '@/lib/supabase';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,7 +37,10 @@ async function checkAiGateway(): Promise<'ok' | 'error' | 'not_configured'> {
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const rl = await enforceRateLimit(`health:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   const [database, aiGateway] = await Promise.all([checkDb(), checkAiGateway()]);
   const email = env.RESEND_API_KEY ? 'configured' : 'not_configured';
   const degraded = database !== 'ok' || aiGateway === 'error' || email === 'not_configured';

@@ -3,8 +3,12 @@ import type { ZodError } from 'zod';
 import { preferencesSchema } from '@/lib/schemas/preferences';
 import { requireUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
 export async function GET(req: Request) {
+  const rl = await enforceRateLimit(`preferences:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const { data } = await supabaseAdmin
@@ -16,6 +20,9 @@ export async function GET(req: Request) {
 }
 
 export async function PUT(request: Request) {
+  const rl = await enforceRateLimit(`preferences:${requestIp(request)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   const user = await requireUser({ req: request }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   let body;

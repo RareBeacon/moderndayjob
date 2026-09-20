@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { requireAdminUser, adminErrorResponse } from '@/lib/admin';
 import { requireAuditEvent } from '@/lib/audit';
 import { issueRevealToken } from '@/lib/security/reveal';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
 /**
  * POST /api/admin/users/reveal - re-authenticate to obtain a 5-minute PII
@@ -33,6 +34,9 @@ async function verifyPassword(email: string, password: string): Promise<boolean>
 }
 
 export async function POST(req: Request) {
+  const rl = await enforceRateLimit(`admin:users:reveal:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   try {
     const admin = await requireAdminUser();
     const parsed = body.safeParse(await req.json().catch(() => ({})));

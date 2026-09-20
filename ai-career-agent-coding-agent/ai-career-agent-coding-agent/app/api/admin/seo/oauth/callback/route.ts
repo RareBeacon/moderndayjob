@@ -3,8 +3,12 @@ import { NextResponse } from 'next/server';
 import { requireAdminUser, adminErrorResponse } from '@/lib/admin';
 import { exchangeGoogleCode } from '@/lib/seo/google';
 import { recordSeoAudit, storeGoogleTokens } from '@/lib/seo/service';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
 export async function GET(req: Request) {
+  const rl = await enforceRateLimit(`admin:seo:oauth:callback:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   try {
     const admin = await requireAdminUser();
     const url = new URL(req.url);

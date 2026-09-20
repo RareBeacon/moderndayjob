@@ -26,7 +26,7 @@ const TOPICS: { title: string; items: { q: string; a: string }[] }[] = [
       },
       {
         q: 'Does the free plan expire?',
-        a: 'No. The free plan is permanent and needs no card. It includes 3 AI generations in total to try the AI writer, 10 career-tool uses a day, job matching, and the application tracker.',
+        a: 'No. The free plan is permanent and needs no card. It includes 3 AI generations in total to try the AI writer, 10 career-tool uses a day, the application agent, and the tracker.',
       },
       {
         q: 'What does approval mode mean?',

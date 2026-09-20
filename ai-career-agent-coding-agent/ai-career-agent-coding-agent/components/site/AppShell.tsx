@@ -31,8 +31,6 @@ const ICONS = {
 
 const NAV: NavItem[] = [
   { key: 'dashboard', href: '/dashboard', label: 'Today', icon: ic(ICONS.home) },
-  { key: 'jobs', href: '/jobs', label: 'Jobs', icon: ic(ICONS.search) },
-  { key: 'match', href: '/match', label: 'Recommended', icon: ic(ICONS.target) },
   { key: 'generate', href: '/generate', label: 'Create', icon: ic(ICONS.edit) },
   { key: 'applications', href: '/applications', label: 'Applications', icon: ic(ICONS.layers) },
   { key: 'documents', href: '/documents', label: 'My documents', icon: ic(ICONS.file) },
@@ -43,7 +41,6 @@ const NAV: NavItem[] = [
 
 const BOTTOM: NavItem[] = [
   { key: 'dashboard', href: '/dashboard', label: 'Today', icon: ic(ICONS.home) },
-  { key: 'jobs', href: '/jobs', label: 'Jobs', icon: ic(ICONS.search) },
   { key: 'applications', href: '/applications', label: 'Applications', icon: ic(ICONS.layers) },
   { key: 'generate', href: '/generate', label: 'Create', icon: ic(ICONS.edit) },
 ];
@@ -100,7 +97,7 @@ export function AppShell({
             <span /><span /><span />
           </label>
           <h1 className="app-title">{title ?? NAV.find((n) => n.key === active)?.label ?? 'Workspace'}</h1>
-          <Link className="app-top-cta" href="/match">Find matches</Link>
+          <Link className="app-top-cta" href="/applications">Start an application</Link>
         </header>
 
         <main className="app-content">{children}</main>

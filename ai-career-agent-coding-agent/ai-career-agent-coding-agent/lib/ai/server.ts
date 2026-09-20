@@ -3,7 +3,7 @@ import { env } from '@/lib/env';
 import { decryptSecret } from '@packages/security/crypto';
 import { AIGateway, AIGatewayError } from '@packages/ai/gateway';
 import { OpenAICompatProvider, OllamaProvider, httpChat } from '@packages/ai/providers';
-import type { AIProvider, UsageMeter } from '@packages/ai/types';
+import type { AIProvider, AIMessage, ChatResponse, UsageMeter } from '@packages/ai/types';
 import { assertPublicHttpsUrl } from '@/lib/agent/egress';
 
 /** Thrown when the user has no active AI credential configured. */
@@ -56,11 +56,95 @@ function buildOllamaProviders(): AIProvider[] {
   return providers;
 }
 
+/** Thrown when a caller waits too long in the concurrency queue. */
+export class AIConcurrencyTimeoutError extends Error {
+  constructor() {
+    super('AI_CONCURRENCY_TIMEOUT');
+    this.name = 'AIConcurrencyTimeoutError';
+  }
+}
+
+/**
+ * Concurrency-bounded provider wrapper (2026-09-20 capacity work). At most
+ * `limit` provider calls run at once per server instance; the rest queue in
+ * FIFO order. This keeps a burst of users from overloading the self-hosted
+ * model host (the single Oracle VM) with parallel inferences: requests wait
+ * their turn instead of failing or degrading the host. A provider error
+ * (including queue timeout) propagates so the gateway falls back to the
+ * next provider in the chain.
+ */
+export class BoundedProvider implements AIProvider {
+  readonly name: string;
+  readonly model?: string;
+  readonly priority: number;
+  private active = 0;
+  private readonly waiters: (() => void)[] = [];
+
+  constructor(
+    private readonly inner: AIProvider,
+    private readonly limit: number,
+    private readonly waitTimeoutMs = 120_000,
+  ) {
+    this.name = inner.name;
+    this.model = inner.model;
+    this.priority = inner.priority;
+  }
+
+  private acquire(): Promise<void> {
+    if (this.active < this.limit) {
+      this.active += 1;
+      return Promise.resolve();
+    }
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        const idx = this.waiters.indexOf(wakeup);
+        if (idx !== -1) this.waiters.splice(idx, 1);
+        reject(new AIConcurrencyTimeoutError());
+      }, this.waitTimeoutMs);
+      const wakeup = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+      this.waiters.push(wakeup);
+    });
+  }
+
+  private release() {
+    const next = this.waiters.shift();
+    if (next) next();
+    else this.active -= 1;
+  }
+
+  /** Snapshot for tests: current in-flight calls and queued waiters. */
+  stats(): { active: number; queued: number } {
+    return { active: this.active, queued: this.waiters.length };
+  }
+
+  async chat(
+    messages: AIMessage[],
+    opts?: { temperature?: number; responseFormat?: 'json' | 'text'; maxTokens?: number },
+  ): Promise<ChatResponse> {
+    await this.acquire();
+    try {
+      return await this.inner.chat(messages, opts);
+    } finally {
+      this.release();
+    }
+  }
+}
+
+/** Wrap each provider with the global concurrency bound (env-tunable). */
+function boundProviders(providers: AIProvider[]): AIProvider[] {
+  const limit = env.AI_MAX_CONCURRENCY;
+  return providers.map((p) => new BoundedProvider(p, limit));
+}
+
 /**
  * Build a gateway for a user. Provider order (ARCHITECTURE §13):
  *   1. Ollama strong model (env-configured, when present)
  *   2. Ollama fallback model (env-configured, when different)
- *   3. the user's active ai_credentials rows, newest key first
+ *   3. the platform OpenRouter fallback (env OPENROUTER_API_KEY, when set)
+ *   4. the user's active ai_credentials rows, newest key first
  *
  * Credentials are decrypted here (server-only) and never logged.
  * Every base URL (env Ollama AND user-supplied credentials) passes the
@@ -78,11 +162,29 @@ export async function buildGatewayForUser(userId: string): Promise<AIGateway> {
   if (error) throw error;
 
   const ollama = buildOllamaProviders();
-  if ((!creds || creds.length === 0) && ollama.length === 0) throw new AICredentialMissingError();
+  if ((!creds || creds.length === 0) && ollama.length === 0 && !env.OPENROUTER_API_KEY) throw new AICredentialMissingError();
 
   const providers: AIProvider[] = [...ollama];
   let priority = ollama.length;
   let skipped = 0;
+
+  // Platform fallback (disaster switch): keeps AI alive if the Ollama VM is
+  // unreachable (e.g. host expiry). Last in the chain so self-hosted wins.
+  if (env.OPENROUTER_API_KEY) {
+    providers.push(
+      new OpenAICompatProvider(
+        {
+          name: 'openrouter-platform',
+          model: env.OPENROUTER_MODEL || 'openrouter/auto',
+          baseUrl: env.OPENROUTER_BASE_URL,
+          apiKey: env.OPENROUTER_API_KEY,
+          priority: priority++,
+        },
+        httpChat,
+      ),
+    );
+  }
+
   for (const c of (creds ?? []) as CredentialRow[]) {
     try {
       assertPublicHttpsUrl(c.base_url);
@@ -106,10 +208,10 @@ export async function buildGatewayForUser(userId: string): Promise<AIGateway> {
     );
   }
   if (providers.length === 0) throw new AICredentialMissingError();
-  if (skipped > 0 && providers.length === ollama.length && skipped === (creds?.length ?? 0)) {
+  if (skipped > 0 && providers.length === ollama.length && skipped === (creds?.length ?? 0) && !env.OPENROUTER_API_KEY) {
     throw new AICredentialMissingError();
   }
-  return new AIGateway(providers);
+  return new AIGateway(boundProviders(providers));
 }
 
 /**

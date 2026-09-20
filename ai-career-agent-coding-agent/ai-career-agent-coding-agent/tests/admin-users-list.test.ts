@@ -13,6 +13,10 @@ const m = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/auth', () => ({ requireUser: m.requireUser, getUser: vi.fn() }));
+vi.mock('@/lib/rate-limit', () => ({
+  enforceRateLimit: vi.fn(async () => ({ allowed: true })),
+  requestIp: () => '127.0.0.1',
+}));
 vi.mock('@/lib/supabase', () => ({
   supabaseAdmin: {
     from: () => ({
@@ -35,7 +39,7 @@ describe('GET /api/admin/users', () => {
   it('returns 403 for a non-admin', async () => {
     m.requireUser.mockResolvedValue({ id: 'not-admin' });
     m.maybeSingle.mockResolvedValue({ data: null, error: null });
-    const res = await GET();
+    const res = await GET(new Request('http://localhost/api/admin/users'));
     expect(res.status).toBe(403);
     expect(await res.json()).toEqual({ error: 'FORBIDDEN' });
   });
@@ -43,7 +47,7 @@ describe('GET /api/admin/users', () => {
   it('returns the overview list for an admin', async () => {
     m.requireUser.mockResolvedValue({ id: 'admin-1' });
     m.maybeSingle.mockResolvedValue({ data: { user_id: 'admin-1' }, error: null });
-    const res = await GET();
+    const res = await GET(new Request('http://localhost/api/admin/users'));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual([{ id: 'u1' }]);
   });
@@ -52,7 +56,7 @@ describe('GET /api/admin/users', () => {
     m.requireUser.mockResolvedValue({ id: 'admin-1' });
     m.maybeSingle.mockResolvedValue({ data: { user_id: 'admin-1' }, error: null });
     m.order.mockResolvedValue({ data: [], error: null });
-    const res = await GET();
+    const res = await GET(new Request('http://localhost/api/admin/users'));
     expect(await res.json()).toEqual([]);
   });
 });

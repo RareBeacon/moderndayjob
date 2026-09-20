@@ -42,9 +42,9 @@ describe('auth middleware', () => {
     expect(res.headers.get('location')).toBeNull();
   });
 
-  it('lets visitors browse the public jobs pool', async () => {
+  it('lets visitors browse the public tools page', async () => {
     getUser.mockResolvedValue({ data: { user: null } });
-    const res = await middleware(req('/jobs'));
+    const res = await middleware(req('/tools'));
     expect(res.headers.get('location')).toBeNull();
   });
 

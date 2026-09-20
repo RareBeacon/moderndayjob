@@ -40,11 +40,11 @@ test('no horizontal overflow on mobile homepage', async ({ page, isMobile }) => 
   expect(overflow).toBeLessThanOrEqual(0);
 });
 
-test('public jobs API serves listings', async ({ request }) => {
-  const res = await request.get('/api/jobs');
-  expect(res.ok()).toBeTruthy();
-  const body = await res.json();
-  expect(Array.isArray(body.jobs)).toBeTruthy();
+test('retired jobs routes are gone (no job listings offering)', async ({ request }) => {
+  const jobs = await request.get('/api/jobs');
+  expect(jobs.status()).toBe(404);
+  const match = await request.get('/match');
+  expect(match.status()).toBe(404);
 });
 
 test('auth pages render', async ({ page }) => {

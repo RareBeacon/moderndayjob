@@ -2,63 +2,81 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * Route auth behavior. Patched routes must return a clean 401
- * (UNAUTHENTICATED) when requireUser() throws instead of leaking a 500,
- * and the shared jobs pool stays publicly readable.
+ * (UNAUTHENTICATED) when requireUser() throws instead of leaking a 500.
+ * The retired public jobs pool (/api/jobs, /api/ai/match) was removed with
+ * the listings feature (2026-09-20); its auth contract coverage moved to
+ * the user-supplied target route, which must never leak a listings pool.
  */
 
 const m = vi.hoisted(() => ({
   requireUser: vi.fn(),
   enforceRateLimit: vi.fn(),
   requestIp: vi.fn(() => '1.2.3.4'),
-  limit: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({ requireUser: m.requireUser, getUser: vi.fn() }));
 vi.mock('@/lib/rate-limit', () => ({ enforceRateLimit: m.enforceRateLimit, requestIp: m.requestIp }));
-vi.mock('@/lib/supabase', () => ({
-  supabaseAdmin: { from: () => ({ select: () => ({ order: () => ({ limit: m.limit }) }) }) },
+vi.mock('@/lib/audit', () => ({ auditEvent: vi.fn() }));
+vi.mock('@/lib/supabase', () => ({ supabaseAdmin: { from: vi.fn() } }));
+vi.mock('@/lib/applications/service', () => ({
+  AppActionError: class extends Error {
+    constructor(public readonly code: string) {
+      super(code);
+    }
+  },
+  prepareApplication: vi.fn(),
 }));
-vi.mock('@packages/security/entitlements', () => ({ assertEntitlement: vi.fn() }));
-vi.mock('@/lib/ai/server', () => ({
-  AICredentialMissingError: class extends Error {},
-  buildGatewayForUser: vi.fn(),
-  createToolMeter: vi.fn(),
-}));
-vi.mock('@/lib/ai/matching-loader', () => ({ loadMatchInputs: vi.fn() }));
-vi.mock('@/lib/matching/engine', () => ({ runMatching: vi.fn() }));
-vi.mock('@packages/ai/gateway', () => ({ AIGatewayError: class extends Error {} }));
 
-import { POST as matchPOST } from '@/app/api/ai/match/route';
-import { GET as jobsGET } from '@/app/api/jobs/route';
+import { POST as targetPOST } from '@/app/api/applications/target/route';
 
 beforeEach(() => {
   vi.clearAllMocks();
   m.enforceRateLimit.mockResolvedValue({ allowed: true, remaining: 9 });
 });
 
-describe('POST /api/ai/match auth', () => {
+describe('POST /api/applications/target auth', () => {
   it('returns 401 UNAUTHENTICATED instead of 500 when logged out', async () => {
-    m.requireUser.mockRejectedValue(new Error('no session'));
-    const res = await matchPOST(new Request('http://x/api/ai/match', { method: 'POST' }));
+    m.requireUser.mockRejectedValue(new Error('UNAUTHENTICATED'));
+    const res = await targetPOST(new Request('http://x/api/applications/target', { method: 'POST' }));
     expect(res.status).toBe(401);
     expect((await res.json()).error).toBe('UNAUTHENTICATED');
     expect(m.enforceRateLimit).not.toHaveBeenCalled();
   });
-});
 
-describe('GET /api/jobs public pool', () => {
-  it('serves the pool without a session', async () => {
-    m.limit.mockResolvedValue({ data: [{ id: 'job-1' }], error: null });
-    const res = await jobsGET(new Request('http://x/api/jobs'));
-    expect(res.status).toBe(200);
-    expect((await res.json()).jobs).toEqual([{ id: 'job-1' }]);
-    expect(m.requireUser).not.toHaveBeenCalled();
+  it('rate-limits bursts before any write', async () => {
+    m.requireUser.mockResolvedValue({ id: 'u1', email: 'u1@jobiest.com' });
+    m.enforceRateLimit.mockResolvedValue({ allowed: false, remaining: 0 });
+    const res = await targetPOST(
+      new Request('http://x/api/applications/target', {
+        method: 'POST',
+        body: JSON.stringify({ url: 'https://boards.greenhouse.io/x', title: 'Eng', company: 'Acme' }),
+      }),
+    );
+    expect(res.status).toBe(429);
+    expect((await res.json()).error).toBe('RATE_LIMITED');
   });
 
-  it('rate-limits anonymous pool reads', async () => {
-    m.enforceRateLimit.mockResolvedValue({ allowed: false, remaining: 0 });
-    const res = await jobsGET(new Request('http://x/api/jobs'));
-    expect(res.status).toBe(429);
-    expect(m.limit).not.toHaveBeenCalled();
+  it('rejects non-public job links (SSRF guard) with 400', async () => {
+    m.requireUser.mockResolvedValue({ id: 'u1', email: 'u1@jobiest.com' });
+    const res = await targetPOST(
+      new Request('http://x/api/applications/target', {
+        method: 'POST',
+        body: JSON.stringify({ url: 'http://169.254.169.254/latest/meta-data', title: 'Eng', company: 'Acme' }),
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('INVALID_JOB_URL');
+  });
+
+  it('rejects a malformed body with 400 before touching the database', async () => {
+    m.requireUser.mockResolvedValue({ id: 'u1', email: 'u1@jobiest.com' });
+    const res = await targetPOST(
+      new Request('http://x/api/applications/target', {
+        method: 'POST',
+        body: JSON.stringify({ url: 'not-a-url' }),
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('INVALID_BODY');
   });
 });

@@ -61,7 +61,7 @@ Do not claim production-ready until typecheck, lint, unit, integration, RLS, pay
 - Billing reconciliation: `/api/billing/flutterwave/verify` + "Check payment status" on `/billing/success`.
 - Bring-your-own AI provider: `/profile/ai` + `/api/credentials` (encrypted at rest, egress-guarded).
 - PWA: installable manifest + service worker + `/offline` fallback; icon set in `public/icons/`.
-- Native app shells: `apps/mobile` (Capacitor 6, wraps jobiest.com; see its README for Android/iOS builds).
+- Mobile app shells: retired 2026-09-17 (owner decision); the PWA covers mobile.
 - E2E smoke suite: `npm run e2e` (Playwright against production).
 - Error monitoring: client errors land in `audit_logs` (`CLIENT_ERROR` action).
 - Operations: `docs/runbook.md` (deploy, backup, rollback, monitoring, incidents, known gaps).

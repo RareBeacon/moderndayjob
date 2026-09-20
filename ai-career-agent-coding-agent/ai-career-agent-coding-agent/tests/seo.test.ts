@@ -37,12 +37,12 @@ describe('Strategic SEO content engine', () => {
 });
 
 describe('Public SEO URL allowlist', () => {
-  it('excludes private, auth, jobs, dashboard and API URLs from sitemap/audit intent', () => {
+  it('excludes private, auth, dashboard and API URLs from sitemap/audit intent', () => {
     expect(isAllowedPublicSeoUrl(`${SITE_URL}/free-ats-resume-scanner`)).toBe(true);
     expect(isAllowedPublicSeoUrl(`${SITE_URL}/blog/free-ats-resume-scanner-guide`)).toBe(true);
     expect(isAllowedPublicSeoUrl(`${SITE_URL}/login`)).toBe(false);
     expect(isAllowedPublicSeoUrl(`${SITE_URL}/signup`)).toBe(false);
-    expect(isAllowedPublicSeoUrl(`${SITE_URL}/jobs`)).toBe(false);
+    expect(isAllowedPublicSeoUrl(`${SITE_URL}/applications`)).toBe(false);
     expect(isAllowedPublicSeoUrl(`${SITE_URL}/dashboard`)).toBe(false);
     expect(isAllowedPublicSeoUrl(`${SITE_URL}/api/health`)).toBe(false);
   });

@@ -154,9 +154,20 @@ export default function GeneratePage() {
   const stepIndex = STEPS.findIndex((s) => s.id === activeStep);
 
   useEffect(() => {
-    fetch('/api/jobs')
-      .then((r) => r.json())
-      .then((d) => setJobs(d.jobs ?? []))
+    fetch('/api/applications')
+      .then((r) => (r.ok ? r.json() : { applications: [] }))
+      .then((d) => {
+        const seen = new Set<string>();
+        const mine: Job[] = [];
+        for (const a of (d.applications ?? []) as { job?: { id: string; title: string; company: string } | null }[]) {
+          const j = a.job;
+          if (j?.id && !seen.has(j.id)) {
+            seen.add(j.id);
+            mine.push({ id: j.id, title: j.title, company: j.company } as Job);
+          }
+        }
+        setJobs(mine);
+      })
       .catch(() => {});
     loadRecent();
     const local = typeof window !== 'undefined' ? window.localStorage.getItem('jobiest.resumeStudio.draft') : null;
@@ -723,7 +734,7 @@ function OptimizeStep({ draft, jobs, patchDraft, patchCareer, writeSummary, opti
       <label className="resume2-field full"><span>Professional summary</span><textarea rows={5} value={draft.career.summary} onChange={(e) => patchCareer('summary', e.target.value)} placeholder="A concise summary based on your real experience." /></label>
       <div className="resume2-ai-row"><button className="btn" onClick={writeSummary} disabled={aiBusy === 'writeSummary'}>{aiBusy === 'writeSummary' ? 'Writing' : 'Write with AI'}</button><span className="muted">Uses only the facts already in this draft.</span></div>
       <label className="resume2-field full"><span>Paste target job description, optional</span><textarea rows={6} value={draft.targetJobDescription} onChange={(e) => patchDraft({ targetJobDescription: e.target.value })} placeholder="Paste the job you are applying for. I will compare keywords without treating the job post as facts about you." /></label>
-      {jobs.length > 0 && <p className="muted" style={{ fontSize: 13 }}>You can also save jobs in your workspace, then use them when generating cover letters and answers.</p>}
+      {jobs.length > 0 && <p className="muted" style={{ fontSize: 13 }}>Jobs you started applications for also appear when generating cover letters and answers.</p>}
       <div className="resume2-ai-row"><button className="btn secondary" onClick={optimizeForJob} disabled={aiBusy === 'optimizeForJob' || draft.targetJobDescription.length < 30}>Check target job match</button></div>
       {jobMatch && <div className="resume2-inline-card"><strong>Resume Match: {jobMatch.match}%</strong><ul>{jobMatch.recommendations.map((r) => <li key={r}>{r}</li>)}</ul></div>}
       <ScoreCard score={score} />
@@ -879,7 +890,7 @@ function ClassicGenerator({ jobs, recent, loadRecent }: { jobs: Job[]; recent: G
         <h2 style={{ margin: '0 0 8px' }}>Cover letters and application answers</h2>
         <p className="muted">Resume generation now uses the guided AI Resume Builder Journey. This mode keeps the existing cover letter and answer flow working.</p>
         <div className="chip-group" style={{ margin: '16px 0' }}>{KINDS.map((k) => <button key={k.id} className="chip" aria-pressed={kind === k.id} onClick={() => setKind(k.id)} title={k.hint}>{k.label}</button>)}</div>
-        <label className="resume2-field full"><span>Tailor to a saved job, optional</span><select value={jobId} onChange={(e) => setJobId(e.target.value)}><option value="">General, no specific job</option>{jobs.map((j) => <option key={j.id} value={j.id}>{j.title}, {j.company}</option>)}</select></label>
+        <label className="resume2-field full"><span>Tailor to a job you are applying to, optional</span><select value={jobId} onChange={(e) => setJobId(e.target.value)}><option value="">General, no specific job</option>{jobs.map((j) => <option key={j.id} value={j.id}>{j.title}, {j.company}</option>)}</select></label>
         {kind === 'ANSWERS' && <label className="resume2-field full"><span>Application questions, one per line</span><textarea rows={5} value={questions} onChange={(e) => setQuestions(e.target.value)} placeholder={'Why do you want this role?\nDescribe a challenge you solved.'} /></label>}
         <div className="resume2-actions left"><button className="btn" onClick={generate} disabled={status === 'loading'}>{status === 'loading' ? 'Generating' : 'Generate'}</button><span className="muted">Costs 1 AI credit.</span></div>
       </div>

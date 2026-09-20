@@ -35,8 +35,6 @@ export const EXCLUDED_SEO_PATH_PREFIXES = [
   '/documents',
   '/applications',
   '/billing',
-  '/jobs',
-  '/match',
   '/generate',
   '/login',
   '/signup',

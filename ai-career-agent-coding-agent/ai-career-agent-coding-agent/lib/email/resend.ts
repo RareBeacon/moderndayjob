@@ -115,8 +115,8 @@ export async function sendWelcomeEmail(to: string, firstName?: string): Promise<
   const name = firstName?.trim() || 'there';
   const first = name.split(' ')[0];
   const steps = [
-    'Complete your career profile - it powers your matches, your CV and your applications.',
-    'Review your recommended jobs and save the ones you like.',
+    'Complete your career profile - it powers your CV, your documents and your applications.',
+    'Bring a job you want as a link or a description, and let your agent prepare the application.',
     'Build your first CV in the Resume Studio.',
   ]
     .map((item) => `<div style="padding:4px 0;font-size:14px;color:#333D52;">&#10003;&nbsp; ${item}</div>`)
@@ -127,7 +127,7 @@ export async function sendWelcomeEmail(to: string, firstName?: string): Promise<
       emailHeading(`Hello ${escapeHtmlEmail(first)},`),
       emailParagraph('This is <strong>Philip Opeyemi</strong>, the cofounder and CEO of Jobiest.'),
       emailParagraph('I want to appreciate you for trusting the platform and creating an account with us. I do not take that lightly. Behind every new account is a person with real ambitions - someone hoping the next opportunity changes something for them and for the people who depend on them. That is exactly the person we built Jobiest for.'),
-      emailParagraph('When we started Jobiest, we kept one promise at the centre of it: <strong>your career deserves an agent of its own</strong>. Jobiest works for you - it finds real, current job openings, helps you build a CV you are proud of, keeps every application organised in one place, and never sends anything to an employer without your explicit approval.'),
+      emailParagraph('When we started Jobiest, we kept one promise at the centre of it: <strong>your career deserves an agent of its own</strong>. Jobiest works for you - it prepares a truthful, tailored application for the roles you bring, helps you build a CV you are proud of, keeps every application organised in one place, and never sends anything to an employer without your explicit approval.'),
       emailParagraph('You matter here. Not as a number on a dashboard, but as a person we are privileged to serve. Here are three small steps that will make the platform work hardest for you:'),
       emailParagraph(steps),
       emailButton('Start setting up my account', `${SITE_URL}/help/getting-started`),
@@ -135,12 +135,12 @@ export async function sendWelcomeEmail(to: string, firstName?: string): Promise<
       emailParagraph('Thank you for being here. I am genuinely glad you joined.'),
       emailParagraph('<strong>Thank you.</strong>'),
       emailParagraph(
-        `<div style="padding-top:6px;font-size:15px;line-height:1.6;color:#1A2233;">Philip Opeyemi<br><span style="font-size:13px;color:#5A6579;">Cofounder &amp; CEO, Jobiest</span></div>`,
+        `<table role="presentation" cellpadding="0" cellspacing="0" style="padding-top:10px;"><tr><td width="76" style="vertical-align:middle;"><img src="${SITE_URL}/images/philip-opeyemi.jpg" width="72" height="72" alt="Philip Opeyemi" style="width:72px;height:72px;border-radius:50%;display:block;border:2px solid #C9A227;background:#F4F6FA;" /></td><td style="vertical-align:middle;padding-left:12px;font-size:15px;line-height:1.6;color:#1A2233;">Philip Opeyemi<br><span style="font-size:13px;color:#5A6579;">Cofounder &amp; CEO, Jobiest</span></td></tr></table>`,
       ),
     ],
     'A personal welcome from Philip, cofounder and CEO of Jobiest',
   );
-  const text = `Hello ${first},\n\nThis is Philip Opeyemi, the cofounder and CEO of Jobiest.\n\nI want to appreciate you for trusting the platform and creating an account with us. I do not take that lightly. Behind every new account is a person with real ambitions, and that is exactly the person we built Jobiest for. Your career deserves an agent of its own: Jobiest finds real, current job openings, helps you build a CV you are proud of, keeps every application organised, and never contacts an employer without your approval.\n\nStart with these three steps: complete your career profile, review your recommended jobs, and build your first CV in the Resume Studio.\n\nIf anything is missing or broken, tell us - you will reach a real human who cares.\n\nThank you for being here.\n\nThank you.\n\nPhilip Opeyemi\nCofounder & CEO, Jobiest\n\nIf you have any issues or enquiry, you can reach out to us at support@jobiest.com`;
+  const text = `Hello ${first},\n\nThis is Philip Opeyemi, the cofounder and CEO of Jobiest.\n\nI want to appreciate you for trusting the platform and creating an account with us. I do not take that lightly. Behind every new account is a person with real ambitions, and that is exactly the person we built Jobiest for. Your career deserves an agent of its own: Jobiest prepares a truthful, tailored application for the roles you bring, helps you build a CV you are proud of, keeps every application organised, and never contacts an employer without your approval.\n\nStart with these three steps: complete your career profile, bring a job you want as a link or a description, and build your first CV in the Resume Studio.\n\nIf anything is missing or broken, tell us - you will reach a real human who cares.\n\nThank you for being here.\n\nThank you.\n\nPhilip Opeyemi\nCofounder & CEO, Jobiest\n\nIf you have any issues or enquiry, you can reach out to us at support@jobiest.com`;
   return sendEmail({
     to,
     subject: 'Welcome to Jobiest - a note from our CEO',

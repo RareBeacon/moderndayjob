@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: { default: 'Jobiest - your AI career agent', template: '%s - Jobiest' },
   description:
-    'Create your professional profile once. Jobiest discovers relevant roles, scores fit, prepares truthful personalized applications from your verified facts, and tracks everything in one dashboard.',
+    'Create your professional profile once. Jobiest prepares truthful personalized applications for the roles you bring, applies with your agent on your approval, and tracks everything in one dashboard.',
   applicationName: 'Jobiest',
   openGraph: {
     images: ['/images/og-card.jpg'],

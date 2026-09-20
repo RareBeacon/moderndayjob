@@ -2,6 +2,7 @@ import { requireAdminUser, adminErrorResponse } from '@/lib/admin';
 import { supabaseAdmin } from '@/lib/supabase';
 import { requireAuditEvent } from '@/lib/audit';
 import { verifyRevealToken } from '@/lib/security/reveal';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
 /**
  * GET /api/admin/users/[id] - support investigation view (B-063).
@@ -13,6 +14,9 @@ import { verifyRevealToken } from '@/lib/security/reveal';
  */
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const rl = await enforceRateLimit(`admin:users:id:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   try {
     const admin = await requireAdminUser();
     const { id } = await params;

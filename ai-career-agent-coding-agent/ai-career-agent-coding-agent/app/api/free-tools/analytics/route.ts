@@ -4,6 +4,7 @@ import { requireUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { auditEvent } from '@/lib/audit';
 import { isFreeToolId } from '@/lib/free-tools/config';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,6 +77,9 @@ async function recordSeoToolAttribution(input: {
 }
 
 export async function POST(req: Request) {
+  const rl = await enforceRateLimit(`free-tools:analytics:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   const user = await requireUser().catch(() => null);
   const parsed = body.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return NextResponse.json({ ok: false }, { status: 400 });

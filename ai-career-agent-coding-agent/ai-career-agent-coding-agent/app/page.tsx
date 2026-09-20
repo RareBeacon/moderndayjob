@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
-import { supabaseAdmin } from '@/lib/supabase';
 import { SITE_URL } from '@/lib/site';
 import { websiteJsonLd, organizationJsonLd, faqJsonLd, jsonLdTag } from '@/lib/seo';
 import { PLANS, PLAN_ORDER } from '@/lib/billing/pricing';
@@ -9,47 +8,26 @@ import { formatNaira } from '@/lib/billing/currency';
 import styles from './home.module.css';
 import { Icon } from '@/components/home/Icons';
 import SiteHeader, { BrandWordmark } from '@/components/home/SiteHeader';
-import Walkthrough from '@/components/home/Walkthrough';
 
 export const revalidate = 300;
 
 export const metadata: Metadata = {
   // Root page titles do not get the layout template suffix, so the brand is included here once.
   title: 'Jobiest - Big ambitions. Meet your agent.',
-  description: 'Jobiest is the AI career agent that finds matching roles, prepares truthful applications, and moves forward on your terms. You approve every send.',
+  description: 'Jobiest is the AI career agent that prepares truthful applications for the roles you bring, and can apply for you on your terms. You approve every send.',
   alternates: { canonical: SITE_URL },
 };
-
-async function getLiveMarket(): Promise<{ total: number; sources: string[] }> {
-  try {
-    const { data, error } = await supabaseAdmin.from('jobs').select('source');
-    if (error || !data) return { total: 0, sources: [] };
-    const bySource = new Map<string, number>();
-    for (const row of data as { source?: string | null }[]) {
-      const source = String(row.source || '').trim().toUpperCase();
-      if (!source) continue;
-      bySource.set(source, (bySource.get(source) ?? 0) + 1);
-    }
-    const sources = [...bySource.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .map(([source]) => source.charAt(0) + source.slice(1).toLowerCase())
-      .slice(0, 3);
-    return { total: data.length, sources };
-  } catch {
-    return { total: 0, sources: [] };
-  }
-}
 
 const faqs = [
   { q: 'Will the agent apply without my permission?', a: 'You review and approve each application. The agent prepares the work; you decide when it is ready to send.' },
   { q: 'Will it make up experience for my CV?', a: 'Documents use the information you verify. Missing details are flagged so you can add context without inventing credentials or achievements.' },
-  { q: 'Do I need to connect my email inbox?', a: 'No inbox connection is needed to discover opportunities, prepare application documents, or track your progress.' },
-  { q: 'What can I do on the free plan?', a: 'Explore job matching, use the tracker, and access career tools with a daily allowance. You also get three AI generations in total to try the writer. No payment card is required.' },
+  { q: 'Do I need to connect my email inbox?', a: 'No inbox connection is needed to prepare applications, use the career tools, or track your progress.' },
+  { q: 'What can I do on the free plan?', a: 'Use all 10 career tools with a daily allowance, start applications with your agent, and track them in one place. You also get three AI generations in total to try the writer. No payment card is required.' },
 ];
 
 const workflowSteps = [
   { n: '01', title: 'Start with your story.', body: 'Add your CV, experience, and preferences. Show your agent where you have been and where you want to go.' },
-  { n: '02', title: 'Find the fit. See the why.', body: 'Explore relevant roles with clear reasons for each match, including the details worth checking.' },
+  { n: '02', title: 'Bring the opportunity.', body: 'Paste a job link or description. Your agent studies it and shows exactly how you fit, with honest gaps flagged.' },
   { n: '03', title: 'Apply with your say-so.', body: 'Review tailored documents, check the facts, and approve the applications you want to send.' },
 ];
 
@@ -58,7 +36,7 @@ const tools = [
   { href: '/free-job-description-analyzer', icon: 'search' as const, name: 'Job Description Analyzer', body: 'Get to the heart of what the role needs.' },
   { href: '/free-skills-matcher', icon: 'layers' as const, name: 'Skills Matcher', body: 'See where you fit and where to grow.' },
   { href: '/free-interview-question-generator', icon: 'message' as const, name: 'Interview Question Generator', body: 'Walk into the conversation prepared.' },
-  { href: '/free-salary-insights', icon: 'chart' as const, name: 'Salary Insights', body: 'Explore pay disclosed in job listings.' },
+  { href: '/free-salary-insights', icon: 'chart' as const, name: 'Salary Insights', body: 'See pay stated in any job description.' }
 ];
 
 /** Design copy per plan, checked against PLANS (single source of truth for numbers). */
@@ -66,7 +44,7 @@ const PLAN_COPY: Record<string, { description: string; includes: string; feature
   FREE: {
     description: 'Get your search in shape.',
     includes: 'A place to begin',
-    features: ['3 AI generations to try', '10 tool uses per day', 'CV scanner and job matching', 'Application tracker'],
+    features: ['3 AI generations to try', '10 tool uses per day', 'CV scanner and application tracking', 'Agent prepares what you approve'],
   },
   BASIC: {
     description: 'Build a steady rhythm.',
@@ -102,8 +80,6 @@ const planCards = PLAN_ORDER.map((code) => {
 });
 
 export default async function HomePage() {
-  const market = await getLiveMarket();
-
   return (
     <div className={styles.page}>
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(websiteJsonLd())} />
@@ -122,40 +98,55 @@ export default async function HomePage() {
             <div className={styles['hero-intro']}>
               <h1>Big ambitions.<br />Meet your <span className={styles['headline-highlight']}>agent.</span></h1>
               <div className={styles['hero-copy']}>
-                <p>Your next role is out there. Jobiest helps you find it, prepare a stronger application, and move forward on your terms.</p>
+                <p>You bring the ambition and the roles you want. Your Jobiest agent prepares stronger, truthful applications and moves forward on your terms.</p>
                 <div className={styles['hero-actions']}>
                   <Link className={`${styles.button} ${styles['button-navy']}`} href="/signup">
                     Start my next chapter <span className={styles['button-arrow']}><Icon name="arrow" /></span>
                   </Link>
-                  <a className={styles['demo-link']} href="#agent-preview"><Icon name="play" />Take a quick look</a>
+                  <a className={styles['demo-link']} href="#how-it-works"><Icon name="play" />See how it works</a>
                 </div>
                 <p className={styles['hero-note']}><Icon name="check" />Free to start. No card needed.</p>
               </div>
             </div>
 
-            {/* ===================== Interactive walkthrough ===================== */}
-            <div className={styles['demo-stage']} id="agent-preview" tabIndex={-1} aria-label="Interactive Jobiest agent walkthrough">
+            {/* ===================== How the agent works ===================== */}
+            <div className={styles['demo-stage']} id="agent-preview" tabIndex={-1} aria-label="How the Jobiest agent works">
               <div className={styles['stage-caption']}>
                 <span>LESS TAB-HOPPING. MORE FORWARD MOTION.</span>
-                <span className={styles['sample-label']}>Interactive example · sample roles &amp; profile</span>
+                <span className={styles['sample-label']}>How Jobiest works</span>
               </div>
-              <Walkthrough />
+              <div className={styles['agent-steps']}>
+                <div>
+                  <span className={styles['step-number']}>01</span>
+                  <h3>Bring the job</h3>
+                  <p>Paste a link to a role you want. Add the job description for sharper tailoring.</p>
+                </div>
+                <div>
+                  <span className={styles['step-number']}>02</span>
+                  <h3>Your agent prepares</h3>
+                  <p>A tailored CV and cover letter built only from your verified facts. Gaps are flagged, never invented.</p>
+                </div>
+                <div>
+                  <span className={styles['step-number']}>03</span>
+                  <h3>You approve every send</h3>
+                  <p>Review the package, then let the agent fill the employer form on supported boards.</p>
+                </div>
+              </div>
               <div className={styles['demo-bottom']}>
                 <span><Icon name="shield" />Prepared by your agent. Approved by you.</span>
-                <a className={styles['reset-demo']} href="#agent-preview"><Icon name="arrow" small />Restart walkthrough</a>
               </div>
             </div>
 
-            {/* ===================== Job sources ===================== */}
+            {/* ===================== What Jobiest stands for ===================== */}
             <div className={styles['source-strip']}>
-              <p>Good opportunities start<br />with direct hiring sources.</p>
-              <div className={styles['source-names']} aria-label="Job listing sources">
-                <span className={styles['greenhouse-wordmark']}>greenhouse<span>✳</span></span>
-                <span className={styles['ashby-wordmark']}>ashby</span>
-                <span className={styles['lever-wordmark']}>lever</span>
+              <p>Good applications start<br />with truthful facts.</p>
+              <div className={styles['source-names']} aria-label="What Jobiest stands for">
+                <span className={styles['source-pill']}>Truthful documents</span>
+                <span className={styles['source-pill']}>Your approval on every send</span>
+                <span className={styles['source-pill']}>10 free career tools</span>
               </div>
               <span className={styles['source-note']}>
-                {market.total > 0 ? `${market.total.toLocaleString()} roles indexed from direct sources.` : 'Job sources, in one place.'}
+                Jobiest does not post jobs. You bring the role; your agent does the rest.
               </span>
             </div>
           </div>
@@ -192,7 +183,7 @@ export default async function HomePage() {
                   </article>
                 ))}
               </div>
-              <a className={styles['text-link']} href="#agent-preview">Try the walkthrough <Icon name="arrow" /></a>
+              <a className={styles['text-link']} href="#tools">Explore the free tools <Icon name="arrow" /></a>
             </div>
           </div>
         </section>
@@ -309,7 +300,7 @@ export default async function HomePage() {
               <div>
                 <span className={styles['closing-kicker']}><Icon name="spark" />THE NEXT CHAPTER IS YOURS</span>
                 <h2>Your next move<br />looks good on you.</h2>
-                <p>Let us find the opportunity that fits your story.</p>
+                <p>Bring the opportunity that fits your story.</p>
               </div>
               <div className={styles['closing-action']}>
                 <Link className={`${styles.button} ${styles['button-yellow']}`} href="/signup">

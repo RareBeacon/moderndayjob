@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { supabaseAdmin } from '@/lib/supabase';
 import { verifyFlutterwaveTransaction, planForAmount } from '@packages/billing/flutterwave';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
 /** Flutterwave events are a few KB; anything larger is not a legitimate
  *  webhook and is rejected up-front (memory-DoS guard). */
@@ -11,6 +12,9 @@ const MAX_BODY_BYTES = 64 * 1024;
    idempotent apply_verified_payment DB function. Idempotent end-to-end
    (payments.tx_ref unique; subscription upsert; payment_events.event_id dedup). */
 export async function POST(req: Request) {
+  const rl = await enforceRateLimit(`billing:flutterwave:webhook:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   // 0. Reject oversized payloads before buffering the body.
   const contentLength = Number(req.headers.get('content-length') ?? '0');
   if (contentLength > MAX_BODY_BYTES) return new Response('too large', { status: 413 });

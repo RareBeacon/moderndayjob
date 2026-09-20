@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { env } from '@/lib/env';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
 /**
  * POST /api/auth/signout · ends the session and returns the visitor to
@@ -10,6 +11,9 @@ import { env } from '@/lib/env';
  * the browser navigates to a JSON blob.
  */
 export async function POST(req: Request) {
+  const rl = await enforceRateLimit(`auth:signout:${requestIp(req)}`, 10, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   const jar = await cookies();
   const response = NextResponse.redirect(new URL('/', req.url), 303);
   const client = createServerClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {

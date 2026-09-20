@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
 /** Pages that require an authenticated session. */
-const PROTECTED = ['/dashboard', '/onboarding', '/profile', '/settings', '/documents', '/applications', '/billing', '/match', '/generate', '/verify-email', '/mfa-verify'];
+const PROTECTED = ['/dashboard', '/onboarding', '/profile', '/settings', '/documents', '/applications', '/billing', '/generate', '/verify-email', '/mfa-verify'];
 /** Auth pages an already-signed-in user should not see. */
 const AUTH_PAGES = ['/login', '/signup'];
 
@@ -109,5 +109,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/dashboard/:path*', '/onboarding', '/profile', '/settings', '/documents', '/applications', '/billing', '/jobs', '/match', '/generate', '/login', '/signup', '/verify-email', '/mfa-verify'],
+  matcher: ['/', '/dashboard/:path*', '/onboarding', '/profile', '/settings', '/documents', '/applications', '/billing', '/generate', '/login', '/signup', '/verify-email', '/mfa-verify'],
 };

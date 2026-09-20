@@ -67,7 +67,7 @@ function pricingJsonLd() {
     '@type': 'Product',
     name: 'Jobiest subscription',
     description:
-      'AI career agent plans: verified-facts documents, match scoring, and agent-mode applications approved by you. Billed monthly in Naira.',
+      'AI career agent plans: verified-facts documents and agent-mode applications approved by you. Billed monthly in Naira.',
     brand: { '@type': 'Brand', name: 'Jobiest' },
     url: `${SITE_URL}/pricing`,
     offers,

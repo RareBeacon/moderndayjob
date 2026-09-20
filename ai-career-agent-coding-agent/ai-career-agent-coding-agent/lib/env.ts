@@ -16,6 +16,14 @@ const schema = z.object({
   OLLAMA_MODEL: z.string().default('qwen2.5:7b'),
   OLLAMA_FALLBACK_MODEL: z.string().default('llama3.2:3b'),
   OLLAMA_API_KEY: z.string().default(''),
+  // Platform fallback provider (disaster switch): when the self-hosted Ollama
+  // VM is unavailable, setting OPENROUTER_API_KEY keeps every AI feature alive
+  // through OpenRouter. Empty (default) changes nothing.
+  OPENROUTER_API_KEY: z.string().default(''),
+  OPENROUTER_MODEL: z.string().default(''),
+  // Max concurrent AI provider calls per server instance. Extra requests
+  // queue instead of overloading the model host (see lib/ai/server.ts).
+  AI_MAX_CONCURRENCY: z.coerce.number().int().min(1).max(128).default(8),
   // Resend transactional email.
   RESEND_API_KEY: z.string().default(''),
   RESEND_FROM: z.string().default('hello@jobiest.com'),
@@ -39,6 +47,9 @@ export const env = schema.parse({
   OLLAMA_MODEL: process.env.OLLAMA_MODEL,
   OLLAMA_FALLBACK_MODEL: process.env.OLLAMA_FALLBACK_MODEL,
   OLLAMA_API_KEY: process.env.OLLAMA_API_KEY,
+  OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
+  OPENROUTER_MODEL: process.env.OPENROUTER_MODEL,
+  AI_MAX_CONCURRENCY: process.env.AI_MAX_CONCURRENCY,
   RESEND_API_KEY: process.env.RESEND_API_KEY,
   RESEND_FROM: process.env.RESEND_FROM,
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,

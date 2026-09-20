@@ -3,6 +3,7 @@ import { requireAdminUser, adminErrorResponse } from '@/lib/admin';
 import { supabaseAdmin } from '@/lib/supabase';
 import { generateSeoArticleFromKeyword } from '@/lib/seo/content-agent';
 import { ensureSeoProject, recordDiscoveryWorkflow, recordSeoAudit } from '@/lib/seo/service';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
 const body = z.object({
   keyword: z.string().trim().min(3).max(120),
@@ -10,6 +11,9 @@ const body = z.object({
 });
 
 export async function POST(req: Request) {
+  const rl = await enforceRateLimit(`admin:seo:articles:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   try {
     const admin = await requireAdminUser();
     const project = await ensureSeoProject();

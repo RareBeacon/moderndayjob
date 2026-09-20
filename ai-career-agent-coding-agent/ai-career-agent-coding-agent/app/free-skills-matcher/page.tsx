@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     title: 'Free Skills Matcher · Jobiest',
     images: ['/images/og-card.jpg'],
     description:
-      'Explainable job matching: fit scores with the exact reasons, strengths, gaps, and the skills that matter. Free to use.',
+      'Explainable fit analysis: scores with the exact reasons, strengths, gaps, and the skills that matter for any job description you paste. Free to use.',
   },
 };
 
@@ -67,7 +67,7 @@ export default async function FreeSkillsMatcherPage() {
               </details>
               <details>
                 <summary>Where do the jobs come from?</summary>
-                <p>Your job pool: normalized listings from supported public sources, de-duplicated, and linked to real sources, never fabricated.</p>
+                <p>You bring them. Paste any job description and I compare your real skills against what that listing asks for, with honest strengths and gaps.</p>
               </details>
               <details>
                 <summary>Does it apply for me?</summary>

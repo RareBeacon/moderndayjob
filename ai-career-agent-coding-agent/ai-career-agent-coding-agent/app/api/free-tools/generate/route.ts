@@ -44,7 +44,7 @@ export async function POST(req: Request) {
   if (!isFreeToolId(toolId)) return NextResponse.json({ error: 'UNKNOWN_TOOL' }, { status: 404 });
 
   const ip = requestIp(req);
-  const rl = await enforceRateLimit(`free-tools:generate:${ip}:${toolId}`, user ? 30 : 12, '1 h', ip);
+  const rl = await enforceRateLimit(`free-tools:generate:${ip}:${toolId}`, user ? 60 : 20, '1 h', ip);
   if (!rl.allowed) return NextResponse.json({ error: 'RATE_LIMITED', message: 'Too many free-tool runs right now. Your answers are safe, try again soon.' }, { status: 429 });
 
   // Abuse ladder steps 2-3 (B-073): daily per-IP and global-anonymous budgets

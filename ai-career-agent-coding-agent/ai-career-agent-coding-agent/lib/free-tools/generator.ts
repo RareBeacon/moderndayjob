@@ -1,6 +1,5 @@
 import { scanResume } from '@/lib/ats/scan';
 import { analyzeJob, compareSkills, generateFollowupEmail, generateInterviewQuestions, generateSalaryInsights } from '@/lib/analysis/service';
-import { supabaseAdmin } from '@/lib/supabase';
 import { getFreeToolConfig, type FreeToolId } from './config';
 
 export interface FreeToolSection {
@@ -249,28 +248,20 @@ async function salaryInsights(answers: Answers): Promise<FreeToolGeneration> {
   const role = first(answers.targetRole);
   const location = first(answers.location);
   const pasted = clean(answers.pastedListings, 30000);
-  const escaped = role.replace(/[%_]/g, '');
-  const { data: pool } = await supabaseAdmin
-    .from('jobs')
-    .select('id,title,company,description,location')
-    .ilike('title', `%${escaped}%`)
-    .order('created_at', { ascending: false })
-    .limit(20);
-  let jobs = ((pool ?? []) as { id: string; title: string; company: string; description: string; location?: string | null }[])
-    .filter((job) => !location || `${job.location ?? ''} ${job.description ?? ''}`.toLowerCase().includes(location.toLowerCase()) || location.toLowerCase().includes('remote'))
-    .map((job) => ({ id: job.id, title: job.title, company: job.company, description: job.description }));
-  if (pasted) jobs = [{ id: 'pasted-listings', title: role, company: 'Pasted listing', description: pasted }, ...jobs];
-  if (!jobs.length) {
+  // Owner decision (2026-09-20): Jobiest does not offer job listings, so this
+  // tool reports pay only from the listing text the user pastes. No pool.
+  if (!pasted) {
     const sections = [
-      { heading: 'No stated pay data available', body: `I found no matching listings for ${role}${location ? ` in ${location}` : ''} and no pasted listing text with pay. I will not invent a salary range.` },
-      { heading: 'What to do next', items: ['Paste listings that mention pay.', 'Check again after Jobiest syncs more jobs.', 'Use any result as a signal, not a market average.'] },
+      { heading: 'No stated pay data available', body: `I have no pasted listing text for ${role}${location ? ` in ${location}` : ''} to check. I will not invent a salary range.` },
+      { heading: 'What to do next', items: ['Paste one or more job listings that mention pay.', 'Use any result as a signal, not a market average.'] },
     ];
     return wrap('salary-insights', `${role} salary signals`, sections, { scannedCount: 0, statedCount: 0, ranges: [] });
   }
+  const jobs = [{ id: 'pasted-listings', title: role, company: 'Pasted listing', description: pasted }];
   const salary = await generateSalaryInsights({ jobs, deterministicOnly: true });
   const sections = [
-    { heading: 'Salary signals', body: `${jobs.length} listing(s) scanned. ${salary.ranges.length} listing(s) stated pay. No estimates or averages are included.` },
-    { heading: 'Stated ranges', items: salary.ranges.length ? salary.ranges.map((r) => `${formatMoney(r)} from listing ${r.jobId}`) : ['None of the scanned listings clearly stated pay.'] },
+    { heading: 'Salary signals', body: `${jobs.length} listing source(s) scanned. ${salary.ranges.length} stated pay. No estimates or averages are included.` },
+    { heading: 'Stated ranges', items: salary.ranges.length ? salary.ranges.map((r) => `${formatMoney(r)} from your pasted listing`) : ['The pasted listing did not clearly state pay.'] },
     { heading: 'Notes', body: salary.notes || 'Treat stated pay as a listing signal, not a market rate.' },
   ];
   return wrap('salary-insights', `${role} salary signals`, sections, { scannedCount: jobs.length, statedCount: salary.ranges.length, ranges: salary.ranges });
