@@ -47,6 +47,10 @@ describe('branded email requirements', () => {
     expect(mail.html).toContain('Philip Opeyemi');
     expect(mail.html).toContain('cofounder and CEO of Jobiest');
     expect(mail.html).toContain('appreciate you for trusting the platform');
+    expect(mail.html).toContain('/images/philip-opeyemi.jpg');
+    expect(mail.html).toContain('Cofounder &amp; CEO, Jobiest');
+    expect(mail.html).not.toContain('finds real, current job openings');
+    expect(mail.text).not.toContain('finds real, current job openings');
     expect(mail.html).toContain(SUPPORT_LINE);
     expect(mail.html).toContain('support@jobiest.com');
     expect(mail.text).toContain(SUPPORT_LINE);
