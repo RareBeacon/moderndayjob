@@ -6,6 +6,7 @@ export const CORE_SEO_PATHS = [
   '/about',
   '/pricing',
   '/tools',
+  '/templates',
   '/help',
   '/blog',
   '/terms',
