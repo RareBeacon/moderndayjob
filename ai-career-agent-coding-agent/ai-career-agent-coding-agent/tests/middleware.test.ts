@@ -48,6 +48,15 @@ describe('auth middleware', () => {
     expect(res.headers.get('location')).toBeNull();
   });
 
+  it('keeps /verify-email reachable without a session (pre-session password verification)', async () => {
+    // Regression (2026-09-21): /verify-email was wrongly in PROTECTED, so
+    // unconfirmed signups (no session yet) were bounced to /login in a loop
+    // before they could ever enter their code.
+    getUser.mockResolvedValue({ data: { user: null } });
+    const res = await middleware(req('/verify-email?email=someone@example.com'));
+    expect(res.headers.get('location')).toBeNull();
+  });
+
   it('redirects a visitor with a session cookie from / to /dashboard', async () => {
     const r = new NextRequest('http://localhost:3000/', {
       headers: { cookie: 'sb-testref-auth-token=some.jwt.token' },

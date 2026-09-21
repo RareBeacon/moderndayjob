@@ -3,8 +3,12 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
-/** Pages that require an authenticated session. */
-const PROTECTED = ['/dashboard', '/onboarding', '/profile', '/settings', '/documents', '/applications', '/billing', '/generate', '/verify-email', '/mfa-verify'];
+/** Pages that require an authenticated session. /verify-email is NOT here:
+ *  its password-signup mode is deliberately pre-session (the account exists
+ *  but is unverified, so there is no session to gate on); walling it off
+ *  sent those users into a login redirect loop (fixed 2026-09-21). The page
+ *  itself sends anonymous visitors without an ?email= context to /login. */
+const PROTECTED = ['/dashboard', '/onboarding', '/profile', '/settings', '/documents', '/applications', '/billing', '/generate', '/mfa-verify'];
 /** Auth pages an already-signed-in user should not see. */
 const AUTH_PAGES = ['/login', '/signup'];
 
