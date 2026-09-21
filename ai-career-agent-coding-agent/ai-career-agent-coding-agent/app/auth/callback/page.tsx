@@ -35,7 +35,24 @@ function CallbackInner() {
 
       const { error: exchangeError } = await supabaseBrowser().auth.exchangeCodeForSession(code);
       if (exchangeError) {
-        setError('We could not finish signing you in. The link may have expired; start again.');
+        // Best-effort diagnosis: the exact provider message (bounded, no
+        // tokens) lands in the audit trail so support can tell "code
+        // expired" (slow consent screen) from "verifier cookie missing"
+        // (browser blocked cookies / in-app browser).
+        try {
+          void fetch('/api/client-error', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              message: `auth-code-exchange failed: ${String(exchangeError.code ?? '')} ${String(exchangeError.message ?? '').slice(0, 200)}`.slice(0, 400),
+              path: '/auth/callback',
+            }),
+            keepalive: true,
+          });
+        } catch {
+          /* never block recovery */
+        }
+        setError('We could not finish signing you in. This can happen when the permission screen takes too long or your browser blocks cookies. Please try again; use a regular browser window (not an in-app one) if it repeats.');
         return;
       }
 
