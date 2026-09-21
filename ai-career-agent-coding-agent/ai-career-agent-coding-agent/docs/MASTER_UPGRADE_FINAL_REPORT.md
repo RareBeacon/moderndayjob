@@ -94,6 +94,6 @@ All Master Upgrade workstreams (A, B, C) and stages (1-8) are complete. Remainin
 
 1. Confirm support@jobiest.com received ticket JBT-20260921-NMJ4.
 2. Optional: connect an analytics property (GA or similar) to light up organic sessions, signup starts and the organic-to-signup rate in the A11.4 conversion panel; until then those fields state why they are unavailable.
-3. Optional: DMARC p=quarantine.
-4. Rotate the GitHub PAT at next check-in (an authenticated API status call began returning Bad credentials while git push still worked; public status API used as fallback).
-5. Optional: click "Import GSC Metrics" in SEO Mission Control to populate the A11.3 country and device breakdowns (the extended importer writes those rows; current imported data predates it).
+3. DMARC p=quarantine: attempted via Cloudflare API on 2026-09-21 and blocked because the stored API token now returns "Invalid access token". The change itself is a one-line edit, safe because SPF (v=spf1 include:_spf.resend.com ~all) and aligned Resend DKIM (resend._domainkey) are both verified live: in the Cloudflare dashboard edit the TXT record at _dmarc.jobiest.com from "v=DMARC1; p=none; rua=mailto:philip@jobiest.com" to "v=DMARC1; p=quarantine; rua=mailto:philip@jobiest.com".
+4. Credential renewals (all three broke during or after this upgrade window): rotate the GitHub PAT (API status calls return Bad credentials while git push still worked at the last commit), renew the Cloudflare API token, and re-scope the Vercel token (API returns "Not authorized... ogungboyeopeyemiphilip-gmailcoms-projects").
+5. Optional: click "Import GSC Metrics" in SEO Mission Control to populate the A11.3 country and device breakdowns (the extended importer writes those rows; current imported data predates it). This cannot be run from the build environment because decrypting the stored Google OAuth tokens requires the production ENCRYPTION_MASTER_KEY, which lives only in Vercel env.
