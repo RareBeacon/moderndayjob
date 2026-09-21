@@ -2,21 +2,51 @@ import Link from 'next/link';
 import { AppShell } from '@/components/site/AppShell';
 import { SignOutCard } from '@/components/settings/SignOutCard';
 import { MfaManager } from '@/components/settings/MfaManager';
+import { AutoSubmitToggle } from '@/components/site/AutoSubmitToggle';
+import { requireUser } from '@/lib/auth';
+import { supabaseAdmin } from '@/lib/supabase';
+import { getEntitlement } from '@packages/security/entitlements';
 
 /**
- * Settings (Profile -> Settings): account actions, security, support.
- * Server component shell; the interactive cards are client islands.
+ * Settings (Profile -> Settings): applications, account actions, security,
+ * support. Server component shell; the interactive cards are client islands.
  */
 export const metadata = { title: 'Settings - Jobiest' };
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const user = await requireUser();
+  const [{ data: preferences }, entitlement] = await Promise.all([
+    supabaseAdmin.from('job_preferences').select('application_mode').eq('user_id', user.id).maybeSingle(),
+    getEntitlement(user.id),
+  ]);
+
   return (
     <AppShell active="settings" title="Settings">
       <section className="workspace-hero">
         <p className="eyebrow">SETTINGS</p>
         <h1>Settings</h1>
-        <p>Account, security and support for your Jobiest account.</p>
+        <p>Applications, account, security and support for your Jobiest account.</p>
       </section>
+
+      <h2 className="settings-section">Applications</h2>
+      <div className="settings-card">
+        <div className="settings-card-head">
+          <div>
+            <strong>Automatic submission</strong>
+            <p className="muted" style={{ margin: '4px 0 0', fontSize: 13.5 }}>
+              Choose whether your agent sends applications for you, or prepares them and waits for
+              your approval.
+            </p>
+          </div>
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <AutoSubmitToggle
+            initialMode={preferences?.application_mode ?? 'approval'}
+            planIncludesAutomation={entitlement.automation_enabled}
+            sendingLive={process.env.AUTOMATION_SUBMIT_ENABLED === 'true'}
+          />
+        </div>
+      </div>
 
       <h2 className="settings-section">Security</h2>
       <MfaManager />

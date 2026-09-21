@@ -7,6 +7,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { getEntitlement } from '@packages/security/entitlements';
 import { getProfileCompleteness } from '@/lib/profile-completeness';
 import { buildBoardLinks, isRemoteOnly } from '@/lib/boardlinks';
+import { AutoSubmitToggle } from '@/components/site/AutoSubmitToggle';
 
 type DraftApp = {
   id: string;
@@ -37,7 +38,7 @@ export default async function Dashboard() {
   ] = await Promise.all([
     supabaseAdmin.from('profiles').select('full_name,target_roles,account_status').eq('user_id', user.id).single(),
     supabaseAdmin.from('career_profiles').select('headline,skills').eq('user_id', user.id).maybeSingle(),
-    supabaseAdmin.from('job_preferences').select('remote_types,locations').eq('user_id', user.id).maybeSingle(),
+    supabaseAdmin.from('job_preferences').select('remote_types,locations,application_mode').eq('user_id', user.id).maybeSingle(),
     getEntitlement(user.id),
     getProfileCompleteness(user.id),
   ]);
@@ -47,6 +48,10 @@ export default async function Dashboard() {
     locations: preferences?.locations ?? [],
     remoteOnly: isRemoteOnly(preferences?.remote_types),
   });
+
+  // Mode-aware copy: an 'auto' user has delegated the send itself; every
+  // other mode keeps the "nothing is sent without your approval" promise.
+  const autoMode = preferences?.application_mode === 'auto';
 
   const [
     { count: applicationCount },
@@ -84,14 +89,24 @@ export default async function Dashboard() {
   const suggestions: { text: string; href: string }[] = [];
   if (completeness.percent < 100) suggestions.push({ text: `Finish your profile, ${completeness.percent}% complete for stronger matches.`, href: '/profile' });
   if ((applicationCount ?? 0) === 0) suggestions.push({ text: 'Track your first application to start your history.', href: '/applications' });
-  if (entitlement.automation_enabled) suggestions.push({ text: 'Agent mode is on for your plan; bring a job link to begin.', href: '/applications' });
+  if (autoMode) suggestions.push({ text: 'Automatic submission is on; your agent applies within your rules.', href: '/applications' });
+  else if (entitlement.automation_enabled) suggestions.push({ text: 'Agent mode is on for your plan; bring a job link to begin.', href: '/applications' });
   if (suggestions.length === 0) suggestions.push({ text: 'Refresh your CV and run an ATS check for your next role.', href: '/generate' });
 
   return (
     <AppShell active="dashboard" title="Dashboard">
       <div className="dd-banner" role="note">
-        Your application is free. Jobiest never asks candidates for money, and nothing is ever sent
-        without your approval.
+        {autoMode ? (
+          <>
+            Your application is free. Jobiest never asks candidates for money. Automatic submission
+            is on for your account and we email you after every submission.
+          </>
+        ) : (
+          <>
+            Your application is free. Jobiest never asks candidates for money, and nothing is ever
+            sent without your approval.
+          </>
+        )}
       </div>
 
       <header className="dd-head">
@@ -148,6 +163,15 @@ export default async function Dashboard() {
         </div>
 
         <aside className="dd-side">
+          <section className="dd-sec" aria-label="Automatic submission">
+            <span className="dd-over">Automatic submission</span>
+            <AutoSubmitToggle
+              initialMode={preferences?.application_mode ?? 'approval'}
+              planIncludesAutomation={entitlement.automation_enabled}
+              sendingLive={process.env.AUTOMATION_SUBMIT_ENABLED === 'true'}
+            />
+          </section>
+
           {boardLinks.length > 0 && (
             <section className="dd-sec" aria-label="Browse the big boards yourself">
               <span className="dd-over">Browse the boards yourself</span>

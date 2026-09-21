@@ -144,6 +144,7 @@ export default function Applications() {
   const [msg, setMsg] = useState<{ text: string; err: boolean } | null>(null);
   const [automationEnabled, setAutomationEnabled] = useState(false);
   const [agentActive, setAgentActive] = useState<boolean | null>(null);
+  const [appMode, setAppMode] = useState('approval');
 
   async function load() {
     const r = await fetch('/api/applications');
@@ -155,7 +156,11 @@ export default function Applications() {
   }
   async function loadAgent() {
     const r = await fetch('/api/preferences');
-    if (r.ok) setAgentActive((await r.json()).preferences?.active ?? true);
+    if (r.ok) {
+      const prefs = (await r.json()).preferences;
+      setAgentActive(prefs?.active ?? true);
+      setAppMode(prefs?.application_mode ?? 'approval');
+    }
   }
   useEffect(() => { load(); loadAgent(); }, []);
 
@@ -300,7 +305,10 @@ export default function Applications() {
         <h1>Every application, in context.</h1>
         <p>
           Bring a job you want as a link or a description, let your agent prepare the package, approve
-          it, and track every step; with a full audit trail. Nothing is ever submitted without your approval.
+          it, and track every step; with a full audit trail.{' '}
+          {appMode === 'auto'
+            ? 'With automatic submission on, your agent sends eligible applications and emails you after each one.'
+            : 'Nothing is ever submitted without your approval.'}
         </p>
         <div className="app-actions" style={{ marginTop: 0 }}>
           <button className="btn" onClick={() => setOpenTarget((v) => !v)}>{openTarget ? 'Close' : 'Start an application'}</button>
@@ -308,7 +316,11 @@ export default function Applications() {
         </div>
         <p className="muted" style={{ marginTop: 12, fontSize: 13 }}>
           {automationEnabled
-            ? (agentActive !== null ? `Automatic submission is on; approved applications can be filled and sent by the agent. ` : '')
+            ? (agentActive !== null
+                ? (appMode === 'auto'
+                    ? 'Automatic submission is on; your agent sends eligible applications within your rules and emails you after each one. '
+                    : 'Automatic submission is on; approved applications can be filled and sent by the agent. ')
+                : '')
             : 'Automatic submission is off; nothing is ever sent without an explicit go-live. '}
           {automationEnabled && agentActive !== null && (
             <button className="inline-link" style={{ fontSize: 13, margin: 0 }} onClick={toggleAgent}>
