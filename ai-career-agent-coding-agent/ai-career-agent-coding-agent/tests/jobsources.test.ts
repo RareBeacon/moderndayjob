@@ -48,7 +48,7 @@ describe('adapters, normalization from real API shapes', () => {
 
   it('defaultAdapters builds the registry from env', () => {
     const adapters = defaultAdapters({ JOB_SOURCE_GREENHOUSE_BOARDS: 'a,b', JOB_SOURCE_LEVER_BOARDS: 'c', JOB_SOURCE_ASHBY_BOARDS: 'd,e' } as unknown as NodeJS.ProcessEnv, (async () => jsonResponse({})) as FetchLike);
-    expect(adapters.map((a) => a.id)).toEqual(['greenhouse:a', 'greenhouse:b', 'lever:c', 'ashby:d', 'ashby:e']);
+    expect(adapters.map((a) => a.id)).toEqual(['greenhouse:a', 'greenhouse:b', 'lever:c', 'ashby:d', 'ashby:e', 'workable:quickhirestaffing']);
   });
 });
 

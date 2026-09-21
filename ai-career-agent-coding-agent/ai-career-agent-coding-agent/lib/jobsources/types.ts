@@ -12,7 +12,7 @@
 /** Canonical job row shape (maps 1:1 to the public.jobs table). */
 import { assertPublicHttpsUrl } from '../agent/egress';
 export interface NormalizedJob {
-  source: 'GREENHOUSE' | 'LEVER' | 'ASHBY';
+  source: 'GREENHOUSE' | 'LEVER' | 'ASHBY' | 'WORKABLE' | 'SMARTRECRUITERS';
   external_id: string;
   company: string;
   title: string;

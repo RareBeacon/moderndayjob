@@ -9,7 +9,7 @@
  */
 import { createHash } from 'node:crypto';
 import { supabaseAdmin } from '@/lib/supabase';
-import { greenhouseAdapter, leverAdapter, ashbyAdapter } from './boards';
+import { greenhouseAdapter, leverAdapter, ashbyAdapter, workableAdapter, smartrecruitersAdapter } from './boards';
 import type { SourceAdapter, FetchLike } from './types';
 
 export interface SourceRegistryRow {
@@ -36,6 +36,10 @@ function adapterFor(row: SourceRegistryRow, fetchImpl: FetchLike): SourceAdapter
       return leverAdapter(row.board, fetchImpl);
     case 'ashby':
       return ashbyAdapter(row.board, fetchImpl);
+    case 'workable':
+      return workableAdapter(row.board, fetchImpl);
+    case 'smartrecruiters':
+      return smartrecruitersAdapter(row.board, fetchImpl);
     default:
       return null;
   }

@@ -90,13 +90,13 @@ describe('loadRegistryAdapters (B-140)', () => {
   it('falls back to env defaults when the registry is empty', async () => {
     m.state.rows = [];
     const adapters = await loadRegistryAdapters(fetchImpl, () => defaultAdapters({ ...process.env, JOB_SOURCE_GREENHOUSE_BOARDS: 'stripe' } as NodeJS.ProcessEnv));
-    expect(adapters.map((a) => a.id)).toEqual(['greenhouse:stripe', 'lever:spotify', 'ashby:openai', 'ashby:linear']);
+    expect(adapters.map((a) => a.id)).toEqual(['greenhouse:stripe', 'lever:spotify', 'ashby:openai', 'ashby:linear', 'workable:quickhirestaffing']);
   });
 
   it('falls back when the registry query itself fails', async () => {
     m.state.rows = new Error('relation "job_sources" does not exist');
     const adapters = await loadRegistryAdapters(fetchImpl, () => defaultAdapters({ ...process.env, JOB_SOURCE_LEVER_BOARDS: 'netflix' } as NodeJS.ProcessEnv));
-    expect(adapters.map((a) => a.id)).toEqual(['greenhouse:gitlab', 'greenhouse:anthropic', 'greenhouse:coinbase', 'lever:netflix', 'ashby:openai', 'ashby:linear']);
+    expect(adapters.map((a) => a.id)).toEqual(['greenhouse:gitlab', 'greenhouse:anthropic', 'greenhouse:coinbase', 'lever:netflix', 'ashby:openai', 'ashby:linear', 'workable:quickhirestaffing']);
   });
 
   it('ignores unknown adapter kinds', async () => {
