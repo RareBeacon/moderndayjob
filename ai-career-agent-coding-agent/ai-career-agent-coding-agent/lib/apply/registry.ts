@@ -1,5 +1,6 @@
 import { greenhouseApplyAdapter } from './adapters/greenhouse';
 import { leverApplyAdapter } from './adapters/lever';
+import { ashbyApplyAdapter } from './adapters/ashby';
 import type { SiteApplyAdapter } from './types';
 
 /**
@@ -8,7 +9,7 @@ import type { SiteApplyAdapter } from './types';
  * otherwise). Extending support = adding an adapter here.
  */
 
-export const applyAdapters: SiteApplyAdapter[] = [greenhouseApplyAdapter, leverApplyAdapter];
+export const applyAdapters: SiteApplyAdapter[] = [greenhouseApplyAdapter, leverApplyAdapter, ashbyApplyAdapter];
 
 /** Find the adapter whose domain allowlist covers this job URL, else null. */
 export function detectApplyAdapter(rawUrl: string): SiteApplyAdapter | null {

@@ -6,6 +6,7 @@ import { requireUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getEntitlement } from '@packages/security/entitlements';
 import { getProfileCompleteness } from '@/lib/profile-completeness';
+import { buildBoardLinks, isRemoteOnly } from '@/lib/boardlinks';
 
 type DraftApp = {
   id: string;
@@ -30,14 +31,22 @@ export default async function Dashboard() {
   const [
     { data: profile },
     { data: career },
+    { data: preferences },
     entitlement,
     completeness,
   ] = await Promise.all([
     supabaseAdmin.from('profiles').select('full_name,target_roles,account_status').eq('user_id', user.id).single(),
     supabaseAdmin.from('career_profiles').select('headline,skills').eq('user_id', user.id).maybeSingle(),
+    supabaseAdmin.from('job_preferences').select('remote_types,locations').eq('user_id', user.id).maybeSingle(),
     getEntitlement(user.id),
     getProfileCompleteness(user.id),
   ]);
+
+  const boardLinks = buildBoardLinks({
+    targetRoles: profile?.target_roles ?? [],
+    locations: preferences?.locations ?? [],
+    remoteOnly: isRemoteOnly(preferences?.remote_types),
+  });
 
   const [
     { count: applicationCount },
@@ -139,6 +148,25 @@ export default async function Dashboard() {
         </div>
 
         <aside className="dd-side">
+          {boardLinks.length > 0 && (
+            <section className="dd-sec" aria-label="Browse the big boards yourself">
+              <span className="dd-over">Browse the boards yourself</span>
+              <ul className="dd-suggest">
+                {boardLinks.map((l) => (
+                  <li key={l.url}>
+                    <a href={l.url} className="inline-link" target="_blank" rel="noopener noreferrer">
+                      {l.boardLabel}: {l.role}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+              <p className="muted dd-note">
+                Search links built from your roles and locations. Your agent applies through employers&apos; own
+                career sites; these boards are for your own browsing.
+              </p>
+            </section>
+          )}
+
           <section className="dd-sec">
             <span className="dd-over">Next steps</span>
             <ul className="dd-suggest">
