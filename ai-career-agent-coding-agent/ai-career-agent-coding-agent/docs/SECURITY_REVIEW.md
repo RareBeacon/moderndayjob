@@ -63,10 +63,10 @@ Abuse ladder, automation killswitch, and bearer-auth tests remain green (`tests/
 | --- | --- | --- |
 | 1 | Photo re-validation drops invalid photos silently instead of erroring the export | Accepted, documented: a failed export would strand users who stored a bad draft; the export still succeeds with text only |
 | 2 | Support chat first response 85-106 s | Known capacity item, tracked in Stage 5 report |
-| 3 | Admin panels A11.2-A11.4 still pending | Out of scope for this pass; A11.3 GSC-only, A11.4 shows "Data not available" |
+| 3 | Admin panels A11.2-A11.4 still pending | Resolved by commit ca4144a: all three panels live with honest unavailable states; admin-gated behind requireUser + admin role |
 | 4 | GitHub PAT failed an authenticated API status call while git push still worked | Worked around via the public status API; token rotation recommended at next user check-in |
 | 5 | Data-URL photos inflate draft row size (about 2.7 MB per 2 MB photo) | Accepted for the 1000-user scale; a future object-storage path is noted in the architecture doc |
 
 ## 9. Verdict
 
-No high-severity findings. Every new boundary added by the Master Upgrade has auth, ownership scoping, input validation, and rate limiting in place, with tests as evidence. The photo pipeline validates at both the upload and export boundaries and stores nothing on disk.
+No high-severity findings. Every new boundary added by the Master Upgrade has auth, ownership scoping, input validation, and rate limiting in place, with tests as evidence. The photo pipeline validates at both the upload and export boundaries and stores nothing on disk. The A11.2-A11.4 admin panels (added after the initial review) sit behind the existing admin gate, read only through the service-role client on the server, and fabricate no numbers: unavailable metrics render with explicit reasons.

@@ -19,6 +19,7 @@ Execution window: 2026-09-20 to 2026-09-21. All work shipped through CI (typeche
 | 21ef02e | 6 | C3.1 template catalog (20) + public gallery (70 total) |
 | 12b78ae | 6/9 | Sitemap addition, template docs, final report |
 | a5c98e7 | C/7/8 | Photo pipeline (upload API, preview, PDF/DOCX embedding, 20 export checklists), consolidated security review, closure smoke |
+| ca4144a | A | A11.2-A11.4 admin panels (content management, search performance, conversion) |
 | (this) | 9 | Final report closure |
 
 ## Workstream A: SEO Growth Engine: COMPLETE
@@ -28,6 +29,7 @@ Execution window: 2026-09-20 to 2026-09-21. All work shipped through CI (typeche
 - Articles: 20 new articles published (brief-driven, cannibalization-tested against all 25 existing, 3-5 internal links each, FAQ structured data, verified live). Blog now 45 articles; sitemap 66 URLs (65 articles plus /templates after stage 6).
 - GSC: was already connected (sc-domain:jobiest.com, webmasters scope); used via Mission Control. No submission claims beyond "requested".
 - Dashboards: keyword panel new; content and performance panels pre-existing and live.
+- A11.2-A11.4 admin panels (commit ca4144a): full content management table (title, URL, primary keyword, status, publication date, GSC indexing status from URL inspections, internal links count, SEO audit gate) joined from synced articles and URL audits; Search Performance panel sourced exclusively from Google Search Console with a server-rendered clicks/impressions trend chart, CTR, impression-weighted average position, top queries, and country/device breakdowns (the GSC importer now also imports country and device dimension rows; until an import runs those tables state the reason they are empty); Conversion panel from first-party seo_conversion_events with registrations from articles/tools and distinct users, while organic sessions, signup starts and the organic-to-signup rate display "Data not available" with reasons (no analytics property connected; GSC data is never mixed in as a substitute). 9 view-builder tests enforce the honesty rules.
 
 ## Workstream B: AI Customer Support: COMPLETE
 
@@ -56,7 +58,7 @@ Photo pipeline (commit a5c98e7, live-verified):
 
 - Design: canonical navy/yellow identity throughout (new gallery and widget use the design tokens).
 - Honesty: no fabricated volumes, metrics, statistics, or product claims anywhere; "Unknown" and "Data not available (reason)" states used throughout.
-- Tests: 642 passing including 1 pre-existing skip (from 605 at start), 0 failures, across 71 files; CI green on every commit.
+- Tests: 651 passing (from 605 at start), 0 failures, across 72 files; CI green on every commit.
 - Deployments: every commit deployed to production and live-verified.
 - No destructive operations; all migrations additive with rollback notes; the only data deletion was of rows created by this session's own scripts during re-seeding.
 
@@ -88,5 +90,10 @@ Photo pipeline (commit a5c98e7, live-verified):
 
 ## Remaining outside this upgrade
 
-1. A11.2-A11.4 admin panels (A11.3 is GSC-only; A11.4 honestly shows "Data not available" until a source exists).
-2. User actions: confirm support@jobiest.com received ticket JBT-20260921-NMJ4; optional analytics property for the conversion panel; optional DMARC p=quarantine; rotate the GitHub PAT at next check-in (an authenticated API status call began returning Bad credentials while git push still worked; public status API used as fallback).
+All Master Upgrade workstreams (A, B, C) and stages (1-8) are complete. Remaining items are user actions only:
+
+1. Confirm support@jobiest.com received ticket JBT-20260921-NMJ4.
+2. Optional: connect an analytics property (GA or similar) to light up organic sessions, signup starts and the organic-to-signup rate in the A11.4 conversion panel; until then those fields state why they are unavailable.
+3. Optional: DMARC p=quarantine.
+4. Rotate the GitHub PAT at next check-in (an authenticated API status call began returning Bad credentials while git push still worked; public status API used as fallback).
+5. Optional: click "Import GSC Metrics" in SEO Mission Control to populate the A11.3 country and device breakdowns (the extended importer writes those rows; current imported data predates it).
