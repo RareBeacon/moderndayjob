@@ -123,11 +123,14 @@ export default function VerifyEmailPage() {
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ action: 'confirm', code }),
           });
-      const out = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string };
+      const out = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string; needsAccountCompletion?: boolean };
       if (res.ok && out.ok) {
         if (passwordMode) {
           setNotice('Your email is verified. Taking you to sign in…');
-          router.replace('/login');
+          router.replace(`/login?email=${encodeURIComponent(email)}&verified=1`);
+        } else if (out.needsAccountCompletion) {
+          // Google/LinkedIn accounts: set a password + phone next.
+          router.replace('/complete-account');
         } else {
           router.replace('/dashboard');
           router.refresh();

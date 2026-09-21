@@ -30,14 +30,22 @@ const postBody = z.discriminatedUnion('action', [
   z.object({ action: z.literal('confirm'), code: z.string().regex(/^\d{6}$/) }),
 ]);
 
-async function verificationState(userId: string): Promise<{ verified: boolean; fullName: string | null }> {
+async function verificationState(userId: string): Promise<{ verified: boolean; fullName: string | null; phone: string | null }> {
   const { data } = await supabaseAdmin
     .from('profiles')
-    .select('email_verified_at, full_name')
+    .select('email_verified_at, full_name, phone')
     .eq('user_id', userId)
     .maybeSingle();
-  const row = data as { email_verified_at: string | null; full_name: string | null } | null;
-  return { verified: Boolean(row?.email_verified_at), fullName: row?.full_name ?? null };
+  const row = data as { email_verified_at: string | null; full_name: string | null; phone: string | null } | null;
+  return { verified: Boolean(row?.email_verified_at), fullName: row?.full_name ?? null, phone: row?.phone ?? null };
+}
+
+/** Owner brief 2026-09-21: after verifying, google/linkedin accounts still
+ *  need a password + phone number (set at /complete-account) unless they
+ *  already have them. */
+function needsAccountCompletion(user: { app_metadata?: { providers?: string[]; [key: string]: unknown } | null }, phone: string | null): boolean {
+  const hasPassword = (user.app_metadata?.providers ?? []).includes('email');
+  return !hasPassword || !phone;
 }
 
 export async function GET() {
@@ -115,7 +123,8 @@ export async function POST(req: Request) {
     // First-time google sign-ups get the welcome email exactly once; the
     // marker makes replays and refreshes harmless.
     void sendWelcomeEmailOnce(user.id, user.email);
-    return Response.json({ ok: true });
+    const { phone } = await verificationState(user.id);
+    return Response.json({ ok: true, needsAccountCompletion: needsAccountCompletion(user, phone) });
   }
   void auditEvent({ action: 'GOOGLE_VERIFY_FAILED', resource: 'auth', userId: user.id, outcome: 'deny', meta: { reason: outcome } });
 

@@ -8,10 +8,20 @@ import { NextRequest } from 'next/server';
  * redirect loop) rather than crashing the request.
  */
 
-const { getUser } = vi.hoisted(() => ({ getUser: vi.fn() }));
+const { getUser, from } = vi.hoisted(() => ({ getUser: vi.fn(), from: vi.fn() }));
 vi.mock('@supabase/ssr', () => ({
-  createServerClient: () => ({ auth: { getUser } }),
+  createServerClient: () => ({ auth: { getUser }, from }),
 }));
+
+/** profiles row chain for the social gates. */
+function profilesRow(row: Record<string, unknown> | null) {
+  const chain = {
+    select: () => chain,
+    eq: () => chain,
+    maybeSingle: async () => ({ data: row }),
+  };
+  from.mockImplementation(() => chain);
+}
 
 import { middleware } from '../middleware';
 
@@ -55,6 +65,41 @@ describe('auth middleware', () => {
     getUser.mockResolvedValue({ data: { user: null } });
     const res = await middleware(req('/verify-email?email=someone@example.com'));
     expect(res.headers.get('location')).toBeNull();
+  });
+
+  it('sends an unverified google session to /verify-email', async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'gu1', app_metadata: { providers: ['google'] } } } });
+    profilesRow({ email_verified_at: null, phone: null });
+    const res = await middleware(req('/dashboard'));
+    expect(new URL(res.headers.get('location')!).pathname).toBe('/verify-email');
+  });
+
+  it('sends a verified google session without password + phone to /complete-account', async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'gu1', app_metadata: { providers: ['google'] } } } });
+    profilesRow({ email_verified_at: '2026-09-21T00:00:00Z', phone: null });
+    const res = await middleware(req('/dashboard'));
+    expect(new URL(res.headers.get('location')!).pathname).toBe('/complete-account');
+  });
+
+  it('keeps /complete-account itself reachable for a session that needs it', async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'gu1', app_metadata: { providers: ['google'] } } } });
+    profilesRow({ email_verified_at: '2026-09-21T00:00:00Z', phone: null });
+    const res = await middleware(req('/complete-account'));
+    expect(res.headers.get('location')).toBeNull();
+  });
+
+  it('lets a completed google session through to the dashboard', async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'gu1', app_metadata: { providers: ['google', 'email'] } } } });
+    profilesRow({ email_verified_at: '2026-09-21T00:00:00Z', phone: '+2348012345678' });
+    const res = await middleware(req('/dashboard'));
+    expect(res.headers.get('location')).toBeNull();
+  });
+
+  it('redirects anonymous users away from /complete-account to login', async () => {
+    getUser.mockResolvedValue({ data: { user: null } });
+    const res = await middleware(req('/complete-account'));
+    const loc = new URL(res.headers.get('location')!);
+    expect(loc.pathname).toBe('/login');
   });
 
   it('redirects a visitor with a session cookie from / to /dashboard', async () => {

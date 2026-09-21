@@ -8,9 +8,14 @@ import { Logo } from '@/components/site/Logo';
 
 /**
  * OAuth landing page: Supabase redirects here from Google or LinkedIn with
- * a PKCE code. Exchanges the code for a session, then asks the server
- * whether this social account needs the email verification gate; routes
- * accordingly.
+ * a PKCE code. IMPORTANT: the @supabase/ssr browser client has
+ * detectSessionInUrl enabled, which exchanges the code for a session
+ * AUTOMATICALLY the moment the client initialises (and then deletes the
+ * one-time verifier). This page therefore NEVER exchanges the code itself -
+ * doing so double-spends the code and always fails (that was the 2026-09-21
+ * "Sign-in incomplete" bug). Here we only: read any OAuth error params,
+ * confirm the auto-created session, then follow MFA / email-verification /
+ * account-completion routing.
  */
 function CallbackInner() {
   const router = useRouter();
@@ -22,29 +27,25 @@ function CallbackInner() {
     if (started.current) return;
     started.current = true;
     (async () => {
+      // Read params first: the auto-exchange scrubs ?code from the URL.
       const oauthError = params.get('error_description') || params.get('error');
+      const next = params.get('next');
       if (oauthError) {
         setError('Sign-in was cancelled or failed. You can try again or use email and password.');
         return;
       }
-      const code = params.get('code');
-      if (!code) {
-        setError('This link is missing its sign-in code. Start again from the sign-in page.');
-        return;
-      }
 
-      const { error: exchangeError } = await supabaseBrowser().auth.exchangeCodeForSession(code);
-      if (exchangeError) {
-        // Best-effort diagnosis: the exact provider message (bounded, no
-        // tokens) lands in the audit trail so support can tell "code
-        // expired" (slow consent screen) from "verifier cookie missing"
-        // (browser blocked cookies / in-app browser).
+      // The client already exchanged the code during initialisation;
+      // getSession() waits for that and reports the result.
+      const { data: sessionData } = await supabaseBrowser().auth.getSession();
+      const session = sessionData?.session ?? null;
+      if (!session) {
         try {
           void fetch('/api/client-error', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({
-              message: `auth-code-exchange failed: ${String(exchangeError.code ?? '')} ${String(exchangeError.message ?? '').slice(0, 200)}`.slice(0, 400),
+              message: 'oauth callback landed without a session (auto-exchange failed)',
               path: '/auth/callback',
             }),
             keepalive: true,
@@ -52,7 +53,7 @@ function CallbackInner() {
         } catch {
           /* never block recovery */
         }
-        setError('We could not finish signing you in. This can happen when the permission screen takes too long or your browser blocks cookies. Please try again; use a regular browser window (not an in-app one) if it repeats.');
+        setError('We could not finish signing you in. Please start again from the sign-in page; if it repeats, use a regular browser window (not an in-app one).');
         return;
       }
 
@@ -72,13 +73,7 @@ function CallbackInner() {
       // verification gate go to /verify-email, everyone else continues.
       // The gate endpoint follows the session's provider.
       try {
-        let providers: string[] = [];
-        try {
-          const { data: sessionData } = await supabaseBrowser().auth.getSession();
-          providers = sessionData?.session?.user?.app_metadata?.providers ?? [];
-        } catch {
-          /* fall back to the google gate below */
-        }
+        const providers = session.user?.app_metadata?.providers ?? [];
         const gate = providers.includes('linkedin_oidc') || providers.includes('linkedin')
           ? '/api/auth/linkedin/verify'
           : '/api/auth/google/verify';
@@ -94,7 +89,6 @@ function CallbackInner() {
         // State check is best-effort; the middleware re-checks anyway.
       }
 
-      const next = params.get('next');
       const safe = next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard';
       router.replace(safe);
       router.refresh();

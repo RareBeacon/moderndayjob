@@ -8,7 +8,7 @@ type CookieToSet = { name: string; value: string; options: CookieOptions };
  *  but is unverified, so there is no session to gate on); walling it off
  *  sent those users into a login redirect loop (fixed 2026-09-21). The page
  *  itself sends anonymous visitors without an ?email= context to /login. */
-const PROTECTED = ['/dashboard', '/onboarding', '/profile', '/settings', '/documents', '/applications', '/billing', '/generate', '/mfa-verify'];
+const PROTECTED = ['/dashboard', '/onboarding', '/profile', '/settings', '/documents', '/applications', '/billing', '/generate', '/mfa-verify', '/complete-account'];
 /** Auth pages an already-signed-in user should not see. */
 const AUTH_PAGES = ['/login', '/signup'];
 
@@ -26,29 +26,34 @@ function hasSessionCookie(request: NextRequest): boolean {
   return request.cookies.getAll().some((c) => c.name.startsWith('sb-') && c.name.includes('auth-token'));
 }
 
-/** Social sign-up email gate: true when the session is google- or
- *  linkedin-linked and the profile has not completed email verification yet
- *  (profiles.email_verified_at is null). Only social sessions pay the extra
- *  profile read; password accounts keep the existing instant-access policy
- *  (their gate is the 6-digit code before the first sign-in). RLS
- *  profile_self allows the user-scoped client to read only their own row. */
+/** Social sign-up email gate + account-completion gate: social sessions
+ *  (google / linkedin) must verify their email (profiles.email_verified_at)
+ *  and then set a password + phone (owner brief 2026-09-21) before the app
+ *  opens. Only social sessions pay the profile read; password accounts
+ *  complete at registration. RLS profile_self allows the user-scoped client
+ *  to read only their own row. */
 function isSocialProvider(user: { app_metadata?: { providers?: string[]; [key: string]: unknown } | null }): boolean {
   const providers = user.app_metadata?.providers ?? [];
   return providers.includes('google') || providers.includes('linkedin_oidc') || providers.includes('linkedin');
 }
 
-async function needsEmailVerificationGate(
+async function socialGates(
   supabase: Awaited<ReturnType<typeof createServerClient>>,
   user: { id: string; app_metadata?: { providers?: string[]; [key: string]: unknown } | null },
-): Promise<boolean> {
-  if (!isSocialProvider(user)) return false;
+): Promise<{ needsVerification: boolean; needsCompletion: boolean }> {
+  if (!isSocialProvider(user)) return { needsVerification: false, needsCompletion: false };
+  const hasPassword = (user.app_metadata?.providers ?? []).includes('email');
   const { data } = await supabase
     .from('profiles')
-    .select('email_verified_at')
+    .select('email_verified_at, phone')
     .eq('user_id', user.id)
     .maybeSingle();
-  const row = data as { email_verified_at: string | null } | null;
-  return !row?.email_verified_at;
+  const row = data as { email_verified_at: string | null; phone: string | null } | null;
+  const verified = Boolean(row?.email_verified_at);
+  return {
+    needsVerification: !verified,
+    needsCompletion: verified && (!hasPassword || !row?.phone),
+  };
 }
 
 export async function middleware(request: NextRequest) {
@@ -85,11 +90,27 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirect);
   }
 
-  if (user && (await needsEmailVerificationGate(supabase, user)) && pathname !== '/verify-email') {
-    const redirect = request.nextUrl.clone();
-    redirect.pathname = '/verify-email';
-    redirect.search = '';
-    return NextResponse.redirect(redirect);
+  if (user) {
+    const { needsVerification, needsCompletion } = await socialGates(supabase, user);
+    if (needsVerification && pathname !== '/verify-email') {
+      const redirect = request.nextUrl.clone();
+      redirect.pathname = '/verify-email';
+      redirect.search = '';
+      return NextResponse.redirect(redirect);
+    }
+    // Verified social accounts without a password + phone complete them
+    // first (email/MFA screens stay reachable so no loop forms).
+    if (
+      needsCompletion &&
+      pathname !== '/complete-account' &&
+      pathname !== '/verify-email' &&
+      pathname !== '/mfa-verify'
+    ) {
+      const redirect = request.nextUrl.clone();
+      redirect.pathname = '/complete-account';
+      redirect.search = '';
+      return NextResponse.redirect(redirect);
+    }
   }
 
   // MFA gate: sessions with an enrolled factor that has not been completed
@@ -119,5 +140,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/dashboard/:path*', '/onboarding', '/profile', '/settings', '/documents', '/applications', '/billing', '/generate', '/login', '/signup', '/verify-email', '/mfa-verify'],
+  matcher: ['/', '/dashboard/:path*', '/onboarding', '/profile', '/settings', '/documents', '/applications', '/billing', '/generate', '/login', '/signup', '/verify-email', '/mfa-verify', '/complete-account'],
 };

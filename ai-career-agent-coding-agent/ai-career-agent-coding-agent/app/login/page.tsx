@@ -1,20 +1,27 @@
 'use client';
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { AuthShell } from '@/components/site/AuthShell';
 import { GoogleButton } from '@/components/site/GoogleButton';
 import { LinkedInButton } from '@/components/site/LinkedInButton';
 import { humanizeAuthError } from '@/lib/auth-messages';
 
-export default function LoginPage() {
+function LoginInner() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const params = useSearchParams();
+  const [email, setEmail] = useState(() => {
+    // Prefill after verification (/verify-email sends the user here).
+    const pre = typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get('email') ?? '';
+    return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(pre) ? pre : '';
+  });
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const verified = params.get('verified') === '1';
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -56,6 +63,11 @@ export default function LoginPage() {
 
   return (
     <AuthShell title="Welcome back" subtitle="Sign in to your Jobiest workspace.">
+      {verified ? (
+        <div className="auth-success" role="status" style={{ marginTop: 16 }}>
+          Your email is verified. Enter your password to continue.
+        </div>
+      ) : null}
       <div style={{ marginTop: 20, display: 'grid', gap: 10 }}>
         <LinkedInButton />
         <GoogleButton />
@@ -101,5 +113,13 @@ export default function LoginPage() {
         New to Jobiest? <Link href="/signup">Create a free account</Link>
       </p>
     </AuthShell>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginInner />
+    </Suspense>
   );
 }
