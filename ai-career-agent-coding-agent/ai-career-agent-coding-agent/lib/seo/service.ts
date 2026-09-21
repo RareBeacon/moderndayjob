@@ -94,6 +94,42 @@ export async function getSeoDashboardData(): Promise<SeoDashboardData> {
   }
 }
 
+/** A11.2/A11.3/A11.4 panel data fetchers. Read-only, admin-page only. */
+export async function getSeoSearchPerformance(projectId: string | null) {
+  if (!projectId) return { ready: false as const, error: 'SEO project not initialized.', metrics: [] };
+  const { data, error } = await supabaseAdmin
+    .from('seo_metrics')
+    .select('date,url,query,country,device,clicks,impressions,ctr,average_position')
+    .eq('project_id', projectId)
+    .order('date', { ascending: false })
+    .limit(5000);
+  if (error) return { ready: false as const, error: error.message, metrics: [] };
+  return { ready: true as const, error: '', metrics: data ?? [] };
+}
+
+export async function getSeoConversionEvents(projectId: string | null) {
+  if (!projectId) return { ready: false as const, error: 'SEO project not initialized.', events: [] };
+  const { data, error } = await supabaseAdmin
+    .from('seo_conversion_events')
+    .select('event_name,user_id,article_slug,tool_id,created_at')
+    .order('created_at', { ascending: false })
+    .limit(5000);
+  if (error) return { ready: false as const, error: error.message, events: [] };
+  return { ready: true as const, error: '', events: data ?? [] };
+}
+
+export async function getSeoContentInventory(projectId: string | null) {
+  if (!projectId) return { ready: false as const, error: 'SEO project not initialized.', articles: [] };
+  const { data, error } = await supabaseAdmin
+    .from('seo_articles')
+    .select('title,slug,url,target_keyword,status,published_at,internal_links,quality_report,indexing_status')
+    .eq('project_id', projectId)
+    .order('published_at', { ascending: false, nullsFirst: false })
+    .limit(500);
+  if (error) return { ready: false as const, error: error.message, articles: [] };
+  return { ready: true as const, error: '', articles: data ?? [] };
+}
+
 export async function ensureSeoProject(): Promise<SeoProject> {
   const { data, error } = await supabaseAdmin.from('seo_projects').select('*').limit(1).maybeSingle();
   if (error) throw new Error(error.message);
@@ -703,8 +739,24 @@ export async function importSearchConsoleMetrics(project: SeoProject, actorUserI
       dimensions: ['date', 'query', 'page'],
       rowLimit: 25000,
     });
-    if (rows.length) {
-      const payload = rows.map((r) => {
+    // A11.3 requires country and device breakdowns; they are separate GSC
+    // dimension queries, imported alongside date/query/page rows.
+    const countryRows = await querySearchAnalytics(tokens, {
+      siteUrl: project.search_console_property,
+      startDate,
+      endDate,
+      dimensions: ['date', 'country'],
+      rowLimit: 5000,
+    });
+    const deviceRows = await querySearchAnalytics(tokens, {
+      siteUrl: project.search_console_property,
+      startDate,
+      endDate,
+      dimensions: ['date', 'device'],
+      rowLimit: 5000,
+    });
+    const payload = [
+      ...rows.map((r) => {
         const date = r.keys?.[0] ?? endDate;
         const query = r.keys?.[1] ?? null;
         const url = r.keys?.[2] ?? null;
@@ -721,16 +773,55 @@ export async function importSearchConsoleMetrics(project: SeoProject, actorUserI
           source: 'google_search_console',
           imported_at: new Date().toISOString(),
         };
-      });
+      }),
+      ...countryRows.map((r) => {
+        const date = r.keys?.[0] ?? endDate;
+        const country = r.keys?.[1] ?? null;
+        return {
+          project_id: project.id,
+          date,
+          query: null,
+          url: null,
+          country,
+          dimensions_key: JSON.stringify({ query: null, url: null, country, device: null, searchAppearance: null }),
+          clicks: Math.round(r.clicks ?? 0),
+          impressions: Math.round(r.impressions ?? 0),
+          ctr: r.ctr ?? 0,
+          average_position: r.position ?? 0,
+          source: 'google_search_console',
+          imported_at: new Date().toISOString(),
+        };
+      }),
+      ...deviceRows.map((r) => {
+        const date = r.keys?.[0] ?? endDate;
+        const device = r.keys?.[1] ?? null;
+        return {
+          project_id: project.id,
+          date,
+          query: null,
+          url: null,
+          device,
+          dimensions_key: JSON.stringify({ query: null, url: null, country: null, device, searchAppearance: null }),
+          clicks: Math.round(r.clicks ?? 0),
+          impressions: Math.round(r.impressions ?? 0),
+          ctr: r.ctr ?? 0,
+          average_position: r.position ?? 0,
+          source: 'google_search_console',
+          imported_at: new Date().toISOString(),
+        };
+      }),
+    ];
+    if (payload.length) {
       const { error } = await supabaseAdmin.from('seo_metrics').upsert(payload, {
         onConflict: 'project_id,date,dimensions_key',
       });
       if (error) throw new Error(error.message);
     }
     await supabaseAdmin.from('seo_projects').update({ last_sync_at: new Date().toISOString() }).eq('id', project.id);
-    await finishSeoTask(taskId, 'SUCCEEDED', { importedRows: rows.length, startDate, endDate });
-    await recordSeoAudit({ projectId: project.id, actorUserId, action: 'SEO_GSC_METRICS_IMPORTED', targetType: 'metrics', metadata: { importedRows: rows.length, startDate, endDate } });
-    return rows.length;
+    const importedRows = payload.length;
+    await finishSeoTask(taskId, 'SUCCEEDED', { importedRows, breakdown: { queryPage: rows.length, country: countryRows.length, device: deviceRows.length }, startDate, endDate });
+    await recordSeoAudit({ projectId: project.id, actorUserId, action: 'SEO_GSC_METRICS_IMPORTED', targetType: 'metrics', metadata: { importedRows, breakdown: { queryPage: rows.length, country: countryRows.length, device: deviceRows.length }, startDate, endDate } });
+    return importedRows;
   } catch (error) {
     await finishSeoTask(taskId, 'FAILED', null, error instanceof Error ? error.message : String(error));
     throw error;

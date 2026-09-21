@@ -2,8 +2,9 @@ import { redirect } from 'next/navigation';
 import { getUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { AdminForbidden, AdminShell } from '@/components/site/AdminShell';
-import { getSeoDashboardData, getSeoKeywordResearch } from '@/lib/seo/service';
+import { getSeoConversionEvents, getSeoContentInventory, getSeoDashboardData, getSeoKeywordResearch, getSeoSearchPerformance } from '@/lib/seo/service';
 import { keywordRowView, summarizeKeywordResearch } from '@/lib/seo/keyword-view';
+import { buildContentInventoryView, buildConversionPanelView, buildSearchPerformanceView, trendChartPoints, type DailyMetricPoint, type SeoUrlAuditRow } from '@/lib/seo/performance-view';
 import { googleOAuthConfigured } from '@/lib/seo/google';
 import { SeoControls } from './SeoControls';
 
@@ -13,6 +14,30 @@ function pct(n: unknown) {
   const v = Number(n ?? 0);
   if (!Number.isFinite(v)) return '0%';
   return `${(v * 100).toFixed(1)}%`;
+}
+
+/** Server-rendered trend chart: impressions (navy) and clicks (yellow) per day, pure SVG. */
+function TrendChart({ daily }: { daily: DailyMetricPoint[] }) {
+  const W = 720;
+  const H = 150;
+  const bars = trendChartPoints(daily, W, H, 6);
+  if (!bars.length) return null;
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H + 22}`} className="seo-trend" role="img" aria-label="Google Search Console clicks and impressions per day">
+        <line x1="0" y1={H} x2={W} y2={H} stroke="#e2e6ed" strokeWidth="1" />
+        {bars.map((b) => (
+          <g key={b.date}>
+            <rect x={b.x} y={H - b.impressionsHeight} width={b.barWidth} height={b.impressionsHeight} fill="#111c35" opacity="0.22" />
+            <rect x={b.x} y={H - b.clicksHeight} width={b.barWidth} height={b.clicksHeight} fill="#f8d64d" />
+          </g>
+        ))}
+        <text x="0" y={H + 16} fontSize="10" fill="#616d81">{daily[0]?.date}</text>
+        <text x={W} y={H + 16} fontSize="10" fill="#616d81" textAnchor="end">{daily[daily.length - 1]?.date}</text>
+      </svg>
+      <p className="seo-trend-legend"><span className="swatch impressions" /> Impressions <span className="swatch clicks" /> Clicks</p>
+    </div>
+  );
 }
 
 export default async function SeoMissionControlPage() {
@@ -26,6 +51,12 @@ export default async function SeoMissionControlPage() {
   const keywordResearch = await getSeoKeywordResearch(project?.id ?? null);
   const keywordViews = keywordResearch.keywords.map(keywordRowView);
   const keywordSummary = summarizeKeywordResearch(keywordViews);
+  const performance = await getSeoSearchPerformance(project?.id ?? null);
+  const performanceView = buildSearchPerformanceView(performance.metrics);
+  const conversions = await getSeoConversionEvents(project?.id ?? null);
+  const conversionView = buildConversionPanelView(conversions.events);
+  const inventory = await getSeoContentInventory(project?.id ?? null);
+  const inventoryView = buildContentInventoryView(inventory.articles, data.urlAudits as unknown as SeoUrlAuditRow[]);
   const connected = Boolean(project?.google_oauth_ciphertext && project.search_console_property);
   const totals = data.metrics.reduce<{ clicks: number; impressions: number; positionTotal: number; rows: number }>((acc, row) => {
     acc.clicks += Number(row.clicks ?? 0);
@@ -103,13 +134,113 @@ export default async function SeoMissionControlPage() {
 
           <SeoControls paused={project.paused} connected={connected} />
 
+          <section className="seo-panel">
+            <h2>Content management (A11.2)</h2>
+            {inventory.ready ? (
+              <>
+                <table className="ad-table"><thead><tr><th>Article title</th><th>URL</th><th>Primary keyword</th><th>Status</th><th>Published</th><th>GSC indexing status</th><th>Internal links</th><th>SEO audit</th></tr></thead><tbody>
+                  {inventoryView.length === 0 && <tr><td colSpan={8} className="ad-empty">No SEO articles synced yet. Use "Publish Strategic Content".</td></tr>}
+                  {inventoryView.map((row) => (
+                    <tr key={row.url || row.title}>
+                      <td>{row.title}</td>
+                      <td className="ad-mono">{row.url ? <a href={row.url} target="_blank" rel="noreferrer">{row.url.replace('https://jobiest.com', '')}</a> : '-'}</td>
+                      <td>{row.primaryKeyword}</td>
+                      <td><span className="ad-chip">{row.status}</span></td>
+                      <td className="ad-mono">{row.publicationDate}</td>
+                      <td>{row.gscIndexingStatus}</td>
+                      <td className="ad-mono">{row.internalLinksCount ?? 'Unknown'}</td>
+                      <td>{row.seoAuditStatus}</td>
+                    </tr>
+                  ))}
+                </tbody></table>
+                <p className="muted" style={{ marginTop: 8, fontSize: 13 }}>Source: synced CMS rows (seo_articles) joined with URL audit results. GSC indexing status comes from URL Inspection records; "DISCOVERABLE_VIA_SITEMAP" means submitted for discovery, not confirmed indexing.</p>
+              </>
+            ) : (
+              <p className="ad-empty">Content data not available: {inventory.error}</p>
+            )}
+          </section>
+
+          <section className="seo-panel">
+            <h2>Search performance (A11.3, Google Search Console only)</h2>
+            {performance.ready ? (
+              performanceView.available ? (
+                <>
+                  <div className="seo-grid-stats">
+                    <div className="seo-stat"><span>Impressions</span><strong>{performanceView.totals.impressions}</strong></div>
+                    <div className="seo-stat"><span>Clicks</span><strong>{performanceView.totals.clicks}</strong></div>
+                    <div className="seo-stat"><span>CTR</span><strong>{performanceView.totals.ctr}</strong></div>
+                    <div className="seo-stat"><span>Avg position</span><strong>{performanceView.totals.averagePosition}</strong></div>
+                    <div className="seo-stat"><span>Window</span><strong>{performanceView.dateRange?.from} to {performanceView.dateRange?.to}</strong></div>
+                  </div>
+                  <div className="seo-panel-sub">
+                    <h3>Impressions and clicks trend</h3>
+                    <TrendChart daily={performanceView.daily} />
+                  </div>
+                  <div className="seo-two-col">
+                    <div>
+                      <h3>Top queries</h3>
+                      {performanceView.topQueriesAvailable ? (
+                        <table className="ad-table"><thead><tr><th>Query</th><th>Impressions</th><th>Clicks</th><th>CTR</th><th>Position</th></tr></thead><tbody>
+                          {performanceView.topQueries.map((q) => <tr key={q.query}><td>{q.query}</td><td className="ad-mono">{q.impressions}</td><td className="ad-mono">{q.clicks}</td><td className="ad-mono">{q.ctr}</td><td className="ad-mono">{q.averagePosition}</td></tr>)}
+                        </tbody></table>
+                      ) : (
+                        <p className="ad-empty">Data not available: no query-dimension rows imported yet.</p>
+                      )}
+                    </div>
+                    <div>
+                      <h3>Country breakdown</h3>
+                      {performanceView.countryAvailable ? (
+                        <table className="ad-table"><thead><tr><th>Country</th><th>Impressions</th><th>Clicks</th><th>Share</th></tr></thead><tbody>
+                          {performanceView.country.map((c) => <tr key={c.label}><td className="ad-mono">{c.label}</td><td className="ad-mono">{c.impressions}</td><td className="ad-mono">{c.clicks}</td><td className="ad-mono">{c.share}</td></tr>)}
+                        </tbody></table>
+                      ) : (
+                        <p className="ad-empty">Data not available: country dimension rows are imported by the extended GSC import; run "Import GSC Metrics" to populate them.</p>
+                      )}
+                      <h3 style={{ marginTop: 18 }}>Device breakdown</h3>
+                      {performanceView.deviceAvailable ? (
+                        <table className="ad-table"><thead><tr><th>Device</th><th>Impressions</th><th>Clicks</th><th>Share</th></tr></thead><tbody>
+                          {performanceView.device.map((d) => <tr key={d.label}><td className="ad-mono">{d.label}</td><td className="ad-mono">{d.impressions}</td><td className="ad-mono">{d.clicks}</td><td className="ad-mono">{d.share}</td></tr>)}
+                        </tbody></table>
+                      ) : (
+                        <p className="ad-empty">Data not available: device dimension rows are imported by the extended GSC import; run "Import GSC Metrics" to populate them.</p>
+                      )}
+                    </div>
+                  </div>
+                  <p className="muted" style={{ marginTop: 8, fontSize: 13 }}>{performanceView.sourceLabel}. Average position is impression-weighted.</p>
+                </>
+              ) : (
+                <p className="ad-empty">{performanceView.unavailableReason}</p>
+              )
+            ) : (
+              <p className="ad-empty">Search data not available: {performance.error}</p>
+            )}
+          </section>
+
           <section className="seo-two-col">
             <div className="seo-panel">
-              <h2>Content</h2>
-              <table className="ad-table"><thead><tr><th>Title</th><th>Status</th><th>Keyword</th><th>Indexing</th></tr></thead><tbody>
-                {data.articles.length === 0 && <tr><td colSpan={4} className="ad-empty">No SEO articles synced yet.</td></tr>}
-                {data.articles.map((a) => <tr key={String(a.id)}><td>{String(a.title ?? '-')}</td><td><span className="ad-chip">{String(a.status ?? '-')}</span></td><td>{String(a.target_keyword ?? '-')}</td><td>{String(a.indexing_status ?? '-')}</td></tr>)}
-              </tbody></table>
+              <h2>Conversion (A11.4, first-party events)</h2>
+              {conversions.ready ? (
+                <>
+                  <div className="seo-grid-stats">
+                    <div className="seo-stat"><span>Organic sessions</span><strong>Data not available</strong></div>
+                    <div className="seo-stat"><span>Signup starts from organic</span><strong>Data not available</strong></div>
+                    <div className="seo-stat"><span>Registrations from organic</span><strong>{conversionView.completedRegistrations.total}</strong></div>
+                    <div className="seo-stat"><span>Organic-to-signup rate</span><strong>Data not available</strong></div>
+                  </div>
+                  <p className="muted" style={{ marginTop: 10, fontSize: 13 }}>
+                    {conversionView.organicSessions.reason}
+                  </p>
+                  <p className="muted" style={{ marginTop: 6, fontSize: 13 }}>
+                    Registrations from organic content: {conversionView.completedRegistrations.fromArticles} from articles, {conversionView.completedRegistrations.fromTools} from free tools ({conversionView.completedRegistrations.distinctUsers} distinct users). Source: {conversionView.sourceLabel}
+                  </p>
+                  <table className="ad-table" style={{ marginTop: 10 }}><thead><tr><th>Event</th><th>Count</th><th>Last seen</th></tr></thead><tbody>
+                    {conversionView.eventCounts.length === 0 && <tr><td colSpan={3} className="ad-empty">No first-party conversion events recorded yet.</td></tr>}
+                    {conversionView.eventCounts.map((e) => <tr key={e.event}><td className="ad-mono">{e.event}</td><td className="ad-mono">{e.count}</td><td className="ad-mono">{e.lastAt || '-'}</td></tr>)}
+                  </tbody></table>
+                </>
+              ) : (
+                <p className="ad-empty">Conversion data not available: {conversions.error}</p>
+              )}
             </div>
             <div className="seo-panel">
               <h2>Keyword research summary</h2>
