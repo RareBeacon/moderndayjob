@@ -1,0 +1,198 @@
+/* Public template gallery (C4). Canonical navy/yellow tokens, WCAG AA. */
+
+.filterBar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 0 16px;
+  scrollbar-width: thin;
+  position: sticky;
+  top: 64px;
+  background: var(--color-bg);
+  z-index: 5;
+}
+
+.filterBtn {
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--color-line-strong);
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.filterBtn:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+.filterActive {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-accent);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  background: var(--color-bg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.mini {
+  height: 190px;
+  padding: 16px;
+  background: var(--color-surface-alt);
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.miniPhoto {
+  width: 44px;
+  height: 54px;
+  border-radius: 6px;
+  background: var(--color-line-strong);
+  flex: none;
+}
+
+.miniDoc {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.miniName {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.miniHeadline {
+  font-size: 10px;
+  color: var(--accent);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.miniLine,
+.miniLineShort {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--color-line);
+}
+
+.miniLineShort {
+  width: 60%;
+}
+
+.cardBody {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.cardTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.cardDesc {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.cardFor {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.badge,
+.badgeAts {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--color-line-strong);
+  color: var(--color-text-primary);
+  background: var(--color-bg);
+}
+
+.badgeAts {
+  background: var(--color-brand-soft);
+  border-color: var(--color-accent);
+}
+
+.useBtn {
+  margin-top: auto;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--color-accent);
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+  border: 1px solid var(--color-accent);
+}
+
+.useBtn:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+.empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.note {
+  margin-top: 20px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 14px;
+  }
+
+  .filterBar {
+    top: 56px;
+  }
+}

@@ -4,10 +4,10 @@ import { normalizeStudioDraft, scoreResumeDraft } from '../lib/resume-studio/dra
 import { RESUME_TEMPLATES, TEMPLATE_CATEGORIES, recommendResumeTemplates } from '../lib/resume-studio/templates';
 
 describe('Resume Studio template library', () => {
-  it('contains 50 genuinely categorized templates', () => {
-    expect(RESUME_TEMPLATES).toHaveLength(50);
+  it('contains 70 genuinely categorized templates (50 original + 20 Master Upgrade catalog)', () => {
+    expect(RESUME_TEMPLATES).toHaveLength(70);
     for (const category of TEMPLATE_CATEGORIES) {
-      expect(RESUME_TEMPLATES.filter((t) => t.category === category)).toHaveLength(10);
+      expect(RESUME_TEMPLATES.filter((t) => t.category === category).length).toBeGreaterThanOrEqual(10);
     }
     expect(new Set(RESUME_TEMPLATES.map((t) => t.layout)).size).toBeGreaterThan(4);
     expect(new Set(RESUME_TEMPLATES.map((t) => t.skillStyle)).size).toBeGreaterThan(3);

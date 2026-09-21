@@ -14,6 +14,11 @@ export interface ResumeTemplate {
   heading: 'serif' | 'sans' | 'mono-accent';
   skillStyle: 'chips' | 'bars' | 'columns' | 'inline' | 'matrix';
   personality: 'quiet' | 'technical' | 'formal' | 'editorial' | 'bold';
+  /** Master Upgrade C3 catalog fields. Defaults applied by the badge helpers. */
+  photoSupport?: 'none' | 'optional' | 'required';
+  atsFriendly?: boolean;
+  columns?: 1 | 2;
+  catalogId?: string;
 }
 
 const minimal: ResumeTemplate[] = [
@@ -49,7 +54,7 @@ const professional: ResumeTemplate[] = [
   { id: 'professional-legal', name: 'Legal Brief', category: 'professional', description: 'Precise, formal and text-first for legal or compliance roles.', layout: 'single-column', density: 'compact', bestFor: ['legal', 'compliance', 'policy'], accent: '#334155', heading: 'serif', skillStyle: 'inline', personality: 'formal' },
   { id: 'professional-healthcare', name: 'Healthcare Pro', category: 'professional', description: 'Clear credential and experience hierarchy for care settings.', layout: 'sidebar', density: 'balanced', bestFor: ['healthcare', 'admin', 'operations'], accent: '#047857', heading: 'sans', skillStyle: 'columns', personality: 'formal' },
   { id: 'professional-academic', name: 'Academic Professional', category: 'professional', description: 'Education-forward layout with room for publications and projects.', layout: 'timeline', density: 'compact', bestFor: ['education', 'research', 'academic'], accent: '#6d28d9', heading: 'serif', skillStyle: 'inline', personality: 'editorial' },
-  { id: 'professional-sales', name: 'Sales Professional', category: 'professional', description: 'Achievement-led hierarchy for commercial roles.', layout: 'split-header', density: 'balanced', bestFor: ['sales', 'account-management', 'growth'], accent: '#b45309', heading: 'sans', skillStyle: 'chips', personality: 'bold' },
+  { id: 'professional-sales', name: 'Sales Pro', category: 'professional', description: 'Achievement-led hierarchy for commercial roles.', layout: 'split-header', density: 'balanced', bestFor: ['sales', 'account-management', 'growth'], accent: '#b45309', heading: 'sans', skillStyle: 'chips', personality: 'bold' },
   { id: 'professional-ops', name: 'Operations Pro', category: 'professional', description: 'Process and delivery oriented structure with compact detail sections.', layout: 'modular-grid', density: 'compact', bestFor: ['operations', 'logistics', 'support'], accent: '#0f766e', heading: 'sans', skillStyle: 'matrix', personality: 'formal' },
   { id: 'professional-public', name: 'Public Sector', category: 'professional', description: 'Formal, accessible and compliance-friendly layout.', layout: 'single-column', density: 'balanced', bestFor: ['government', 'nonprofit', 'education'], accent: '#374151', heading: 'serif', skillStyle: 'columns', personality: 'formal' },
   { id: 'professional-consultant', name: 'Consultant Brief', category: 'professional', description: 'High-level summary plus engagement-style experience sections.', layout: 'two-column', density: 'airy', bestFor: ['consulting', 'strategy', 'freelance'], accent: '#1d4ed8', heading: 'serif', skillStyle: 'chips', personality: 'editorial' },
@@ -81,7 +86,51 @@ const executive: ResumeTemplate[] = [
   { id: 'executive-command', name: 'Command Brief', category: 'executive', description: 'Dense, powerful summary for senior candidates with extensive history.', layout: 'header-band', density: 'compact', bestFor: ['senior', 'director', 'operations'], accent: '#111827', heading: 'sans', skillStyle: 'matrix', personality: 'formal' },
 ];
 
-export const RESUME_TEMPLATES: ResumeTemplate[] = [...minimal, ...modern, ...professional, ...creative, ...executive];
+
+/* ------------------------------------------------------------------ */
+/* Master Upgrade C3 catalog (Workstream C, spec C3.1)                */
+/* 20 named templates with photo, ATS, and column attributes.         */
+/* ------------------------------------------------------------------ */
+
+const masterCatalog: ResumeTemplate[] = [
+  { id: 'tpl-modern-professional', catalogId: 'TPL-01', name: 'Modern Professional', category: 'modern', description: 'A current, clean single-column resume for every sector.', layout: 'single-column', density: 'balanced', bestFor: ['general', 'all-sectors'], accent: '#111c35', heading: 'sans', skillStyle: 'chips', personality: 'quiet', photoSupport: 'optional', atsFriendly: false, columns: 1 },
+  { id: 'tpl-classic-professional', catalogId: 'TPL-02', name: 'Classic Professional', category: 'professional', description: 'Traditional structure for conservative industries.', layout: 'single-column', density: 'balanced', bestFor: ['traditional', 'legal', 'banking'], accent: '#1e3a8a', heading: 'serif', skillStyle: 'inline', personality: 'formal', photoSupport: 'none', atsFriendly: true, columns: 1 },
+  { id: 'tpl-ats-friendly-simple', catalogId: 'TPL-03', name: 'ATS-Friendly Simple', category: 'minimal', description: 'Maximum parseability for ATS-screened roles.', layout: 'single-column', density: 'balanced', bestFor: ['ats', 'screening', 'general'], accent: '#0f172a', heading: 'sans', skillStyle: 'inline', personality: 'quiet', photoSupport: 'none', atsFriendly: true, columns: 1 },
+  { id: 'tpl-graduate-entry-level', catalogId: 'TPL-04', name: 'Graduate Entry-Level', category: 'minimal', description: 'Education-forward layout for new graduates.', layout: 'split-header', density: 'balanced', bestFor: ['graduate', 'entry-level', 'nysc'], accent: '#2563eb', heading: 'sans', skillStyle: 'chips', personality: 'quiet', photoSupport: 'optional', atsFriendly: true, columns: 1 },
+  { id: 'tpl-academic-cv', catalogId: 'TPL-05', name: 'Academic CV', category: 'professional', description: 'Publications and research first, for academia.', layout: 'timeline', density: 'compact', bestFor: ['academic', 'research', 'lecturer'], accent: '#334155', heading: 'serif', skillStyle: 'inline', personality: 'formal', photoSupport: 'none', atsFriendly: false, columns: 1 },
+  { id: 'tpl-technology-professional', catalogId: 'TPL-06', name: 'Technology Professional', category: 'modern', description: 'Tech-forward two-column layout with a skills rail.', layout: 'sidebar', density: 'balanced', bestFor: ['technology', 'software', 'it'], accent: '#2563eb', heading: 'sans', skillStyle: 'chips', personality: 'technical', photoSupport: 'none', atsFriendly: false, columns: 2 },
+  { id: 'tpl-software-engineer', catalogId: 'TPL-07', name: 'Software Engineer', category: 'modern', description: 'Engineering resume with projects and stack emphasis.', layout: 'two-column', density: 'balanced', bestFor: ['software', 'engineering', 'developer'], accent: '#0f766e', heading: 'mono-accent', skillStyle: 'matrix', personality: 'technical', photoSupport: 'none', atsFriendly: false, columns: 2 },
+  { id: 'tpl-data-scientist', catalogId: 'TPL-08', name: 'Data Scientist', category: 'modern', description: 'Analytics and ML hierarchy with grouped tools.', layout: 'two-column', density: 'compact', bestFor: ['data', 'machine-learning', 'analytics'], accent: '#7c3aed', heading: 'mono-accent', skillStyle: 'matrix', personality: 'technical', photoSupport: 'none', atsFriendly: false, columns: 2 },
+  { id: 'tpl-business-analyst', catalogId: 'TPL-09', name: 'Business Analyst', category: 'professional', description: 'Requirements and outcomes structure for business roles.', layout: 'single-column', density: 'balanced', bestFor: ['business', 'analyst', 'consulting'], accent: '#0369a1', heading: 'sans', skillStyle: 'columns', personality: 'formal', photoSupport: 'none', atsFriendly: true, columns: 1 },
+  { id: 'tpl-project-manager', catalogId: 'TPL-10', name: 'Project Manager', category: 'professional', description: 'Delivery and stakeholder emphasis for PM roles.', layout: 'single-column', density: 'balanced', bestFor: ['project-management', 'delivery', 'pmp'], accent: '#1d4ed8', heading: 'sans', skillStyle: 'chips', personality: 'formal', photoSupport: 'none', atsFriendly: true, columns: 1 },
+  { id: 'tpl-marketing-professional', catalogId: 'TPL-11', name: 'Marketing Professional', category: 'creative', description: 'Campaign-led two-column layout for marketing.', layout: 'two-column', density: 'balanced', bestFor: ['marketing', 'brand', 'growth'], accent: '#db2777', heading: 'sans', skillStyle: 'chips', personality: 'bold', photoSupport: 'optional', atsFriendly: false, columns: 2 },
+  { id: 'tpl-sales-professional', catalogId: 'TPL-12', name: 'Sales Professional', category: 'professional', description: 'Quota and achievement-led single column.', layout: 'single-column', density: 'balanced', bestFor: ['sales', 'account-management', 'b2b'], accent: '#b45309', heading: 'sans', skillStyle: 'chips', personality: 'bold', photoSupport: 'optional', atsFriendly: false, columns: 1 },
+  { id: 'tpl-finance-professional', catalogId: 'TPL-13', name: 'Finance Professional', category: 'professional', description: 'Conservative, precise layout for finance and accounting.', layout: 'single-column', density: 'compact', bestFor: ['finance', 'accounting', 'audit'], accent: '#065f46', heading: 'serif', skillStyle: 'columns', personality: 'formal', photoSupport: 'none', atsFriendly: true, columns: 1 },
+  { id: 'tpl-creative-professional', catalogId: 'TPL-14', name: 'Creative Professional', category: 'creative', description: 'Portfolio-ready two-column layout for design and media.', layout: 'two-column', density: 'balanced', bestFor: ['design', 'media', 'arts'], accent: '#e11d48', heading: 'sans', skillStyle: 'chips', personality: 'bold', photoSupport: 'optional', atsFriendly: false, columns: 2 },
+  { id: 'tpl-executive-leadership', catalogId: 'TPL-15', name: 'Executive Leadership', category: 'executive', description: 'Authority and scope for senior leadership.', layout: 'single-column', density: 'airy', bestFor: ['executive', 'leadership', 'director'], accent: '#111827', heading: 'serif', skillStyle: 'inline', personality: 'formal', photoSupport: 'none', atsFriendly: false, columns: 1 },
+  { id: 'tpl-international-professional', catalogId: 'TPL-16', name: 'International Professional', category: 'professional', description: 'Global-ready layout with work authorization and languages.', layout: 'single-column', density: 'balanced', bestFor: ['international', 'remote', 'diaspora'], accent: '#0284c7', heading: 'sans', skillStyle: 'columns', personality: 'formal', photoSupport: 'optional', atsFriendly: false, columns: 1 },
+  { id: 'tpl-career-change', catalogId: 'TPL-17', name: 'Career Change', category: 'minimal', description: 'Transferable skills first for career transitions.', layout: 'split-header', density: 'balanced', bestFor: ['career-change', 'transition', 'pivot'], accent: '#7c3aed', heading: 'sans', skillStyle: 'chips', personality: 'editorial', photoSupport: 'optional', atsFriendly: true, columns: 1 },
+  { id: 'tpl-minimalist-one-page', catalogId: 'TPL-18', name: 'Minimalist One-Page', category: 'minimal', description: 'Strict one-page constraint with dense clarity.', layout: 'single-column', density: 'compact', bestFor: ['one-page', 'early-career', 'general'], accent: '#111827', heading: 'sans', skillStyle: 'inline', personality: 'quiet', photoSupport: 'none', atsFriendly: true, columns: 1 },
+  { id: 'tpl-modern-two-column', catalogId: 'TPL-19', name: 'Modern Two-Column', category: 'modern', description: 'Contemporary two-column layout for modern industries.', layout: 'two-column', density: 'balanced', bestFor: ['modern', 'startup', 'product'], accent: '#4f46e5', heading: 'sans', skillStyle: 'columns', personality: 'bold', photoSupport: 'optional', atsFriendly: false, columns: 2 },
+  { id: 'tpl-professional-photo-resume', catalogId: 'TPL-20', name: 'Professional Photo Resume', category: 'creative', description: 'Photo-integrated layout for markets where photos are standard.', layout: 'two-column', density: 'balanced', bestFor: ['photo', 'international', 'modeling'], accent: '#0f172a', heading: 'sans', skillStyle: 'chips', personality: 'formal', photoSupport: 'required', atsFriendly: false, columns: 2 },
+];
+
+export const RESUME_TEMPLATES: ResumeTemplate[] = [...minimal, ...modern, ...professional, ...creative, ...executive, ...masterCatalog];
+
+export const MASTER_CATALOG_TEMPLATES: ResumeTemplate[] = masterCatalog;
+
+export function templatePhotoSupport(t: ResumeTemplate): 'none' | 'optional' | 'required' {
+  return t.photoSupport ?? 'none';
+}
+
+export function templateAtsFriendly(t: ResumeTemplate): boolean {
+  return t.atsFriendly ?? false;
+}
+
+export function templateColumns(t: ResumeTemplate): 1 | 2 {
+  if (t.columns === 1 || t.columns === 2) return t.columns;
+  return t.layout === 'two-column' || t.layout === 'sidebar' ? 2 : 1;
+}
 export const TEMPLATE_CATEGORIES: ResumeTemplateCategory[] = ['minimal', 'modern', 'professional', 'creative', 'executive'];
 
 export function getResumeTemplate(id?: string | null): ResumeTemplate {

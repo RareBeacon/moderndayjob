@@ -438,7 +438,7 @@ export default function GeneratePage() {
         </div>
         <div className="resume2-headline-features" aria-label="Headline Resume Studio features">
           <FeatureCard title="AI Experience Builder" body="Tell me what you actually did. The assistant asks better follow-up questions and turns your facts into stronger bullets." />
-          <FeatureCard title="50-template library" body="Browse Minimal, Modern, Professional, Creative and Executive systems. Switching templates keeps your content intact." />
+          <FeatureCard title="70-template library" body="Browse Minimal, Modern, Professional, Creative and Executive systems. Switching templates keeps your content intact." />
           <FeatureCard title="Live preview" body="Watch your resume update while you build. Desktop gets side-by-side preview. Mobile gets a focused preview button." />
         </div>
       </div>
@@ -748,13 +748,13 @@ function TemplatesStep({ draft, recommended, selectedCategory, setSelectedCatego
   return (
     <div className="resume2-step">
       <p className="eyebrow">Template library</p>
-      <h2>Choose from 50 professional templates.</h2>
+      <h2>Choose from 70 professional templates.</h2>
       <p className="resume2-copy">These are five distinct design families with different layouts, density, hierarchy and skill treatments.</p>
       <div className="resume2-subhead"><strong>Recommended for you</strong></div>
       <div className="resume2-template-grid recommended">
         {recommended.map((template) => <TemplateCard key={template.id} template={template} selected={draft.selectedTemplate === template.id} onSelect={() => patchDraft({ selectedTemplate: template.id })} />)}
       </div>
-      <div className="resume2-category-row">{TEMPLATE_CATEGORIES.map((cat) => <button key={cat} className={selectedCategory === cat ? 'active' : ''} onClick={() => setSelectedCategory(cat)}>{cat} <span>10</span></button>)}</div>
+      <div className="resume2-category-row">{TEMPLATE_CATEGORIES.map((cat) => <button key={cat} className={selectedCategory === cat ? 'active' : ''} onClick={() => setSelectedCategory(cat)}>{cat} <span>{RESUME_TEMPLATES.filter((t) => t.category === cat).length}</span></button>)}</div>
       <div className="resume2-template-grid">
         {visible.map((template) => <TemplateCard key={template.id} template={template} selected={draft.selectedTemplate === template.id} onSelect={() => patchDraft({ selectedTemplate: template.id })} />)}
       </div>
