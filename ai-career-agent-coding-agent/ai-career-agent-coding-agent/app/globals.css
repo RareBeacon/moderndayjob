@@ -264,6 +264,11 @@ ul { margin: 0; }
 .plan-grid small { font-size: 13px; color: var(--color-text-secondary); }
 .plan-grid .card { display: grid; gap: 16px; align-content: start; }
 .featured-plan { border-color: var(--color-border-strong); background: var(--color-surface-alt); }
+.provider-toggle { display: flex; align-items: center; gap: 8px; margin: 20px 0 4px; flex-wrap: wrap; }
+.provider-toggle-label { font-size: 13px; color: var(--color-text-secondary); margin-right: 4px; }
+.provider-option { font-size: 13.5px; font-weight: 600; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-secondary); cursor: pointer; transition: all .15s ease; }
+.provider-option:hover { border-color: var(--color-border-strong); color: var(--color-text-primary); }
+.provider-active { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-surface-alt); }
 .progress { height: 8px; border-radius: 999px; background: var(--color-border); margin: 10px 0; overflow: hidden; }
 .progress i { display: block; height: 100%; border-radius: inherit; background: var(--color-primary-hover); transition: width .5s ease; }
 @media (max-width: 760px) {.workspace-hero { padding: 42px 0 28px; }.workspace-hero h1 { font-size: 38px; }.plan-grid { grid-template-columns: 1fr; }}

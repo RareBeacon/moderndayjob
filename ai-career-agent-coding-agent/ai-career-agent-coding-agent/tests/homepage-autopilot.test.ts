@@ -40,7 +40,8 @@ describe('Homepage: delegation-first positioning (owner verdict), truth-constrai
   it('tells the user the agent finds jobs on paid plans, and pasting still works', () => {
     expect(page).toContain('Your agent finds the jobs');
     expect(page).toContain('paste any link yourself');
-    expect(tour).toContain('Jobiest is not a job board to scroll. On paid plans your agent finds matching roles on employer boards; paste anything else yourself.');
+    expect(tour).toContain('Discovery runs on paid plans and only reads public employer boards.');
+    expect(tour).toContain('Paste any job link and the agent takes it from there.');
   });
 
   it('embeds the video case study with an honest label and poster fallback', () => {
@@ -74,12 +75,27 @@ describe('Homepage: delegation-first positioning (owner verdict), truth-constrai
 
   it('shows the end-to-end product tour with sample-data labels', () => {
     expect(page).toContain('<ProductTour />');
-    for (const label of ['Your criteria', 'Bring the jobs', 'Tailored documents', 'Your approval', 'Morning tracker']) {
+    for (const label of ['Your criteria', 'Found for you', 'Tailored documents', 'Your approval', 'Morning tracker']) {
       expect(tour).toContain(label);
     }
     expect(tour).toContain('Real interface · sample data');
     expect(tour).toContain('Sample data throughout');
     expect(tour).toContain('expire after 24 hours');
+  });
+
+  it('tour jobs screen is personalized to the persona criteria, not a generic paste demo', () => {
+    // The found-for-you screen must carry the persona's own criteria into the
+    // sample rows and stay honestly labeled as sample data.
+    expect(tour).toContain('Found for you');
+    expect(tour).toContain('Roles your agent found on employer job boards, inside your rules.');
+    expect(tour).toContain('Senior Product Manager');
+    expect(tour).toContain('above your salary floor');
+    expect(tour).toContain('Ready for your approval');
+    // Paste stays available as a hint, not the headline demo.
+    expect(tour).toContain('Paste any job link');
+    // No fake job-board URL demo anymore.
+    expect(tour).not.toContain('jobboards.greenhouse.io');
+    expect(tour).not.toContain('4821159');
   });
 
   it('trust section states verified safeguards without overclaiming', () => {

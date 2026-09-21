@@ -13,6 +13,7 @@ type Entitlement = {
 };
 
 type PaidPlan = 'BASIC' | 'PREMIUM' | 'MAX';
+type Provider = 'flutterwave' | 'paystack';
 
 const PLANS: { code: PaidPlan; name: string; price: string; blurb: string }[] = [
   {
@@ -35,8 +36,15 @@ const PLANS: { code: PaidPlan; name: string; price: string; blurb: string }[] = 
   },
 ];
 
+const PROVIDER_LABELS: Record<Provider, string> = {
+  flutterwave: 'Flutterwave',
+  paystack: 'Paystack',
+};
+
 export default function Billing() {
   const [entitlement, setEntitlement] = useState<Entitlement | null>(null);
+  const [providers, setProviders] = useState<Provider[]>([]);
+  const [provider, setProvider] = useState<Provider>('flutterwave');
   const [loading, setLoading] = useState('');
   const [message, setMessage] = useState('');
 
@@ -45,18 +53,30 @@ export default function Billing() {
       .then((r) => r.json())
       .then(setEntitlement)
       .catch(() => setMessage('Unable to load plan information.'));
+    fetch('/api/billing/providers')
+      .then((r) => r.json())
+      .then((j: { flutterwave?: boolean; paystack?: boolean }) => {
+        const available: Provider[] = [];
+        if (j.flutterwave) available.push('flutterwave');
+        if (j.paystack) available.push('paystack');
+        setProviders(available);
+        if (available.length > 0) setProvider(available[0]);
+      })
+      .catch(() => setProviders(['flutterwave', 'paystack']));
   }, []);
 
   async function buy(plan: PaidPlan) {
     setLoading(plan);
     setMessage('');
-    const r = await fetch('/api/billing/flutterwave/create', {
+    const r = await fetch(`/api/billing/${provider}/create`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ plan }),
     });
     const j = await r.json();
-    if (j.data?.link) location.href = j.data.link;
+    // Flutterwave returns data.link; Paystack returns data.authorization_url.
+    const link = j.data?.link ?? j.data?.authorization_url;
+    if (link) location.href = link;
     else setMessage(j.error === 'BILLING_NOT_CONFIGURED' ? 'Payments are not available yet. Please check back soon.' : j.error ?? 'Unable to start payment');
     setLoading('');
   }
@@ -77,6 +97,21 @@ export default function Billing() {
         )}
         {message && <p className="form-status">{message}</p>}
       </section>
+      {providers.length > 1 && (
+        <div className="provider-toggle" role="group" aria-label="Payment provider">
+          <span className="provider-toggle-label">Pay with</span>
+          {providers.map((p) => (
+            <button
+              key={p}
+              type="button"
+              className={`provider-option${provider === p ? ' provider-active' : ''}`}
+              onClick={() => setProvider(p)}
+            >
+              {PROVIDER_LABELS[p]}
+            </button>
+          ))}
+        </div>
+      )}
       <section className="plan-grid">
         <article className="card">
           <p className="eyebrow">FREE</p>
@@ -96,7 +131,7 @@ export default function Billing() {
         ))}
       </section>
       <p className="form-hint">
-        Prices are in Naira. See <a href="/pricing" style={{ color: 'var(--brand)' }}>the public pricing page</a> for local-currency estimates and full plan details.
+        Prices are in Naira. See <a href="/pricing" style={{ color: 'var(--brand)' }}>the public pricing page</a> for local-currency estimates and full plan details. Checkout is handled on {providers.length === 1 ? PROVIDER_LABELS[providers[0]] : 'the provider you pick'} secure pages; card details never touch our servers.
       </p>
     </AppShell>
   );

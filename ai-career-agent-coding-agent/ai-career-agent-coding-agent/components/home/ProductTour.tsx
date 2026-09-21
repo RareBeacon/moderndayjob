@@ -4,11 +4,12 @@
  * Interactive end-to-end product tour (homepage "show, not tell" section).
  *
  * Five screens mirroring the real dashboard UI with clearly-labeled sample
- * data: criteria (job_preferences fields) -> bring the jobs (paste any job
- * URL; Greenhouse and Lever forms are mapped) -> tailored documents -> the
- * approval step -> the morning tracker. The approval step is real product
- * behavior: nothing is submitted until the user approves, and approvals
- * expire after 24 hours.
+ * data: criteria (job_preferences fields) -> found for you (roles the agent
+ * discovers on employer job boards, matched to the persona's criteria;
+ * pasting your own link stays available as a one-line hint) -> tailored
+ * documents -> the approval step -> the morning tracker. The approval step
+ * is real product behavior: nothing is submitted until the user approves,
+ * and approvals expire after 24 hours.
  */
 import { useState } from 'react';
 import styles from '../../app/home.module.css';
@@ -16,7 +17,7 @@ import { Icon } from './Icons';
 
 const TABS = [
   { id: 'criteria', label: 'Your criteria', icon: 'user' as const },
-  { id: 'jobs', label: 'Bring the jobs', icon: 'briefcase' as const },
+  { id: 'jobs', label: 'Found for you', icon: 'briefcase' as const },
   { id: 'documents', label: 'Tailored documents', icon: 'file' as const },
   { id: 'approval', label: 'Your approval', icon: 'shield' as const },
   { id: 'tracker', label: 'Morning tracker', icon: 'chart' as const },
@@ -92,25 +93,42 @@ export function ProductTour() {
             )}
 
             {active === 1 && (
-              <section aria-label="Bring the jobs screen">
+              <section aria-label="Found for you screen">
                 <div className={styles['workspace-heading']}>
                   <div>
-                    <h2>Bring the jobs</h2>
-                    <p>Paste a link to any role you want. The agent takes it from there.</p>
+                    <h2>Found for you</h2>
+                    <p>Roles your agent found on employer job boards, inside your rules.</p>
                   </div>
-                  <span className={styles['small-label']}>Paste, done</span>
+                  <span className={styles['small-label']}>Sample data</span>
                 </div>
-                <div className={styles['paste-card']}>
-                  <span className={styles['paste-icon']}><Icon name="briefcase" small /></span>
-                  <div className={styles['paste-url']}>jobboards.greenhouse.io/acme/jobs/4821159</div>
-                  <span className={styles['paste-go']}><Icon name="arrow" small /></span>
-                </div>
-                <ul className={styles['paste-notes']}>
-                  <li><Icon name="check" small /> The agent reads the full job description and requirements.</li>
-                  <li><Icon name="check" small /> On Greenhouse and Lever, the application form is mapped for pre-filling.</li>
-                  <li><Icon name="check" small /> Any other job URL works too; the package comes back ready for you to send.</li>
+                <ul className={styles['found-list']}>
+                  <li>
+                    <span className={styles['found-main']}>
+                      <strong>Senior Product Manager</strong>
+                      <em>Sabilux Fintech · Lagos (hybrid) · ₦850,000/mo</em>
+                      <span className={styles['found-match']}>Matches: target role · Lagos · above your salary floor · via Greenhouse</span>
+                    </span>
+                    <span className={`${styles['tracker-chip']} ${styles['chip-ready']}`}>Ready for your approval</span>
+                  </li>
+                  <li>
+                    <span className={styles['found-main']}>
+                      <strong>Product Lead, Payments</strong>
+                      <em>Paytrail · Remote (WAT ±2) · ₦980,000/mo</em>
+                      <span className={styles['found-match']}>Matches: target role · remote · above your salary floor · via Lever</span>
+                    </span>
+                    <span className={`${styles['tracker-chip']} ${styles['chip-manual']}`}>Documents drafted</span>
+                  </li>
+                  <li>
+                    <span className={styles['found-main']}>
+                      <strong>Group Product Manager</strong>
+                      <em>Trustline Health · Lagos · ₦1,300,000/mo</em>
+                      <span className={styles['found-match']}>Matches: seniority · Lagos · well above your floor · via Greenhouse</span>
+                    </span>
+                    <span className={`${styles['tracker-chip']} ${styles['chip-ready']}`}>Ready for your approval</span>
+                  </li>
                 </ul>
-                <p className={styles['context-note']}><Icon name="shield" small /> Jobiest is not a job board to scroll. On paid plans your agent finds matching roles on employer boards; paste anything else yourself.</p>
+                <p className={styles['paste-hint']}><Icon name="arrow" small /> Spotted a role yourself? Paste any job link and the agent takes it from there.</p>
+                <p className={styles['context-note']}><Icon name="shield" small /> Discovery runs on paid plans and only reads public employer boards. Nothing sends without your approval.</p>
               </section>
             )}
 
