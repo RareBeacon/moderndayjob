@@ -56,4 +56,26 @@ describe('decideAutoSubmit', () => {
   it('requires truthfulness to pass', () => {
     expect(decideAutoSubmit(ctx({ truthfulnessOk: false }))).toEqual({ ok: false, code: 'TRUTHFULNESS_ISSUE' });
   });
+
+  it('auto mode: an entitled user delegates the send, no APPROVED state needed', () => {
+    expect(decideAutoSubmit(ctx({ autoMode: true, appStatus: 'AWAITING_APPROVAL' }))).toEqual({ ok: true });
+    expect(decideAutoSubmit(ctx({ autoMode: true, appStatus: 'APPROVED' }))).toEqual({ ok: true });
+  });
+
+  it('auto mode: entitlement is checked BEFORE the approval bypass', () => {
+    expect(decideAutoSubmit(ctx({ autoMode: true, entitled: false, appStatus: 'AWAITING_APPROVAL' }))).toEqual({ ok: false, code: 'NOT_ENTITLED' });
+  });
+
+  it('auto mode: an incomplete package (PREPARING/DRAFT) is never sent', () => {
+    expect(decideAutoSubmit(ctx({ autoMode: true, appStatus: 'PREPARING' }))).toEqual({ ok: false, code: 'NOT_APPROVED' });
+    expect(decideAutoSubmit(ctx({ autoMode: true, appStatus: 'DRAFT' }))).toEqual({ ok: false, code: 'NOT_APPROVED' });
+  });
+
+  it('auto mode: every other gate still applies', () => {
+    expect(decideAutoSubmit(ctx({ autoMode: true, automationEnabled: false }))).toEqual({ ok: false, code: 'AUTOMATION_DISABLED' });
+    expect(decideAutoSubmit(ctx({ autoMode: true, agentPaused: true }))).toEqual({ ok: false, code: 'AGENT_PAUSED' });
+    expect(decideAutoSubmit(ctx({ autoMode: true, adapterSupported: false }))).toEqual({ ok: false, code: 'UNSUPPORTED_PLATFORM' });
+    expect(decideAutoSubmit(ctx({ autoMode: true, truthfulnessOk: false }))).toEqual({ ok: false, code: 'TRUTHFULNESS_ISSUE' });
+    expect(decideAutoSubmit(ctx({ autoMode: true, hasPackage: false }))).toEqual({ ok: false, code: 'REQUIRED_FIELDS_MISSING' });
+  });
 });

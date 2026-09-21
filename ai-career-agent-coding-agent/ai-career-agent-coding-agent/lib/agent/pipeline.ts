@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '../supabase';
 import { processApplicationTask } from '../apply/task';
+import { runDiscoveryForUser, runDiscoveryStage } from './discovery';
 
 /**
  * Shared agent pipeline, the single source of truth for task processing.
@@ -8,11 +9,12 @@ import { processApplicationTask } from '../apply/task';
  * paid host) and the free production path (Vercel Cron →
  * /api/cron/daily-pipeline). Same semantics, one implementation.
  *
- * Scope note (2026-09-20, owner decision): Jobiest does not offer job
- * listings. The shared jobs pool ingestion, the job browser, and match
- * scoring were removed. This pipeline now only drains application tasks
- * (the autopilot apply agent). Legacy JOB_DISCOVERY tasks are completed as
- * no-ops so old queue rows can never block the drain loop.
+ * Scope note (2026-09-21, owner decision): job discovery is BACK, per-user.
+ * The agent reads each paid user's preferences and target roles, finds
+ * matching roles on the public boards in the job_sources registry, crafts
+ * the application package, and (auto send policy) submits it after every
+ * server-side gate. The shared jobs pool and the public job browser remain
+ * retired: discovered rows are private to the user they were found for.
  */
 
 export interface AgentTask {
@@ -48,8 +50,11 @@ export async function processAgentTask(task: AgentTask, _deps: PipelineDeps = de
     return processApplicationTask((task.payload ?? {}) as Record<string, unknown>);
   }
   if (task.type === 'JOB_DISCOVERY') {
-    // Discovery is retired (2026-09-20). Complete old queue rows as no-ops.
-    return { status: 'SUCCEEDED', result: { skipped: 'discovery_retired' } };
+    // Per-user discovery (2026-09-21). Legacy shared-pool rows without a
+    // user_id still complete as no-ops so nothing blocks the drain loop.
+    if (!task.user_id) return { status: 'SUCCEEDED', result: { skipped: 'discovery_legacy_no_user' } };
+    const outcome = await runDiscoveryForUser(task.user_id, undefined, { db: _deps.db });
+    return { status: 'SUCCEEDED', result: { ...outcome } };
   }
   return { status: 'SUCCEEDED', result: { message: 'No operation required.' } };
 }
@@ -78,6 +83,9 @@ export interface PipelineReport {
   tasksProcessed: number;
   taskOutcomes: { id: string; type: string; status: string }[];
   errors: string[];
+  /** Per-user discovery stage (runs before task draining so auto-mode
+   *  applications created by discovery are submitted in the same run). */
+  discovery?: Awaited<ReturnType<typeof runDiscoveryStage>>;
 }
 
 /**
@@ -88,6 +96,15 @@ export interface PipelineReport {
 export async function runDailyPipeline(partial: Partial<PipelineDeps> = {}): Promise<PipelineReport> {
   const deps: PipelineDeps = { ...defaultDeps(), ...partial };
   const report: PipelineReport = { day: new Date().toISOString().slice(0, 10), tasksProcessed: 0, taskOutcomes: [], errors: [] };
+
+  // Discovery first: paid users' agents find matching roles, craft packages,
+  // and (auto send policy) enqueue APPLICATION tasks that the drain loop
+  // below then submits in this same run.
+  try {
+    report.discovery = await runDiscoveryStage({ db: deps.db });
+  } catch (error) {
+    report.errors.push(`discovery: ${error instanceof Error ? error.message : 'DISCOVERY_FAILED'}`);
+  }
 
   for (let round = 0; round < MAX_CLAIM_ROUNDS; round++) {
     const tasks = await claimTasks(deps.db, CLAIM_BATCH, 300);

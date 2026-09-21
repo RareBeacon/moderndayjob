@@ -41,7 +41,7 @@ const MODES: { value: Mode; label: string; desc: string }[] = [
   { value: 'draft', label: 'Draft only', desc: 'Generate materials. You handle the rest.' },
   { value: 'assist', label: 'Assist', desc: 'Prepare and fill where possible, stop before submitting.' },
   { value: 'approval', label: 'Approval (recommended)', desc: 'Prepare complete applications. You approve each one before it is sent.' },
-  { value: 'auto', label: 'Auto', desc: 'Submit eligible applications within your rules. Still stops on CAPTCHA or unsupported sites.' },
+  { value: 'auto', label: 'Auto', desc: 'Paid plans: submit eligible applications within your rules, then email you each one. Still stops on CAPTCHA or unsupported sites.' },
 ];
 // 6 steps per design plan §6.2 (Gmail removed per D-001)
 const STEPS = ['You', 'Targets', 'Where & how', 'Your CV', 'Experience', 'Ready'];

@@ -173,7 +173,7 @@ function setup(overrides: Partial<Db> = {}) {
   const db = defaultDb(overrides);
   m.trace.length = 0;
   m.setImpl(mkResolver(db));
-  m.assertEntitlement.mockReset().mockResolvedValue(undefined);
+  m.assertEntitlement.mockReset().mockResolvedValue({ account_status: 'ACTIVE', automation_enabled: true, plan: 'PREMIUM', applications_remaining: 10 });
   return db;
 }
 
@@ -264,6 +264,13 @@ describe('requestAutoSubmit (kill switch + entitlement + idempotency)', () => {
     vi.stubEnv('AUTOMATION_SUBMIT_ENABLED', 'true');
     setup();
     await expect(requestAutoSubmit('user-1', 'app-1')).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
+  });
+
+  it('blocks when the plan run quota is used up (Basic 2 total; Premium 10/day)', async () => {
+    vi.stubEnv('AUTOMATION_SUBMIT_ENABLED', 'true');
+    setup({ app: { id: 'app-1', user_id: 'user-1', job_id: 'job-1', email: 'a@b.co', status: 'APPROVED', submitted_at: null, created_at: new Date().toISOString(), error: null } });
+    m.assertEntitlement.mockResolvedValue({ account_status: 'ACTIVE', automation_enabled: true, plan: 'BASIC', applications_remaining: 0 });
+    await expect(requestAutoSubmit('user-1', 'app-1')).rejects.toMatchObject({ code: 'APPLICATION_QUOTA_EXHAUSTED' });
   });
 
   it('blocks non-entitled users', async () => {

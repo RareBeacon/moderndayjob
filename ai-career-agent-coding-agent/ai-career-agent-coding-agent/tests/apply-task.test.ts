@@ -59,6 +59,8 @@ const m = vi.hoisted(() => {
 
 vi.mock('@/lib/supabase', () => ({ supabaseAdmin: { from: m.from, storage: m.storage } }));
 vi.mock('@/lib/apply/client', () => ({ submitViaBrowser: m.submitViaBrowser }));
+const sendApplicationSubmittedEmail = vi.fn(async (_to?: string, _input?: unknown) => ({ ok: true }));
+vi.mock('@/lib/email/resend', () => ({ sendApplicationSubmittedEmail: (to: string, input: unknown) => sendApplicationSubmittedEmail(to, input) }));
 vi.mock('@packages/security/entitlements', () => ({ assertEntitlement: m.assertEntitlement }));
 vi.mock('@/lib/applications/service', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/applications/service')>();
@@ -202,6 +204,57 @@ describe('processApplicationTask — submit outcomes', () => {
     expect(update!.eqs.id).toBe('app-1');
     expect(update!.eqs.user_id).toBe('user-1');
     expect(m.appendApplicationEvent).toHaveBeenCalledWith('user-1', 'app-1', 'SUBMITTED', expect.objectContaining({ method: 'automated' }));
+  });
+
+  it('on SUBMITTED, emails the user a submitted-on-your-behalf notice with the pipeline link', async () => {
+    sendApplicationSubmittedEmail.mockClear();
+    m.submitViaBrowser.mockResolvedValue({ outcome: 'SUBMITTED', confirmation: 'thanks', url: URL });
+    const out = await processApplicationTask({ application_id: 'app-1' });
+    expect(out.result.notified).toBe(true);
+    expect(sendApplicationSubmittedEmail).toHaveBeenCalledOnce();
+    expect(sendApplicationSubmittedEmail).toHaveBeenCalledWith(
+      'ada@b.co',
+      expect.objectContaining({ jobTitle: 'Engineer', company: 'Acme', pipelineUrl: 'https://jobiest.com/applications', mode: 'approval' }),
+    );
+  });
+
+  it('a notification failure never fails the submission', async () => {
+    sendApplicationSubmittedEmail.mockClear();
+    sendApplicationSubmittedEmail.mockRejectedValueOnce(new Error('resend down'));
+    m.submitViaBrowser.mockResolvedValue({ outcome: 'SUBMITTED', confirmation: 'ok', url: URL });
+    const out = await processApplicationTask({ application_id: 'app-1' });
+    expect(out.status).toBe('SUCCEEDED');
+    expect(out.result.outcome).toBe('SUBMITTED');
+    expect(out.result.notified).toBe(false);
+  });
+
+  it('auto mode: an AWAITING_APPROVAL application from an entitled user is submitted with no approval snapshot', async () => {
+    sendApplicationSubmittedEmail.mockClear();
+    m.db.preferences = { active: true, application_mode: 'auto' };
+    m.db.applications = { ...(m.db.applications as object), status: 'AWAITING_APPROVAL', approved_at: null, approval_snapshot: null };
+    m.submitViaBrowser.mockResolvedValue({ outcome: 'SUBMITTED', confirmation: 'auto-ok', url: URL });
+    const out = await processApplicationTask({ application_id: 'app-1' });
+    expect(out.status).toBe('SUCCEEDED');
+    expect(out.result.outcome).toBe('SUBMITTED');
+    expect(m.submitViaBrowser).toHaveBeenCalledOnce();
+    expect(sendApplicationSubmittedEmail).toHaveBeenCalledWith('ada@b.co', expect.objectContaining({ mode: 'auto' }));
+  });
+
+  it('auto mode: a FREE user is still blocked (entitlement before the approval bypass)', async () => {
+    m.db.preferences = { active: true, application_mode: 'auto' };
+    m.db.applications = { ...(m.db.applications as object), status: 'AWAITING_APPROVAL' };
+    m.assertEntitlement.mockRejectedValue(new Error('AUTOMATION_NOT_ENTITLED'));
+    const out = await processApplicationTask({ application_id: 'app-1' });
+    expect(out.result.reason).toBe('NOT_ENTITLED');
+    expect(m.submitViaBrowser).not.toHaveBeenCalled();
+  });
+
+  it('auto mode: a PREPARING application (package incomplete) is never sent', async () => {
+    m.db.preferences = { active: true, application_mode: 'auto' };
+    m.db.applications = { ...(m.db.applications as object), status: 'PREPARING' };
+    const out = await processApplicationTask({ application_id: 'app-1' });
+    expect(out.result.reason).toBe('NOT_APPROVED');
+    expect(m.submitViaBrowser).not.toHaveBeenCalled();
   });
 
   it('on a safe STOP, records the reason on the application and audits AUTO_SUBMIT_STOPPED', async () => {

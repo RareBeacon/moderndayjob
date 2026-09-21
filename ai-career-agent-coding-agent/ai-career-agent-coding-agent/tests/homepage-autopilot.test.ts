@@ -18,21 +18,29 @@ describe('Homepage: delegation-first positioning (owner verdict), truth-constrai
     expect(page).toContain('Delegate my job search');
   });
 
-  it('claims delegation of the work, never unattended sends or job discovery', () => {
+  it('claims delegation of the work, with discovery and Auto now real and qualified', () => {
     expect(page).toContain('after your approval');
     expect(page).toContain('You review the results. It does the work.');
-    // Discovery was retired 2026-09-20 (owner decision) and submission requires approval:
-    // the homepage must not claim either.
-    expect(page).not.toContain('finds roles');
-    expect(page).not.toContain('searches continuously');
+    // Discovery is back (owner decision 2026-09-21) but is a PAID feature: every
+    // discovery claim on the page must carry the paid qualifier.
+    const parts = page.split('finds matching roles');
+    expect(parts.length).toBeGreaterThan(1);
+    // Every discovery claim must carry a paid qualifier nearby (before or after).
+    for (let i = 0; i < parts.length - 1; i++) {
+      const context = `${parts[i].slice(-90)}finds matching roles${parts[i + 1].slice(0, 45)}`.toLowerCase();
+      expect(context).toContain('paid');
+    }
+    // Auto send policy is real but opt-in and gated; the default stays approval.
+    expect(page).toContain('nothing is sent until you approve it');
+    expect(page).toContain('switch to the Auto send policy');
+    // No unqualified blanket claim of unattended submission.
     expect(page).not.toContain('submits applications on your behalf');
-    expect(page).toContain('an auto-submit mode is on the roadmap, not in production');
   });
 
-  it('tells the user they bring the jobs, honestly', () => {
-    expect(page).toContain('Drop in the jobs you want');
-    expect(page).toContain('Paste links to the roles you care about');
-    expect(tour).toContain('Jobiest does not run a job board. You choose the roles; the agent does the work.');
+  it('tells the user the agent finds jobs on paid plans, and pasting still works', () => {
+    expect(page).toContain('Your agent finds the jobs');
+    expect(page).toContain('paste any link yourself');
+    expect(tour).toContain('Jobiest is not a job board to scroll. On paid plans your agent finds matching roles on employer boards; paste anything else yourself.');
   });
 
   it('embeds the video case study with an honest label and poster fallback', () => {
@@ -54,13 +62,14 @@ describe('Homepage: delegation-first positioning (owner verdict), truth-constrai
     expect(page).toContain('after your approval');
     for (const code of ['BASIC', 'PREMIUM', 'MAX']) {
       const card = page.split(`  ${code}: {`)[1]?.split('},')[0] ?? '';
-      expect(card).toContain('approved by you');
+      expect(card).toContain('approve every send, or Auto');
     }
   });
 
   it('pricing source of truth no longer advertises the retired match scoring', () => {
     expect(pricing).not.toContain('match scoring');
     expect(pricing).toContain('Paste any job link for agent analysis');
+    expect(pricing).toContain('Your agent finds matching jobs daily');
   });
 
   it('shows the end-to-end product tour with sample-data labels', () => {

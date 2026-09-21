@@ -204,3 +204,81 @@ export async function sendMfaSecurityEmail(
     : `Two-factor authentication was turned off on your Jobiest account. If this was not you, contact support@jobiest.com immediately.`;
   return sendEmail({ to, subject: enabled ? 'Two-factor authentication enabled' : 'Two-factor authentication disabled', html, text });
 }
+
+/* ==========================================================================
+   Agent notifications (discovery + automatic submission), owner request
+   2026-09-21: after the agent finishes an application, the user gets an
+   email with a link to their pipeline.
+   ========================================================================== */
+
+export interface ApplicationSubmittedInput {
+  firstName?: string;
+  jobTitle: string;
+  company: string;
+  pipelineUrl: string;
+  confirmation?: string | null;
+  /** 'auto' = the user delegated the send; 'approval' = they approved it. */
+  mode?: 'auto' | 'approval';
+}
+
+/** "A job has been submitted on your behalf" + pipeline link. */
+export async function sendApplicationSubmittedEmail(to: string, input: ApplicationSubmittedInput): Promise<SendEmailResult> {
+  const first = input.firstName?.trim() || 'there';
+  const role = `${input.jobTitle} at ${input.company}`;
+  const delegated = input.mode === 'auto';
+  const html = composeEmail(
+    [
+      emailHero('Application submitted'),
+      emailHeading(`Hello ${escapeHtmlEmail(first)},`),
+      emailParagraph(
+        delegated
+          ? 'Your agent finished an application on your behalf. It is now submitted:'
+          : 'The application you approved has been submitted:',
+      ),
+      emailInfoCard('Submitted application', [
+        `<strong>Role:</strong> ${escapeHtmlEmail(input.jobTitle)}`,
+        `<strong>Company:</strong> ${escapeHtmlEmail(input.company)}`,
+        ...(input.confirmation ? [`<strong>Confirmation:</strong> ${escapeHtmlEmail(input.confirmation)}`] : []),
+      ]),
+      emailButton('View it in my pipeline', input.pipelineUrl),
+      emailParagraph(
+        delegated
+          ? 'You can review the tailored documents, the timeline and the result in your pipeline at any time. If you would rather approve every send yourself, you can change your send policy in your preferences.'
+          : 'You can review the tailored documents, the timeline and the result in your pipeline at any time.',
+      ),
+    ],
+    `A job has been submitted on your behalf: ${input.jobTitle} at ${input.company}`,
+  );
+  const text = `Hello ${first},\n\nYour agent finished an application on your behalf. It is now submitted:\n\nRole: ${input.jobTitle}\nCompany: ${input.company}${input.confirmation ? `\nConfirmation: ${input.confirmation}` : ''}\n\nView it in your pipeline: ${input.pipelineUrl}\n\nIf you would rather approve every send yourself, you can change your send policy in your preferences.\n\nJobiest - Your next opportunity is here.`;
+  return sendEmail({ to, subject: 'A job has been submitted on your behalf', html, text });
+}
+
+export interface AgentFoundJobsInput {
+  firstName?: string;
+  count: number;
+  pipelineUrl: string;
+}
+
+/** "Your agent found jobs for you" (approval send policy): the applications
+ *  are crafted and waiting in the pipeline for the user's approval. */
+export async function sendAgentFoundJobsEmail(to: string, input: AgentFoundJobsInput): Promise<SendEmailResult> {
+  const first = input.firstName?.trim() || 'there';
+  const n = input.count === 1 ? 'a new job' : `${input.count} new jobs`;
+  const html = composeEmail(
+    [
+      emailHero('Your agent has been working'),
+      emailHeading(`Hello ${escapeHtmlEmail(first)},`),
+      emailParagraph(
+        input.count === 1
+          ? 'Your agent found a job that matches your criteria, tailored your CV and cover letter, and added the application to your pipeline.'
+          : `Your agent found ${n} that match your criteria, tailored your CV and cover letter for each, and added the applications to your pipeline.`,
+      ),
+      emailAlert('Nothing has been sent. You approve every send. Review the applications and approve the ones you want.'),
+      emailButton('Review my applications', input.pipelineUrl),
+      emailParagraph('Applications you approve are submitted automatically after your approval.'),
+    ],
+    `Your agent found ${n} for you and prepared the applications`,
+  );
+  const text = `Hello ${first},\n\nYour agent found ${n} matching your criteria and prepared the applications (tailored CV and cover letter).\n\nNothing has been sent: you approve every send.\n\nReview them here: ${input.pipelineUrl}\n\nJobiest - Your next opportunity is here.`;
+  return sendEmail({ to, subject: input.count === 1 ? 'Your agent found a job for you' : `Your agent found ${input.count} jobs for you`, html, text });
+}

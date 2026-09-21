@@ -70,7 +70,7 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
     features: [
       'Everything in Free',
       '3 AI generations a day',
-      '2 agent-mode trial runs (you approve each send)',
+      '2 agent-mode trial runs (within them: the agent finds jobs, you choose the send policy)',
       '50 career-tool uses a day',
       'Follow-up email writer',
       'Priority email support',
@@ -92,7 +92,8 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
     features: [
       'Everything in Basic',
       '10 AI generations a day',
-      '10 agent-mode applications a day, each approved by you',
+      'Your agent finds matching jobs daily',
+      '10 agent-mode applications a day (approve each send, or switch to Auto)',
       'Unlimited career-tool uses',
       'Priority AI processing & faster queue',
       'Salary insights & interview prep unlimited',
@@ -115,7 +116,8 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
     features: [
       'Everything in Premium',
       '20 AI generations a day',
-      '20 agent-mode applications a day, each approved by you',
+      'Your agent finds matching jobs daily',
+      '20 agent-mode applications a day (approve each send, or switch to Auto)',
       'Unlimited everything',
       'Highest daily volume for heavy application runs',
       'Concierge support & early access',

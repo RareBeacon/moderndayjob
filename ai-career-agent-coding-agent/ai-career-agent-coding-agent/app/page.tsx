@@ -20,8 +20,8 @@ export const metadata: Metadata = {
 };
 
 const faqs = [
-  { q: 'How much work is this, really?', a: 'Set your criteria once, then paste links to the jobs you want. The agent reads each job, tailors your CV and cover letter, answers the application questions, and fills supported forms. You review each package and approve; on Greenhouse and Lever the submission itself is done for you. Most evenings take minutes, not hours.' },
-  { q: 'Which job boards does it support?', a: 'The agent fills and submits employer forms on Greenhouse and Lever. For any other job, it prepares the complete package, CV, cover letter and answers, with a direct link so you can submit in a couple of clicks. Forms that need a CAPTCHA, a login, or an assessment are handed back to you with everything ready to go.' },
+  { q: 'How much work is this, really?', a: 'Set your criteria once. On paid plans your agent then searches employer boards for matching roles and prepares the applications; you can also paste any job link yourself. You review each package and approve; on Greenhouse and Lever the submission itself is done for you, or fully automatic if you switch to the Auto send policy. Most evenings take minutes, not hours.' },
+  { q: 'Which job boards does it support?', a: 'The agent fills and submits employer forms on Greenhouse and Lever. It searches public employer boards on those platforms when looking for roles, and for any job you bring yourself it prepares the complete package, CV, cover letter and answers, with a direct link so you can submit in a couple of clicks. Forms that need a CAPTCHA, a login, or an assessment are handed back to you with everything ready to go.' },
   { q: 'Will it make up experience for my CV?', a: 'Never. Documents are built only from the facts you verify. Missing details are flagged so you can add context without inventing credentials or achievements, and a truthfulness check runs before any submission: if honest content cannot be verified, the application stops and comes back to you.' },
   { q: 'What can I do on the free plan?', a: 'Use all 10 career tools (full results preview, no account needed), build your profile and criteria, and track applications in one place. You also get three AI generations in total to try the writer. Agent runs start on paid plans. No payment card is required.' },
 ];
@@ -43,9 +43,9 @@ const tools = [
 
 const howSteps = [
   { n: '01', title: 'Give Jobiest your criteria', body: 'Target roles, locations, remote preference, salary floor, daily target. You set the rules once; the agent works inside them.' },
-  { n: '02', title: 'Drop in the jobs you want', body: 'Paste links to the roles you care about, from anywhere. No scrolling job boards inside Jobiest; you choose, it works.' },
+  { n: '02', title: 'Your agent finds the jobs', body: 'On paid plans, your agent searches employer boards for roles that match your criteria and adds them to your pipeline, ready to apply. You can also paste any link yourself, from anywhere. No scrolling job boards inside Jobiest.' },
   { n: '03', title: 'Your agent does the work', body: 'It reads each job description, tailors your CV and cover letter from your verified experience, answers application questions, and completes supported forms.' },
-  { n: '04', title: 'Applications get submitted', body: 'Review each package and approve with one tap. On Greenhouse and Lever, your agent submits for you. That is the control mode today: every send has your name on it.' },
+  { n: '04', title: 'Applications get submitted', body: 'By default you review each package and approve with one tap, and your agent submits on Greenhouse and Lever. Prefer full delegation? On paid plans, switch to the Auto send policy and your agent submits within your rules, then emails you each application it sent on your behalf.' },
   { n: '05', title: 'Track everything', body: 'Applied, waiting, interview, rejected, follow-up. One tracker shows every application and its status, every morning.' },
 ];
 
@@ -57,8 +57,8 @@ const trustItems = [
   },
   {
     icon: 'check' as const,
-    title: 'You approve every send',
-    body: 'Today, no plan sends without your approval, and an auto-submit mode is on the roadmap, not in production. Approvals expire after 24 hours and restart if your documents change, so nothing goes out on stale information.',
+    title: 'Every send follows your policy',
+    body: 'The default is simple: nothing is sent until you approve it. Approvals expire after 24 hours and restart if your documents change, so nothing goes out on stale information. On paid plans you can switch to the Auto send policy and your agent submits within your rules; it still stops on CAPTCHAs, unsupported sites, and anything it cannot verify as truthful.',
   },
   {
     icon: 'briefcase' as const,
@@ -82,17 +82,17 @@ const PLAN_COPY: Record<string, { description: string; includes: string; feature
   BASIC: {
     description: 'A first taste of the agent.',
     includes: 'Everything in Free, plus',
-    features: ['3 AI generations a day', '50 career-tool uses a day', '2 agent runs in total (lifetime)', 'Every send approved by you'],
+    features: ['3 AI generations a day', '50 career-tool uses a day', '2 agent runs in total (lifetime)', 'Your agent finds matching jobs (within your runs)', 'You choose: approve every send, or Auto'],
   },
   PREMIUM: {
     description: 'The full agent workflow.',
     includes: 'Everything in Basic, plus',
-    features: ['10 AI generations a day', '10 agent applications a day', 'Unlimited career-tool uses', 'Every send approved by you'],
+    features: ['10 AI generations a day', 'Your agent finds matching jobs daily', '10 agent applications a day', 'Unlimited career-tool uses', 'You choose: approve every send, or Auto'],
   },
   MAX: {
     description: 'For high-volume searches.',
     includes: 'Everything in Premium, plus',
-    features: ['20 AI generations a day', '20 agent applications a day', 'Unlimited career-tool uses', 'Every send approved by you'],
+    features: ['20 AI generations a day', 'Your agent finds matching jobs daily', '20 agent applications a day', 'Unlimited career-tool uses', 'You choose: approve every send, or Auto'],
   },
 };
 
@@ -133,7 +133,7 @@ export default async function HomePage() {
               <h1>Your AI agent<br />for the <span className={styles['headline-highlight']}>job search.</span></h1>
               <div className={styles['hero-copy']}>
                 <p>
-                  Tell Jobiest what you are looking for once. Drop in the jobs you want. Your agent reads each role, tailors your CV and cover letter, answers the questions, fills the form, and submits on Greenhouse and Lever after your approval. You review the results. It does the work.
+                  Tell Jobiest what you are looking for once. On paid plans your agent finds matching roles and readies the applications; paste any job yourself too. It tailors your CV and cover letter, answers the questions, fills the form, and submits on Greenhouse and Lever: after your approval by default, or automatically on the Auto policy. You review the results. It does the work.
                 </p>
                 <div className={styles['hero-actions']}>
                   <Link className={`${styles.button} ${styles['button-navy']}`} href="/signup">
@@ -187,9 +187,9 @@ export default async function HomePage() {
               <div className={styles['case-video-side']}>
                 <ul>
                   <li><Icon name="check" small /> Set your criteria once: roles, locations, salary floor.</li>
-                  <li><Icon name="check" small /> Drop in the jobs you want, from anywhere.</li>
+                  <li><Icon name="check" small /> Your agent finds matching roles on paid plans; paste any link too.</li>
                   <li><Icon name="check" small /> Your agent tailors every document and fills supported forms.</li>
-                  <li><Icon name="check" small /> Approve before bed; the morning run submits on Greenhouse and Lever.</li>
+                  <li><Icon name="check" small /> Approve before bed, or switch to Auto: the morning run submits and emails you each one.</li>
                   <li><Icon name="check" small /> Anything that needs a human, CAPTCHA or assessment, comes back ready.</li>
                 </ul>
                 <figure className={styles['case-photo-small']}>
@@ -308,7 +308,7 @@ export default async function HomePage() {
               <p>
                 <strong>AI generations</strong> are resumes, cover letters and application answers written by the AI writer: 3 in total on Free (lifetime), refreshed daily on paid plans.
                 <strong> Career-tool uses</strong> cover the 10 free tools: the ATS scanner is rule-based, the other nine are AI-powered, and every tool shows a full preview without an account (copying and saving needs a free account). Tool use never touches your AI-generation allowance.
-                <strong> An agent run</strong> is one complete application: the job is analyzed, your documents tailored, the form filled, and the send happens after your approval. Basic includes 2 runs in total (lifetime); Premium and Max refresh daily at 10 and 20 runs.
+                <strong> An agent run</strong> is one complete application: the job is found or pasted, analyzed, your documents tailored, the form filled, and the send happens (after your approval, or automatically on the Auto policy). Basic includes 2 runs in total (lifetime); Premium and Max refresh daily at 10 and 20 runs.
               </p>
             </div>
             <p className={styles['pricing-footer']}>

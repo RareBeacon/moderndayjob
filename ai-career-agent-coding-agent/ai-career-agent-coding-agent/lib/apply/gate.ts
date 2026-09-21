@@ -29,6 +29,13 @@ export interface AutoSubmitContext {
   appStatus: string;
   /** Automation entitlement (plan + account status), computed server-side. */
   entitled: boolean;
+  /**
+   * The user chose the 'auto' send policy (job_preferences.application_mode
+   * === 'auto'): they delegated the send itself. Paid plans only; the
+   * entitlement check still runs first, and every other gate (kill switch,
+   * pause, adapter, truthfulness) still applies.
+   */
+  autoMode?: boolean;
   /** The job URL maps to a supported site adapter. */
   adapterSupported: boolean;
   hasEmail: boolean;
@@ -42,8 +49,16 @@ export type GateResult = { ok: true } | { ok: false; code: GateCode };
 export function decideAutoSubmit(ctx: AutoSubmitContext): GateResult {
   if (!ctx.automationEnabled) return { ok: false, code: 'AUTOMATION_DISABLED' };
   if (ctx.agentPaused) return { ok: false, code: 'AGENT_PAUSED' };
-  if (ctx.appStatus !== 'APPROVED') return { ok: false, code: 'NOT_APPROVED' };
-  if (!ctx.entitled) return { ok: false, code: 'NOT_ENTITLED' };
+  if (ctx.autoMode) {
+    // Delegated sends: entitlement must hold (checked before the approval
+    // bypass so a FREE user with the mode set can never submit), and the
+    // package must be complete (PREPARING applications are not sent).
+    if (!ctx.entitled) return { ok: false, code: 'NOT_ENTITLED' };
+    if (ctx.appStatus === 'PREPARING' || ctx.appStatus === 'DRAFT') return { ok: false, code: 'NOT_APPROVED' };
+  } else {
+    if (ctx.appStatus !== 'APPROVED') return { ok: false, code: 'NOT_APPROVED' };
+    if (!ctx.entitled) return { ok: false, code: 'NOT_ENTITLED' };
+  }
   if (!ctx.adapterSupported) return { ok: false, code: 'UNSUPPORTED_PLATFORM' };
   if (ctx.jobExpired) return { ok: false, code: 'EXPIRED_JOB' };
   if (!ctx.hasEmail) return { ok: false, code: 'REQUIRED_FIELDS_MISSING' };

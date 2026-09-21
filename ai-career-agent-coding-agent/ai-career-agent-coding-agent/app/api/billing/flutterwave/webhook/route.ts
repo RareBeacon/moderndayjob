@@ -1,7 +1,9 @@
 import crypto from 'node:crypto';
+import { after } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { verifyFlutterwaveTransaction, planForAmount } from '@packages/billing/flutterwave';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
+import { runDailyPipeline } from '@/lib/agent/pipeline';
 
 /** Flutterwave events are a few KB; anything larger is not a legitimate
  *  webhook and is rejected up-front (memory-DoS guard). */
@@ -11,6 +13,22 @@ const MAX_BODY_BYTES = 64 * 1024;
    re-verify the transaction on the server → guard the amount → invoke the
    idempotent apply_verified_payment DB function. Idempotent end-to-end
    (payments.tx_ref unique; subscription upsert; payment_events.event_id dedup). */
+export const maxDuration = 60;
+
+/** Enqueue a one-user discovery task right after a plan is granted, then
+ *  drain the pipeline (same code path as the daily cron) so the agent starts
+ *  working within seconds of a paid activation. The queued task is durable:
+ *  if this invocation is recycled early, the daily cron still processes it. */
+function wakeAgentForPaidUser(userId: string): void {
+  after(async () => {
+    try {
+      await runDailyPipeline();
+    } catch {
+      /* the daily cron is the durable fallback */
+    }
+  });
+}
+
 export async function POST(req: Request) {
   const rl = await enforceRateLimit(`billing:flutterwave:webhook:${requestIp(req)}`, 60, '1 m');
   if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
@@ -103,6 +121,40 @@ export async function POST(req: Request) {
           { event_id: payload.event_id, event_type: eventType, event_payload: payload as unknown as object },
           { onConflict: 'event_id', ignoreDuplicates: true },
         );
+    }
+
+    // The user just activated a paid plan: their agent should go to work now.
+    // Resolve the account by the verified payer email (same lookup the
+    // apply_verified_payment grant used), enqueue one discovery task, and let
+    // the after() drain process it (idempotent: one QUEUED/RUNNING task max).
+    try {
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('user_id')
+        .eq('email', verified.customer.email!)
+        .limit(1)
+        .maybeSingle();
+      const userId = (profile as { user_id?: string } | null)?.user_id;
+      if (userId) {
+        const { data: existing } = await supabaseAdmin
+          .from('agent_tasks')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('type', 'JOB_DISCOVERY')
+          .in('status', ['QUEUED', 'RUNNING'])
+          .maybeSingle();
+        if (!existing) {
+          await supabaseAdmin.from('agent_tasks').insert({
+            user_id: userId,
+            type: 'JOB_DISCOVERY',
+            status: 'QUEUED',
+            payload: { scope: 'paid_activation', plan },
+          });
+        }
+        wakeAgentForPaidUser(userId);
+      }
+    } catch {
+      /* the daily cron still discovers for every eligible paid user */
     }
     return Response.json({ ok: true, plan });
   } catch (err) {

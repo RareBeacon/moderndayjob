@@ -11,7 +11,7 @@ import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
  * by design (safe if Vercel double-fires or we invoke manually).
  */
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function GET(request: Request) {
   const rl = await enforceRateLimit(`cron:daily-pipeline:${requestIp(request)}`, 60, '1 m');

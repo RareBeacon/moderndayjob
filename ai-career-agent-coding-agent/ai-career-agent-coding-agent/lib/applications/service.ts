@@ -39,7 +39,8 @@ export type AppErrorCode =
   | 'POLICY_RESTRICTED'
   | 'APPROVAL_MISSING'
   | 'APPROVAL_STALE'
-  | 'APPROVAL_EXPIRED';
+  | 'APPROVAL_EXPIRED'
+  | 'APPLICATION_QUOTA_EXHAUSTED';
 
 export class AppActionError extends Error {
   code: AppErrorCode;
@@ -411,6 +412,8 @@ export function messageFor(code: AppErrorCode | undefined): string {
       return 'Your package changed since you approved it. Review and approve again.';
     case 'APPROVAL_EXPIRED':
       return 'Your approval expired after 24 hours. Review and approve again.';
+    case 'APPLICATION_QUOTA_EXHAUSTED':
+      return 'You have used all the agent runs your plan allows. Upgrade for more.';
     default:
       return 'Something went wrong. Please try again.';
   }
@@ -432,10 +435,16 @@ export async function requestAutoSubmit(userId: string, id: string): Promise<{ t
     throw new AppActionError('INVALID_TRANSITION', 'Only applications you have approved can be submitted automatically.');
   }
   if (!isAutomationEnabled()) throw new AppActionError('AUTOMATION_DISABLED', 'Automatic submission is not enabled.');
+  let entitlement;
   try {
-    await assertEntitlement(userId, 'automation');
+    entitlement = await assertEntitlement(userId, 'automation');
   } catch {
     throw new AppActionError('NOT_ENTITLED', 'Your plan does not include automatic submission.');
+  }
+  // The advertised per-plan agent-run limits (Basic 2 in total; Premium 10 a
+  // day; Max 20 a day) are enforced here too, not only in the discovery path.
+  if (Number(entitlement.applications_remaining) <= 0) {
+    throw new AppActionError('APPLICATION_QUOTA_EXHAUSTED', 'You have used all the agent runs your plan allows. Upgrade for more.');
   }
 
   const job = await fetchJob(app.job_id);

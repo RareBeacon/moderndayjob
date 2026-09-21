@@ -110,7 +110,7 @@ export function ProductTour() {
                   <li><Icon name="check" small /> On Greenhouse and Lever, the application form is mapped for pre-filling.</li>
                   <li><Icon name="check" small /> Any other job URL works too; the package comes back ready for you to send.</li>
                 </ul>
-                <p className={styles['context-note']}><Icon name="shield" small /> Jobiest does not run a job board. You choose the roles; the agent does the work.</p>
+                <p className={styles['context-note']}><Icon name="shield" small /> Jobiest is not a job board to scroll. On paid plans your agent finds matching roles on employer boards; paste anything else yourself.</p>
               </section>
             )}
 

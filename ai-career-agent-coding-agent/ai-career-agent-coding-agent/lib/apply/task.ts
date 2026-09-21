@@ -6,6 +6,8 @@ import { detectApplyAdapter } from './registry';
 import { submitViaBrowser } from './client';
 import { verifyApprovalAndRevert } from './snapshot';
 import { checkCapabilityAudited, agentDryRun } from '@/lib/agent/capabilities';
+import { sendApplicationSubmittedEmail } from '@/lib/email/resend';
+import { SITE_URL } from '@/lib/site';
 import type { ApplyCandidate } from './types';
 
 /**
@@ -58,13 +60,13 @@ async function loadJob(jobId: string): Promise<JobRow | null> {
   return (data as JobRow | null) ?? null;
 }
 
-async function loadPreferences(userId: string): Promise<{ active: boolean } | null> {
+async function loadPreferences(userId: string): Promise<{ active: boolean; application_mode?: string } | null> {
   const { data } = await supabaseAdmin
     .from('job_preferences')
-    .select('active')
+    .select('active,application_mode')
     .eq('user_id', userId)
     .maybeSingle();
-  return (data as { active: boolean } | null) ?? null;
+  return (data as { active: boolean; application_mode?: string } | null) ?? null;
 }
 
 async function loadProfile(userId: string): Promise<{ full_name: string | null; application_email: string | null } | null> {
@@ -151,10 +153,12 @@ export async function processApplicationTask(payload: Record<string, unknown>): 
   ]);
 
   const adapter = detectApplyAdapter(job.url ?? '');
+  const autoMode = prefs?.application_mode === 'auto';
   const decision = decideAutoSubmit({
     automationEnabled: process.env.AUTOMATION_SUBMIT_ENABLED === 'true',
     agentPaused: prefs?.active === false,
     appStatus: app.status,
+    autoMode,
     entitled: await isEntitled(userId),
     adapterSupported: !!adapter,
     hasEmail: !!(prof?.application_email || app.email),
@@ -169,8 +173,10 @@ export async function processApplicationTask(payload: Record<string, unknown>): 
 
   // B-181: re-verify the approval against the CURRENT package at run time.
   // A package edited after approval (or an approval older than 24h) reverts
-  // the application to AWAITING_APPROVAL; nothing is submitted.
-  const verification = await verifyApprovalAndRevert(userId, appId);
+  // the application to AWAITING_APPROVAL; nothing is submitted. This binds
+  // APPROVAL-mode sends only: an 'auto' send policy has no approval snapshot
+  // to verify, and every other gate above has already re-run.
+  const verification = autoMode ? { ok: true as const, snapshot: null } : await verifyApprovalAndRevert(userId, appId);
   if (!verification.ok) {
     return {
       status: 'WAITING_APPROVAL',
@@ -236,7 +242,24 @@ export async function processApplicationTask(payload: Record<string, unknown>): 
       confirmation: outcome.confirmation,
       url: outcome.url,
     });
-    return { status: 'SUCCEEDED', result: { outcome: 'SUBMITTED', confirmation: outcome.confirmation } };
+    // Owner requirement (2026-09-21): once the agent finishes an application,
+    // email the user a "submitted on your behalf" notice with a pipeline link.
+    // Best-effort: a notification failure never fails the submission.
+    let notified = false;
+    try {
+      const sent = await sendApplicationSubmittedEmail(email, {
+        firstName: prof?.full_name?.split(' ')[0],
+        jobTitle: job.title ?? 'the role',
+        company: job.company ?? 'the company',
+        pipelineUrl: `${SITE_URL}/applications`,
+        confirmation: outcome.confirmation ?? null,
+        mode: autoMode ? 'auto' : 'approval',
+      });
+      notified = sent.ok;
+    } catch {
+      notified = false;
+    }
+    return { status: 'SUCCEEDED', result: { outcome: 'SUBMITTED', confirmation: outcome.confirmation, notified } };
   }
 
   // B-186: unknown result (worker timeout mid-submit). Never auto-retry.
