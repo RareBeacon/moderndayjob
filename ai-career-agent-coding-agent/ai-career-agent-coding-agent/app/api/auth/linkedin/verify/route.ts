@@ -30,22 +30,22 @@ const postBody = z.discriminatedUnion('action', [
   z.object({ action: z.literal('confirm'), code: z.string().regex(/^\d{6}$/) }),
 ]);
 
-async function verificationState(userId: string): Promise<{ verified: boolean; fullName: string | null; phone: string | null }> {
+async function verificationState(userId: string): Promise<{ verified: boolean; fullName: string | null; phone: string | null; passwordSetAt: string | null }> {
   const { data } = await supabaseAdmin
     .from('profiles')
-    .select('email_verified_at, full_name, phone')
+    .select('email_verified_at, full_name, phone, password_set_at')
     .eq('user_id', userId)
     .maybeSingle();
-  const row = data as { email_verified_at: string | null; full_name: string | null; phone: string | null } | null;
-  return { verified: Boolean(row?.email_verified_at), fullName: row?.full_name ?? null, phone: row?.phone ?? null };
+  const row = data as { email_verified_at: string | null; full_name: string | null; phone: string | null; password_set_at: string | null } | null;
+  return { verified: Boolean(row?.email_verified_at), fullName: row?.full_name ?? null, phone: row?.phone ?? null, passwordSetAt: row?.password_set_at ?? null };
 }
 
 /** Owner brief 2026-09-21: after verifying, google/linkedin accounts still
  *  need a password + phone number (set at /complete-account) unless they
- *  already have them. */
-function needsAccountCompletion(user: { app_metadata?: { providers?: string[]; [key: string]: unknown } | null }, phone: string | null): boolean {
-  const hasPassword = (user.app_metadata?.providers ?? []).includes('email');
-  return !hasPassword || !phone;
+ *  already have them. Honest signal: profiles.phone + password_set_at
+ *  (app_metadata.providers does not update when a password is set). */
+function needsAccountCompletion(phone: string | null, passwordSetAt: string | null): boolean {
+  return !phone || !passwordSetAt;
 }
 
 export async function GET() {
@@ -123,8 +123,8 @@ export async function POST(req: Request) {
     // First-time linkedin sign-ups get the welcome email exactly once; the
     // marker makes replays and refreshes harmless.
     void sendWelcomeEmailOnce(user.id, user.email);
-    const { phone } = await verificationState(user.id);
-    return Response.json({ ok: true, needsAccountCompletion: needsAccountCompletion(user, phone) });
+    const { phone, passwordSetAt } = await verificationState(user.id);
+    return Response.json({ ok: true, needsAccountCompletion: needsAccountCompletion(phone, passwordSetAt) });
   }
   void auditEvent({ action: 'LINKEDIN_VERIFY_FAILED', resource: 'auth', userId: user.id, outcome: 'deny', meta: { reason: outcome } });
 

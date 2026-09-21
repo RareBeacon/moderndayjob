@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { supabaseBrowser } from '@/lib/supabase-browser';
 import { AuthShell } from '@/components/site/AuthShell';
 
 const COUNTRY_CODES = [
@@ -19,6 +20,10 @@ const COUNTRY_CODES = [
  * same three things however it was created: a verified email, a password,
  * and a phone number. Form signups provide password + phone at registration
  * and never see this screen.
+ *
+ * The password is set through the user's OWN signed-in session
+ * (auth.updateUser) so the session survives - the admin API path revokes
+ * all sessions and used to log the user out here (2026-09-21 fix).
  */
 export default function CompleteAccountPage() {
   const router = useRouter();
@@ -47,10 +52,18 @@ export default function CompleteAccountPage() {
     }
     setBusy(true);
     try {
+      // 1. Password through the signed-in session: the session stays alive.
+      const { error: pwError } = await supabaseBrowser().auth.updateUser({ password });
+      if (pwError) {
+        setError('We could not save your password just now. Please try again.');
+        return;
+      }
+
+      // 2. Phone number (and the completion marker) server-side.
       const res = await fetch('/api/auth/complete-account', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ password, phone: `${countryCode}${digits}` }),
+        body: JSON.stringify({ phone: `${countryCode}${digits}` }),
       });
       const out = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string };
       if (res.ok && out.ok) {

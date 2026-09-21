@@ -76,7 +76,16 @@ describe('auth middleware', () => {
 
   it('sends a verified google session without password + phone to /complete-account', async () => {
     getUser.mockResolvedValue({ data: { user: { id: 'gu1', app_metadata: { providers: ['google'] } } } });
-    profilesRow({ email_verified_at: '2026-09-21T00:00:00Z', phone: null });
+    profilesRow({ email_verified_at: '2026-09-21T00:00:00Z', phone: null, password_set_at: null });
+    const res = await middleware(req('/dashboard'));
+    expect(new URL(res.headers.get('location')!).pathname).toBe('/complete-account');
+  });
+
+  it('gates a verified google session that has a phone but no password marker', async () => {
+    // The old bug: providers never gains 'email' when a password is set for
+    // a social account, so the gate must read password_set_at instead.
+    getUser.mockResolvedValue({ data: { user: { id: 'gu1', app_metadata: { providers: ['google'] } } } });
+    profilesRow({ email_verified_at: '2026-09-21T00:00:00Z', phone: '+2348012345678', password_set_at: null });
     const res = await middleware(req('/dashboard'));
     expect(new URL(res.headers.get('location')!).pathname).toBe('/complete-account');
   });
@@ -89,8 +98,8 @@ describe('auth middleware', () => {
   });
 
   it('lets a completed google session through to the dashboard', async () => {
-    getUser.mockResolvedValue({ data: { user: { id: 'gu1', app_metadata: { providers: ['google', 'email'] } } } });
-    profilesRow({ email_verified_at: '2026-09-21T00:00:00Z', phone: '+2348012345678' });
+    getUser.mockResolvedValue({ data: { user: { id: 'gu1', app_metadata: { providers: ['google'] } } } });
+    profilesRow({ email_verified_at: '2026-09-21T00:00:00Z', phone: '+2348012345678', password_set_at: '2026-09-21T01:00:00Z' });
     const res = await middleware(req('/dashboard'));
     expect(res.headers.get('location')).toBeNull();
   });

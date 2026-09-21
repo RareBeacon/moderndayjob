@@ -42,17 +42,19 @@ async function socialGates(
   user: { id: string; app_metadata?: { providers?: string[]; [key: string]: unknown } | null },
 ): Promise<{ needsVerification: boolean; needsCompletion: boolean }> {
   if (!isSocialProvider(user)) return { needsVerification: false, needsCompletion: false };
-  const hasPassword = (user.app_metadata?.providers ?? []).includes('email');
   const { data } = await supabase
     .from('profiles')
-    .select('email_verified_at, phone')
+    .select('email_verified_at, phone, password_set_at')
     .eq('user_id', user.id)
     .maybeSingle();
-  const row = data as { email_verified_at: string | null; phone: string | null } | null;
+  const row = data as { email_verified_at: string | null; phone: string | null; password_set_at: string | null } | null;
   const verified = Boolean(row?.email_verified_at);
   return {
     needsVerification: !verified,
-    needsCompletion: verified && (!hasPassword || !row?.phone),
+    // Honest completeness signal: phone + password_set_at. (Reading
+    // app_metadata for 'email' was wrong - it does not update when a
+    // password is set for a social account.)
+    needsCompletion: verified && (!row?.phone || !row?.password_set_at),
   };
 }
 
