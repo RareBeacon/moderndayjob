@@ -9,8 +9,7 @@ import { SITE_URL } from '@/lib/site';
 
 export const metadata = {
   title: 'Pricing - Free Plan and Paid Plans in Naira',
-  description:
-    'Jobiest pricing in Naira: a permanent free plan with 3 AI generations to try, then Basic at ₦5,000, Premium at ₦10,000 and Max at ₦20,000 a month for more daily volume. No card required to start.',
+  description: 'Free plan with 3 AI generations, then Basic at ₦5,000, Premium at ₦10,000 or Max at ₦20,000 a month for more daily volume. Priced in Naira, no card required.',
   alternates: { canonical: `${SITE_URL}/pricing` },
 };
 

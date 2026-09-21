@@ -53,3 +53,16 @@ export function softwareAppJsonLd(name: string, description: string, path: strin
 export function jsonLdTag(data: object) {
   return { __html: JSON.stringify(data).replace(/</g, '\\u003c') };
 }
+
+export function breadcrumbJsonLd(items: Array<{ name: string; path: string }>) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((item, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: item.name,
+      item: `${SITE_URL}${item.path}`,
+    })),
+  };
+}

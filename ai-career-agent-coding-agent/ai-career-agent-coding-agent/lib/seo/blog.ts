@@ -20,7 +20,7 @@ export interface BlogPost {
 export const BLOG_POSTS: BlogPost[] = [
   {
     slug: 'why-your-job-search-is-taking-so-long',
-    title: "Why Your Job Search Is Taking So Long (And It's Not What You Think)",
+    title: "Why Your Job Search Is Taking So Long",
     category: 'Job Search Strategy',
     readingTime: '6 min',
     description: 'A structural breakdown of why job searches drag on, and how Jobiest gives candidates more leverage without more manual work.',
@@ -84,7 +84,7 @@ export const BLOG_POSTS: BlogPost[] = [
   },
   {
     slug: 'ats-problem-how-to-fix-it',
-    title: 'The ATS Problem No One Told You About (And How to Fix It Before Your Next Application)',
+    title: 'The ATS Problem No One Told You About',
     category: 'CV & Application Tips',
     readingTime: '5 min',
     description: 'Why qualified candidates get filtered out before a recruiter sees them, and how to check your CV before your next application.',
@@ -197,7 +197,7 @@ export const BLOG_POSTS: BlogPost[] = [
   },
   {
     slug: 'tailored-cv-without-two-hours-per-application',
-    title: 'Why Tailored CV Does Not Have to Mean Two Hours of Work Per Application',
+    title: 'A Tailored CV Without Two Hours of Work',
     category: 'CV Strategy',
     readingTime: '5 min',
     description: 'Tailoring matters, but the manual workflow breaks at scale. Here is how to keep relevance without losing your week.',
@@ -252,7 +252,7 @@ export const BLOG_POSTS: BlogPost[] = [
   },
   {
     slug: 'why-you-are-not-getting-interview-callbacks',
-    title: 'The Real Reason You Are Not Getting Interview Callbacks (A Brutally Honest Breakdown)',
+    title: 'Why You Are Not Getting Interview Callbacks',
     category: 'Career Advice',
     readingTime: '8 min',
     description: 'A process-based explanation of callback problems, from ATS rejection to timing and inconsistent application quality.',

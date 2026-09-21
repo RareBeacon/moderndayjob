@@ -4,6 +4,7 @@ import { JobletNavbar } from '@/components/site/joblet/Navbar';
 import { JobletFooter } from '@/components/site/joblet/Footer';
 import { BLOG_POSTS } from '@/lib/seo/blog';
 import { SITE_URL } from '@/lib/site';
+import { breadcrumbJsonLd, jsonLdTag } from '@/lib/seo';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export const metadata: Metadata = {
@@ -40,8 +41,16 @@ async function dbPosts() {
 
 export default async function BlogIndexPage() {
   const posts = [...BLOG_POSTS, ...(await dbPosts())];
+  const itemListJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: 'Jobiest Blog',
+    itemListElement: posts.map((post, index) => ({ '@type': 'ListItem', position: index + 1, url: `${SITE_URL}/blog/${post.slug}`, name: post.title })),
+  };
   return (
     <div className="jl-page">
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(breadcrumbJsonLd([{ name: 'Home', path: '/' }, { name: 'Blog', path: '/blog' }]))} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(itemListJsonLd)} />
       <JobletNavbar />
       <main id="main">
         <section className="jl-sec blog-hero">

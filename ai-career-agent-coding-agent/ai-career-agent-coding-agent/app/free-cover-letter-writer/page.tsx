@@ -9,8 +9,7 @@ import { SITE_URL } from '@/lib/site';
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-cover-letter-writer` },
   title: 'Free Cover Letter Writer',
-  description:
-    'Generate a concise, professional cover letter built only from your verified profile facts. A built-in truthfulness checker rejects any claim your profile can’t support. Free.',
+  description: 'Generate a professional cover letter built only from your verified profile facts; the truthfulness checker rejects claims your profile cannot support.',
   openGraph: {
     title: 'Free Cover Letter Writer · Jobiest',
     images: ['/images/og-card.jpg'],

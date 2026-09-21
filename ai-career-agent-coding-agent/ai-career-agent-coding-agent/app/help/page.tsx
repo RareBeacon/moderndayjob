@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { JobletNavbar } from '@/components/site/joblet/Navbar';
 import { JobletFooter } from '@/components/site/joblet/Footer';
 import { SITE_URL } from '@/lib/site';
+import { breadcrumbJsonLd, jsonLdTag } from '@/lib/seo';
 
 export const metadata: Metadata = {
   title: 'Help and Support',
@@ -65,6 +66,7 @@ const TOPICS: { title: string; items: { q: string; a: string }[] }[] = [
 export default function HelpPage() {
   return (
     <div className="jl-page">
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(breadcrumbJsonLd([{ name: 'Home', path: '/' }, { name: 'Help', path: '/help' }]))} />
       <JobletNavbar />
       <main id="main">
         <section className="jl-sec blog-hero">

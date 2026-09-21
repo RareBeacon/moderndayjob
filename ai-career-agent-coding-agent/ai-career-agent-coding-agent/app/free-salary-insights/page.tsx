@@ -9,8 +9,7 @@ import { SITE_URL } from '@/lib/site';
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-salary-insights` },
   title: 'Free Salary Insights',
-  description:
-    'We read real job listings for your role and report only the pay ranges they explicitly state, no estimates, no invented market averages. Honest salary signals, free.',
+  description: 'We read real job listings for your role and report only the pay ranges they explicitly state. No estimates, no invented market averages.',
   openGraph: {
     title: 'Free Salary Insights · Jobiest',
     images: ['/images/og-card.jpg'],

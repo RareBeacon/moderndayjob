@@ -7,8 +7,7 @@ import { jsonLdTag } from '@/lib/seo';
 
 export const metadata: Metadata = {
   title: 'Free Career Tools',
-  description:
-    'Ten free career tools from Jobiest: ATS resume scanner, cover letter writer, job description analyzer, skills matcher, interview prep, salary insights and more. No card required.',
+  description: 'Ten free career tools: ATS resume scanner, cover letter writer, job description analyzer, skills matcher, interview prep, salary insights and more.',
   alternates: { canonical: `${SITE_URL}/tools` },
   openGraph: {
     title: 'Free Career Tools · Jobiest',

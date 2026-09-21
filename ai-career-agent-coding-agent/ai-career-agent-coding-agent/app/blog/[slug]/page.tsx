@@ -80,7 +80,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const db = await getDbArticle(slug);
   if (!db) return {};
   return {
-    title: db.meta_title || db.title,
+    title: /jobiest/i.test(db.meta_title || db.title) ? { absolute: db.meta_title || db.title } : db.meta_title || db.title,
     description: db.meta_description || undefined,
     keywords: [db.target_keyword ?? '', ...(db.secondary_keywords ?? [])].filter(Boolean),
     alternates: { canonical: db.canonical_url || db.url },

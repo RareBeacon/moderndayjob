@@ -9,8 +9,7 @@ import { SITE_URL } from '@/lib/site';
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-interview-question-generator` },
   title: 'Free Interview Question Generator',
-  description:
-    'Paste any job description and get realistic interview practice questions with what each one tests, plus preparation tips. Grounded in what the listing actually states. Free.',
+  description: 'Paste any job description and get realistic interview practice questions with what each one tests, grounded in what the listing actually states.',
   openGraph: {
     title: 'Free Interview Question Generator · Jobiest',
     images: ['/images/og-card.jpg'],
