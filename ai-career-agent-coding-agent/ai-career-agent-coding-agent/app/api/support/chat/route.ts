@@ -2,13 +2,13 @@ import { NextResponse } from 'next/server';
 import { getUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
-import { buildGatewayForUser } from '@/lib/ai/server';
+import { buildSupportGateway } from '@/lib/ai/server';
 import { SUPPORT_CHAT_TASK, kbContextFor, detectEscalationTriggers, shouldEscalateAfterFailedResolutions } from '@/lib/support/agent';
 
 export const dynamic = 'force-dynamic';
 
-/** Anonymous support runs on the platform model chain, not user credits. */
-const SUPPORT_SYSTEM_USER = '00000000-0000-0000-0000-000000000000';
+/** Support chat: fast Cloudflare-first chain; generous ceiling for slow fallbacks. */
+export const maxDuration = 120;
 
 interface ChatTurn {
   role: 'user' | 'assistant';
@@ -64,14 +64,14 @@ export async function POST(request: Request) {
     let escalateReason: string | null;
 
     try {
-      const gateway = await buildGatewayForUser(user?.id ?? SUPPORT_SYSTEM_USER);
+      const gateway = buildSupportGateway();
       const result = await gateway.run(SUPPORT_CHAT_TASK, { message, history, kb });
       answer = result.data.answer;
       escalate = result.data.escalate || Boolean(trigger) || failedResolutions;
       escalateReason = trigger ?? (failedResolutions ? 'THREE_FAILED_RESOLUTIONS' : result.data.escalateReason);
     } catch {
       // Model unavailable: be honest and route to a human. Never fake an answer.
-      answer = 'I could not reach the assistant right now. I can create a support ticket so a human follows up with you, or you can use the Contact Support page.';
+      answer = 'Ah, my connection just dropped. Let me create a ticket so we follow up with you by email, or you can use the Contact Support page and we will pick it up right away.';
       escalate = true;
       escalateReason = 'MODEL_UNAVAILABLE';
     }

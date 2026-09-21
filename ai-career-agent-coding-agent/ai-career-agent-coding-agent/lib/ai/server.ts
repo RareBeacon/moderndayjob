@@ -31,7 +31,7 @@ export function ollamaConfigured(): boolean {
  * The local provider chain: the strongest practical model first, the lighter
  * local fallback second (spec §4). Both hit the same secret-gated gateway.
  */
-function buildOllamaProviders(): AIProvider[] {
+function buildOllamaProviders(basePriority = 0): AIProvider[] {
   if (!ollamaConfigured()) return [];
   const providers: AIProvider[] = [
     new OllamaProvider({
@@ -39,7 +39,7 @@ function buildOllamaProviders(): AIProvider[] {
       model: env.OLLAMA_MODEL,
       baseUrl: env.OLLAMA_BASE_URL,
       apiKey: env.OLLAMA_API_KEY,
-      priority: 0,
+      priority: basePriority,
     }),
   ];
   if (env.OLLAMA_FALLBACK_MODEL && env.OLLAMA_FALLBACK_MODEL !== env.OLLAMA_MODEL) {
@@ -49,7 +49,7 @@ function buildOllamaProviders(): AIProvider[] {
         model: env.OLLAMA_FALLBACK_MODEL,
         baseUrl: env.OLLAMA_BASE_URL,
         apiKey: env.OLLAMA_API_KEY,
-        priority: 1,
+        priority: basePriority + 1,
       }),
     );
   }
@@ -258,6 +258,48 @@ export async function buildGatewayForUser(userId: string): Promise<AIGateway> {
   ) {
     throw new AICredentialMissingError();
   }
+  return new AIGateway(boundProviders(providers));
+}
+
+/**
+ * Gateway for the live support chat. Chat needs fast replies: the self-hosted
+ * Ollama chain can take over a minute per turn, which reads as broken in a
+ * chat window. Cloudflare Workers AI goes first when configured, then the
+ * standard Ollama -> OpenRouter platform chain as fallback. Support never
+ * uses visitor AI credentials.
+ */
+export function buildSupportGateway(): AIGateway {
+  const providers: AIProvider[] = [];
+  if (cloudflareConfigured()) {
+    providers.push(
+      new OpenAICompatProvider(
+        {
+          name: 'cloudflare-support',
+          model: env.CLOUDFLARE_MODEL,
+          baseUrl: cloudflareBaseUrl(),
+          apiKey: env.CLOUDFLARE_API_TOKEN,
+          priority: 0,
+        },
+        httpChat,
+      ),
+    );
+  }
+  providers.push(...buildOllamaProviders(providers.length));
+  if (env.OPENROUTER_API_KEY) {
+    providers.push(
+      new OpenAICompatProvider(
+        {
+          name: 'openrouter-support',
+          model: env.OPENROUTER_MODEL || 'openrouter/auto',
+          baseUrl: env.OPENROUTER_BASE_URL,
+          apiKey: env.OPENROUTER_API_KEY,
+          priority: providers.length,
+        },
+        httpChat,
+      ),
+    );
+  }
+  if (providers.length === 0) throw new AICredentialMissingError();
   return new AIGateway(boundProviders(providers));
 }
 

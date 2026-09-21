@@ -9,7 +9,8 @@ import type { ReactNode } from 'react';
 export type IconName =
   | 'arrow' | 'arrow-up' | 'check' | 'shield' | 'spark' | 'file' | 'search'
   | 'location' | 'briefcase' | 'plus' | 'user' | 'message' | 'chart'
-  | 'layers' | 'play' | 'menu' | 'close';
+  | 'layers' | 'play' | 'menu' | 'close'
+  | 'moon' | 'clock' | 'instagram' | 'tiktok' | 'whatsapp' | 'x';
 
 const PATHS: Record<IconName, ReactNode> = {
   arrow: <path d="M5 12h14m-6-6 6 6-6 6" />,
@@ -64,6 +65,28 @@ const PATHS: Record<IconName, ReactNode> = {
   play: <path d="m9 5 11 7-11 7V5Z" />,
   menu: <path d="M4 6h16M4 12h16M4 18h16" />,
   close: <path d="m6 6 12 12M6 18 18 6" />,
+  moon: <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5Z" />,
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3 2" />
+    </>
+  ),
+  instagram: (
+    <>
+      <rect x="3.5" y="3.5" width="17" height="17" rx="4.5" />
+      <circle cx="12" cy="12" r="3.8" />
+      <path d="M17.2 6.8h.01" strokeWidth="2.6" />
+    </>
+  ),
+  tiktok: <path d="M14 4v9.2a3.8 3.8 0 1 1-3.2-3.75M14 4c.4 2.4 2 4 4.4 4.2" />,
+  whatsapp: (
+    <>
+      <path d="M21 11.7a9 9 0 0 1-13.2 7.9L3.5 20.5l.9-4.3A9 9 0 1 1 21 11.7Z" />
+      <path d="M9.2 8.8c0 3.6 2.4 6 6 6l1-1.4 1.9.9" />
+    </>
+  ),
+  x: <path d="M4 4l16 16M20 4 4 20" />,
 };
 
 export function Icon({ name, small, className }: { name: IconName; small?: boolean; className?: string }) {

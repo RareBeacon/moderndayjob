@@ -243,3 +243,25 @@
     right: 12px;
   }
 }
+
+/* Human support presence (Master Upgrade: real-time support persona) */
+.presence {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #1f8b4c;
+  font-weight: 600;
+}
+.presenceDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22a45d;
+  box-shadow: 0 0 0 3px rgba(34, 164, 93, 0.18);
+  animation: presencePulse 2.4s ease-in-out infinite;
+}
+@keyframes presencePulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(34, 164, 93, 0.18); }
+  50% { box-shadow: 0 0 0 5px rgba(34, 164, 93, 0.08); }
+}

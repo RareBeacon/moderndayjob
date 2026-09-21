@@ -24,7 +24,7 @@ interface Message {
 
 const GREETING: Message = {
   role: 'assistant',
-  content: 'Hi. I am the Jobiest support assistant. Ask me about your account, resumes, free tools, applications, or billing. For anything I cannot handle, I will create a ticket for a human.',
+  content: "Hey there, I'm Tobi from Jobiest Support. Ask me anything about your account, resumes, the free tools, or applications and I'll help you right away.",
 };
 
 export function ChatWidget() {
@@ -248,8 +248,8 @@ export function ChatWidget() {
       >
         <div className={styles.header}>
           <div className={styles.headerTitle} id={titleId}>
-            <strong>Jobiest Support</strong>
-            <span>AI assistant, human backup</span>
+            <strong>Tobi · Jobiest Support</strong>
+            <span className={styles.presence}><i className={styles.presenceDot} aria-hidden="true" />Online now</span>
           </div>
           <button
             className={styles.closeBtn}
@@ -266,10 +266,10 @@ export function ChatWidget() {
               {message.content}
             </div>
           ))}
-          {busy && <span className={styles.typing}>Assistant is typing…</span>}
+          {busy && <span className={styles.typing}>Tobi is typing…</span>}
           {escalated && !showTicketForm && !ticketResult && (
             <div className={styles.escalateNote}>
-              This needs a human. Use the button below to create a support ticket and we will reply by email.
+              Let me get a colleague on this one. Create a quick ticket below and we will reply by email.
             </div>
           )}
           {ticketResult && <div className={styles.ticketResult}>{ticketResult}</div>}
