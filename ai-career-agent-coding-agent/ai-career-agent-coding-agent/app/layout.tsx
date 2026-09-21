@@ -4,6 +4,7 @@ import { DM_Sans, Space_Grotesk } from 'next/font/google';
 import { SITE_URL } from '@/lib/site';
 import { ScrollReveal } from '@/components/site/ScrollReveal';
 import { ServiceWorkerRegistrar } from '@/components/site/ServiceWorkerRegistrar';
+import { ChatWidget } from '@/components/support/ChatWidget';
 
 const dmSans = DM_Sans({
   subsets: ['latin'],
@@ -65,6 +66,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <style>{'[data-animate]{opacity:1!important;transform:none!important;transition:none!important}'}</style>
         </noscript>
         {children}
+        <ChatWidget />
         <ScrollReveal />
         <ServiceWorkerRegistrar />
       </body>
