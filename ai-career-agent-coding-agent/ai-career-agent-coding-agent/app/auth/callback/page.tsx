@@ -114,6 +114,7 @@ function CallbackInner() {
           </>
         ) : (
           <>
+            <div className="spinner" style={{ margin: '0 auto 16px' }} role="status" aria-label="Signing you in" />
             <h1>Finishing sign-in…</h1>
             <p className="sub">One moment while we bring you in.</p>
           </>
