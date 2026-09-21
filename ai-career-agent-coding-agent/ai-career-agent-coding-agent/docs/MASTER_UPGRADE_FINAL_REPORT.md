@@ -17,7 +17,9 @@ Execution window: 2026-09-20 to 2026-09-21. All work shipped through CI (typeche
 | a40b370 | 5 | AI support system (widget, agent, KB, tickets, admin) |
 | (docs) | 5 | Support architecture, prompt, KB, test report |
 | 21ef02e | 6 | C3.1 template catalog (20) + public gallery (70 total) |
-| (this) | 6/9 | Sitemap addition, template docs, final report |
+| 12b78ae | 6/9 | Sitemap addition, template docs, final report |
+| a5c98e7 | C/7/8 | Photo pipeline (upload API, preview, PDF/DOCX embedding, 20 export checklists), consolidated security review, closure smoke |
+| (this) | 9 | Final report closure |
 
 ## Workstream A: SEO Growth Engine: COMPLETE
 
@@ -38,17 +40,23 @@ Execution window: 2026-09-20 to 2026-09-21. All work shipped through CI (typeche
 - Migration 029 applied. 12 support tests; full suite 631 passing.
 - Known characteristic: model round-trips 85-110s on current self-hosted hardware; honest typing state; Cloudflare fallback armed.
 
-## Workstream C: Resume Studio templates: CORE COMPLETE, PIPELINE ITEMS REMAIN
+## Workstream C: Resume Studio templates: COMPLETE
 
 Complete and verified: the exact C3.1 catalog of 20 templates (TPL-01 to TPL-20 with photo/ATS/column attributes, unit-tested against the spec table), library at 70 templates, public gallery at /templates with filters, badges, and Alex Morgan sample data, wizard copy updated, sitemap updated.
 
-Remaining (sequenced next, documented in RESUME_TEMPLATE_ARCHITECTURE.md): photo upload API with server-side MIME/size validation, photo rendering in wizard preview and PDF/DOCX export, and the 20 per-template export checklists. These touch the document export pipeline and are deliberately not rushed at the tail of this execution window.
+Photo pipeline (commit a5c98e7, live-verified):
+- POST /api/resume-studio/photo: auth-gated, rate limited 20/min/IP, magic-byte MIME check (JPEG/PNG only; WebP rejected because pdf-lib cannot embed it), 2 MB cap, returns a data URL with no server storage. Live: returns 401 unauthenticated.
+- Export re-validation: parseDocumentContent re-checks the stored data URL (magic bytes, declared-MIME match, size) before embedding; tampered values are dropped so exports never fail on a bad draft.
+- PDF: photo embedded top-right of page 1 via embedJpg/embedPng with reserved space so text never overlaps; drawText output stays selectable (verified by decoding the Flate streams and asserting the text operators).
+- DOCX: right-aligned ImageRun (docx 9.7.1 with explicit type).
+- Wizard: upload/preview/remove UI shown only for photo-capable templates; live preview shows the photo in the header; generate returns PHOTO_REQUIRED for the one photo-required template without a photo.
+- 20 per-template export checklists (tests/resume-photo-export.test.ts, 11 tests): every catalog template renders valid PDF (%PDF magic, selectable name text) and DOCX (PK zip magic), photo embedded exactly where supported and absent where not, long content paginates to multiple pages for every template, optional sections render present and absent.
 
 ## Cross-workstream standards
 
 - Design: canonical navy/yellow identity throughout (new gallery and widget use the design tokens).
 - Honesty: no fabricated volumes, metrics, statistics, or product claims anywhere; "Unknown" and "Data not available (reason)" states used throughout.
-- Tests: 631 passing (from 605 at start), 0 failures, across 70 files; CI green on every commit.
+- Tests: 642 passing including 1 pre-existing skip (from 605 at start), 0 failures, across 71 files; CI green on every commit.
 - Deployments: every commit deployed to production and live-verified.
 - No destructive operations; all migrations additive with rollback notes; the only data deletion was of rows created by this session's own scripts during re-seeding.
 
@@ -58,9 +66,27 @@ Remaining (sequenced next, documented in RESUME_TEMPLATE_ARCHITECTURE.md): photo
 2. Optional: analytics property (GA or similar) if the SEO conversion panel should move beyond first-party events.
 3. Optional: recrawl requests for the 20 new article URLs can be issued from SEO Mission Control at any time.
 
-## Next steps (in order)
+## Stage 7: Integration pass + consolidated security review: COMPLETE
 
-1. Photo upload API + preview/export rendering + per-template export checklists (completes Workstream C).
-2. Full Stage 7 integration pass across all new surfaces (article flow, widget on every route, gallery + export) plus a consolidated security review.
-3. Stage 8 production smoke re-run and any fixes.
-4. Update this report to final-closure status once the above land.
+- Consolidated review at docs/SECURITY_REVIEW.md: auth and session gates, IDOR-safe ownership filters, input validation at every boundary (including the new photo double validation), injection defenses, rate-limit table, secrets/egress, content-integrity rules, and an accepted-risk log (5 findings, none high severity).
+- Integration pass (live, post a5c98e7): blog index 200, article schema and canonicals unchanged; widget present on /, /templates, /pricing (root layout); gallery at 70 cards; export 401 unauthenticated; wizard template deep link /generate?template=... correctly bounces anonymous users to login with next and template preserved; admin subpages gate to login (/admin itself has no index page, 404 is correct).
+
+## Stage 8: Production smoke re-run: COMPLETE (2026-09-21, post a5c98e7)
+
+| Check | Result |
+|---|---|
+| /api/health | ok, database ok, not degraded |
+| /sitemap.xml | 66 URLs |
+| /templates | 200, 70 cards |
+| /blog | 200 |
+| Free tool (/free-resume-summary-generator) | 200 |
+| /robots.txt | 200 |
+| Export API unauthenticated | 401 |
+| POST /api/resume-studio/photo unauthenticated | 401 (new endpoint live) |
+| /admin/seo, /admin/support anonymous | 307 to login with next param |
+| /generate anonymous | 307 to login, template param preserved |
+
+## Remaining outside this upgrade
+
+1. A11.2-A11.4 admin panels (A11.3 is GSC-only; A11.4 honestly shows "Data not available" until a source exists).
+2. User actions: confirm support@jobiest.com received ticket JBT-20260921-NMJ4; optional analytics property for the conversion panel; optional DMARC p=quarantine; rotate the GitHub PAT at next check-in (an authenticated API status call began returning Bad credentials while git push still worked; public status API used as fallback).
