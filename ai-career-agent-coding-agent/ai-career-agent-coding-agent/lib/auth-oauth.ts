@@ -32,6 +32,13 @@ export function isGoogleLinkedUser(user: SessionUser): boolean {
   return (user.app_metadata?.providers ?? []).includes('google');
 }
 
+/** True when the authenticated session was created via LinkedIn's OpenID
+ *  Connect provider (linkedin_oidc; 'linkedin' is the legacy name). */
+export function isLinkedInLinkedUser(user: SessionUser): boolean {
+  const providers = user.app_metadata?.providers ?? [];
+  return providers.includes('linkedin_oidc') || providers.includes('linkedin');
+}
+
 /** 6-digit numeric code, unbiased crypto randomness, zero padded. */
 export function generateVerificationCode(): string {
   return String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');

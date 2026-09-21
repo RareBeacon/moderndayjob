@@ -7,9 +7,10 @@ import { supabaseBrowser } from '@/lib/supabase-browser';
 import { Logo } from '@/components/site/Logo';
 
 /**
- * OAuth landing page: Supabase redirects here from Google with a PKCE code.
- * Exchanges the code for a session, then asks the server whether this google
- * account needs the email verification gate; routes accordingly.
+ * OAuth landing page: Supabase redirects here from Google or LinkedIn with
+ * a PKCE code. Exchanges the code for a session, then asks the server
+ * whether this social account needs the email verification gate; routes
+ * accordingly.
  */
 function CallbackInner() {
   const router = useRouter();
@@ -23,7 +24,7 @@ function CallbackInner() {
     (async () => {
       const oauthError = params.get('error_description') || params.get('error');
       if (oauthError) {
-        setError('Google sign-in was cancelled or failed. You can try again or use email and password.');
+        setError('Sign-in was cancelled or failed. You can try again or use email and password.');
         return;
       }
       const code = params.get('code');
@@ -38,7 +39,7 @@ function CallbackInner() {
         return;
       }
 
-      // MFA users (google-linked accounts with an enrolled authenticator)
+      // MFA users (social accounts with an enrolled authenticator)
       // continue at the second-factor step before any app page opens.
       try {
         const { data: aal } = await supabaseBrowser().auth.mfa.getAuthenticatorAssuranceLevel();
@@ -50,10 +51,21 @@ function CallbackInner() {
         // middleware re-checks
       }
 
-      // Server decides the destination: google accounts still inside the
+      // Server decides the destination: social accounts still inside the
       // verification gate go to /verify-email, everyone else continues.
+      // The gate endpoint follows the session's provider.
       try {
-        const res = await fetch('/api/auth/google/verify');
+        let providers: string[] = [];
+        try {
+          const { data: sessionData } = await supabaseBrowser().auth.getSession();
+          providers = sessionData?.session?.user?.app_metadata?.providers ?? [];
+        } catch {
+          /* fall back to the google gate below */
+        }
+        const gate = providers.includes('linkedin_oidc') || providers.includes('linkedin')
+          ? '/api/auth/linkedin/verify'
+          : '/api/auth/google/verify';
+        const res = await fetch(gate);
         if (res.ok) {
           const state = (await res.json()) as { requiresVerification?: boolean };
           if (state.requiresVerification) {

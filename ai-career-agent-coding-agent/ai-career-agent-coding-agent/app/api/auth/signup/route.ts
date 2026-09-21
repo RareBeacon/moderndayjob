@@ -51,12 +51,15 @@ async function recordSignupAttribution(input: {
 /**
  * POST /api/auth/signup · create an account that must be email-verified.
  *
- * Deliberately minimal: email + password only. Profile details are collected
- * after authentication (onboarding/profile), never at registration.
+ * Registration collects full name, email, phone and password (owner brief
+ * 2026-09-21); deeper profile details still come later (onboarding/profile).
  *
  * Security layers (server-side only):
- *  - email normalized (trim + lowercase) and format-validated; uniqueness is
- *    enforced by the database (GoTrue) and reported with a friendly 409;
+ *  - email normalized (trim + lowercase) and format-validated; phone stored
+ *    in E.164 (+234...); name shape-checked; uniqueness is enforced by the
+ *    database (GoTrue) and reported with a friendly 409;
+ *  - password policy: at least 8 characters, one number and one special
+ *    character, enforced here so no client can skip it;
  *  - strict per-IP rate limit;
  *  - server-issued device cookie + registration-velocity risk score
  *    (hashed IP + device signals; EXTREME velocity is blocked, HIGH is
@@ -73,7 +76,7 @@ export async function POST(req: Request) {
   const rl = await enforceRateLimit(`auth:signup:${ip}`, 5, '1 h', ip);
   if (!rl.allowed) return NextResponse.json({ error: 'RATE_LIMITED' }, { status: 429 });
 
-  let body: { email?: string; password?: string; attribution?: Record<string, unknown> };
+  let body: { email?: string; password?: string; fullName?: string; phone?: string; attribution?: Record<string, unknown> };
   try {
     body = await req.json();
   } catch {
@@ -81,13 +84,29 @@ export async function POST(req: Request) {
   }
   const email = (body.email ?? '').trim().toLowerCase();
   const password = body.password ?? '';
+  const fullName = (body.fullName ?? '').trim().replace(/\s+/g, ' ');
+  // Allow spaces/dashes/parens while typing; store canonical E.164.
+  const phone = (body.phone ?? '').replace(/[\s\-().]/g, '');
   const attribution = sanitizeSignupAttribution(body.attribution);
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
     return NextResponse.json({ error: 'That email address does not look right.' }, { status: 400 });
   }
-  if (password.length < 8) {
-    return NextResponse.json({ error: 'Your password needs at least 8 characters.' }, { status: 400 });
+  if (fullName.length < 2 || fullName.length > 80 || !/^[\p{L}\s'.-]+$/u.test(fullName)) {
+    return NextResponse.json({ error: 'Please enter your full name (letters only, 2 to 80 characters).' }, { status: 400 });
+  }
+  if (!/^\+[1-9]\d{7,14}$/.test(phone)) {
+    return NextResponse.json({ error: 'Please enter a valid phone number with its country code, e.g. +234 801 234 5678.' }, { status: 400 });
+  }
+  if (
+    password.length < 8 ||
+    !/\d/.test(password) ||
+    !/[^A-Za-z0-9]/.test(password)
+  ) {
+    return NextResponse.json(
+      { error: 'Your password needs at least 8 characters, including a number and a special character.' },
+      { status: 400 },
+    );
   }
 
   // Device identity + registration velocity (abuse detection). Fails open if
@@ -136,6 +155,8 @@ export async function POST(req: Request) {
     email,
     password,
     email_confirm: false,
+    // handle_new_user copies these into the profiles row (full_name + phone).
+    user_metadata: { full_name: fullName, phone },
   });
 
   if (error) {
@@ -169,7 +190,7 @@ export async function POST(req: Request) {
   // the user can request a new code from /verify-email or the login page.
   if (data.user?.id && data.user.email) {
     void issueEmailVerificationCode(
-      { id: data.user.id, email: data.user.email, fullName: null },
+      { id: data.user.id, email: data.user.email, fullName },
       { kind: 'signup' },
     );
   }

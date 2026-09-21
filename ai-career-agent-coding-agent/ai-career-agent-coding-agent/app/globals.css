@@ -178,6 +178,13 @@ ul { margin: 0; }
   padding: 12px 14px; font: inherit; font-weight: 400; outline: none; background: var(--card);
 }
 .auth-form input:focus { border-color: var(--brand); box-shadow: var(--ring); }
+.auth-form select {
+  height: 46px; padding: 0 10px; border: 1.5px solid var(--color-border, #d7dee8);
+  border-radius: 10px; background: var(--color-surface, #fff); font: inherit; font-size: 14px; color: var(--ink);
+}
+.password-rules { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
+.password-rules li { font-size: 12px; font-weight: 400; color: var(--muted-2); transition: color .15s ease; }
+.password-rules li.rule-ok { color: #2f7a4b; font-weight: 600; }
 .field-toggle {
   position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
   border: 0; background: transparent; color: var(--muted); font-weight: 700; font-size: 12px;

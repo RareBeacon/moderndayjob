@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { AuthShell } from '@/components/site/AuthShell';
 import { GoogleButton } from '@/components/site/GoogleButton';
+import { LinkedInButton } from '@/components/site/LinkedInButton';
 import { humanizeAuthError } from '@/lib/auth-messages';
 
 export default function LoginPage() {
@@ -55,7 +56,8 @@ export default function LoginPage() {
 
   return (
     <AuthShell title="Welcome back" subtitle="Sign in to your Jobiest workspace.">
-      <div style={{ marginTop: 20 }}>
+      <div style={{ marginTop: 20, display: 'grid', gap: 10 }}>
+        <LinkedInButton />
         <GoogleButton />
       </div>
       <div className="auth-divider" style={{ margin: '18px 0' }}><span>or with email</span></div>

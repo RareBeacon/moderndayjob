@@ -10,8 +10,9 @@ import { AuthShell } from '@/components/site/AuthShell';
  *  - Password signups (no session yet): arrive with ?email=… (and, when the
  *    emailed link was used, ?code=…). Verifies through POST /api/auth/verify
  *    pre-session, then routes to /login to sign in.
- *  - Google sign-ins (session exists): the server routes unverified google
- *    sessions here; verifies through /api/auth/google/verify.
+ *  - Social sign-ins (session exists): the server routes unverified google
+ *    and linkedin sessions here; verifies through the provider-matching
+ *    /api/auth/{google,linkedin}/verify.
  * The page collects a 6-digit code, sends new codes on request, and lets the
  * user switch accounts.
  */
@@ -48,9 +49,24 @@ export default function VerifyEmailPage() {
         return;
       }
 
-      // Google-session mode.
+      // Social-session mode (google or linkedin): pick the gate endpoint
+      // from the session's provider.
       try {
-        const res = await fetch('/api/auth/google/verify');
+        let providers: string[] = [];
+        try {
+          const { data: sessionData } = await supabaseBrowser().auth.getSession();
+          providers = sessionData?.session?.user?.app_metadata?.providers ?? [];
+        } catch {
+          /* default to the google gate */
+        }
+        window.sessionStorage.setItem(
+          'jobiest.oauthGate',
+          providers.includes('linkedin_oidc') || providers.includes('linkedin') ? 'linkedin' : 'google',
+        );
+        const gate = providers.includes('linkedin_oidc') || providers.includes('linkedin')
+          ? '/api/auth/linkedin/verify'
+          : '/api/auth/google/verify';
+        const res = await fetch(gate);
         if (res.status === 401) {
           router.replace('/login');
           return;
@@ -91,13 +107,18 @@ export default function VerifyEmailPage() {
     setBusy(true);
     setError('');
     try {
+      const gate =
+        !passwordMode &&
+        window.sessionStorage.getItem('jobiest.oauthGate') === 'linkedin'
+          ? '/api/auth/linkedin/verify'
+          : '/api/auth/google/verify';
       const res = passwordMode
         ? await fetch('/api/auth/verify', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ action: 'confirm', email, code }),
           })
-        : await fetch('/api/auth/google/verify', {
+        : await fetch(gate, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ action: 'confirm', code }),
@@ -135,13 +156,18 @@ export default function VerifyEmailPage() {
     setBusy(true);
     setError('');
     try {
+      const gate =
+        !passwordMode &&
+        window.sessionStorage.getItem('jobiest.oauthGate') === 'linkedin'
+          ? '/api/auth/linkedin/verify'
+          : '/api/auth/google/verify';
       const res = passwordMode
         ? await fetch('/api/auth/verify', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ action: 'send', email }),
           })
-        : await fetch('/api/auth/google/verify', {
+        : await fetch(gate, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ action: 'send' }),

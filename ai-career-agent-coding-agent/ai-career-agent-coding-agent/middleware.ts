@@ -22,16 +22,22 @@ function hasSessionCookie(request: NextRequest): boolean {
   return request.cookies.getAll().some((c) => c.name.startsWith('sb-') && c.name.includes('auth-token'));
 }
 
-/** Google sign-up email gate: true when the session is google-linked and the
- *  profile has not completed email verification yet (profiles.email_verified_at
- *  is null). Only google sessions pay the extra profile read; password
- *  accounts keep the existing instant-access policy. RLS profile_self allows
- *  the user-scoped client to read only their own row. */
-async function needsGoogleEmailVerification(
+/** Social sign-up email gate: true when the session is google- or
+ *  linkedin-linked and the profile has not completed email verification yet
+ *  (profiles.email_verified_at is null). Only social sessions pay the extra
+ *  profile read; password accounts keep the existing instant-access policy
+ *  (their gate is the 6-digit code before the first sign-in). RLS
+ *  profile_self allows the user-scoped client to read only their own row. */
+function isSocialProvider(user: { app_metadata?: { providers?: string[]; [key: string]: unknown } | null }): boolean {
+  const providers = user.app_metadata?.providers ?? [];
+  return providers.includes('google') || providers.includes('linkedin_oidc') || providers.includes('linkedin');
+}
+
+async function needsEmailVerificationGate(
   supabase: Awaited<ReturnType<typeof createServerClient>>,
   user: { id: string; app_metadata?: { providers?: string[]; [key: string]: unknown } | null },
 ): Promise<boolean> {
-  if (!(user.app_metadata?.providers ?? []).includes('google')) return false;
+  if (!isSocialProvider(user)) return false;
   const { data } = await supabase
     .from('profiles')
     .select('email_verified_at')
@@ -75,7 +81,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirect);
   }
 
-  if (user && (await needsGoogleEmailVerification(supabase, user)) && pathname !== '/verify-email') {
+  if (user && (await needsEmailVerificationGate(supabase, user)) && pathname !== '/verify-email') {
     const redirect = request.nextUrl.clone();
     redirect.pathname = '/verify-email';
     redirect.search = '';

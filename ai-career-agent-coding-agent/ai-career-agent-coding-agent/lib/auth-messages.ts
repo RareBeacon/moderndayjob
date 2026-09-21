@@ -14,7 +14,7 @@ export function humanizeAuthError(message: string): string {
     return 'Too many attempts. Please wait a moment and try again.';
   }
   if (m.includes('password should be') || m.includes('weak') || m.includes('at least')) {
-    return 'Please choose a stronger password (at least 8 characters).';
+    return 'Please choose a stronger password: at least 8 characters, with a number and a special character.';
   }
   if (m.includes('email') && m.includes('invalid')) {
     return 'Please enter a valid email address.';
