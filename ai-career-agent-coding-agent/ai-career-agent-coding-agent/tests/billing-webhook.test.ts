@@ -118,11 +118,18 @@ describe('server-side re-verification and guards', () => {
     });
   });
 
-  it('refuses an unexpected amount (under/over-payment)', async () => {
-    stubVerify({ id: 99, tx_ref: 'aca_u1', amount: 7000, currency: 'NGN', status: 'successful', customer: { email: 'a@b.co' } });
+  it('refuses an under-payment', async () => {
+    stubVerify({ id: 99, tx_ref: 'aca_u1', amount: 3000, currency: 'NGN', status: 'successful', customer: { email: 'a@b.co' } });
     const res = await POST(req(completed, SECRET));
     expect(res.status).toBe(202);
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('grants the covered plan on an over-payment (international-card FX markup)', async () => {
+    stubVerify({ id: 99, tx_ref: 'aca_u1', amount: 7000, currency: 'NGN', status: 'successful', customer: { email: 'a@b.co' } });
+    const res = await POST(req(completed, SECRET));
+    expect(res.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith('apply_verified_payment', expect.objectContaining({ p_amount: 7000 }));
   });
 
   it('refuses a non-NGN currency', async () => {

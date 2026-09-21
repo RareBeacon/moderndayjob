@@ -101,14 +101,21 @@ export async function verifyFlutterwaveTransaction(transactionId: string | numbe
 
 /* Known plan amounts in NGN naira (must match subscription_plans.amount and
    the apply_verified_payment threshold). Used to guard the webhook against
-   under/over-payment before granting a plan. */
+   under-payment before granting a plan. */
 export const PLAN_AMOUNTS_NGN = { BASIC: 5000, PREMIUM: 10000, MAX: 20000 } as const;
 export type PaidPlan = 'BASIC' | 'PREMIUM' | 'MAX';
 
+/* Maps a paid amount to the highest plan it fully covers, or null when it
+   cannot cover even BASIC. Exact match is NOT required: providers add an
+   FX markup for international cards (observed live 2026-09-21: a NGN 5,000
+   checkout settled as NGN 5,177.67), and a customer who paid the plan price
+   plus markup must still get their plan. The thresholds mirror the >= logic
+   already used inside apply_verified_payment, so the guard and the grant
+   agree; only amounts below the BASIC price are rejected. */
 export function planForAmount(amount: number): PaidPlan | null {
-  if (amount === PLAN_AMOUNTS_NGN.MAX) return 'MAX';
-  if (amount === PLAN_AMOUNTS_NGN.PREMIUM) return 'PREMIUM';
-  if (amount === PLAN_AMOUNTS_NGN.BASIC) return 'BASIC';
+  if (amount >= PLAN_AMOUNTS_NGN.MAX) return 'MAX';
+  if (amount >= PLAN_AMOUNTS_NGN.PREMIUM) return 'PREMIUM';
+  if (amount >= PLAN_AMOUNTS_NGN.BASIC) return 'BASIC';
   return null;
 }
 

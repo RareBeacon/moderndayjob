@@ -207,11 +207,20 @@ describe('webhook: re-verification and guards', () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
-  it('refuses an unexpected amount (under/over-payment)', async () => {
-    stubVerify({ status: 'success', amount: 700_000, currency: 'NGN', reference: REF, customer: { email: 'a@b.co' } });
+  it('refuses an under-payment', async () => {
+    stubVerify({ status: 'success', amount: 300_000, currency: 'NGN', reference: REF, customer: { email: 'a@b.co' } });
     const res = await webhookPOST(req(chargeSuccess, sign(JSON.stringify(chargeSuccess))));
     expect(res.status).toBe(202);
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('grants the covered plan on an over-payment (international-card FX markup)', async () => {
+    // Live case 2026-09-21: NGN 5,000 checkout settled as NGN 5,177.67
+    // (517,767 kobo) because of the FX markup on international cards.
+    stubVerify({ status: 'success', amount: 517_767, currency: 'NGN', reference: REF, customer: { email: 'a@b.co' } });
+    const res = await webhookPOST(req(chargeSuccess, sign(JSON.stringify(chargeSuccess))));
+    expect(res.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith('apply_verified_payment', expect.objectContaining({ p_amount: 5177.67, p_provider: 'paystack' }));
   });
 
   it('refuses a non-NGN currency', async () => {
@@ -361,10 +370,12 @@ describe('providers route (no secrets leave the server)', () => {
 });
 
 describe('planForAmount stays the shared plan guard', () => {
-  it('still maps exact plan amounts only', () => {
+  it('maps exact plan amounts and any amount fully covering a plan', () => {
     expect(planForAmount(5000)).toBe('BASIC');
     expect(planForAmount(10000)).toBe('PREMIUM');
     expect(planForAmount(20000)).toBe('MAX');
-    expect(planForAmount(7000)).toBeNull();
+    expect(planForAmount(5177.67)).toBe('BASIC'); // FX-markup over-payment
+    expect(planForAmount(7000)).toBe('BASIC');
+    expect(planForAmount(4999)).toBeNull(); // under-payment still refused
   });
 });

@@ -93,11 +93,20 @@ describe('planForAmount (webhook guard)', () => {
     expect(planForAmount(PLAN_AMOUNTS_NGN.MAX)).toBe('MAX');
   });
 
-  it('rejects unexpected amounts (under/over-payment)', () => {
+  it('rejects under-payment', () => {
     expect(planForAmount(100)).toBeNull();
     expect(planForAmount(4999)).toBeNull();
     expect(planForAmount(0)).toBeNull();
-    expect(planForAmount(7000)).toBeNull();
-    expect(planForAmount(15000)).toBeNull(); // between tiers — no such plan
+    expect(planForAmount(4999.99)).toBeNull();
+  });
+
+  it('grants the highest plan an over-payment fully covers (FX markup etc.)', () => {
+    // Live case 2026-09-21: international card added ~3.55% markup to a
+    // NGN 5,000 checkout, settling NGN 5,177.67 — must still grant BASIC.
+    expect(planForAmount(5177.67)).toBe('BASIC');
+    expect(planForAmount(7000)).toBe('BASIC');
+    expect(planForAmount(9999)).toBe('BASIC');
+    expect(planForAmount(15000)).toBe('PREMIUM');
+    expect(planForAmount(25000)).toBe('MAX');
   });
 });
