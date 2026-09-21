@@ -2332,3 +2332,17 @@ body { background: var(--background); color: var(--foreground); font-family: var
 .guide-done { margin-top: 28px; border: 1px solid var(--line); border-radius: 16px; padding: 26px; background: linear-gradient(135deg, #111C35, #1B2A4A); color: #fff; }
 .guide-done .muted { color: #C6CFE2; }
 @media (max-width: 560px) { .guide-step { grid-template-columns: 1fr; gap: 10px; } }
+
+/* Resume Studio photo support (Master Upgrade C) */
+.resume2-photo { width: 84px; height: 104px; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); flex: none; }
+.resume2-preview header.with-photo { display: flex; gap: 14px; align-items: flex-start; }
+.resume2-preview header.with-photo > div { flex: 1; min-width: 0; }
+.resume2-photo-row { margin-top: 16px; padding: 14px 16px; border: 1px dashed var(--line-strong, var(--line)); border-radius: 10px; display: flex; flex-direction: column; gap: 8px; }
+.resume2-photo-row > strong { font-size: 14px; }
+.resume2-photo-row > p { font-size: 13px; color: var(--muted, #616d81); margin: 0; }
+.resume2-photo-edit { display: flex; gap: 12px; align-items: center; }
+.resume2-photo-edit img { width: 64px; height: 80px; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); }
+.resume2-photo-label { position: relative; overflow: hidden; cursor: pointer; }
+.resume2-photo-label.disabled { opacity: 0.6; pointer-events: none; }
+.resume2-photo-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.resume2-photo-error { color: #b3261e; font-size: 13px; margin: 0; }

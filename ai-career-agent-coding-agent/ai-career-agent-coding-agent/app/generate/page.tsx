@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { AppShell } from '@/components/site/AppShell';
 import { EMPTY_STUDIO_DRAFT, normalizeStudioDraft, scoreResumeDraft, type ResumeScore, type StudioDraft, type StudioEducation, type StudioExperience, type StudioProject } from '@/lib/resume-studio/draft';
-import { RESUME_TEMPLATES, TEMPLATE_CATEGORIES, getResumeTemplate, recommendResumeTemplates, type ResumeTemplate, type ResumeTemplateCategory } from '@/lib/resume-studio/templates';
+import { RESUME_TEMPLATES, TEMPLATE_CATEGORIES, getResumeTemplate, recommendResumeTemplates, templatePhotoSupport, type ResumeTemplate, type ResumeTemplateCategory } from '@/lib/resume-studio/templates';
 
 type Kind = 'CV' | 'COVER_LETTER' | 'ANSWERS';
 type StudioMode = 'builder' | 'classic';
@@ -745,6 +745,36 @@ function OptimizeStep({ draft, jobs, patchDraft, patchCareer, writeSummary, opti
 
 function TemplatesStep({ draft, recommended, selectedCategory, setSelectedCategory, patchDraft, prevStep, nextStep }: StepContentProps) {
   const visible = RESUME_TEMPLATES.filter((t) => t.category === selectedCategory);
+  const selectedTemplate = getResumeTemplate(draft.selectedTemplate);
+  const photoCapable = templatePhotoSupport(selectedTemplate) !== 'none';
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState('');
+
+  async function onPhotoChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setPhotoBusy(true);
+    setPhotoError('');
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch('/api/resume-studio/photo', { method: 'POST', body: form });
+      const data = (await res.json()) as { dataUrl?: string; error?: string };
+      if (!res.ok || !data.dataUrl) {
+        throw new Error(
+          data.error === 'PHOTO_TOO_LARGE' ? 'Photo must be 2 MB or smaller.'
+          : data.error === 'PHOTO_UNSUPPORTED_TYPE' ? 'Photos must be JPEG or PNG. WebP cannot be embedded in PDF exports.'
+          : 'Upload failed. Please try again.',
+        );
+      }
+      patchDraft({ personal: { ...draft.personal, photoDataUrl: data.dataUrl } });
+    } catch (err) {
+      setPhotoError(err instanceof Error ? err.message : 'Upload failed.');
+    } finally {
+      setPhotoBusy(false);
+      event.target.value = '';
+    }
+  }
   return (
     <div className="resume2-step">
       <p className="eyebrow">Template library</p>
@@ -758,6 +788,25 @@ function TemplatesStep({ draft, recommended, selectedCategory, setSelectedCatego
       <div className="resume2-template-grid">
         {visible.map((template) => <TemplateCard key={template.id} template={template} selected={draft.selectedTemplate === template.id} onSelect={() => patchDraft({ selectedTemplate: template.id })} />)}
       </div>
+      {photoCapable && (
+        <div className="resume2-photo-row">
+          <strong>{templatePhotoSupport(selectedTemplate) === 'required' ? 'Photo required for this template' : 'Photo optional for this template'}</strong>
+          <p>Upload a headshot (JPEG or PNG, 2 MB max). It appears in the preview and is embedded in PDF and Word exports. Server-side validation applies.</p>
+          {draft.personal.photoDataUrl ? (
+            <div className="resume2-photo-edit">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={draft.personal.photoDataUrl} alt="Your resume photo" />
+              <button className="btn secondary" type="button" onClick={() => patchDraft({ personal: { ...draft.personal, photoDataUrl: '' } })}>Remove photo</button>
+            </div>
+          ) : (
+            <label className={`btn secondary resume2-photo-label${photoBusy ? ' disabled' : ''}`}>
+              {photoBusy ? 'Validating…' : 'Upload photo'}
+              <input type="file" accept="image/jpeg,image/png" className="resume2-photo-input" onChange={(event) => { void onPhotoChange(event); }} disabled={photoBusy} />
+            </label>
+          )}
+          {photoError && <p className="resume2-photo-error">{photoError}</p>}
+        </div>
+      )}
       <StepActions prevStep={prevStep} nextStep={nextStep} />
     </div>
   );
@@ -820,12 +869,19 @@ function MiniTemplate({ template }: { template: ResumeTemplate }) {
 
 function ResumePreview({ draft, template, score }: { draft: StudioDraft; template: ResumeTemplate; score: number }) {
   const summary = draft.career.summary || 'Your professional summary will appear here. Use Write with AI when your facts are ready.';
+  const showPhoto = templatePhotoSupport(template) !== 'none' && Boolean(draft.personal.photoDataUrl);
   return (
     <div className={`resume2-preview template-${template.layout} density-${template.density}`} style={{ '--accent': template.accent } as CSSProperties}>
-      <header>
-        <h2>{draft.personal.name || 'Your Name'}</h2>
-        <p>{[draft.personal.email, draft.personal.phone, draft.personal.location].filter(Boolean).join(' | ') || 'email | phone | location'}</p>
-        <strong>{draft.career.headline || draft.career.targetRole || 'Target Role'}</strong>
+      <header className={showPhoto ? 'with-photo' : ''}>
+        {showPhoto && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={draft.personal.photoDataUrl} alt="Your resume photo" className="resume2-photo" />
+        )}
+        <div>
+          <h2>{draft.personal.name || 'Your Name'}</h2>
+          <p>{[draft.personal.email, draft.personal.phone, draft.personal.location].filter(Boolean).join(' | ') || 'email | phone | location'}</p>
+          <strong>{draft.career.headline || draft.career.targetRole || 'Target Role'}</strong>
+        </div>
       </header>
       <section><h3>Professional Summary</h3><p>{summary}</p></section>
       <section><h3>Experience</h3>{draft.experiences.length ? draft.experiences.slice(0, 4).map((e) => <div key={e.id} className="resume2-preview-role"><b>{e.role || 'Role'} {e.company ? `| ${e.company}` : ''}</b><ul>{(e.bullets.length ? e.bullets : [e.roughNotes || 'Experience details will appear here.']).slice(0, 4).map((b, i) => <li key={i}>{b}</li>)}</ul></div>) : <p>Add experience, internships, freelance work or projects.</p>}</section>

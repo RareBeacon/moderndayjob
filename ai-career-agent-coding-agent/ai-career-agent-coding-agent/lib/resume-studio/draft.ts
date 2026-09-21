@@ -53,6 +53,8 @@ export interface StudioDraft {
     website: string;
     linkedin: string;
     github: string;
+    /** Validated photo data URL (JPEG/PNG only); empty string when unset. */
+    photoDataUrl?: string;
   };
   career: {
     headline: string;
@@ -87,7 +89,7 @@ export const EMPTY_STUDIO_DRAFT: StudioDraft = {
   versionName: 'General Resume',
   selectedTemplate: 'modern-tech',
   currentStep: 'welcome',
-  personal: { name: '', email: '', phone: '', location: '', website: '', linkedin: '', github: '' },
+  personal: { name: '', email: '', phone: '', location: '', website: '', linkedin: '', github: '', photoDataUrl: '' },
   career: { headline: '', targetRole: '', yearsExperience: '', seniority: '', summary: '' },
   skills: [],
   experiences: [],
@@ -132,7 +134,11 @@ export function normalizeStudioDraft(input: Partial<StudioDraft> | null | undefi
     versionName: cleanText(d.versionName, 120) || EMPTY_STUDIO_DRAFT.versionName,
     selectedTemplate: cleanText(d.selectedTemplate, 80) || EMPTY_STUDIO_DRAFT.selectedTemplate,
     currentStep: cleanText(d.currentStep, 80) || EMPTY_STUDIO_DRAFT.currentStep,
-    personal: { ...EMPTY_STUDIO_DRAFT.personal, ...(d.personal ?? {}) },
+    personal: {
+      ...EMPTY_STUDIO_DRAFT.personal,
+      ...(d.personal ?? {}),
+      photoDataUrl: typeof d.personal?.photoDataUrl === 'string' && /^data:image\/(jpeg|png);base64,/.test(d.personal.photoDataUrl) ? d.personal.photoDataUrl.slice(0, 3_000_000) : '',
+    },
     career: { ...EMPTY_STUDIO_DRAFT.career, ...(d.career ?? {}) },
     skills: Array.isArray(d.skills) ? d.skills.map((s, index) => ({ name: cleanText(s.name, 80), category: cleanText(s.category, 80) || 'Core', priority: Number(s.priority ?? index + 1) || index + 1 })).filter((s) => s.name).slice(0, 80) : [],
     experiences: Array.isArray(d.experiences) ? d.experiences.map((e, index) => ({

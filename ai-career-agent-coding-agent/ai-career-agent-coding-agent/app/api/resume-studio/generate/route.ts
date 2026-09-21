@@ -51,6 +51,7 @@ async function buildResumeContent(rawDraft: Record<string, unknown>, templateId?
   const content = {
     templateId: selectedTemplate.id,
     templateName: selectedTemplate.name,
+    photoDataUrl: draft.personal.photoDataUrl || undefined,
     contact: draft.personal,
     headline: cleanText(draft.career.headline || draft.career.targetRole || 'Professional Resume', 160),
     summary: cleanText(summary, 620),
@@ -98,6 +99,9 @@ export async function POST(req: Request) {
   void recordGenerationUsage({ userId: user.id, feature: 'resume-studio.cv', provider: 'jobiest_resume_studio_local_ai', latencyMs: Date.now() - studioT0, status: 'ok' });
   if (!content.contact.name || !content.contact.email) {
     return NextResponse.json({ error: 'CONTACT_REQUIRED', message: 'Add your name and email before generating.' }, { status: 400 });
+  }
+  if ((selectedTemplate.photoSupport ?? 'none') === 'required' && !draft.personal.photoDataUrl) {
+    return NextResponse.json({ error: 'PHOTO_REQUIRED', message: 'This template requires a photo. Upload one on the template step before generating.' }, { status: 400 });
   }
 
   const generatedText = JSON.stringify(content, null, 2).replace(/[\u2013\u2014]/g, '-');

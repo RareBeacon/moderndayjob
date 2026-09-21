@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
-import { Document, HeadingLevel, Packer, Paragraph, TextRun } from 'docx';
+import { AlignmentType, Document, HeadingLevel, ImageRun, Packer, Paragraph, TextRun } from 'docx';
+import { parsePhotoDataUrl, type PhotoMime } from '@/lib/resume-studio/photo';
 
 /**
  * Server-side PDF/DOCX export for generated career documents.
@@ -22,6 +23,8 @@ export interface ExportSection {
 export interface ParsedDocument {
   title: string;
   sections: ExportSection[];
+  /** Validated resume photo (JPEG/PNG, magic-byte checked) for photo-capable templates. */
+  photo?: { bytes: Uint8Array; mime: PhotoMime };
 }
 
 interface CvJson {
@@ -40,6 +43,7 @@ interface CvJson {
   references?: string;
   answers?: { question?: string; answer?: string }[];
   body?: string;
+  photoDataUrl?: string;
 }
 
 function firstNonEmpty(v: unknown): string | undefined {
@@ -55,6 +59,11 @@ export function parseDocumentContent(kind: string, content: string): ParsedDocum
     json = JSON.parse(content) as CvJson;
   } catch {
     json = null;
+  }
+  let photo: ParsedDocument['photo'];
+  if (json?.photoDataUrl) {
+    const parsed = parsePhotoDataUrl(json.photoDataUrl);
+    if (parsed.ok) photo = { bytes: parsed.bytes, mime: parsed.mime };
   }
 
   if (kind === 'CV' && json && (json.headline || json.summary || json.experiences || json.contact)) {
@@ -118,7 +127,7 @@ export function parseDocumentContent(kind: string, content: string): ParsedDocum
     }
     if (json.additional) sections.push({ heading: 'Additional information', lines: [json.additional] });
     if (json.references) sections.push({ heading: 'References', lines: [json.references] });
-    return { title: h ?? headline ?? 'Resume', sections };
+    return { title: h ?? headline ?? 'Resume', sections, photo };
   }
 
   if (kind === 'ANSWERS' && json?.answers?.length) {
@@ -187,12 +196,25 @@ function wrap(text: string, max: number): string[] {
   return out;
 }
 
-export async function renderPdf(title: string, sections: ExportSection[]): Promise<Buffer> {
+const PHOTO_W = 92;
+const PHOTO_H = 112;
+
+export async function renderPdf(title: string, sections: ExportSection[], photo?: ParsedDocument['photo']): Promise<Buffer> {
   const doc = await PDFDocument.create();
   const regular = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
   let page = doc.addPage([PAGE_W, PAGE_H]);
   let y = PAGE_H - MARGIN;
+
+  if (photo) {
+    const image = photo.mime === 'image/png' ? await doc.embedPng(photo.bytes) : await doc.embedJpg(photo.bytes);
+    const scale = Math.min(PHOTO_W / image.width, PHOTO_H / image.height);
+    const w = image.width * scale;
+    const h = image.height * scale;
+    page.drawImage(image, { x: PAGE_W - MARGIN - w, y: PAGE_H - MARGIN - h, width: w, height: h });
+    // reserve the photo block on page 1 so text never overlaps it
+    if (y > PAGE_H - MARGIN - h - 8) y = PAGE_H - MARGIN - h - 8;
+  }
 
   const ensure = (needed: number) => {
     if (y - needed < MARGIN) {
@@ -237,10 +259,24 @@ export async function renderPdf(title: string, sections: ExportSection[]): Promi
 
 /* ---------- DOCX ---------- */
 
-export async function renderDocx(title: string, sections: ExportSection[]): Promise<Buffer> {
+export async function renderDocx(title: string, sections: ExportSection[], photo?: ParsedDocument['photo']): Promise<Buffer> {
   const children: Paragraph[] = [
     new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: title, bold: true })] }),
   ];
+  if (photo) {
+    children.push(
+      new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        children: [
+          new ImageRun({
+            data: Buffer.from(photo.bytes),
+            type: photo.mime === 'image/png' ? 'png' : 'jpg',
+            transformation: { width: 92, height: 112 },
+          }),
+        ],
+      }),
+    );
+  }
   for (const s of sections) {
     if (s.heading) {
       children.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: s.heading, bold: true })] }));

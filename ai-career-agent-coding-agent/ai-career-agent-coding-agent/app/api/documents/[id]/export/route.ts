@@ -37,8 +37,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const parsed = parseDocumentContent(data.kind, data.content);
   const title = (data.title || parsed.title || 'document').trim();
   const buffer = format === 'docx'
-    ? await renderDocx(title, parsed.sections)
-    : await renderPdf(title, parsed.sections);
+    ? await renderDocx(title, parsed.sections, parsed.photo)
+    : await renderPdf(title, parsed.sections, parsed.photo);
 
   const ext = format === 'docx' ? 'docx' : 'pdf';
   const mime = format === 'docx'
