@@ -23,6 +23,22 @@ The web app (Vercel) calls the worker through `BROWSER_WORKER_URL` (pointed at
   2026-06-15 (enforced from 2026-08-18). Use it as **one 2/12 VM** for both
   services, or split into 2× 1/6 (then split the compose file across hosts —
   not recommended to start).
+
+## MIGRATED TO ALWAYS FREE (2026-09-21)
+
+The instance `jobiest-ai` was created 2026-09-10 as **VM.Standard.A2.Flex
+2/12 running on trial credits** (A2 is NOT an always-free shape). On
+2026-09-21 it was converted via the OCI API: graceful stop → edit shape to
+**VM.Standard.A1.Flex 2 OCPU / 12 GB** → start. Same boot volume, same
+ephemeral public IP (**147.224.189.214**), ~3 minutes of downtime covered by
+the Render standby failover. Verified healthy after: worker.jobiest.com,
+ai.jobiest.com, api.jobiest.com. Tenancy cost sweep: 100 GB of the 200 GB
+free block storage, no load balancers, A1 total exactly at the 2 OCPU free
+envelope. The trial ends ~2026-10-07; within-limit A1 resources continue
+after trial expiry per Oracle's current policy. If Oracle stops the instance
+anyway (older documented behavior), recreate it with the same API flow —
+credentials are on file (`~/keys/oci_ocids.txt` + `~/keys/oci_api_key.pem`),
+and Render keeps submissions working during any gap.
 - 2× AMD `VM.Standard.E2.1.Micro` (1/8 OCPU, 1 GB) — too small for Chromium;
   ignore.
 - 200 GB block storage total · 10 TB/month egress · 1 flexible load balancer
