@@ -49,7 +49,7 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
       '3 AI generations in total to try the AI writer (resume, cover letter, answers)',
       'All 10 career tools; 10 uses a day',
       'ATS resume scanner',
-      'Job search & match scoring',
+      'Paste any job link for agent analysis',
       'Profile builder & application tracker',
       'Community support',
     ],

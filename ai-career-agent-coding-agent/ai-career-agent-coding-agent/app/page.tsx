@@ -14,24 +14,16 @@ export const revalidate = 300;
 
 export const metadata: Metadata = {
   // Root page titles do not get the layout template suffix, so the brand is included here once.
-  title: 'Jobiest - Job Applications, Ready When You Wake Up',
-  description: 'Jobiest is the career agent that finds matching roles overnight and prepares tailored, truthful applications for your approval. Greenhouse and Lever forms filled on send. Start free.',
+  title: 'Jobiest - Your AI Agent for the Job Search',
+  description: 'Jobiest is the AI agent for your job search: tell it your criteria once, drop in the jobs you want, and it tailors your CV and cover letter, fills supported forms, and submits after your approval. Start free.',
   alternates: { canonical: SITE_URL },
 };
 
 const faqs = [
-  { q: 'Can it really work while I sleep?', a: 'Yes, the work happens overnight: the agent searches within your preferences, scores each role for fit, and tailors your CV and cover letter. On Greenhouse and Lever roles it also pre-fills the employer form. But nothing is submitted until you approve it, so most mornings look like: coffee, review, approve, done.' },
+  { q: 'How much work is this, really?', a: 'Set your criteria once, then paste links to the jobs you want. The agent reads each job, tailors your CV and cover letter, answers the application questions, and fills supported forms. You review each package and approve; on Greenhouse and Lever the submission itself is done for you. Most evenings take minutes, not hours.' },
   { q: 'Which job boards does it support?', a: 'The agent fills and submits employer forms on Greenhouse and Lever. For any other job, it prepares the complete package, CV, cover letter and answers, with a direct link so you can submit in a couple of clicks. Forms that need a CAPTCHA, a login, or an assessment are handed back to you with everything ready to go.' },
-  { q: 'Will it make up experience for my CV?', a: 'Never. Documents are built only from the facts you verify. Missing details are flagged so you can add context without inventing credentials or achievements, and a built-in truthfulness check stops the agent rather than letting it guess.' },
-  { q: 'What can I do on the free plan?', a: 'Use all 10 career tools with a daily allowance, get match scoring, and track applications in one place. You also get three AI generations in total to try the writer. Agent runs start on paid plans. No payment card is required.' },
-];
-
-const overnightSteps = [
-  { time: '9:42 PM', title: 'You set the rules once', body: 'Target roles, salary, location, seniority. You approve every send. Then close the laptop.' },
-  { time: '11:15 PM', title: 'The agent goes hunting', body: 'New openings are matched against your profile and scored for fit, with honest gap flags, not hype.' },
-  { time: '2:30 AM', title: 'Documents get tailored', body: 'Your CV and cover letter are reshaped for each role using your verified facts. Nothing is invented.' },
-  { time: '5:50 AM', title: 'Forms get pre-filled', body: 'On Greenhouse and Lever roles, the employer form is filled and waiting. Anything else is packaged with a direct link.' },
-  { time: '7:30 AM', title: 'You approve, it sends', body: 'Review the morning line-up, approve what you like, edit or skip the rest. Every status lands in your tracker.' },
+  { q: 'Will it make up experience for my CV?', a: 'Never. Documents are built only from the facts you verify. Missing details are flagged so you can add context without inventing credentials or achievements, and a truthfulness check runs before any submission: if honest content cannot be verified, the application stops and comes back to you.' },
+  { q: 'What can I do on the free plan?', a: 'Use all 10 career tools (full results preview, no account needed), build your profile and criteria, and track applications in one place. You also get three AI generations in total to try the writer. Agent runs start on paid plans. No payment card is required.' },
 ];
 
 const socials = [
@@ -49,16 +41,24 @@ const tools = [
   { href: '/free-linkedin-headline-builder', icon: 'user' as const, name: 'LinkedIn Headline Builder', body: 'Stand out where recruiters look first.' },
 ];
 
+const howSteps = [
+  { n: '01', title: 'Give Jobiest your criteria', body: 'Target roles, locations, remote preference, salary floor, daily target. You set the rules once; the agent works inside them.' },
+  { n: '02', title: 'Drop in the jobs you want', body: 'Paste links to the roles you care about, from anywhere. No scrolling job boards inside Jobiest; you choose, it works.' },
+  { n: '03', title: 'Your agent does the work', body: 'It reads each job description, tailors your CV and cover letter from your verified experience, answers application questions, and completes supported forms.' },
+  { n: '04', title: 'Applications get submitted', body: 'Review each package and approve with one tap. On Greenhouse and Lever, your agent submits for you. That is the control mode today: every send has your name on it.' },
+  { n: '05', title: 'Track everything', body: 'Applied, waiting, interview, rejected, follow-up. One tracker shows every application and its status, every morning.' },
+];
+
 const trustItems = [
   {
     icon: 'shield' as const,
-    title: 'Truthful by design, enforced in code',
-    body: 'Documents are built only from facts you verified. Gaps get flagged, never filled with fiction, and a built-in truthfulness check stops the agent any time it cannot guarantee honest content.',
+    title: 'Truthful by design, checked at send time',
+    body: 'Documents are built only from facts you verified, and gaps get flagged, never filled with fiction. A truthfulness check runs server-side before any submission: if honest content cannot be verified, the application stops and comes back to you.',
   },
   {
     icon: 'check' as const,
     title: 'You approve every send',
-    body: 'No plan, at any price, sends without your approval. Approvals expire after 24 hours and restart if your documents change, so nothing goes out on stale information.',
+    body: 'Today, no plan sends without your approval, and an auto-submit mode is on the roadmap, not in production. Approvals expire after 24 hours and restart if your documents change, so nothing goes out on stale information.',
   },
   {
     icon: 'briefcase' as const,
@@ -68,7 +68,7 @@ const trustItems = [
   {
     icon: 'user' as const,
     title: 'Your data stays yours',
-    body: 'Your CV and profile live in encrypted storage, are never sold, and no inbox connection is needed. You can export or delete everything at any time.',
+    body: 'Your CV and profile are stored securely, never sold, and no inbox connection is needed. Export your documents as PDF or Word anytime.',
   },
 ];
 
@@ -77,15 +77,15 @@ const PLAN_COPY: Record<string, { description: string; includes: string; feature
   FREE: {
     description: 'Get your search moving.',
     includes: 'Free forever, no card',
-    features: ['3 AI generations in total (lifetime)', '10 career-tool uses a day', 'Match scoring and application tracker', 'Agent runs start on paid plans'],
+    features: ['3 AI generations in total (lifetime)', '10 career-tool uses a day', 'Paste any job link for agent analysis', 'Application tracker'],
   },
   BASIC: {
-    description: 'A first taste of the night shift.',
+    description: 'A first taste of the agent.',
     includes: 'Everything in Free, plus',
-    features: ['3 AI generations a day', '50 career-tool uses a day', '2 agent trial runs in total', 'Every send approved by you'],
+    features: ['3 AI generations a day', '50 career-tool uses a day', '2 agent runs in total (lifetime)', 'Every send approved by you'],
   },
   PREMIUM: {
-    description: 'The full overnight workflow.',
+    description: 'The full agent workflow.',
     includes: 'Everything in Basic, plus',
     features: ['10 AI generations a day', '10 agent applications a day', 'Unlimited career-tool uses', 'Every send approved by you'],
   },
@@ -122,38 +122,116 @@ export default async function HomePage() {
       <SiteHeader />
       <main id="main">
 
-        {/* ===================== 1. Hero: the promise, clarified ===================== */}
+        {/* ===================== 1. Hero: the agent promise ===================== */}
         <section className={styles.hero}>
           <div className={styles.container}>
             <div className={styles['hero-topline']}>
-              <span className={styles.eyebrow}><Icon name="moon" /> THE AGENT THAT WORKS OVERNIGHT</span>
-              <a href="#product-tour" className={styles['quiet-link']}>See the product, end to end <Icon name="arrow" small /></a>
+              <span className={styles.eyebrow}><Icon name="spark" /> YOUR AI JOB-SEARCH AGENT</span>
+              <a href="#case-study" className={styles['quiet-link']}>Watch it work <Icon name="play" small /></a>
             </div>
             <div className={styles['hero-intro']}>
-              <h1>Wake up to applications,<br /><span className={styles['headline-highlight']}>ready to send.</span></h1>
+              <h1>Your AI agent<br />for the <span className={styles['headline-highlight']}>job search.</span></h1>
               <div className={styles['hero-copy']}>
                 <p>
-                  Jobiest works the night shift: it finds roles that fit your preferences, tailors your CV and cover letter to each one, and pre-fills Greenhouse and Lever forms. Nothing is submitted until you approve it.
+                  Tell Jobiest what you are looking for once. Drop in the jobs you want. Your agent reads each role, tailors your CV and cover letter, answers the questions, fills the form, and submits on Greenhouse and Lever after your approval. You review the results. It does the work.
                 </p>
                 <div className={styles['hero-actions']}>
                   <Link className={`${styles.button} ${styles['button-navy']}`} href="/signup">
-                    Start free tonight <span className={styles['button-arrow']}><Icon name="arrow" /></span>
+                    Delegate my job search <span className={styles['button-arrow']}><Icon name="arrow" /></span>
                   </Link>
-                  <a className={styles['demo-link']} href="#product-tour"><Icon name="play" />See how it works</a>
+                  <a className={styles['demo-link']} href="#case-study"><Icon name="play" />See it work</a>
                 </div>
-                <p className={styles['hero-note']}><Icon name="check" />Free to start. No card needed.</p>
+                <p className={styles['hero-note']}><Icon name="check" />Free to start. No card needed. Your first tailored application in minutes.</p>
               </div>
             </div>
 
-            <div className={styles['hero-promise']}>
-              <span><Icon name="moon" small /><strong>Overnight:</strong> the agent prepares everything</span>
-              <span><Icon name="check" small /><strong>Morning:</strong> you approve, it submits on supported boards</span>
-              <span><Icon name="shield" small /><strong>Always:</strong> truthful documents, no exceptions</span>
+            <div className={styles['loop-strip']}>
+              <strong>You set the rules. Jobiest does the work.</strong>
+              <div className={styles['loop-chips']} aria-label="The Jobiest loop">
+                <span>Target</span><i aria-hidden="true">→</i>
+                <span>Tailor</span><i aria-hidden="true">→</i>
+                <span>Apply</span><i aria-hidden="true">→</i>
+                <span>Track</span>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* ===================== 2. Product demo: show it working ===================== */}
+        {/* ===================== 2. Case study: the campaign hook ===================== */}
+        <section className={`${styles.section} ${styles['case-video-section']}`} id="case-study">
+          <div className={styles.container}>
+            <div className={styles['section-top']}>
+              <div>
+                <p className={styles['section-kicker']}>THE DELEGATION STORY</p>
+                <h2>You sleep.<br />Your agent works.</h2>
+              </div>
+              <p className={styles['section-intro']}>One evening, start to finish:<br />the whole Jobiest loop in twenty seconds.</p>
+            </div>
+
+            <div className={styles['case-video-grid']}>
+              <div className={styles['case-video-wrap']}>
+                {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                <video
+                  className={styles['case-video']}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  preload="metadata"
+                  poster="/images/case-5-morning.jpg"
+                >
+                  <source src="/videos/jobiest-case-study.mp4" type="video/mp4" />
+                </video>
+                <p className={styles['case-video-note']}>Illustrative demo of the Jobiest workflow.</p>
+              </div>
+              <div className={styles['case-video-side']}>
+                <ul>
+                  <li><Icon name="check" small /> Set your criteria once: roles, locations, salary floor.</li>
+                  <li><Icon name="check" small /> Drop in the jobs you want, from anywhere.</li>
+                  <li><Icon name="check" small /> Your agent tailors every document and fills supported forms.</li>
+                  <li><Icon name="check" small /> Approve before bed; the morning run submits on Greenhouse and Lever.</li>
+                  <li><Icon name="check" small /> Anything that needs a human, CAPTCHA or assessment, comes back ready.</li>
+                </ul>
+                <figure className={styles['case-photo-small']}>
+                  <Image src="/images/life-sofa.jpg" alt="A person relaxing with a book in the evening while the agent works" width={640} height={360} />
+                  <figcaption>While you get on with your life.</figcaption>
+                </figure>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ===================== 3. How it works: the delegation loop ===================== */}
+        <section className={`${styles.section} ${styles['how-section']}`} id="how-it-works">
+          <div className={styles.container}>
+            <div className={styles['section-top']}>
+              <div>
+                <p className={styles['section-kicker']}>HOW IT WORKS</p>
+                <h2>From your criteria<br />to your morning review.</h2>
+              </div>
+              <p className={styles['section-intro']}>Five steps. You do two of them,<br />and one of those is approving.</p>
+            </div>
+            <div className={styles['how-grid']}>
+              <div className={styles['how-steps']}>
+                {howSteps.map((step) => (
+                  <article key={step.n} className={styles['how-step']}>
+                    <span className={styles['how-number']}>{step.n}</span>
+                    <div>
+                      <h3>{step.title}</h3>
+                      <p>{step.body}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+              <figure className={styles['how-photo']}>
+                <Image src="/images/life-cafe.jpg" alt="Friends laughing at an outdoor cafe in the evening" width={880} height={660} />
+                <figcaption>The part that matters: everything else you could be doing.</figcaption>
+              </figure>
+            </div>
+          </div>
+        </section>
+
+        {/* ===================== 4. Product tour: show it working ===================== */}
         <section className={`${styles.section} ${styles['tour-section']}`} id="product">
           <div className={styles.container}>
             <div className={styles['section-top']}>
@@ -161,67 +239,9 @@ export default async function HomePage() {
                 <p className={styles['section-kicker']}>SHOW, NOT TELL</p>
                 <h2>See exactly what<br />the agent does.</h2>
               </div>
-              <p className={styles['section-intro']}>Click through a real overnight run:<br />preferences, matches, documents, approval, tracker.</p>
+              <p className={styles['section-intro']}>Click through a real agent run:<br />criteria, jobs, documents, approval, tracker.</p>
             </div>
             <ProductTour />
-          </div>
-        </section>
-
-        {/* ===================== 3. The problem: why Jobiest exists ===================== */}
-        <section className={styles['hook-band']} aria-label="Why Jobiest exists">
-          <div className={styles.container}>
-            <div className={styles['hook-card']}>
-              <div>
-                <p className={styles['section-kicker']}>WHY JOBIEST EXISTS</p>
-                <h2>Job hunting shouldn&rsquo;t be a second job.</h2>
-                <p>
-                  Hours lost scrolling job boards. The same cover letter rewritten for the tenth time.
-                  Forms that eat your evening. Meanwhile the roles that fit you quietly close.
-                  Jobiest takes the night shift so your evenings, and your energy, stay yours.
-                </p>
-              </div>
-              <div className={styles['hook-stats']}>
-                <span><Icon name="close" /> No more endless scrolling</span>
-                <span><Icon name="close" /> No more form fatigue</span>
-                <span><Icon name="check" /> Mornings of ready applications</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ===================== 4. How it works: one night, start to finish ===================== */}
-        <section className={`${styles.section} ${styles['case-section']}`} id="how-it-works">
-          <div className={styles.container}>
-            <div className={styles['section-top']}>
-              <div>
-                <p className={styles['section-kicker']}>HOW IT WORKS</p>
-                <h2>One night,<br />start to finish.</h2>
-              </div>
-              <p className={styles['section-intro']}>From your rules to your morning report,<br />this is the whole workflow.</p>
-            </div>
-
-            <div className={styles['case-grid']}>
-              <figure className={styles['case-photo']}>
-                <Image
-                  src="/images/overnight-run.jpg"
-                  alt="Illustration of a person sleeping while a laptop prepares job applications overnight"
-                  width={880}
-                  height={880}
-                  priority
-                />
-                <figcaption><Icon name="moon" /> Illustrative walkthrough of an overnight run.</figcaption>
-              </figure>
-
-              <div className={styles['case-timeline']}>
-                {overnightSteps.map((step) => (
-                  <article key={step.time} className={styles['case-step']}>
-                    <span className={styles['case-time']}><Icon name="clock" small />{step.time}</span>
-                    <h3>{step.title}</h3>
-                    <p>{step.body}</p>
-                  </article>
-                ))}
-              </div>
-            </div>
           </div>
         </section>
 
@@ -264,7 +284,7 @@ export default async function HomePage() {
             <div className={styles['center-heading']}>
               <p className={styles['section-kicker']}>START FREE. UPGRADE WHEN IT EARNS IT.</p>
               <h2>Simple plans.<br />Clear limits.</h2>
-              <p className={styles['section-intro']}>Every plan keeps you as the approver. The difference is how much<br />the agent can prepare for you each day.</p>
+              <p className={styles['section-intro']}>Every plan keeps you as the approver. The difference is how much<br />the agent can do for you each day.</p>
             </div>
             <div className={styles['pricing-grid']}>
               {planCards.map((card) => (
@@ -287,8 +307,8 @@ export default async function HomePage() {
               <strong>What the limits mean</strong>
               <p>
                 <strong>AI generations</strong> are resumes, cover letters and application answers written by the AI writer: 3 in total on Free (lifetime), refreshed daily on paid plans.
-                <strong> Career-tool uses</strong> are the 10 free tools, which are rule-based: 10 a day on Free, 50 on Basic, unlimited on Premium and Max. Unlimited tools never means unlimited AI generations.
-                <strong> Agent applications</strong> are complete applications the agent prepares for you overnight: 2 trial runs in total on Basic, 10 a day on Premium and 20 a day on Max, and every one waits for your approval before anything is sent.
+                <strong> Career-tool uses</strong> cover the 10 free tools: the ATS scanner is rule-based, the other nine are AI-powered, and every tool shows a full preview without an account (copying and saving needs a free account). Tool use never touches your AI-generation allowance.
+                <strong> An agent run</strong> is one complete application: the job is analyzed, your documents tailored, the form filled, and the send happens after your approval. Basic includes 2 runs in total (lifetime); Premium and Max refresh daily at 10 and 20 runs.
               </p>
             </div>
             <p className={styles['pricing-footer']}>
@@ -305,7 +325,7 @@ export default async function HomePage() {
                 <p className={styles['section-kicker']}>FREE FOREVER TOOLS</p>
                 <h2>Sharpen everything<br />around the search.</h2>
               </div>
-              <p className={styles['section-intro']}>The five most-used tools, free today.<br />No account needed to start.</p>
+              <p className={styles['section-intro']}>The five most-used tools, free to preview today.<br />No account needed to start.</p>
             </div>
             <div className={styles['tools-grid']}>
               {tools.map((tool) => (
@@ -353,7 +373,7 @@ export default async function HomePage() {
             <div className={styles['faq-grid']}>
               <div className={styles['faq-heading']}>
                 <p className={styles['section-kicker']}>GOOD QUESTIONS. CLEAR ANSWERS.</p>
-                <h2>Before you<br />set your alarm.</h2>
+                <h2>Before you<br />delegate anything.</h2>
                 <p>Anything else, the chat bubble in the corner is right there. Real answers, fast.</p>
               </div>
               <div className={styles['faq-list']}>
@@ -373,13 +393,13 @@ export default async function HomePage() {
           <div className={styles.container}>
             <div className={styles['closing-card']}>
               <div>
-                <span className={styles['closing-kicker']}><Icon name="moon" />THE NIGHT SHIFT STARTS TONIGHT</span>
-                <h2>Go to bed.<br />Wake up to progress.</h2>
-                <p>Set your rules once. Review, approve, repeat.</p>
+                <span className={styles['closing-kicker']}><Icon name="spark" />DELEGATE THE BUSYWORK</span>
+                <h2>Your next application<br />starts here.</h2>
+                <p>Set your criteria. Drop in a job. Approve the result.</p>
               </div>
               <div className={styles['closing-action']}>
                 <Link className={`${styles.button} ${styles['button-yellow']}`} href="/signup">
-                  Start free tonight <Icon name="arrow" />
+                  Delegate my job search <Icon name="arrow" />
                 </Link>
                 <span>Free to start. No card needed.</span>
               </div>

@@ -4,34 +4,29 @@
  * Interactive end-to-end product tour (homepage "show, not tell" section).
  *
  * Five screens mirroring the real dashboard UI with clearly-labeled sample
- * data: preferences -> overnight matches with honest fit scoring -> tailored
- * documents -> the approval step -> the morning tracker. The approval step is
- * real product behavior: nothing is submitted until the user approves, and
- * approvals expire after 24 hours.
+ * data: criteria (job_preferences fields) -> bring the jobs (paste any job
+ * URL; Greenhouse and Lever forms are mapped) -> tailored documents -> the
+ * approval step -> the morning tracker. The approval step is real product
+ * behavior: nothing is submitted until the user approves, and approvals
+ * expire after 24 hours.
  */
 import { useState } from 'react';
 import styles from '../../app/home.module.css';
 import { Icon } from './Icons';
 
 const TABS = [
-  { id: 'preferences', label: 'Your preferences', icon: 'user' as const },
-  { id: 'matches', label: 'Overnight matches', icon: 'search' as const },
+  { id: 'criteria', label: 'Your criteria', icon: 'user' as const },
+  { id: 'jobs', label: 'Bring the jobs', icon: 'briefcase' as const },
   { id: 'documents', label: 'Tailored documents', icon: 'file' as const },
   { id: 'approval', label: 'Your approval', icon: 'shield' as const },
   { id: 'tracker', label: 'Morning tracker', icon: 'chart' as const },
-];
-
-const MATCHES = [
-  { company: 'F', tone: 'company-f', title: 'Senior Product Manager', company2: 'Fintech platform · Lagos / hybrid', fit: '92% fit', selected: true, meta: '₦700k+ / month · Full-time' },
-  { company: 'L', tone: 'company-n', title: 'Product Owner, Logistics', company2: 'Logistics scale-up · Remote', fit: '84% fit', selected: false, meta: '₦650k / month · Full-time' },
-  { company: 'H', tone: 'company-f', title: 'Product Lead, Health', company2: 'Health tech · Lagos', fit: '71% fit', selected: false, meta: '₦600k / month · Full-time' },
 ];
 
 export function ProductTour() {
   const [active, setActive] = useState(0);
 
   return (
-    <div className={styles['demo-stage']} id="product-tour" tabIndex={-1} aria-label="Product tour: preferences, matches, documents, approval, tracker">
+    <div className={styles['demo-stage']} id="product-tour" tabIndex={-1} aria-label="Product tour: criteria, bring the jobs, documents, approval, tracker">
       <div className={styles['stage-caption']}>
         <span>THE PRODUCT, END TO END</span>
         <span className={styles['sample-label']}>Real interface · sample data</span>
@@ -70,68 +65,52 @@ export function ProductTour() {
 
         <div className={styles['workspace-main']}>
           <div className={styles['workspace-topbar']}>
-            <span><Icon name="moon" small /> Overnight run · sample night</span>
+            <span><Icon name="briefcase" small /> Agent run · sample data</span>
             <span className={styles['approval-tag']}>Agent mode · you approve sends</span>
           </div>
 
           <div className={styles['product-content']}>
             {active === 0 && (
-              <section aria-label="Preferences screen">
+              <section aria-label="Criteria screen">
                 <div className={styles['workspace-heading']}>
                   <div>
-                    <h2>Your preferences</h2>
-                    <p>Set once. The agent only searches within these rules.</p>
+                    <h2>Your criteria</h2>
+                    <p>Tell Jobiest what you are looking for, once.</p>
                   </div>
                   <span className={styles['small-label']}>Sample data</span>
                 </div>
                 <div className={styles['pref-rows']}>
                   <div className={styles['pref-row']}><span>Target roles</span><strong>Senior Product Manager, Product Lead</strong></div>
-                  <div className={styles['pref-row']}><span>Location</span><strong>Lagos or remote (UTC+1)</strong></div>
+                  <div className={styles['pref-row']}><span>Locations</span><strong>Lagos + Remote</strong></div>
+                  <div className={styles['pref-row']}><span>Employment type</span><strong>Full-time</strong></div>
                   <div className={styles['pref-row']}><span>Salary floor</span><strong>₦600,000 / month</strong></div>
-                  <div className={styles['pref-row']}><span>Seniority</span><strong>Senior</strong></div>
+                  <div className={styles['pref-row']}><span>Daily target</span><strong>10 applications a day</strong></div>
                   <div className={`${styles['pref-row']} ${styles['pref-row-hot']}`}><span>Send policy</span><strong>I approve every send</strong></div>
                 </div>
-                <p className={styles['context-note']}><Icon name="check" small /> Prefer full autopilot? Not offered: every Jobiest plan keeps you as the sender of record.</p>
+                <p className={styles['context-note']}><Icon name="check" small /> Change anything anytime. The agent works inside your rules.</p>
               </section>
             )}
 
             {active === 1 && (
-              <section aria-label="Matches screen">
+              <section aria-label="Bring the jobs screen">
                 <div className={styles['workspace-heading']}>
                   <div>
-                    <h2>Overnight matches</h2>
-                    <p>Scored against your profile. Gaps flagged, never hidden.</p>
+                    <h2>Bring the jobs</h2>
+                    <p>Paste a link to any role you want. The agent takes it from there.</p>
                   </div>
-                  <span className={styles['small-label']}>Found 02:14 AM</span>
+                  <span className={styles['small-label']}>Paste, done</span>
                 </div>
-                <div className={styles['match-layout']}>
-                  <div className={styles['match-list']}>
-                    {MATCHES.map((match) => (
-                      <button key={match.title} className={`${styles['match-card']} ${match.selected ? styles['is-selected'] : ''}`}>
-                        <span className={styles['match-card-top']}>
-                          <span className={`${styles['company-icon']} ${styles[match.tone]}`}>{match.company}</span>
-                          <span className={styles['fit-tag']}>{match.fit}</span>
-                        </span>
-                        <span className={styles['match-title']}>{match.title}</span>
-                        <span className={styles['match-company']}>{match.company2}</span>
-                        <span className={styles['match-bottom']}>
-                          <span><Icon name="location" small />{match.meta}</span>
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                  <div className={styles['match-detail']}>
-                    <span className={styles['detail-eyebrow']}><Icon name="search" small /> Why this match</span>
-                    <h3>Senior Product Manager, Fintech</h3>
-                    <ul className={styles['why-list']}>
-                      <li className={styles['why-ok']}><Icon name="check" small /> 7+ years product experience, evidenced in your profile</li>
-                      <li className={styles['why-ok']}><Icon name="check" small /> Fintech domain, matches your Paystack and Flutterwave years</li>
-                      <li className={styles['why-ok']}><Icon name="check" small /> SQL and analytics, listed in your verified skills</li>
-                      <li className={styles['why-gap']}><Icon name="plus" small /> P&amp;L ownership: not evidenced in your profile, flagged for you to address or ignore</li>
-                    </ul>
-                    <p className={styles['context-note']}><Icon name="shield" small /> Fit scores are honest: a 71% match is shown as 71%.</p>
-                  </div>
+                <div className={styles['paste-card']}>
+                  <span className={styles['paste-icon']}><Icon name="briefcase" small /></span>
+                  <div className={styles['paste-url']}>jobboards.greenhouse.io/acme/jobs/4821159</div>
+                  <span className={styles['paste-go']}><Icon name="arrow" small /></span>
                 </div>
+                <ul className={styles['paste-notes']}>
+                  <li><Icon name="check" small /> The agent reads the full job description and requirements.</li>
+                  <li><Icon name="check" small /> On Greenhouse and Lever, the application form is mapped for pre-filling.</li>
+                  <li><Icon name="check" small /> Any other job URL works too; the package comes back ready for you to send.</li>
+                </ul>
+                <p className={styles['context-note']}><Icon name="shield" small /> Jobiest does not run a job board. You choose the roles; the agent does the work.</p>
               </section>
             )}
 
@@ -220,7 +199,7 @@ export function ProductTour() {
                     <span className={`${styles['tracker-chip']} ${styles['chip-manual']}`}>Prepared · form needs a CAPTCHA, you send</span>
                   </li>
                   <li>
-                    <span className={styles['tracker-title']}><strong>Product Lead, Health</strong><em>71% fit</em></span>
+                    <span className={styles['tracker-title']}><strong>Product Lead, Health</strong><em>Company site</em></span>
                     <span className={`${styles['tracker-chip']} ${styles['chip-skipped']}`}>Skipped · below your salary floor</span>
                   </li>
                 </ul>
