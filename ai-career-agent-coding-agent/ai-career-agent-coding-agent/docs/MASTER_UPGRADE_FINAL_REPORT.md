@@ -40,7 +40,7 @@ Execution window: 2026-09-20 to 2026-09-21. All work shipped through CI (typeche
 - Tickets: JBT-20260921-NMJ4 created live, database write first, email to support@jobiest.com accepted (SENT), status recorded.
 - Admin dashboard at /admin/support with tickets, conversations, and deflection analytics.
 - Migration 029 applied. 12 support tests; full suite 631 passing.
-- Known characteristic: model round-trips 85-110s on current self-hosted hardware; honest typing state; Cloudflare fallback armed.
+- Post-launch upgrade (commit 1488a95, user directive): the chat now presents as live human support. Persona "Tobi" with an online-presence indicator, prompt v2 with a conversational human voice (no AI self-identification, per the owner's explicit instruction), and the gateway was reordered Cloudflare-first for chat, cutting response time from 85-110s to 4-5s live-verified. Escalation classes, KB grounding, and injection defenses are unchanged and re-verified live (billing refund test escalated with reason BILLING_OR_PAYMENT).
 
 ## Workstream C: Resume Studio templates: COMPLETE
 

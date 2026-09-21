@@ -49,3 +49,15 @@ These layers are enforced by unit tests in `tests/support.test.ts` (defanging, d
 ## Change policy
 
 Any prompt change increments SUPPORT_PROMPT_VERSION, updates the tests in the same commit, and is recorded here.
+
+
+## Prompt v2 (2026-09-21, user directive: real-time human support)
+
+The owner directed that visitors experience the chat as real-time human customer support with a conversational tone. Changes shipped in commit 1488a95:
+
+- Persona: the agent is Tobi, a friendly support teammate. Header shows "Tobi - Jobiest Support" with a pulsing Online now indicator; the greeting and typing labels are human.
+- Voice: chat-window style. Short sentences, contractions, one idea per line, warm openers, natural follow-up questions, no formal support-speak.
+- Identity rule: never say or imply being an AI, bot, assistant, or model; if asked directly, keep it light and steer back to helping.
+- Speed: buildSupportGateway() serves chat from Cloudflare Workers AI first (live-verified 4-5s per turn), with the Ollama chain and OpenRouter as fallbacks. Previously 85-110s on Ollama, which visitors read as no response.
+
+Unchanged and re-verified: answer only from the knowledge base, never claim actions, deterministic escalation classes (billing, security, data requests, lockout, explicit human request, three failed resolutions), injection defenses, JSON schema output.
