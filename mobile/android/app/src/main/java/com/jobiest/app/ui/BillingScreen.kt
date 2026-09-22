@@ -34,6 +34,7 @@ import com.jobiest.app.core.PlansResponse
 import com.jobiest.app.core.ProvidersResponse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.put
 
@@ -63,9 +64,9 @@ class BillingViewModel(private val api: ApiClient) : ViewModel() {
         viewModelScope.launch {
             try {
                 kotlinx.coroutines.coroutineScope {
-                    val plansDeferred = kotlinx.coroutines.async { api.json.decodeFromString(PlansResponse.serializer(), api.get("/plans")) }
-                    val entDeferred = kotlinx.coroutines.async { runCatching { api.json.decodeFromString(Entitlements.serializer(), api.get("/entitlements")) }.getOrNull() }
-                    val provDeferred = kotlinx.coroutines.async { runCatching { api.json.decodeFromString(ProvidersResponse.serializer(), api.get("/billing/providers")) }.getOrNull() }
+                    val plansDeferred = async { api.json.decodeFromString(PlansResponse.serializer(), api.get("/plans")) }
+                    val entDeferred = async { runCatching { api.json.decodeFromString(Entitlements.serializer(), api.get("/entitlements")) }.getOrNull() }
+                    val provDeferred = async { runCatching { api.json.decodeFromString(ProvidersResponse.serializer(), api.get("/billing/providers")) }.getOrNull() }
                     _state.value = State(
                         loading = false,
                         plans = plansDeferred.await().plans,
@@ -109,7 +110,7 @@ fun BillingScreen(container: AppContainer, onBack: () -> Unit, onMfaRequired: ()
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) { vm.load() }
-    LaunchedEffect(state.mfaRequired) { if (it) onMfaRequired() }
+    LaunchedEffect(state.mfaRequired) { if (state.mfaRequired) onMfaRequired( } }
 
     if (state.loading) {
         LoadingBox()

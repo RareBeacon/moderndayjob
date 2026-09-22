@@ -191,7 +191,9 @@ fun PrimaryButton(
             CircularProgressIndicator(
                 color = Color.White,
                 strokeWidth = 2.dp,
-                modifier = Modifier.padding(end = 8.dp).androidx.compose.foundation.layout.size(16.dp),
+                modifier = Modifier
+                    .padding(end = 8.dp)
+                    .size(16.dp),
             )
         }
         Text(text)

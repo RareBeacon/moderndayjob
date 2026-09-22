@@ -17,6 +17,7 @@ import io.ktor.http.isSuccess
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
@@ -188,7 +189,7 @@ class AuthClient(context: Context) {
                 header("apikey", BuildConfig.SUPABASE_ANON_KEY)
                 header("Authorization", "Bearer $token")
                 contentType(ContentType.Application.Json)
-                setBody(EnrollBody(friendlyName = "Jobiest app", factorType = "totp", issuer = "Jobiest"))
+                setBody(EnrollBody(friendly_name = "Jobiest app", factor_type = "totp", issuer = "Jobiest"))
             }
         }.getOrNull() ?: return null
         if (!response.status.isSuccess()) return null

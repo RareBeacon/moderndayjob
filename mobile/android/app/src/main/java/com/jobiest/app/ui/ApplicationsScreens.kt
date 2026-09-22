@@ -91,7 +91,7 @@ fun ApplicationsScreen(
     val filters = listOf("All", "Drafts", "Submitted", "Interviews")
 
     LaunchedEffect(Unit) { vm.load() }
-    LaunchedEffect(state.mfaRequired) { if (it) onMfaRequired() }
+    LaunchedEffect(state.mfaRequired) { if (state.mfaRequired) onMfaRequired( } }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Spacer(Modifier.height(16.dp))
@@ -225,7 +225,7 @@ fun ApplicationDetailScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
 
     LaunchedEffect(id) { vm.load(id) }
-    LaunchedEffect(state.mfaRequired) { if (it) onMfaRequired() }
+    LaunchedEffect(state.mfaRequired) { if (state.mfaRequired) onMfaRequired( } }
 
     if (state.loading) {
         LoadingBox()
@@ -317,22 +317,20 @@ fun ApplicationDetailScreen(
                             modifier = Modifier.weight(1f),
                         )
                         OutlinedButton(
-                            "Reject",
-                            { vm.act(app.id, "reject") },
+                            onClick = { vm.act(app.id, "reject") },
                             enabled = state.actionBusy == null,
                             modifier = Modifier.weight(1f),
-                        )
+                        ) { Text("Reject") }
                     }
                 }
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (status == "APPROVED" || status == "SUBMITTED") {
                         OutlinedButton(
-                            "Withdraw",
-                            { vm.act(app.id, "withdraw") },
+                            onClick = { vm.act(app.id, "withdraw") },
                             enabled = state.actionBusy == null,
                             modifier = Modifier.weight(1f),
-                        )
+                        ) { Text("Withdraw") }
                     }
                     if (status == "APPROVED" && detail.automationEnabled) {
                         PrimaryButton(

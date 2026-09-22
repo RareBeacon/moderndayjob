@@ -35,6 +35,7 @@ import com.jobiest.app.core.UploadedDocument
 import com.jobiest.app.core.UploadedDocumentsResponse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.put
 
@@ -62,8 +63,8 @@ class DocumentsViewModel(private val api: ApiClient) : ViewModel() {
         viewModelScope.launch {
             try {
                 kotlinx.coroutines.coroutineScope {
-                    val upDeferred = kotlinx.coroutines.async { api.json.decodeFromString(UploadedDocumentsResponse.serializer(), api.get("/documents")) }
-                    val genDeferred = kotlinx.coroutines.async { api.json.decodeFromString(GeneratedDocumentsResponse.serializer(), api.get("/documents/generated")) }
+                    val upDeferred = async { api.json.decodeFromString(UploadedDocumentsResponse.serializer(), api.get("/documents")) }
+                    val genDeferred = async { api.json.decodeFromString(GeneratedDocumentsResponse.serializer(), api.get("/documents/generated")) }
                     _state.value = State(loading = false, uploaded = upDeferred.await().documents, generated = genDeferred.await().documents)
                 }
             } catch (e: ApiClient.MfaRequiredException) {
@@ -119,7 +120,7 @@ fun DocumentsScreen(container: AppContainer, onMfaRequired: () -> Unit) {
     val context = LocalContext.current
 
     LaunchedEffect(Unit) { vm.load() }
-    LaunchedEffect(state.mfaRequired) { if (it) onMfaRequired() }
+    LaunchedEffect(state.mfaRequired) { if (state.mfaRequired) onMfaRequired( } }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {

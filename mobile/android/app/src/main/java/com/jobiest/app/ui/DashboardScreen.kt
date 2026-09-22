@@ -32,6 +32,7 @@ import com.jobiest.app.core.PreferencesResponse
 import com.jobiest.app.core.ProfileResponse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.put
 
@@ -75,11 +76,11 @@ class DashboardViewModel(private val api: ApiClient) : ViewModel() {
         viewModelScope.launch {
             try {
                 kotlinx.coroutines.coroutineScope {
-                    val profileDeferred = kotlinx.coroutines.async { api.json.decodeFromString(ProfileResponse.serializer(), api.get("/profile")) }
-                    val prefsDeferred = kotlinx.coroutines.async { api.json.decodeFromString(PreferencesResponse.serializer(), api.get("/preferences")) }
-                    val appsDeferred = kotlinx.coroutines.async { api.json.decodeFromString(ApplicationsResponse.serializer(), api.get("/applications")) }
-                    val entDeferred = kotlinx.coroutines.async { api.json.decodeFromString(Entitlements.serializer(), api.get("/entitlements")) }
-                    val compDeferred = kotlinx.coroutines.async { api.json.decodeFromString(Completeness.serializer(), api.get("/profile/completeness")) }
+                    val profileDeferred = async { api.json.decodeFromString(ProfileResponse.serializer(), api.get("/profile")) }
+                    val prefsDeferred = async { api.json.decodeFromString(PreferencesResponse.serializer(), api.get("/preferences")) }
+                    val appsDeferred = async { api.json.decodeFromString(ApplicationsResponse.serializer(), api.get("/applications")) }
+                    val entDeferred = async { api.json.decodeFromString(Entitlements.serializer(), api.get("/entitlements")) }
+                    val compDeferred = async { api.json.decodeFromString(Completeness.serializer(), api.get("/profile/completeness")) }
 
                     val profileResp = profileDeferred.await()
                     val prefsResp = prefsDeferred.await()
@@ -157,7 +158,7 @@ fun DashboardScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
 
     LaunchedEffect(Unit) { vm.load() }
-    LaunchedEffect(state.mfaRequired) { if (it) onMfaRequired() }
+    LaunchedEffect(state.mfaRequired) { if (state.mfaRequired) onMfaRequired( } }
 
     if (state.loading) {
         LoadingBox()

@@ -37,6 +37,7 @@ import com.jobiest.app.core.PreferencesResponse
 import com.jobiest.app.core.TotpEnrollment
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.put
 
@@ -72,10 +73,10 @@ class SettingsViewModel(private val api: ApiClient, private val auth: com.jobies
         viewModelScope.launch {
             try {
                 kotlinx.coroutines.coroutineScope {
-                    val prefsDeferred = kotlinx.coroutines.async { api.json.decodeFromString(PreferencesResponse.serializer(), api.get("/preferences")) }
-                    val appsDeferred = kotlinx.coroutines.async { runCatching { api.json.decodeFromString(ApplicationsResponse.serializer(), api.get("/applications")) }.getOrNull() }
-                    val entDeferred = kotlinx.coroutines.async { runCatching { api.json.decodeFromString(Entitlements.serializer(), api.get("/entitlements")) }.getOrNull() }
-                    val factorDeferred = kotlinx.coroutines.async { runCatching { auth.enrolledTotpFactor() }.getOrNull() }
+                    val prefsDeferred = async { api.json.decodeFromString(PreferencesResponse.serializer(), api.get("/preferences")) }
+                    val appsDeferred = async { runCatching { api.json.decodeFromString(ApplicationsResponse.serializer(), api.get("/applications")) }.getOrNull() }
+                    val entDeferred = async { runCatching { api.json.decodeFromString(Entitlements.serializer(), api.get("/entitlements")) }.getOrNull() }
+                    val factorDeferred = async { runCatching { auth.enrolledTotpFactor() }.getOrNull() }
                     val prefs = prefsDeferred.await().preferences
                     val apps = appsDeferred.await()
                     val ent = entDeferred.await()
@@ -189,7 +190,7 @@ fun SettingsScreen(
     val context = LocalContext.current
 
     LaunchedEffect(Unit) { vm.load() }
-    LaunchedEffect(state.mfaRequired) { if (it) onMfaRequired() }
+    LaunchedEffect(state.mfaRequired) { if (state.mfaRequired) onMfaRequired( } }
 
     if (state.loading) {
         LoadingBox()
