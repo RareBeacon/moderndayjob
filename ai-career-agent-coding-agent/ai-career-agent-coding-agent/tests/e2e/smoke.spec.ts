@@ -80,7 +80,8 @@ test.describe('authenticated (needs E2E_EMAIL/E2E_PASSWORD)', () => {
     await page.getByLabel(/password/i).fill(E2E_PASSWORD!);
     await page.getByRole('button', { name: /sign in/i }).click();
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
-    await expect(page.getByRole('heading', { name: /today/i }).first()).toBeVisible();
+    // The dashboard greets by time of day (Africa/Lagos): "Good morning/afternoon/evening, {name}."
+    await expect(page.getByRole('heading', { name: /Good (morning|afternoon|evening),/ })).toBeVisible();
   });
 
   test('sensitive questions are never auto-answered', async ({ page }) => {
