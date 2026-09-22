@@ -1,9 +1,12 @@
-import { defineConfig } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Production smoke suite (Phase 10). Runs against the LIVE site by default:
- *
- *   E2E_BASE_URL=https://jobiest.com npx playwright test -c playwright.e2e.config.ts
+ * Production smoke suite (npm run e2e). Runs the tests in tests/e2e against
+ * the LIVE site (E2E_BASE_URL, default https://jobiest.com); no local server
+ * is started. Honest scope: these prove the deploy is alive, the critical
+ * public surfaces render, and the paid gates stay shut. Deep product flows
+ * remain unit-covered. Chromium-only projects (desktop + a phone viewport)
+ * so CI downloads exactly one browser.
  *
  * Authenticated tests need the live-check account:
  *   E2E_EMAIL=... E2E_PASSWORD=...
@@ -11,16 +14,17 @@ import { defineConfig } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './tests/e2e',
-  timeout: 60_000,
-  retries: 1,
-  workers: 2,
+  timeout: 60000,
+  fullyParallel: true,
+  retries: process.env.CI ? 1 : 0,
+  workers: process.env.CI ? 2 : undefined,
   reporter: [['list']],
   use: {
     baseURL: process.env.E2E_BASE_URL ?? 'https://jobiest.com',
     trace: 'off',
   },
   projects: [
-    { name: 'mobile', use: { viewport: { width: 375, height: 667 }, isMobile: true, hasTouch: true } },
-    { name: 'desktop', use: { viewport: { width: 1440, height: 900 } } },
+    { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
+    { name: 'mobile', use: { ...devices['Pixel 7'] } },
   ],
 });

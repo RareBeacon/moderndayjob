@@ -48,6 +48,9 @@ export async function GET(req: Request) {
     ok: database === 'ok',
     degraded,
     service: 'ai-career-agent',
+    // Public deploy marker (the git SHA is public): lets CI and uptime
+    // checks confirm WHICH build is live before testing it. Null locally.
+    commit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
     time: new Date().toISOString(),
     checks: { database, ai_gateway: aiGateway, email },
   });

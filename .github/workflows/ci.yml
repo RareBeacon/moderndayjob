@@ -65,3 +65,53 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  e2e:
+    name: E2E smoke (production)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # Production smoke only makes sense for main pushes: PR heads never
+    # deploy to production, so their SHA would never go live.
+    if: github.event_name == 'push'
+    defaults:
+      run:
+        working-directory: ai-career-agent-coding-agent/ai-career-agent-coding-agent
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ai-career-agent-coding-agent/ai-career-agent-coding-agent/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      # /api/health reports the deployed commit (VERCEL_GIT_COMMIT_SHA).
+      # Wait until production is running THIS push before testing it, so the
+      # suite verifies the deploy, not the previous one.
+      - name: Wait for the production deploy of this commit
+        run: |
+          SHA="${{ github.sha }}"
+          for i in $(seq 1 60); do
+            DEPLOYED=$(curl -s --max-time 10 https://jobiest.com/api/health | jq -r '.commit // empty')
+            if [ "$DEPLOYED" = "$SHA" ]; then
+              echo "Deploy $SHA is live."
+              exit 0
+            fi
+            echo "Waiting for deploy $SHA (currently live: ${DEPLOYED:-none reported yet})."
+            sleep 15
+          done
+          echo "Timed out waiting for the production deploy of $SHA."
+          exit 1
+
+      - name: Run production smoke suite
+        run: npm run e2e
+        env:
+          E2E_BASE_URL: https://jobiest.com
