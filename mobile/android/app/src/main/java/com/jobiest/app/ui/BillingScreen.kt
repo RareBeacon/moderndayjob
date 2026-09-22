@@ -110,7 +110,7 @@ fun BillingScreen(container: AppContainer, onBack: () -> Unit, onMfaRequired: ()
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) { vm.load() }
-    LaunchedEffect(state.mfaRequired) { if (state.mfaRequired) onMfaRequired( } }
+    LaunchedEffect(state.mfaRequired) { if (state.mfaRequired) onMfaRequired() }
 
     if (state.loading) {
         LoadingBox()

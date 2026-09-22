@@ -158,7 +158,7 @@ fun DashboardScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
 
     LaunchedEffect(Unit) { vm.load() }
-    LaunchedEffect(state.mfaRequired) { if (state.mfaRequired) onMfaRequired( } }
+    LaunchedEffect(state.mfaRequired) { if (state.mfaRequired) onMfaRequired() }
 
     if (state.loading) {
         LoadingBox()

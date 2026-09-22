@@ -82,8 +82,8 @@ fun LoginScreen(
     val state by vm.state.collectAsState()
     val context = LocalContext.current
 
-    LaunchedEffect(state.signedIn) { if (state.signedIn) onSignedIn( } }
-    LaunchedEffect(state.mfaRequired) { if (state.mfaRequired) onMfaRequired( } }
+    LaunchedEffect(state.signedIn) { if (state.signedIn) onSignedIn() }
+    LaunchedEffect(state.mfaRequired) { if (state.mfaRequired) onMfaRequired() }
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -265,7 +265,7 @@ fun MfaScreen(container: AppContainer, onDone: () -> Unit) {
     val state by vm.state.collectAsState()
     var code by remember { mutableStateOf("") }
 
-    LaunchedEffect(state.done) { if (state.done) onDone( } }
+    LaunchedEffect(state.done) { if (state.done) onDone() }
 
     Column(
         Modifier

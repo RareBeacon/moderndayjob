@@ -120,7 +120,7 @@ fun DocumentsScreen(container: AppContainer, onMfaRequired: () -> Unit) {
     val context = LocalContext.current
 
     LaunchedEffect(Unit) { vm.load() }
-    LaunchedEffect(state.mfaRequired) { if (state.mfaRequired) onMfaRequired( } }
+    LaunchedEffect(state.mfaRequired) { if (state.mfaRequired) onMfaRequired() }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
