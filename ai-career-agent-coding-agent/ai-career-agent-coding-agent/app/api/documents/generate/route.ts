@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireUser } from '@/lib/auth';
+import { onboardingGateResponse } from '@/lib/onboarding-gate';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { assertEntitlement } from '@packages/security/entitlements';
 import { AIGatewayError } from '@packages/ai/gateway';
@@ -32,6 +33,8 @@ export const maxDuration = 300;
 export async function POST(req: Request) {
   const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    const onboardingBlocked = await onboardingGateResponse(user);
+    if (onboardingBlocked) return onboardingBlocked;
   const rl = await enforceRateLimit(`ai:gen:${requestIp(req)}:${user.id}`, 10, '1 m');
   if (!rl.allowed) return NextResponse.json({ error: 'RATE_LIMITED' }, { status: 429 });
 

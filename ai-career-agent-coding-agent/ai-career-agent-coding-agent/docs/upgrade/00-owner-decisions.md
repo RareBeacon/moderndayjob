@@ -1,6 +1,6 @@
 # 00 · Owner decisions required before implementation
 
-Date: 2026-09-23 · Status: OPEN · Blocking: Milestones 2, 3, 6
+Date: 2026-09-23 · Status: CONFIRMED by owner 2026-09-23 (D1-D4 answered directly; D5-D6 recommendations unopposed) · Blocking: none
 
 The upgrade directive is explicit: the coding agent must not invent business
 rules. These decisions change pricing, entitlements, and payment behavior, so
@@ -16,7 +16,9 @@ lifetime limits: FREE 3 documents ever, BASIC 2 auto-apply uses ever.
 The directive proposes monthly credits: documents 5/10/15/fair-use;
 auto-apply 5 (after free activation)/20/30/50; portfolios 1/5/10/26.
 
-Recommendation: adopt the monthly matrix, with two honesty amendments:
+OWNER ANSWER: adopt the monthly matrix (option 1).
+
+Recommendation detail kept for the record, with two honesty amendments:
 - Pro = 15 document credits (the directive's own recommendation).
 - Max documents = a disclosed fair-use cap (recommend 100/month), never the
   word "unlimited" without a number, per the claims-match-implementation rule.
@@ -27,36 +29,50 @@ Paystack officially supports zero-amount card authorization (Charge Card
 API, purpose=ADD_CARD): the card is authenticated and validated with no
 charge and no recurring billing. Research doc section 5 has the source.
 
-Recommendation: zero-amount verification via Paystack's card-verification
-flow, disclosed in plain language ("we verify your card, we never charge
-it"), combined with email verification, the 85% onboarding gate, rate
-limits, and application deduplication. No charge, no refund logistics, no
-processor fees. Flutterwave parity is not verified; launch Paystack-only.
+OWNER ANSWER: zero-amount verification (option 1).
+
+Detail: Paystack card-verification flow (purpose=ADD_CARD), disclosed in
+plain language ("we verify your card, we never charge it"), combined with
+email verification, the 85% onboarding gate, rate limits, and application
+deduplication. No charge, no refund logistics, no processor fees.
+Flutterwave parity is not verified; launch Paystack-only.
 
 ## D3 · When an auto-apply credit is consumed
 
-Recommendation: reserve one credit when the application starts, consume it
-only on confirmed submission, release it on failure or cancellation, and
-never spend a second credit when retrying the same job (job+user
-deduplication already exists and stays).
+OWNER ANSWER: reserve-consume-release (option 1).
+
+Detail: reserve one credit when the application starts, consume it only on
+confirmed submission, release it on failure or cancellation, and never
+spend a second credit when retrying the same job (job+user deduplication
+already exists and stays).
 
 ## D4 · Unused credits and downgrades
 
-Recommendation: unused monthly credits expire at period end (no rollover;
-rollover invites farming and complicates the ledger). On downgrade: keep
-every existing document, application, and portfolio; restrict new creation
-to the new plan's limits; never delete user data.
+OWNER ANSWER (custom): credits NEVER expire, and each period's new grant
+ADDS to the running balance.
+
+Implementation consequences, recorded honestly:
+- The ledger keeps a running balance per resource type; grants accumulate,
+  consumption decrements, and there are no EXPIRE operations.
+- Plan changes never touch the balance: downgrades keep every credit,
+  document, application, and portfolio, and future grants arrive at the new
+  plan's rate. Nothing is ever deleted.
+- Burst control: accumulated credits cannot be spent in a burst because
+  per-day execution rate limits stay in force; free-tier grants also
+  require an activated, email-verified account. This is the abuse
+  mitigation that preserves the owner's accumulation rule.
 
 ## D5 · Custom domains for portfolios
 
-Recommendation: launch hosted portfolios on jobiest.com/portfolio/slug
-first. Custom domains (DNS verification, TLS, abuse handling, support cost)
+OWNER: accepted by silence with the plan (recommendation unopposed).
+Launch hosted portfolios on jobiest.com/portfolio/slug first. Custom domains (DNS verification, TLS, abuse handling, support cost)
 are a later, separately costed phase. The directive itself recommends this.
 
 ## D6 · Existing users and the 85% onboarding gate
 
-Recommendation: the gate applies to accounts created after the feature
-ships. Existing accounts see a completion prompt, never a lockout. This
+OWNER: accepted by silence with the plan (recommendation unopposed).
+The gate applies to accounts created after the feature ships (epoch
+constant). Existing accounts see a completion prompt, never a lockout. This
 avoids breaking working accounts (directive Phase 5 requirement).
 
 ## D7 · Submission mode default

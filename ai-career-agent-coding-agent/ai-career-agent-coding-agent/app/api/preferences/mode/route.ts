@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { requireUser } from '@/lib/auth';
+import { onboardingGateResponse } from '@/lib/onboarding-gate';
 import { supabaseAdmin } from '@/lib/supabase';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
@@ -18,6 +19,8 @@ const body = z.object({ application_mode: z.enum(['auto', 'approval']) });
 export async function POST(req: Request) {
   const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    const onboardingBlocked = await onboardingGateResponse(user);
+    if (onboardingBlocked) return onboardingBlocked;
   const rl = await enforceRateLimit(`preferences:mode:${requestIp(req)}:${user.id}`, 20, '1 m');
   if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
 

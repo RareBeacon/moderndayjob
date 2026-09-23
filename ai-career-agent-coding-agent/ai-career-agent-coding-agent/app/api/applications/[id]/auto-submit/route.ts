@@ -1,4 +1,5 @@
 import { requireUser } from '@/lib/auth';
+import { onboardingGateResponse } from '@/lib/onboarding-gate';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { AppActionError, requestAutoSubmit } from '@/lib/applications/service';
 
@@ -27,6 +28,8 @@ function httpStatus(code: string): number {
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = await requireUser({ req: req });
+    const onboardingBlocked = await onboardingGateResponse(user);
+    if (onboardingBlocked) return onboardingBlocked;
     const rl = await enforceRateLimit(`application:autosubmit:${requestIp(req)}:${user.id}`, 10, '1 m');
     if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
 

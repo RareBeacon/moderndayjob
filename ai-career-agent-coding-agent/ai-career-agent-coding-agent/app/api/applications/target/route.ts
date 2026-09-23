@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { z } from 'zod';
 import { requireUser } from '@/lib/auth';
+import { onboardingGateResponse } from '@/lib/onboarding-gate';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { supabaseAdmin } from '@/lib/supabase';
 import { auditEvent } from '@/lib/audit';
@@ -38,6 +39,8 @@ function httpStatus(code: string): number {
 export async function POST(req: Request) {
   try {
     const user = await requireUser({ req: req });
+    const onboardingBlocked = await onboardingGateResponse(user);
+    if (onboardingBlocked) return onboardingBlocked;
     const rl = await enforceRateLimit(`application:target:${requestIp(req)}:${user.id}`, 12, '1 m');
     if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
 
