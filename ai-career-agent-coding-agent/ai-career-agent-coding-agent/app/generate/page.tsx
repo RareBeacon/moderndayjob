@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { AppShell } from '@/components/site/AppShell';
 import { EMPTY_STUDIO_DRAFT, normalizeStudioDraft, scoreResumeDraft, type ResumeScore, type StudioDraft, type StudioEducation, type StudioExperience, type StudioProject } from '@/lib/resume-studio/draft';
+import { draftFromMemory, freshDraft, firstIncompleteStep } from '@/lib/resume-studio/prefill';
 import { RESUME_TEMPLATES, TEMPLATE_CATEGORIES, getResumeTemplate, recommendResumeTemplates, templatePhotoSupport, type ResumeTemplate, type ResumeTemplateCategory } from '@/lib/resume-studio/templates';
 
 type Kind = 'CV' | 'COVER_LETTER' | 'ANSWERS';
@@ -90,47 +91,6 @@ function newId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function freshDraft(): StudioDraft {
-  return normalizeStudioDraft(JSON.parse(JSON.stringify(EMPTY_STUDIO_DRAFT)) as StudioDraft);
-}
-
-function draftFromMemory(memory?: DraftApiResponse['memory']): StudioDraft {
-  const draft = freshDraft();
-  if (!memory) return draft;
-  draft.personal.name = memory.fullName ?? '';
-  draft.personal.email = memory.email ?? '';
-  draft.career.targetRole = memory.targetRoles?.[0] ?? '';
-  draft.career.headline = memory.career?.headline ?? draft.career.targetRole;
-  draft.career.summary = memory.career?.summary ?? '';
-  draft.personal.website = memory.career?.links?.website ?? '';
-  draft.personal.linkedin = memory.career?.links?.linkedin ?? '';
-  draft.personal.github = memory.career?.links?.github ?? '';
-  draft.skills = (memory.career?.skills ?? []).map((name, index) => ({ name, category: 'Profile', priority: index + 1 }));
-  draft.experiences = (memory.career?.experience ?? []).map((e, index) => ({
-    id: newId(`exp-${index}`),
-    company: e.company ?? '',
-    role: e.title ?? '',
-    roughNotes: e.description ?? '',
-    tools: [],
-    impact: '',
-    bullets: e.description ? [e.description] : [],
-  }));
-  draft.education = (memory.career?.education ?? []).map((e, index) => ({
-    id: newId(`edu-${index}`),
-    institution: e.institution ?? '',
-    degree: e.qualification ?? '',
-  }));
-  draft.projects = (memory.career?.projects ?? []).map((p, index) => ({
-    id: newId(`project-${index}`),
-    name: p.name ?? '',
-    description: p.description ?? '',
-    technologies: p.technologies ?? [],
-    url: p.url ?? '',
-    achievements: [],
-  }));
-  return normalizeStudioDraft(draft);
-}
-
 export default function GeneratePage() {
   const [mode, setMode] = useState<StudioMode>('builder');
   const [draft, setDraft] = useState<StudioDraft>(() => freshDraft());
@@ -192,6 +152,13 @@ export default function GeneratePage() {
           setActiveStep((loaded.currentStep as StepId) || 'welcome');
         } else {
           const remembered = draftFromMemory(data.memory);
+          // M5: the wizard starts at the first section the profile has NOT
+          // already filled. A complete profile skips straight to polish;
+          // an empty one starts at the beginning as before.
+          if (!hasLocalDraft) {
+            setDraft(remembered);
+            setActiveStep(firstIncompleteStep(remembered));
+          }
           setDraft((current) => {
             if (!hasLocalDraft) return remembered;
             return normalizeStudioDraft({
@@ -949,7 +916,7 @@ function ClassicGenerator({ jobs, recent, loadRecent }: { jobs: Job[]; recent: G
         <div className="chip-group" style={{ margin: '16px 0' }}>{KINDS.map((k) => <button key={k.id} className="chip" aria-pressed={kind === k.id} onClick={() => setKind(k.id)} title={k.hint}>{k.label}</button>)}</div>
         <label className="resume2-field full"><span>Tailor to a job you are applying to, optional</span><select value={jobId} onChange={(e) => setJobId(e.target.value)}><option value="">General, no specific job</option>{jobs.map((j) => <option key={j.id} value={j.id}>{j.title}, {j.company}</option>)}</select></label>
         {kind === 'ANSWERS' && <label className="resume2-field full"><span>Application questions, one per line</span><textarea rows={5} value={questions} onChange={(e) => setQuestions(e.target.value)} placeholder={'Why do you want this role?\nDescribe a challenge you solved.'} /></label>}
-        <div className="resume2-actions left"><button className="btn" onClick={generate} disabled={status === 'loading'}>{status === 'loading' ? 'Generating' : 'Generate'}</button><span className="muted">Costs 1 AI credit.</span></div>
+        <div className="resume2-actions left"><button className="btn" onClick={generate} disabled={status === 'loading'}>{status === 'loading' ? 'Generating' : 'Generate'}</button><span className="muted">Costs 1 AI credit. Editing and re-downloading your resume never uses a credit; only a fresh generation does.</span></div>
       </div>
       {error && <div className="card" style={{ maxWidth: 860, borderColor: 'var(--danger-line)' }}><h2 style={{ fontSize: 17, color: 'var(--danger)' }}>{error.title}</h2><p className="muted" style={{ marginTop: 6 }}>{error.detail}</p></div>}
       {result && <div className="card" style={{ maxWidth: 860 }}><ReportBar report={result.report} version={result.version} />{result.id && <div className="resume2-actions left"><a className="btn secondary" href={`/api/documents/${result.id}/export?format=pdf`}>Download PDF</a><a className="btn secondary" href={`/api/documents/${result.id}/export?format=docx`}>Download DOCX</a></div>}<div style={{ marginTop: 16 }}><ContentRender kind={kind} content={result.content} /></div></div>}
