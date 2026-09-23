@@ -124,7 +124,12 @@ class FakePage implements ApplyPage {
   async has(sel: string) { return this.present.has(sel); }
   async fill(sel: string, value: string) { this.fills.push([sel, value]); }
   async check() {}
-  async click(sel: string) { this.clicks.push(sel); }
+  async click(sel: string) {
+    this.clicks.push(sel);
+    // M4: after the real submit click the site shows its confirmation
+    // copy (the URL assertions below keep the form URL).
+    if (/submit|apply-button/i.test(sel)) this.html += '<h2>Thank you for applying!</h2>';
+  }
   async setInputFiles(sel: string, files: string[]) { this.uploads.push({ selector: sel, files }); }
   async selectOption() {}
   async goto(url: string) { this.currentUrl = url; }

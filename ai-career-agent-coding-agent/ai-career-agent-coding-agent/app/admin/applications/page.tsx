@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 /**
  * Admin • Auto-apply pilot scorecard (Milestone 4 instrumentation).
  * Per-adapter success / stop / unconfirmed counts with stop reasons,
- * median task latency, and AI documents per confirmed submission. This is
+ * median task latency, and prepared documents per confirmed submission. This is
  * the permanently-installed instrument the AUTOMATION_SUBMIT_ENABLED
  * decision is read from; no claims on this page are hand-entered, every
  * number is derived from the event ledger (agent_tasks APPLICATION_EVENT
@@ -112,7 +112,7 @@ export default async function AdminApplicationsPage() {
     .map((t) => Math.max(0, new Date(t.completed_at!).getTime() - new Date(t.created_at).getTime()) / 1000);
   const latency = median(latencies);
 
-  // 5. AI documents per confirmed automated submission.
+  // 5. Prepared documents per confirmed automated submission.
   const submittedAppIds = autoEvents.filter((e) => e.result?.event === 'SUBMITTED').map((e) => e.application_id!);
   let docsPerSubmit: number | null = null;
   if (submittedAppIds.length) {
@@ -145,7 +145,7 @@ export default async function AdminApplicationsPage() {
             value: totalAttempts ? `${Math.round((totalSubmitted / totalAttempts) * 100)}%` : 'n/a',
           },
           { label: 'Median task time', value: latency !== null ? `${latency}s` : 'n/a' },
-          { label: 'AI docs per submission', value: docsPerSubmit !== null ? docsPerSubmit : 'n/a' },
+          { label: 'Documents per submission', value: docsPerSubmit !== null ? docsPerSubmit : 'n/a' },
         ].map((c) => (
           <div key={c.label} style={{ border: '1px solid var(--color-border)', borderRadius: 10, padding: '10px 16px' }}>
             <div style={{ fontSize: 20, fontWeight: 700 }}>{c.value}</div>

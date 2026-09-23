@@ -1,5 +1,6 @@
 import { requireUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { creditAvailable } from '@/lib/credits';
 
 /**
@@ -9,6 +10,8 @@ import { creditAvailable } from '@/lib/credits';
  * ledger (owner decision D1: 0 before activation, 5 per month after).
  */
 export async function GET(req: Request) {
+  const rl = await enforceRateLimit(`auto-apply:activation:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
   const user = await requireUser({ req }).catch(() => null);
   if (!user) return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
 

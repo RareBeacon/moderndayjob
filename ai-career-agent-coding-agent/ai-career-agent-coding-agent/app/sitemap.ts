@@ -27,6 +27,27 @@ async function publishedSeoArticles(): Promise<MetadataRoute.Sitemap> {
   }
 }
 
+/** Public portfolios (Milestone 6): only visibility='PUBLIC' is listed.
+ *  Unlisted pages are reachable by link but stay out of search engines. */
+async function publicPortfolios(): Promise<MetadataRoute.Sitemap> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('portfolios')
+      .select('slug, updated_at')
+      .eq('visibility', 'PUBLIC')
+      .limit(1000);
+    if (error || !data) return [];
+    return data.map((row) => ({
+      url: `${SITE_URL}/portfolio/${row.slug}`,
+      lastModified: new Date(row.updated_at),
+      changeFrequency: 'weekly' as const,
+      priority: 0.6,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
   const core: MetadataRoute.Sitemap = CORE_SEO_PATHS.map((path) => ({
@@ -46,6 +67,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...FREE_TOOL_SEO_PATHS.map((path) => ({ url: canonicalPublicUrl(path), lastModified: now, changeFrequency: 'weekly' as const, priority: 0.8 })),
     ...staticBlog,
     ...(await publishedSeoArticles()),
+    ...(await publicPortfolios()),
   ].filter((entry) => isAllowedPublicSeoUrl(entry.url));
   const seen = new Set<string>();
   return urls.filter((entry) => {

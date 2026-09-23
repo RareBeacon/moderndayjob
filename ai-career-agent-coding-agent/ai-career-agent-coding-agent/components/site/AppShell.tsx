@@ -34,6 +34,7 @@ const NAV: NavItem[] = [
   { key: 'generate', href: '/generate', label: 'Create', icon: ic(ICONS.edit) },
   { key: 'applications', href: '/applications', label: 'Applications', icon: ic(ICONS.layers) },
   { key: 'documents', href: '/documents', label: 'My documents', icon: ic(ICONS.file) },
+  { key: 'portfolios', href: '/portfolios', label: 'Portfolio', icon: ic(ICONS.layers) },
   { key: 'billing', href: '/billing', label: 'Billing', icon: ic(ICONS.card) },
   { key: 'profile', href: '/profile', label: 'Career profile', icon: ic(ICONS.user) },
   { key: 'settings', href: '/settings', label: 'Settings', icon: ic(ICONS.settings) },

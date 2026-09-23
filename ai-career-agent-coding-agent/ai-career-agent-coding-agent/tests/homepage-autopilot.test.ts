@@ -57,9 +57,9 @@ describe('Homepage: delegation-first positioning (owner verdict), truth-constrai
 
   it('keeps the truthful pricing language: limits, run definition, tool reality', () => {
     expect(page).toContain('What the limits mean');
-    expect(page).toContain('3 in total on Free (lifetime)');
+    expect(page).toContain('5 a month on Free, 10 to 100 a month on paid plans');
     expect(page).toContain('the ATS scanner is rule-based, the other nine are AI-powered');
-    expect(page).toContain('2 runs in total (lifetime)');
+    expect(page).toContain('Basic includes 20 a month, Premium 30, Max 50');
     expect(page).toContain('after your approval');
     for (const code of ['BASIC', 'PREMIUM', 'MAX']) {
       const card = page.split(`  ${code}: {`)[1]?.split('},')[0] ?? '';
