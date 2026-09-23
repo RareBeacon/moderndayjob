@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Pure-Compose app: the XML theme only needs a light no-action-bar
-         parent; colors and typography live in the Compose theme. -->
-    <style name="Theme.Jobiest" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:statusBarColor">#F9F8F6</item>
-        <item name="android:windowBackground">#F9F8F6</item>
-    </style>
-</resources>
