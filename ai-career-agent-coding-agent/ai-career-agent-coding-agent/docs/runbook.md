@@ -114,3 +114,12 @@ store at all.
 - Rotate the GitHub PAT when anyone leaves the project.
 - The Supabase service-role key must only ever be used server-side
   (`supabaseAdmin`); grep the client bundle for it if in doubt.
+
+## 2026-09-23 go-live additions (M2-M7)
+
+- **Credit ledger (M2)**: `credit_periods`, `credit_ledger`, `credit_holds` (migration 037) with `credit_balance / credit_available / credit_grant / credit_reserve / credit_consume / credit_release / credit_ensure_period_grants`. Enforcement is armed by code default (`lib/credits.ts`, `ENTITLEMENTS_LEDGER=false` to disarm). The nightly pipeline issues the monthly grants; the activation grant function is `credit_activation_grant` (migration 038).
+- **Auto-apply activation (M3)**: `auto_apply_activations` table; webhook events `zero_charge_authorization.success` and `card_verification.failed` handled by the Paystack webhook with signature verification, replay dedup and server-side re-verification (`/customer/authorization/verify/{accessCode}`). Card data is never stored or logged; only last4 / brand / bank.
+- **Reliability (M4)**: adapters require an explicit success signal before reporting SUBMITTED (otherwise the application parks in `AWAITING_VERIFICATION`, never auto-retried); stops park in `AWAITING_USER_INPUT`; unique partial index `applications_user_job_active_uidx` hard-enforces per-(user, job) dedup; admin scorecard at `/admin/applications`.
+- **Portfolios (M6)**: `portfolios` table (migration 040) with slugs, previous-slug redirects, visibility (PRIVATE/UNLISTED/PUBLIC), record limits on `subscription_plans.portfolio_limit` (1/5/10/26). Public pages at `/portfolio/<slug>`; only PUBLIC ones enter the sitemap.
+- **Ledger contention**: reserve/consume/release hold a per-(user, resource) advisory transaction lock and run as short SECURITY DEFINER functions; a synthetic 1000-user load test of the ledger remains OPEN (needs a dedicated test account; per owner rule no round-trips on real accounts).
+- **Rollback notes**: all go-live migrations are additive; setting `ENTITLEMENTS_LEDGER=false` restores the legacy entitlement path (usage_daily/usage_lifetime counters still maintained during the transition).

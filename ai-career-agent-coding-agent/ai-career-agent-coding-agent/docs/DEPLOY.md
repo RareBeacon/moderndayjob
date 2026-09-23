@@ -91,3 +91,10 @@ curl -H "Authorization: Bearer $CRON_SECRET" https://jobiest.com/api/cron/daily-
 - Vercel scope: everything lives in the implicit team
   `team_zP8FkiSpYLJdhebBSCPL0Wa1` ("ogungboyeopeyemiphilip-gmailcom's
   projects"), pass `teamId` on domain-scoped API calls or they 403.
+
+## Deploy state, 2026-09-23 (M2-M7 go-live)
+
+- Production database is at migration **040** (all applied statement-by-statement via the Supabase Management API; multi-statement requests are rejected with 42601, so each DDL statement is its own call).
+- Env flags in Vercel: `AUTOMATION_SUBMIT_ENABLED=true` (since 2026-09-08). `ENTITLEMENTS_LEDGER` is NOT set in Vercel; enforcement is armed by **code default** in `lib/credits.ts` (set `false` to disarm). Vercel token is valid but lacks project scope (env API returns 403 for the personal scope) - fix by issuing a token with the project's scope before using env management.
+- The GitHub push credential does not persist across sandbox sessions (it lives in git config paths excluded from snapshots). Restore with: `git remote add origin https://x-access-token:<REPO_SCOPED_PAT>@github.com/RareBeacon/moderndayjob.git` (or embed per-push). Never use a full-access GitHub token.
+- New routes this release: `/api/auto-apply/activate`, `/api/auto-apply/activation`, `/api/portfolios`, `/api/portfolios/[id]`, `/api/portfolios/[id]/export`; public pages `/portfolio/[slug]`, `/supported-systems`; admin `/admin/applications`.

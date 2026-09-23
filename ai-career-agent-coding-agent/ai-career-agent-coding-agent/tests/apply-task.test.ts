@@ -93,6 +93,9 @@ async function reset(overrides: Record<string, unknown> = {}) {
   m.appendApplicationEvent.mockReset().mockResolvedValue(undefined);
   m.createSignedUrl.mockReset().mockResolvedValue({ data: { signedUrl: null }, error: null });
   vi.stubEnv('AUTOMATION_SUBMIT_ENABLED', 'true');
+  // Ledger-armed contract is covered in credits-auto-apply.test.ts; these
+  // tests pin the gates + legacy submission path with the ledger disarmed.
+  vi.stubEnv('ENTITLEMENTS_LEDGER', 'false');
   delete process.env.AGENT_DRY_RUN;
   // B-181: bind a fresh, matching approval snapshot (overridable per test).
   const snap = await computeApprovalSnapshot('user-1', 'app-1');

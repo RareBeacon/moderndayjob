@@ -8,6 +8,7 @@ import { getEntitlement } from '@packages/security/entitlements';
 import { getProfileCompleteness } from '@/lib/profile-completeness';
 import { isGatedCohort, ONBOARDING_THRESHOLD } from '@/lib/onboarding-gate';
 import { buildBoardLinks, isRemoteOnly } from '@/lib/boardlinks';
+import { creditAvailable } from '@/lib/credits';
 import { AutoSubmitToggle } from '@/components/site/AutoSubmitToggle';
 
 type DraftApp = {
@@ -62,13 +63,35 @@ export default async function Dashboard() {
     { count: interviewCount },
     { count: draftCount },
     { data: drafts },
+    pipelineCounts,
+    docCredits,
+    appCredits,
+    { data: activation },
+    { count: portfolioCount },
   ] = await Promise.all([
     supabaseAdmin.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
     supabaseAdmin.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).in('status', ['SUBMITTED', 'INTERVIEW']),
     supabaseAdmin.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'INTERVIEW'),
     supabaseAdmin.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'DRAFT'),
     supabaseAdmin.from('applications').select('id,created_at,jobs(company,title,url)').eq('user_id', user.id).eq('status', 'DRAFT').order('created_at', { ascending: false }).limit(4),
+    // Command Center (§2.6): the pipeline split by stage. Prepared = being
+    // readied or awaiting you; Submitted = confirmed sent; Verified = the
+    // employer moved you forward (interview).
+    supabaseAdmin.from('applications').select('status').eq('user_id', user.id).limit(500),
+    creditAvailable(user.id, 'DOCUMENT').catch(() => null),
+    creditAvailable(user.id, 'AUTO_APPLY').catch(() => null),
+    supabaseAdmin.from('auto_apply_activations').select('status, card_last4, bank').eq('user_id', user.id).maybeSingle(),
+    supabaseAdmin.from('portfolios').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
   ]);
+
+  const statusTally = new Map<string, number>();
+  for (const row of ((pipelineCounts as unknown as { status: string }[] | null) ?? [])) {
+    statusTally.set(row.status, (statusTally.get(row.status) ?? 0) + 1);
+  }
+  const tally = (...statuses: string[]) => statuses.reduce((sum, s) => sum + (statusTally.get(s) ?? 0), 0);
+  const preparedCount = tally('DRAFT', 'PREPARING', 'AWAITING_APPROVAL', 'APPROVED', 'QUEUED', 'AWAITING_USER_INPUT');
+  const sentCount = statusTally.get('SUBMITTED') ?? 0;
+  const checkingCount = statusTally.get('AWAITING_VERIFICATION') ?? 0;
 
   const draftApps = (drafts ?? []) as unknown as DraftApp[];
   const draftsWaiting = draftCount ?? 0;
@@ -82,11 +105,16 @@ export default async function Dashboard() {
   );
   const greeting = greetingForHour(Number.isFinite(lagosHour) ? lagosHour : 12);
 
-  // Plan-aware quota line: FREE counts lifetime documents, paid plans daily.
+  // Command Center quota line: the credit ledger is the source of truth
+  // after the M2 go-live flip (monthly matrix, D1). Falls back to the
+  // legacy entitlement numbers if the ledger cannot be read.
   const quotaLine =
-    entitlement.plan === 'FREE'
-      ? `${entitlement.ai_credits_remaining} of 3 free documents left`
-      : `${entitlement.ai_credits_remaining} AI generations today`;
+    docCredits !== null
+      ? `${docCredits} document credit${docCredits === 1 ? '' : 's'} left this month`
+      : entitlement.plan === 'FREE'
+        ? `${entitlement.ai_credits_remaining} of 3 free documents left`
+        : `${entitlement.ai_credits_remaining} AI generations today`;
+  const activationActive = (activation as { status?: string } | null)?.status === 'ACTIVE';
 
   // Deterministic, real-derived next steps (no fabricated suggestions).
   const suggestions: { text: string; href: string }[] = [];
@@ -94,6 +122,10 @@ export default async function Dashboard() {
   if ((applicationCount ?? 0) === 0) suggestions.push({ text: 'Track your first application to start your history.', href: '/applications' });
   if (autoMode) suggestions.push({ text: 'Automatic submission is on; your agent applies within your rules.', href: '/applications' });
   else if (entitlement.automation_enabled) suggestions.push({ text: 'Agent mode is on for your plan; bring a job link to begin.', href: '/applications' });
+  if (!entitlement.automation_enabled && !activationActive) {
+    suggestions.push({ text: 'Unlock 5 free auto-applies a month: verify a card once (the check costs nothing).', href: '/auto-apply/activation' });
+  }
+  if ((portfolioCount ?? 0) === 0) suggestions.push({ text: 'Create your portfolio page and share one link with recruiters.', href: '/portfolios' });
   if (suggestions.length === 0) suggestions.push({ text: 'Refresh your CV and run an ATS check for your next role.', href: '/generate' });
 
   return (
@@ -131,6 +163,21 @@ export default async function Dashboard() {
         <div className="dd-stat"><b>{interviews}</b><span>Interviews</span></div>
         <div className="dd-stat"><b>{responseRate}%</b><span>Response rate</span></div>
         <div className="dd-stat"><b>{completeness.percent}%</b><span>Profile strength</span></div>
+      </section>
+
+      <section className="dd-sec" aria-label="Application pipeline">
+        <span className="dd-over">Pipeline</span>
+        <div className="dd-stats">
+          <div className="dd-stat"><b>{preparedCount}</b><span>Prepared or awaiting you</span></div>
+          <div className="dd-stat"><b>{checkingCount}</b><span>Checking send</span></div>
+          <div className="dd-stat"><b>{sentCount}</b><span>Submitted</span></div>
+          <div className="dd-stat"><b>{interviews}</b><span>Verified (interview)</span></div>
+        </div>
+        <p className="muted dd-note">
+          Auto-apply credits: {appCredits ?? 0} left this month
+          {entitlement.automation_enabled ? '' : activationActive ? '' : ' · unlock 5 free with a card check'}
+          {(portfolioCount ?? 0) > 0 ? ` · ${(portfolioCount ?? 0)} portfolio${portfolioCount === 1 ? '' : 's'}` : ''}
+        </p>
       </section>
 
       <div className="dd-cols">

@@ -27,11 +27,14 @@ export class CreditExhaustedError extends Error {
 }
 
 /**
- * Enforcement flag, read at call time. Default OFF during the parallel-run
- * phase; flip with ENTITLEMENTS_LEDGER=true once grant data looks clean.
+ * Enforcement flag, read at call time. ARMED BY DEFAULT since the 2026-09-23
+ * go-live (owner directive "make it go live"): the monthly credit matrix
+ * (D1) is the real limit for documents and auto-applies. Set
+ * ENTITLEMENTS_LEDGER=false to disarm (parallel-run observation mode).
  */
 export function ledgerEnabled(): boolean {
-  return process.env.ENTITLEMENTS_LEDGER === 'true';
+  const v = process.env.ENTITLEMENTS_LEDGER;
+  return v !== 'false';
 }
 
 export async function reserveCredit(userId: string, resource: CreditResource, reference: string): Promise<void> {

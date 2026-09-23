@@ -65,8 +65,8 @@ afterEach(() => {
 });
 
 describe('ledger flag', () => {
-  it('is off by default and on only with ENTITLEMENTS_LEDGER=true', () => {
-    expect(ledgerEnabled()).toBe(false);
+  it('is armed by default since the 2026-09-23 go-live; false disarms', () => {
+    expect(ledgerEnabled()).toBe(true);
     process.env.ENTITLEMENTS_LEDGER = 'true';
     expect(ledgerEnabled()).toBe(true);
     process.env.ENTITLEMENTS_LEDGER = 'false';
@@ -112,7 +112,11 @@ describe('ledger client', () => {
   });
 });
 
-describe('createUsageMeter · parallel-run (flag off)', () => {
+describe('createUsageMeter · disarmed (flag off)', () => {
+  beforeEach(() => {
+    process.env.ENTITLEMENTS_LEDGER = 'false';
+  });
+
   it('reserve touches only the legacy counter', async () => {
     const meter = createUsageMeter('u1');
     await meter.reserve();

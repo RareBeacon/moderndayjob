@@ -98,7 +98,13 @@ Acceptance: a script firing N parallel generations cannot exceed the
 period allowance by one; every ledger row is auditable. [to be exercised
 on the dedicated test account before the enforcement flip]
 
-## Milestone 3 · Free auto-apply activation (blocked by D2, D3)
+## Milestone 3 · Free auto-apply activation (blocked by D2, D3) · BUILT 2026-09-23
+
+Status: migration 038 applied; Paystack ADD_CARD flow + webhook +
+activation UI shipped with 13 tests. Honest deviation recorded in the
+final report: the verification endpoint requires card details to transit
+the server (never stored or logged); subscriptions stay provider-hosted.
+Live webhook confirmation remains an owner action.
 
 Scope:
 - Paystack card verification flow (purpose=ADD_CARD, zero amount, no
@@ -111,7 +117,12 @@ Tests: webhook signature/replay/dedup, grant idempotency, entitlement
 enforcement of the 5, e2e activation -> application -> credit accounting.
 Rollback: activation flow off; auto-apply stays plan-gated.
 
-## Milestone 4 · Auto-Apply 2.0 reliability + instrumentation (partially unblocked)
+## Milestone 4 · Auto-Apply 2.0 reliability + instrumentation (partially unblocked) · BUILT 2026-09-23
+
+Status: verification layer, extended statuses, dedup index (039, applied),
+admin scorecard (/admin/applications), supported-systems page, and the
+honest pricing copy sync all shipped. Stagehand PoC intentionally deferred
+(two weeks of scorecard data required first, per plan).
 
 The engine is kept, not replaced. Scope:
 - Extended status machine incl. uncertain + awaiting_verification +
@@ -132,7 +143,11 @@ Tests: adapter fixtures for verification signals; uncertain-state
 transitions; dedupe races; injection fixtures (page content cannot alter
 engine behavior); e2e approval flow unchanged.
 
-## Milestone 5 · Resume Studio profile-aware pass
+## Milestone 5 · Resume Studio profile-aware pass · BUILT 2026-09-23
+
+Status: prefill + first-incomplete-section skip (testable lib),
+no-watermark guarantee test across all 70 templates, credit-clarity copy,
+and a download-route test proving edits and re-downloads never consume.
 
 Scope: flow loads the career profile and asks only missing or role-specific
 questions; regenerate-vs-edit clarity (editing and re-downloading never
@@ -140,7 +155,12 @@ consume a new credit; only successful new generation does, via the
 ledger); no-watermark verification on all templates; PDF output tests
 already exist and stay green.
 
-## Milestone 6 · Portfolio Studio (blocked by D1 portfolio limits, D5)
+## Milestone 6 · Portfolio Studio (blocked by D1 portfolio limits, D5) · BUILT 2026-09-23
+
+Status: migration 040 applied (portfolios + record limits 1/5/10/26);
+slugs + rename redirects, 3 templates, visibility, PDF/HTML export,
+public pages, sitemap entries, onboarding gate; 14 tests including XSS
+fixtures and limit enforcement.
 
 Scope: portfolios table + slugs + public pages + templates (start with 3,
 reuse the 20-template infra where sensible) + PDF export + sanitized HTML
@@ -151,7 +171,15 @@ portfolio route.
 Tests: slug collision + uniqueness, sanitization (XSS fixtures), export
 safety (no secrets), limit enforcement, e2e create -> publish -> view.
 
-## Milestone 7 · Command Center + hardening + rollout
+## Milestone 7 · Command Center + hardening + rollout · BUILT 2026-09-23
+
+Status: dashboard Command Center (pipeline split, ledger credits,
+activation state, portfolios); rate limits verified on every new route by
+the security-baseline test; docs refreshed (README, runbook, DEPLOY);
+final report at 05-final-report.md (format A-I). Go-live: credit
+enforcement ARMED by code default. Open: e2e double-spend + synthetic
+ledger load test (need the dedicated test account), Paystack live webhook
+confirmation. Deployment blocked only by credentials (see final report F).
 
 Scope: dashboard per 03 §2.6; security test pass (threat model 06 items);
 rate-limit and capacity review under the 1000-user mandate; load test of

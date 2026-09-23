@@ -117,7 +117,11 @@ function ledgerCalls(fn: string) {
   return m.rpc.mock.calls.filter(([name]) => name === fn);
 }
 
-describe('AUTO_APPLY ledger · parallel-run (flag off)', () => {
+describe('AUTO_APPLY ledger · disarmed (flag off)', () => {
+  beforeEach(() => {
+    process.env.ENTITLEMENTS_LEDGER = 'false';
+  });
+
   it('a confirmed submission touches no ledger rpc', async () => {
     m.submitViaBrowser.mockResolvedValue({ outcome: 'SUBMITTED', confirmation: 'C-1', url: URL });
     const out = await processApplicationTask({ application_id: 'app-1' }, TASK_ID);
