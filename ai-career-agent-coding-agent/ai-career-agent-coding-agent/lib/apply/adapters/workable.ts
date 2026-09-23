@@ -1,4 +1,4 @@
-import { readSignals, splitName, stopIfUnsafe } from './shared';
+import { hasSuccessSignal, unverifiedSubmissionOutcome, readSignals, splitName, stopIfUnsafe } from './shared';
 import type { ApplyCandidate, ApplyOutcome, ApplyPage, SiteApplyAdapter } from '../types';
 
 /**
@@ -77,6 +77,10 @@ export const workableApplyAdapter: SiteApplyAdapter = {
 
     await page.click(SUBMIT_SEL);
     const { url } = await readSignals(page);
+    // M4 verification layer: SUBMITTED requires an explicit success
+    // signal (confirmation URL or copy). Without one the outcome is
+    // UNKNOWN and never auto-retried.
+    if (!(await hasSuccessSignal(page))) return unverifiedSubmissionOutcome();
     return { outcome: 'SUBMITTED', confirmation: await page.title(), url };
   },
 };

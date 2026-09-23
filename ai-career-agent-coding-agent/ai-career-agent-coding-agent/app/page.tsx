@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 
 const faqs = [
   { q: 'How much work is this, really?', a: 'Set your criteria once. On paid plans your agent then searches employer boards for matching roles and prepares the applications; you can also paste any job link yourself. You review each package and approve; on Greenhouse and Lever the submission itself is done for you, or fully automatic if you switch to the Auto send policy. Most evenings take minutes, not hours.' },
-  { q: 'Which job boards does it support?', a: 'The agent fills and submits employer forms on Greenhouse and Lever. It searches public employer boards on those platforms when looking for roles, and for any job you bring yourself it prepares the complete package, CV, cover letter and answers, with a direct link so you can submit in a couple of clicks. Forms that need a CAPTCHA, a login, or an assessment are handed back to you with everything ready to go.' },
+  { q: 'Which job boards does it support?', a: 'The agent fills and submits employer forms on Greenhouse, Lever, Ashby and Workable. It searches public employer boards when looking for roles, and for any job you bring yourself it prepares the complete package, CV, cover letter and answers, with a direct link so you can submit in a couple of clicks. Forms that need a CAPTCHA, a login, or an assessment are handed back to you with everything ready to go.' },
   { q: 'Will it make up experience for my CV?', a: 'Never. Documents are built only from the facts you verify. Missing details are flagged so you can add context without inventing credentials or achievements, and a truthfulness check runs before any submission: if honest content cannot be verified, the application stops and comes back to you.' },
   { q: 'What can I do on the free plan?', a: 'Use all 10 career tools (full results preview, no account needed), build your profile and criteria, and track applications in one place. You also get three AI generations in total to try the writer. Agent runs start on paid plans. No payment card is required.' },
 ];
@@ -77,22 +77,22 @@ const PLAN_COPY: Record<string, { description: string; includes: string; feature
   FREE: {
     description: 'Get your search moving.',
     includes: 'Free forever, no card',
-    features: ['3 AI generations in total (lifetime)', '10 career-tool uses a day', 'Paste any job link for agent analysis', 'Application tracker'],
+    features: ['5 AI generations a month', '10 career-tool uses a day', 'Paste any job link for agent analysis', 'Application tracker', 'Optional: verify a card (costs nothing) to unlock 5 auto-applies a month'],
   },
   BASIC: {
     description: 'A first taste of the agent.',
     includes: 'Everything in Free, plus',
-    features: ['3 AI generations a day', '50 career-tool uses a day', '2 agent runs in total (lifetime)', 'Your agent finds matching jobs (within your runs)', 'You choose: approve every send, or Auto'],
+    features: ['10 AI generations a month', '50 career-tool uses a day', '20 auto-applies a month', 'Your agent finds matching jobs', 'You choose: approve every send, or Auto'],
   },
   PREMIUM: {
     description: 'The full agent workflow.',
     includes: 'Everything in Basic, plus',
-    features: ['10 AI generations a day', 'Your agent finds matching jobs daily', '10 agent applications a day', 'Unlimited career-tool uses', 'You choose: approve every send, or Auto'],
+    features: ['15 AI generations a month', 'Your agent finds matching jobs daily', '30 auto-applies a month', 'Unlimited career-tool uses', 'You choose: approve every send, or Auto'],
   },
   MAX: {
     description: 'For high-volume searches.',
     includes: 'Everything in Premium, plus',
-    features: ['20 AI generations a day', 'Your agent finds matching jobs daily', '20 agent applications a day', 'Unlimited career-tool uses', 'You choose: approve every send, or Auto'],
+    features: ['100 AI generations a month (fair-use cap)', 'Your agent finds matching jobs daily', '50 auto-applies a month', 'Unlimited career-tool uses', 'You choose: approve every send, or Auto'],
   },
 };
 
@@ -133,7 +133,7 @@ export default async function HomePage() {
               <h1>Your AI agent<br />for the <span className={styles['headline-highlight']}>job search.</span></h1>
               <div className={styles['hero-copy']}>
                 <p>
-                  Tell Jobiest what you are looking for once. On paid plans your agent finds matching roles and readies the applications; paste any job yourself too. It tailors your CV and cover letter, answers the questions, fills the form, and submits on Greenhouse and Lever: after your approval by default, or automatically on the Auto policy. You review the results. It does the work.
+                  Tell Jobiest what you are looking for once. On paid plans your agent finds matching roles and readies the applications; paste any job yourself too. It tailors your CV and cover letter, answers the questions, fills the form, and submits on Greenhouse, Lever, Ashby and Workable: after your approval by default, or automatically on the Auto policy. You review the results. It does the work.
                 </p>
                 <div className={styles['hero-actions']}>
                   <Link className={`${styles.button} ${styles['button-navy']}`} href="/signup">
@@ -306,9 +306,9 @@ export default async function HomePage() {
             <div className={styles['limits-explainer']}>
               <strong>What the limits mean</strong>
               <p>
-                <strong>AI generations</strong> are resumes, cover letters and application answers written by the AI writer: 3 in total on Free (lifetime), refreshed daily on paid plans.
+                <strong>AI generations</strong> are resumes, cover letters and application answers written by the AI writer: 5 a month on Free, 10 to 100 a month on paid plans. Unused generations never expire; each month's allowance adds to what you already have.
                 <strong> Career-tool uses</strong> cover the 10 free tools: the ATS scanner is rule-based, the other nine are AI-powered, and every tool shows a full preview without an account (copying and saving needs a free account). Tool use never touches your AI-generation allowance.
-                <strong> An agent run</strong> is one complete application: the job is found or pasted, analyzed, your documents tailored, the form filled, and the send happens (after your approval, or automatically on the Auto policy). Basic includes 2 runs in total (lifetime); Premium and Max refresh daily at 10 and 20 runs.
+                <strong> An agent run</strong> is one complete application: the job is found or pasted, analyzed, your documents tailored, the form filled, and the send happens (after your approval, or automatically on the Auto policy). Basic includes 20 a month, Premium 30, Max 50. Free can unlock 5 a month with a one-time card verification that costs nothing. Credits only count confirmed sends; stopped or unconfirmed ones go back.
               </p>
             </div>
             <p className={styles['pricing-footer']}>

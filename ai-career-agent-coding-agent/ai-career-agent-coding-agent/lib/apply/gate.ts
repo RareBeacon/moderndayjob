@@ -76,7 +76,7 @@ export function messageForGate(code: GateCode): string {
     case 'NOT_APPROVED':
       return 'Only applications you have approved can be submitted automatically.';
     case 'NOT_ENTITLED':
-      return 'Your plan does not include automatic submission.';
+      return 'Automatic submission needs a paid plan, or a verified card on the free plan (the check costs nothing and unlocks 5 auto-applies a month).';
     case 'UNSUPPORTED_PLATFORM':
       return 'This employer platform is not supported for automatic submission yet.';
     case 'EXPIRED_JOB':

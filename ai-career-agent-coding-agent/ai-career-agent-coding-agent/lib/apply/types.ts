@@ -25,9 +25,11 @@ export type StopCode =
 export type ApplyOutcome =
   | { outcome: 'SUBMITTED'; confirmation: string; url: string }
   | { outcome: 'STOP'; code: StopCode; message: string }
-  /** B-186: the worker timed out mid-submit. The submission MAY have landed;
-   *  never auto-retry (double-submit risk), surface for manual reconciliation. */
-  | { outcome: 'UNKNOWN'; code: 'SUBMIT_TIMEOUT'; message: string };
+  /** B-186 / M4: the outcome is UNCONFIRMED (worker timeout mid-submit, or
+   *  no explicit success signal after the submit click). The submission MAY
+   *  have landed; never auto-retry (double-submit risk), surface for manual
+   *  reconciliation as AWAITING_VERIFICATION. */
+  | { outcome: 'UNKNOWN'; code: 'SUBMIT_TIMEOUT' | 'VERIFY_SIGNAL_MISSING'; message: string };
 
 /** Everything the adapter needs to fill and submit one application. */
 export interface ApplyCandidate {

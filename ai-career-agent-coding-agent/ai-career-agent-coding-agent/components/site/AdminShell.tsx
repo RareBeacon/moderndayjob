@@ -12,6 +12,7 @@ const NAV = [
   { href: '/admin/credentials', key: 'credentials', label: 'AI credentials' },
   { href: '/admin/security', key: 'security', label: 'Security' },
   { href: '/admin/usage', key: 'usage', label: 'AI usage' },
+  { href: '/admin/applications', key: 'applications', label: 'Auto-apply' },
   { href: '/admin/seo', key: 'seo', label: 'SEO Mission Control' },
   { href: '/admin/support', key: 'support', label: 'Support' },
 ] as const;

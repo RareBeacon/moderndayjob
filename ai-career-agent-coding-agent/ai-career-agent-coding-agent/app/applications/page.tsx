@@ -51,6 +51,9 @@ const STATUS_TONE: Record<string, string> = {
   FAILED: 'bad',
   DRAFT: 'muted',
   QUEUED: 'muted',
+  AWAITING_VERIFICATION: 'warn',
+  AWAITING_USER_INPUT: 'needs',
+  CANCELLED: 'muted',
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -64,6 +67,9 @@ const STATUS_LABEL: Record<string, string> = {
   FAILED: 'Failed',
   DRAFT: 'Draft',
   QUEUED: 'Queued',
+  AWAITING_VERIFICATION: 'Checking send',
+  AWAITING_USER_INPUT: 'Needs you',
+  CANCELLED: 'Cancelled',
 };
 
 const EVENT_LABEL: Record<string, string> = {

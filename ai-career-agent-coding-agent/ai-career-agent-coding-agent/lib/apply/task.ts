@@ -4,7 +4,7 @@ import { appendApplicationEvent, JOB_EXPIRY_MS } from '@/lib/applications/servic
 import { decideAutoSubmit, messageForGate } from './gate';
 import { detectApplyAdapter } from './registry';
 import { submitViaBrowser } from './client';
-import { consumeCredit, CreditExhaustedError, ledgerEnabled, releaseCredit, reserveCredit } from '@/lib/credits';
+import { consumeCredit, creditAvailable, CreditExhaustedError, ledgerEnabled, releaseCredit, reserveCredit } from '@/lib/credits';
 import { verifyApprovalAndRevert } from './snapshot';
 import { checkCapabilityAudited, agentDryRun } from '@/lib/agent/capabilities';
 import { sendApplicationSubmittedEmail } from '@/lib/email/resend';
@@ -135,6 +135,19 @@ async function isEntitled(userId: string): Promise<boolean> {
   }
 }
 
+/** M3/go-live: an activated free account is entitled to auto-apply through
+ *  its ledger credits (5 a month after the free card verification). The
+ *  ledger then meters every confirmed submission (reserve/consume/release
+ *  below). Paid plans stay entitled through the plan gate as before. */
+async function hasAutoApplyCredits(userId: string): Promise<boolean> {
+  if (!ledgerEnabled()) return false;
+  try {
+    return (await creditAvailable(userId, 'AUTO_APPLY')) > 0;
+  } catch {
+    return false;
+  }
+}
+
 export async function processApplicationTask(payload: Record<string, unknown>, taskId?: string): Promise<ApplicationTaskOutcome> {
   const appId = payload.application_id as string | undefined;
   if (!appId) return { status: 'WAITING_APPROVAL', result: { reason: 'MISSING_APPLICATION_ID' } };
@@ -160,7 +173,7 @@ export async function processApplicationTask(payload: Record<string, unknown>, t
     agentPaused: prefs?.active === false,
     appStatus: app.status,
     autoMode,
-    entitled: await isEntitled(userId),
+    entitled: (await isEntitled(userId)) || (await hasAutoApplyCredits(userId)),
     adapterSupported: !!adapter,
     hasEmail: !!(prof?.application_email || app.email),
     hasPackage: docs.length > 0 || !!cvUrl,
@@ -316,7 +329,12 @@ export async function processApplicationTask(payload: Record<string, unknown>, t
     // Never charge for an unconfirmed submission (D3: consume on confirmed
     // completion only).
     if (held) await releaseCredit(userId, 'AUTO_APPLY', ledgerRef).catch(() => {});
-    await supabaseAdmin.from('applications').update({ error: outcome.message }).eq('id', appId).eq('user_id', userId);
+    // M4: park it explicitly. AWAITING_VERIFICATION is never auto-resubmitted.
+    await supabaseAdmin
+      .from('applications')
+      .update({ status: 'AWAITING_VERIFICATION', error: outcome.message })
+      .eq('id', appId)
+      .eq('user_id', userId);
     await appendApplicationEvent(userId, appId, 'AUTO_SUBMIT_UNKNOWN', {
       code: outcome.code,
       message: outcome.message,
@@ -326,9 +344,14 @@ export async function processApplicationTask(payload: Record<string, unknown>, t
 
   // Stopped safely: record the reason on the application so the user sees it,
   // and mark the task done (no retry storm on a CAPTCHA). No submission was
-  // sent, so the held credit goes back.
+  // sent, so the held credit goes back. M4: the application parks in
+  // AWAITING_USER_INPUT, the honest state for "the robot stopped here".
   if (held) await releaseCredit(userId, 'AUTO_APPLY', ledgerRef).catch(() => {});
-  await supabaseAdmin.from('applications').update({ error: outcome.message }).eq('id', appId).eq('user_id', userId);
+  await supabaseAdmin
+    .from('applications')
+    .update({ status: 'AWAITING_USER_INPUT', error: outcome.message })
+    .eq('id', appId)
+    .eq('user_id', userId);
   await appendApplicationEvent(userId, appId, 'AUTO_SUBMIT_STOPPED', { code: outcome.code, message: outcome.message });
   return { status: 'SUCCEEDED', result: { outcome: 'STOP', code: outcome.code, message: outcome.message } };
 }

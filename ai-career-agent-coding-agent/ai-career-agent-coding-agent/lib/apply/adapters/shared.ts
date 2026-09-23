@@ -41,3 +41,42 @@ export async function stopIfUnsafe(page: ApplyPage): Promise<ApplyOutcome | null
   if (stops.length) return { outcome: 'STOP', code: stops[0], message: messageForStop(stops[0]) };
   return null;
 }
+
+/* ── M4 submission verification layer ──────────────────────────────────────
+   Plan rule: an explicit success signal is REQUIRED before an adapter may
+   report SUBMITTED. A click that "didn't error" is not evidence: the form
+   may have failed silently, or a CAPTCHA may have replaced the page. After
+   the submit click the adapter must see a confirmation signal (a known
+   confirmation URL fragment or confirmation copy on the page); anything
+   else is UNKNOWN and goes to manual reconciliation. */
+
+const SUCCESS_URL_FRAGMENTS = ['/applied', '/thanks', '/thank-you', '/confirmation', '/success', '/complete'];
+
+const SUCCESS_CONTENT_PATTERNS = [
+  'thank you for applying',
+  'application received',
+  'application has been received',
+  'application submitted',
+  'successfully submitted',
+  'we received your application',
+  'your application has been submitted',
+];
+
+export async function hasSuccessSignal(page: ApplyPage): Promise<boolean> {
+  const { html, url } = await readSignals(page);
+  const urlLower = url.toLowerCase();
+  const htmlLower = html.toLowerCase();
+  return (
+    SUCCESS_URL_FRAGMENTS.some((f) => urlLower.includes(f)) ||
+    SUCCESS_CONTENT_PATTERNS.some((p) => htmlLower.includes(p))
+  );
+}
+
+/** The UNKNOWN outcome used when no explicit success signal was seen. */
+export function unverifiedSubmissionOutcome(): ApplyOutcome {
+  return {
+    outcome: 'UNKNOWN',
+    code: 'VERIFY_SIGNAL_MISSING',
+    message: 'The form was sent but no confirmation from the site could be verified. Nothing is retried automatically; please check the employer site.',
+  };
+}

@@ -72,7 +72,7 @@ describe('greenhouseApplyAdapter', () => {
   });
 
   it('fills the form, uploads the CV and submits', async () => {
-    const page = new FakePage({ present: GH_FIELDS });
+    const page = new FakePage({ present: GH_FIELDS, html: '<form><input type="file"/><button type="submit">Submit</button></form><p>Thank you for applying!</p>' });
     const out = await greenhouseApplyAdapter.apply(page, candidate());
     expect(out.outcome).toBe('SUBMITTED');
     expect(page.fills.map((f) => f[1])).toContain('dev@example.com');
@@ -114,7 +114,7 @@ describe('leverApplyAdapter', () => {
   });
 
   it('fills and submits', async () => {
-    const page = new FakePage({ present: LEVER_FIELDS, url: 'https://jobs.lever.co/acme/1' });
+    const page = new FakePage({ present: LEVER_FIELDS, url: 'https://jobs.lever.co/acme/1', html: '<form><input type="file"/><button type="submit">Submit</button></form><p>Application received.</p>' });
     const out = await leverApplyAdapter.apply(page, candidate({ jobUrl: 'https://jobs.lever.co/acme/1' }));
     expect(out.outcome).toBe('SUBMITTED');
     expect(page.fills.map((f) => f[1])).toContain('Ada Lovelace');

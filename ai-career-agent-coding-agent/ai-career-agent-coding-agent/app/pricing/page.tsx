@@ -9,7 +9,7 @@ import { SITE_URL } from '@/lib/site';
 
 export const metadata = {
   title: 'Pricing - Free Plan and Paid Plans in Naira',
-  description: 'Free plan with 3 AI generations, then Basic at ₦5,000, Premium at ₦10,000 or Max at ₦20,000 a month for more daily volume. Priced in Naira, no card required.',
+  description: 'Free plan with 5 AI generations a month, then Basic at ₦5,000, Premium at ₦10,000 or Max at ₦20,000 a month for more monthly volume. Priced in Naira, no card required.',
   alternates: { canonical: `${SITE_URL}/pricing` },
 };
 
@@ -26,7 +26,7 @@ const PROBLEM_ROWS = [
 const FAQ = [
   {
     q: 'Is the free plan really free, or does it expire?',
-    a: 'The free plan does not expire and needs no card. It includes 3 AI generations in total so you can try the AI writer, plus 10 career-tool uses a day and the full dashboard. Paid plans add daily generation volume and agent mode.',
+    a: 'The free plan does not expire and needs no card. It includes 5 AI generations a month so you can try the AI writer, plus 10 career-tool uses a day and the full dashboard. You can also verify a card once (the check costs nothing, we never charge it) to unlock 5 auto-applies a month. Paid plans raise the monthly allowances.',
   },
   {
     q: 'Do I have to let Jobiest send applications without checking them?',

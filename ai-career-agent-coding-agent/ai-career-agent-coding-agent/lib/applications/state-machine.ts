@@ -29,6 +29,10 @@ export const APPLICATION_STATUSES = [
   'WITHDRAWN',
   'FAILED',
   'QUEUED',
+  // Auto-Apply 2.0 (M4): the automated flow's own outcomes.
+  'AWAITING_VERIFICATION', // send unconfirmed (timeout / no success signal)
+  'AWAITING_USER_INPUT',   // the robot stopped; a human decides what is next
+  'CANCELLED',             // autonomous run cancelled before submission
 ] as const;
 
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
@@ -106,11 +110,28 @@ export function decideReject(from: ApplicationStatus): Decision {
   return ok('REJECTED');
 }
 
-/** decideWithdraw: pull an active, unsubmitted application. Idempotent. */
+/** decideWithdraw: pull an active, unsubmitted application. Idempotent.
+ *  M4: applications parked in the automated flow's terminal-ish states can
+ *  also be withdrawn (the user takes them back). */
 export function decideWithdraw(from: ApplicationStatus): Decision {
   if (from === 'WITHDRAWN') return { ok: true, next: 'WITHDRAWN', code: 'ALREADY_IN_STATE' };
-  if (!['PREPARING', 'AWAITING_APPROVAL', 'APPROVED'].includes(from)) return fail('INVALID_TRANSITION');
+  if (!['PREPARING', 'AWAITING_APPROVAL', 'APPROVED', 'QUEUED', 'AWAITING_VERIFICATION', 'AWAITING_USER_INPUT'].includes(from)) {
+    return fail('INVALID_TRANSITION');
+  }
   return ok('WITHDRAWN');
+}
+
+/** M4: map an automated submission outcome to the application's next status.
+ *  Confirmed sends are SUBMITTED; unconfirmed sends park in
+ *  AWAITING_VERIFICATION (never auto-resubmitted: no task is re-queued for
+ *  them and decideSubmit refuses the state); stops park in
+ *  AWAITING_USER_INPUT with the reason recorded on the application. */
+export function decideAutoOutcome(from: ApplicationStatus, outcome: 'SUBMITTED' | 'UNKNOWN' | 'STOP'): Decision {
+  if (from === 'SUBMITTED') return { ok: true, next: 'SUBMITTED', code: 'ALREADY_IN_STATE' };
+  if (from !== 'APPROVED' && from !== 'QUEUED') return fail('INVALID_TRANSITION');
+  if (outcome === 'SUBMITTED') return ok('SUBMITTED');
+  if (outcome === 'UNKNOWN') return ok('AWAITING_VERIFICATION');
+  return ok('AWAITING_USER_INPUT');
 }
 
 /** decideSubmit: APPROVED → SUBMITTED (assisted handoff). Idempotent. */
