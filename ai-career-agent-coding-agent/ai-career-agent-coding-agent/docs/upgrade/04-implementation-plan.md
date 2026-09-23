@@ -44,11 +44,31 @@ Rollback: gate returns pass-through via flag.
 
 Status: slice 1 SHIPPED 2026-09-23 (migration 037 applied to production;
 ledger client + meter integration on the DOCUMENT path + pipeline grant
-step). Ledger is in PARALLEL-RUN: tables populated daily, nothing enforced
-until the ENTITLEMENTS_LEDGER flip (by code default, same pattern as the
-onboarding gate, because the Vercel token is expired). Slice 2 remains:
-AUTO_APPLY wiring at engine outcome level, dashboards, enforcement flip
-after a clean observation cycle, retire usage_daily.
+step). Slice 2 SHIPPED 2026-09-23: AUTO_APPLY wiring at the engine outcome
+level (hold before the browser submission after every gate, consume on
+SUBMITTED, release on UNKNOWN/STOP/throw, exhaustion stops the application
+safely with a user-visible reason; reference app:{id}:{taskId} so retries
+get fresh holds and confirmed submissions can never be charged twice).
+Ledger is in PARALLEL-RUN: tables populated daily, nothing enforced until
+the ENTITLEMENTS_LEDGER flip (by code default, same pattern as the
+onboarding gate, because the Vercel token is expired). Remaining before
+the flip: watch at least one clean grant cycle (cron populates periods
+nightly; observation SQL below), exercise reserve/consume/release on the
+dedicated test account, then flip enforcement, then dashboards (deferred
+deliberately: legacy FREE enforcement is 3 lifetime documents while the
+ledger grants 5/month, so user-facing credit numbers would be false
+claims until the flip), then retire usage_daily.
+
+Observation runbook (read-only, safe to run any time via the Management
+API or SQL editor):
+  select operation, count(*) from public.credit_ledger group by 1;
+  select count(*) as open_holds from public.credit_holds
+   where released_at is null and consumed_at is null;
+  select count(*) as periods from public.credit_periods;
+A clean cycle looks like: periods ~= number of profiles, GRANT rows ~=
+2x periods (documents + auto-applies for paid), zero open holds once no
+generation or submission is in flight, CONSUME/RELEASE rows tracking the
+legacy usage_daily/usage_lifetime numbers.
 
 Scope:
 - usage_ledger + credit_periods tables + balances view (03 §2.1), with

@@ -4,6 +4,7 @@ import { appendApplicationEvent, JOB_EXPIRY_MS } from '@/lib/applications/servic
 import { decideAutoSubmit, messageForGate } from './gate';
 import { detectApplyAdapter } from './registry';
 import { submitViaBrowser } from './client';
+import { consumeCredit, CreditExhaustedError, ledgerEnabled, releaseCredit, reserveCredit } from '@/lib/credits';
 import { verifyApprovalAndRevert } from './snapshot';
 import { checkCapabilityAudited, agentDryRun } from '@/lib/agent/capabilities';
 import { sendApplicationSubmittedEmail } from '@/lib/email/resend';
@@ -134,7 +135,7 @@ async function isEntitled(userId: string): Promise<boolean> {
   }
 }
 
-export async function processApplicationTask(payload: Record<string, unknown>): Promise<ApplicationTaskOutcome> {
+export async function processApplicationTask(payload: Record<string, unknown>, taskId?: string): Promise<ApplicationTaskOutcome> {
   const appId = payload.application_id as string | undefined;
   if (!appId) return { status: 'WAITING_APPROVAL', result: { reason: 'MISSING_APPLICATION_ID' } };
 
@@ -202,6 +203,32 @@ export async function processApplicationTask(payload: Record<string, unknown>): 
     };
   }
 
+  // Milestone 2 credit ledger (owner decision D3): hold one AUTO_APPLY
+  // credit for this submission attempt. Every gate above has already passed,
+  // so a hold here means a real browser submission is about to happen. The
+  // reference is per application AND per task, so a re-queued retry gets a
+  // fresh hold while a confirmed submission can never be charged twice
+  // (idempotency key). Inert until ENTITLEMENTS_LEDGER=true.
+  const ledgerRef = `app:${appId}${taskId ? `:${taskId}` : ''}`;
+  let held = false;
+  if (ledgerEnabled()) {
+    try {
+      await reserveCredit(userId, 'AUTO_APPLY', ledgerRef);
+      held = true;
+    } catch (err) {
+      if (err instanceof CreditExhaustedError) {
+        // Stopped safely like any other pre-submit stop: the user sees the
+        // reason on the application; no retry storm (credits only return
+        // with the next period or payment).
+        const message = 'Monthly auto-apply limit reached for your plan.';
+        await supabaseAdmin.from('applications').update({ error: message }).eq('id', appId).eq('user_id', userId);
+        await appendApplicationEvent(userId, appId, 'AUTO_SUBMIT_STOPPED', { code: 'AUTO_APPLY_CREDITS_EXHAUSTED', message });
+        return { status: 'SUCCEEDED', result: { outcome: 'STOP', code: 'AUTO_APPLY_CREDITS_EXHAUSTED', message } };
+      }
+      throw err;
+    }
+  }
+
   const email = prof?.application_email || app.email;
   const candidate: ApplyCandidate = {
     jobUrl: job.url!,
@@ -225,13 +252,33 @@ export async function processApplicationTask(payload: Record<string, unknown>): 
       }),
   };
 
-  const outcome = await submitViaBrowser({
-    jobUrl: candidate.jobUrl,
-    allowedDomains: adapter!.domains,
-    candidate,
-  });
+  let outcome: Awaited<ReturnType<typeof submitViaBrowser>>;
+  try {
+    outcome = await submitViaBrowser({
+      jobUrl: candidate.jobUrl,
+      allowedDomains: adapter!.domains,
+      candidate,
+    });
+  } catch (err) {
+    // The attempt failed before any outcome was recorded: give the held
+    // credit back, then let the pipeline's retry logic take over.
+    if (held) await releaseCredit(userId, 'AUTO_APPLY', ledgerRef).catch(() => {});
+    throw err;
+  }
 
   if (outcome.outcome === 'SUBMITTED') {
+    if (held) {
+      // Confirmed submission: spend the held credit. Best-effort like the
+      // document meter's commit: a ledger hiccup must not turn a real
+      // submission into a failure. If the consume could not be confirmed,
+      // release as cleanup so the hold does not linger.
+      try {
+        await consumeCredit(userId, 'AUTO_APPLY', ledgerRef);
+      } catch (err) {
+        console.error('ledger consume failed', { userId, ledgerRef, err: String(err).slice(0, 200) });
+        await releaseCredit(userId, 'AUTO_APPLY', ledgerRef).catch(() => {});
+      }
+    }
     await supabaseAdmin
       .from('applications')
       .update({ status: 'SUBMITTED', submitted_at: new Date().toISOString(), error: null })
@@ -266,6 +313,9 @@ export async function processApplicationTask(payload: Record<string, unknown>): 
   // The application stays APPROVED (not SUBMITTED: unconfirmed), flagged for
   // the user to reconcile manually on the employer site.
   if (outcome.outcome === 'UNKNOWN') {
+    // Never charge for an unconfirmed submission (D3: consume on confirmed
+    // completion only).
+    if (held) await releaseCredit(userId, 'AUTO_APPLY', ledgerRef).catch(() => {});
     await supabaseAdmin.from('applications').update({ error: outcome.message }).eq('id', appId).eq('user_id', userId);
     await appendApplicationEvent(userId, appId, 'AUTO_SUBMIT_UNKNOWN', {
       code: outcome.code,
@@ -275,7 +325,9 @@ export async function processApplicationTask(payload: Record<string, unknown>): 
   }
 
   // Stopped safely: record the reason on the application so the user sees it,
-  // and mark the task done (no retry storm on a CAPTCHA).
+  // and mark the task done (no retry storm on a CAPTCHA). No submission was
+  // sent, so the held credit goes back.
+  if (held) await releaseCredit(userId, 'AUTO_APPLY', ledgerRef).catch(() => {});
   await supabaseAdmin.from('applications').update({ error: outcome.message }).eq('id', appId).eq('user_id', userId);
   await appendApplicationEvent(userId, appId, 'AUTO_SUBMIT_STOPPED', { code: outcome.code, message: outcome.message });
   return { status: 'SUCCEEDED', result: { outcome: 'STOP', code: outcome.code, message: outcome.message } };

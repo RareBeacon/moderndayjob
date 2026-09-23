@@ -47,8 +47,9 @@ export async function processAgentTask(task: AgentTask, _deps: PipelineDeps = de
     // switch, the per-user pause, APPROVED state, entitlement, supported site
     // adapter, truthfulness; is re-checked server-side inside the processor
     // before any browser is touched. With the kill switch absent (default),
-    // this returns WAITING_APPROVAL and nothing is ever sent.
-    return processApplicationTask((task.payload ?? {}) as Record<string, unknown>);
+    // this returns WAITING_APPROVAL and nothing is ever sent. The task id
+    // rides along so the credit ledger can key holds per attempt.
+    return processApplicationTask((task.payload ?? {}) as Record<string, unknown>, task.id);
   }
   if (task.type === 'JOB_DISCOVERY') {
     // Per-user discovery (2026-09-21). Legacy shared-pool rows without a
