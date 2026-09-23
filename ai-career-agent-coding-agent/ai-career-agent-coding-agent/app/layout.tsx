@@ -1,21 +1,28 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
-import { DM_Sans, Space_Grotesk } from 'next/font/google';
+import localFont from 'next/font/local';
 import { SITE_URL } from '@/lib/site';
 import { ScrollReveal } from '@/components/site/ScrollReveal';
 import { ServiceWorkerRegistrar } from '@/components/site/ServiceWorkerRegistrar';
 import { ChatWidget } from '@/components/support/ChatWidget';
 
-const dmSans = DM_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
+/* Self-hosted (next/font/local, latin variable files): the build no longer
+ * fetches Google Fonts, which made CI builds fail intermittently when
+ * GitHub runners could not reach fonts.googleapis.com ("An error occurred
+ * in next/font"). Files are the official Google Fonts woff2 builds
+ * (DM Sans and Space Grotesk, SIL Open Font License). */
+const dmSans = localFont({
+  src: './fonts/dm-sans.woff2',
+  weight: '100 1000',
+  style: 'normal',
   variable: '--font-dm-sans',
   display: 'swap',
 });
 
-const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
+const spaceGrotesk = localFont({
+  src: './fonts/space-grotesk.woff2',
+  weight: '300 700',
+  style: 'normal',
   variable: '--font-space-grotesk',
   display: 'swap',
 });
