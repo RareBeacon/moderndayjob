@@ -98,3 +98,107 @@ export async function verifyPaystackTransaction(reference: string): Promise<Pays
 export function paystackWebhookSignature(rawBody: string, secret: string | undefined = process.env.PAYSTACK_SECRET_KEY): string {
   return crypto.createHmac('sha512', secret ?? '').update(rawBody).digest('hex');
 }
+
+/* ── Free auto-apply activation (Milestone 3, owner decision D2) ──────────
+   Paystack's official card-verification flow: initialize an authorization
+   with purpose=ADD_CARD. The card is authenticated with a ZERO-amount
+   authorization (never charged) and the user completes 3DS on Paystack's
+   page. We deliberately do NOT pass recurring_consent, so Paystack marks
+   the authorization non-reusable: nobody can ever charge this card through
+   us afterwards, which is exactly what the product promises.
+   Card details pass through the server transiently (TLS in, immediate
+   relay, never stored, never logged) because this endpoint requires them;
+   subscription payments stay fully provider-hosted. */
+
+export interface CardAuthorizationInput {
+  email: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  card: {
+    number: string;
+    cvv: string;
+    expiryMonth: string;
+    expiryYear: string;
+    cardholderName?: string | null;
+  };
+  returnUrl: string;
+}
+
+export interface CardAuthorizationInit {
+  authorizationAccessCode: string;
+  action: string;
+  /** The Paystack 3DS page the user must complete the check on. */
+  value: string;
+}
+
+export async function initializeCardAuthorization(input: CardAuthorizationInput): Promise<CardAuthorizationInit> {
+  if (!paystackConfigured()) throw new Error('BILLING_NOT_CONFIGURED');
+  const res = await fetch(`${PAYSTACK_BASE}/customer/authorization/initialize`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      customer: {
+        email: input.email,
+        ...(input.firstName ? { first_name: input.firstName } : {}),
+        ...(input.lastName ? { last_name: input.lastName } : {}),
+      },
+      currency: 'NGN',
+      channel: 'card',
+      card: {
+        number: input.card.number,
+        cvv: input.card.cvv,
+        expiry_month: input.card.expiryMonth,
+        expiry_year: input.card.expiryYear,
+        ...(input.card.cardholderName ? { cardholder_name: input.card.cardholderName } : {}),
+      },
+      purpose: 'ADD_CARD',
+      // No recurring_consent, on purpose: the card can never be charged.
+      return_url: input.returnUrl,
+    }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const body = (await res.json().catch(() => null)) as {
+    status?: boolean;
+    message?: string;
+    data?: { authorizationAccessCode?: string; action?: string; value?: string };
+  } | null;
+  if (!res.ok || !body?.status || !body.data?.authorizationAccessCode || !body.data.value) {
+    throw new Error(`PAYSTACK_CARD_INIT_FAILED${body?.message ? `: ${body.message}` : ''}`);
+  }
+  return {
+    authorizationAccessCode: body.data.authorizationAccessCode,
+    action: body.data.action ?? 'redirect',
+    value: body.data.value,
+  };
+}
+
+export interface CardAuthorizationVerification {
+  /** Paystack status of the validation (e.g. 'success', 'initialized'). */
+  status: string;
+  /** Paystack's advice; 'PROCEED' means the card verified successfully. */
+  advise: string | null;
+  customerEmail: string | null;
+}
+
+/** Re-check a card verification server-side by its access code. The webhook
+ *  payload is never trusted on its own (same rule as payments). */
+export async function verifyCardAuthorization(accessCode: string): Promise<CardAuthorizationVerification> {
+  if (!paystackConfigured()) throw new Error('BILLING_NOT_CONFIGURED');
+  const res = await fetch(`${PAYSTACK_BASE}/customer/authorization/verify/${encodeURIComponent(accessCode)}`, {
+    headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` },
+    signal: AbortSignal.timeout(15_000),
+  });
+  const body = (await res.json().catch(() => null)) as {
+    status?: boolean;
+    message?: string;
+    data?: { status?: string; advise?: string; customerEmail?: string };
+  } | null;
+  if (!res.ok || !body?.status || !body.data) {
+    throw new Error(`PAYSTACK_CARD_VERIFY_FAILED${body?.message ? `: ${body.message}` : ''}`);
+  }
+  return {
+    status: body.data.status ?? 'unknown',
+    advise: body.data.advise ?? null,
+    customerEmail: body.data.customerEmail ?? null,
+  };
+}

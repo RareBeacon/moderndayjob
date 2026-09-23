@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { after } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { verifyPaystackTransaction, planForAmount, paystackWebhookSignature } from '@packages/billing/paystack';
+import { verifyPaystackTransaction, planForAmount, paystackWebhookSignature, verifyCardAuthorization } from '@packages/billing/paystack';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { runDailyPipeline } from '@/lib/agent/pipeline';
 
@@ -66,6 +66,80 @@ export async function POST(req: Request) {
     return Response.json({ ok: true, malformed: true });
   }
 
+  // ── Milestone 3: free auto-apply activation events (zero-amount card
+  //    verification, purpose=ADD_CARD). Same security ladder as payments:
+  //    dedup, server-side re-verification, then the idempotent DB function.
+  if (payload.event === 'zero_charge_authorization.success') {
+    if (!payload.data) return Response.json({ ok: true, noData: true });
+    const accessCode = (payload.data as { accessCode?: string }).accessCode;
+    if (!accessCode) return Response.json({ ok: true, noAccessCode: true });
+
+    // A verification is a ZERO-amount authorization by definition; anything
+    // else routed here is refused.
+    if (Number(payload.data.amount ?? -1) !== 0) {
+      return Response.json({ ok: false, unexpectedAmount: payload.data.amount }, { status: 202 });
+    }
+
+    const zcaEventId = `paystack:zca:${payload.data.reference ?? accessCode}`;
+    try {
+      const { data: seenZca } = await supabaseAdmin.from('payment_events').select('event_id').eq('event_id', zcaEventId).maybeSingle();
+      if (seenZca) return Response.json({ ok: true, duplicate: true });
+    } catch {
+      /* fall through; the DB grant is the final idempotency guard */
+    }
+
+    let cardVerified;
+    try {
+      cardVerified = await verifyCardAuthorization(accessCode);
+    } catch (err) {
+      return Response.json({ ok: false, error: err instanceof Error ? err.message : 'VERIFY_ERROR' }, { status: 500 });
+    }
+    if (cardVerified.status !== 'success' && cardVerified.advise !== 'PROCEED') {
+      return Response.json({ ok: true, verifyStatus: cardVerified.status, advise: cardVerified.advise });
+    }
+
+    const auth = (payload.data as {
+      authorization?: { last4?: string; card_type?: string; bank?: string };
+      reference?: string;
+    }).authorization;
+    try {
+      const { data: activatedUser, error: applyError } = await supabaseAdmin.rpc('apply_card_activation', {
+        p_access_code: accessCode,
+        p_reference: payload.data.reference ?? null,
+        p_last4: auth?.last4 ?? null,
+        p_brand: auth?.card_type ?? null,
+        p_bank: auth?.bank ?? null,
+      });
+      if (applyError) throw applyError;
+
+      await supabaseAdmin
+        .from('payment_events')
+        .upsert(
+          { event_id: zcaEventId, event_type: 'zero_charge_authorization.success', event_payload: payload as unknown as object },
+          { onConflict: 'event_id', ignoreDuplicates: true },
+        );
+
+      return Response.json({ ok: true, activated: Boolean(activatedUser) });
+    } catch (err) {
+      return Response.json({ ok: false, error: err instanceof Error ? err.message : 'APPLY_ERROR' }, { status: 500 });
+    }
+  }
+
+  if (payload.event === 'card_verification.failed') {
+    // Best-effort: flip the pending row to FAILED so the UI can say so. No
+    // grant, no retry (the user starts a fresh verification if they want).
+    const failAccessCode = (payload.data as { accessCode?: string }).accessCode;
+    if (failAccessCode) {
+      await supabaseAdmin
+        .from('auto_apply_activations')
+        .update({ status: 'FAILED', updated_at: new Date().toISOString() })
+        .eq('access_code', failAccessCode)
+        .eq('status', 'PENDING');
+    }
+    return Response.json({ ok: true, verificationFailed: true });
+  }
+
+  // ── Payments (subscription plans) below this line. ──
   // Only successful charges grant a plan.
   if (payload.event !== 'charge.success' || !payload.data) return Response.json({ ok: true, ignored: payload.event });
   const data = payload.data;
