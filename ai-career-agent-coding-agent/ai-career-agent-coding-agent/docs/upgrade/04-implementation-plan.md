@@ -42,25 +42,41 @@ Rollback: gate returns pass-through via flag.
 
 ## Milestone 2 · Usage ledger + monthly credits (blocked by D1, D4)
 
+Status: slice 1 SHIPPED 2026-09-23 (migration 037 applied to production;
+ledger client + meter integration on the DOCUMENT path + pipeline grant
+step). Ledger is in PARALLEL-RUN: tables populated daily, nothing enforced
+until the ENTITLEMENTS_LEDGER flip (by code default, same pattern as the
+onboarding gate, because the Vercel token is expired). Slice 2 remains:
+AUTO_APPLY wiring at engine outcome level, dashboards, enforcement flip
+after a clean observation cycle, retire usage_daily.
+
 Scope:
 - usage_ledger + credit_periods tables + balances view (03 §2.1), with
   GRANT/RESERVE/CONSUME/RELEASE/EXPIRE/ADJUST operations, idempotency
-  keys, row-locked functions.
+  keys, row-locked functions. [shipped as credit_ledger + credit_holds +
+  credit_periods; EXPIRE dropped per D1 accumulate/never-expire rule]
 - Monthly grant job (calendar periods, Africa/Lagos) + subscription-period
-  grants driven by apply_verified_payment.
+  grants driven by apply_verified_payment. [shipped as
+  credit_ensure_period_grants called by the daily pipeline; subscription
+  periods derive from subscriptions.current_period_*]
 - Plan matrix per confirmed D1 (5/10/15/100-fair-use documents;
-  5-after-activation/20/30/50 auto-apply; portfolios in M6).
+  5-after-activation/20/30/50 auto-apply; portfolios in M6). [shipped:
+  subscription_plans.monthly_*_credits columns, matrix live]
 - Parallel-run against usage_daily behind ENTITLEMENTS_LEDGER flag; flip
   enforcement after a clean cycle; retire old counters later.
 - Plan cards + /api/plans-style public data updated to the confirmed
   matrix (website, pricing copy, tests kept in sync; claims match
-  implementation).
+  implementation). [remaining: pricing copy lives in M5 website work]
 
 Tests: concurrency (double-spend), reservation release on failure, period
 boundaries, upgrade/downgrade/cancellation/refund paths, e2e credit
-exhaustion and reset.
+exhaustion and reset. [shipped: tests/credits.test.ts covers flag
+defaulting, rpc shapes, exhaustion mapping, meter reserve/commit/refund in
+both flag states; SQL-level concurrency is guarded by advisory locks +
+unique holds, e2e with a dedicated test account remains open]
 Acceptance: a script firing N parallel generations cannot exceed the
-period allowance by one; every ledger row is auditable.
+period allowance by one; every ledger row is auditable. [to be exercised
+on the dedicated test account before the enforcement flip]
 
 ## Milestone 3 · Free auto-apply activation (blocked by D2, D3)
 

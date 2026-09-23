@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '../supabase';
 import { processApplicationTask } from '../apply/task';
 import { runDiscoveryForUser, runDiscoveryStage } from './discovery';
+import { ensurePeriodGrants } from '../credits';
 
 /**
  * Shared agent pipeline, the single source of truth for task processing.
@@ -86,6 +87,9 @@ export interface PipelineReport {
   /** Per-user discovery stage (runs before task draining so auto-mode
    *  applications created by discovery are submitted in the same run). */
   discovery?: Awaited<ReturnType<typeof runDiscoveryStage>>;
+  /** Milestone 2 credit ledger: number of period grants issued this run
+   *  (parallel-run phase; enforcement is armed separately). */
+  creditGrants?: number;
 }
 
 /**

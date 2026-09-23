@@ -45,6 +45,7 @@ function mockMeter() {
     refund: async () => {
       counts.refunded++;
     },
+    commit: async () => {},
   };
   return { meter, counts };
 }
@@ -142,6 +143,7 @@ describe('AIGateway metering', () => {
         throw new AIGatewayError('AI_QUOTA_EXHAUSTED', 'limit');
       },
       refund: async () => {},
+      commit: async () => {},
     };
     const gw = new AIGateway([
       mockProvider({

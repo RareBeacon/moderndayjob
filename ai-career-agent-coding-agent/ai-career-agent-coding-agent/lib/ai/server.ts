@@ -4,6 +4,7 @@ import { decryptSecret } from '@packages/security/crypto';
 import { AIGateway, AIGatewayError } from '@packages/ai/gateway';
 import { OpenAICompatProvider, OllamaProvider, httpChat } from '@packages/ai/providers';
 import type { AIProvider, AIMessage, ChatResponse, UsageMeter } from '@packages/ai/types';
+import { consumeCredit, CreditExhaustedError, ledgerEnabled, releaseCredit, reserveCredit } from '@/lib/credits';
 import { assertPublicHttpsUrl } from '@/lib/agent/egress';
 
 /** Thrown when the user has no active AI credential configured. */
@@ -311,49 +312,90 @@ export function buildSupportGateway(): AIGateway {
  * restores whichever counter was consumed.
  */
 export function createUsageMeter(userId: string): UsageMeter {
+  // Milestone 2 credit ledger: one reference per meter (per request). The
+  // ledger HOLDS a DOCUMENT credit at reserve, CONSUMES at commit (the
+  // generation succeeded and persisted), RELEASES at refund. All ledger
+  // calls are inert until ENTITLEMENTS_LEDGER=true, so the parallel-run
+  // phase changes nothing for users.
+  const ledgerRef = `doc:${crypto.randomUUID()}`;
+
+  const legacyReserve = async (): Promise<void> => {
+    const { error } = await supabaseAdmin.rpc('consume_ai_credit', { p_user_id: userId });
+    if (error) {
+      if (error.message.includes('AI_QUOTA_EXHAUSTED')) {
+        throw new AIGatewayError('AI_QUOTA_EXHAUSTED', 'AI document limit reached for your plan.');
+      }
+      throw error;
+    }
+  };
+
+  const legacyRefund = async (): Promise<void> => {
+    // Best-effort decrement of both counters; never throws (callers ignore
+    // refund failures). Each block is independent and clamped at zero, so a
+    // missing row (e.g. lifetime row for a paid user) is a harmless no-op.
+    const today = new Date().toISOString().slice(0, 10);
+    try {
+      const { data } = await supabaseAdmin
+        .from('usage_daily')
+        .select('ai_used')
+        .eq('user_id', userId)
+        .eq('day', today)
+        .single();
+      const used = Math.max(0, (data?.ai_used ?? 1) - 1);
+      await supabaseAdmin
+        .from('usage_daily')
+        .update({ ai_used: used })
+        .eq('user_id', userId)
+        .eq('day', today);
+    } catch {
+      /* refund is best-effort */
+    }
+    try {
+      const { data } = await supabaseAdmin
+        .from('usage_lifetime')
+        .select('docs_used')
+        .eq('user_id', userId)
+        .single();
+      if (data) {
+        const used = Math.max(0, ((data as { docs_used?: number }).docs_used ?? 1) - 1);
+        await supabaseAdmin.from('usage_lifetime').update({ docs_used: used }).eq('user_id', userId);
+      }
+    } catch {
+      /* refund is best-effort */
+    }
+  };
+
   return {
     async reserve() {
-      const { error } = await supabaseAdmin.rpc('consume_ai_credit', { p_user_id: userId });
-      if (error) {
-        if (error.message.includes('AI_QUOTA_EXHAUSTED')) {
-          throw new AIGatewayError('AI_QUOTA_EXHAUSTED', 'AI document limit reached for your plan.');
+      await legacyReserve();
+      if (ledgerEnabled()) {
+        try {
+          await reserveCredit(userId, 'DOCUMENT', ledgerRef);
+        } catch (err) {
+          if (err instanceof CreditExhaustedError) {
+            // Ledger says no: give the legacy counter back and surface the
+            // same exhausted error the routes already map to a 429.
+            await legacyRefund();
+            throw new AIGatewayError('AI_QUOTA_EXHAUSTED', 'Document credit limit reached for your plan.');
+          }
+          throw err;
         }
-        throw error;
+      }
+    },
+    async commit() {
+      if (!ledgerEnabled()) return;
+      // Best-effort like refund: a failure here must not turn a persisted,
+      // successful generation into a 500. Logged loudly for follow-up.
+      try {
+        await consumeCredit(userId, 'DOCUMENT', ledgerRef);
+      } catch (err) {
+        console.error('ledger commit failed', { userId, ledgerRef, err: String(err).slice(0, 200) });
       }
     },
     async refund() {
-      // Best-effort decrement of both counters; never throws (callers ignore
-      // refund failures). Each block is independent and clamped at zero, so a
-      // missing row (e.g. lifetime row for a paid user) is a harmless no-op.
-      const today = new Date().toISOString().slice(0, 10);
-      try {
-        const { data } = await supabaseAdmin
-          .from('usage_daily')
-          .select('ai_used')
-          .eq('user_id', userId)
-          .eq('day', today)
-          .single();
-        const used = Math.max(0, (data?.ai_used ?? 1) - 1);
-        await supabaseAdmin
-          .from('usage_daily')
-          .update({ ai_used: used })
-          .eq('user_id', userId)
-          .eq('day', today);
-      } catch {
-        /* refund is best-effort */
-      }
-      try {
-        const { data } = await supabaseAdmin
-          .from('usage_lifetime')
-          .select('docs_used')
-          .eq('user_id', userId)
-          .single();
-        if (data) {
-          const used = Math.max(0, ((data as { docs_used?: number }).docs_used ?? 1) - 1);
-          await supabaseAdmin.from('usage_lifetime').update({ docs_used: used }).eq('user_id', userId);
-        }
-      } catch {
-        /* refund is best-effort */
+      await legacyRefund();
+      if (ledgerEnabled()) {
+        await releaseCredit(userId, 'DOCUMENT', ledgerRef).catch(() => {});
       }
     },
   };
@@ -396,6 +438,9 @@ export function createToolMeter(userId: string): UsageMeter {
       } catch {
         /* refund is best-effort */
       }
+    },
+    async commit() {
+      // Free-tool uses are not ledger document credits; nothing to commit.
     },
   };
 }

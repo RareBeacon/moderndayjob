@@ -77,6 +77,12 @@ export interface AITask<Input, Output> {
 export interface UsageMeter {
   reserve(): Promise<void>;
   refund(): Promise<void>;
+  /**
+   * Milestone 2 credit ledger: spend the reserved credit on confirmed
+   * completion. Legacy counters count at reserve; the ledger holds at
+   * reserve and only consumes on commit. No-op when the ledger is not armed.
+   */
+  commit(): Promise<void>;
 }
 
 /**

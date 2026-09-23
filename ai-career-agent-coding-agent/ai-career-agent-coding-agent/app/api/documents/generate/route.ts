@@ -129,6 +129,10 @@ export async function POST(req: Request) {
     provider: result.provider,
   });
 
+  // Milestone 2: the document is generated AND saved, so the reserved ledger
+  // credit is consumed (no-op unless the ledger is armed).
+  await meter.commit();
+
   return NextResponse.json(
     { document: { id: persisted.id, version: persisted.version, contentHash: persisted.contentHash, kind, title: result.title, content: result.content }, report: result.report, ...(sensitive.length ? { sensitive } : {}) },
     { status: 201 },

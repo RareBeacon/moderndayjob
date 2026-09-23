@@ -96,6 +96,9 @@ export async function POST(req: Request) {
     education: (career.education ?? []) as GenerationProfile['education'],
   };
   const cv = buildFallbackCV(generationProfile);
+  // Milestone 2: the generation succeeded and is delivered; consume the
+  // reserved ledger credit (no-op unless the ledger is armed).
+  await meter.commit();
   void recordGenerationUsage({ userId: user.id, feature: 'ai.resume', provider: SAFE_FALLBACK_PROVIDER, latencyMs: Date.now() - resumeT0, status: 'ok' });
 
   void auditEvent({

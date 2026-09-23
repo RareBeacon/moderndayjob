@@ -178,6 +178,10 @@ export async function POST(req: Request) {
       },
     });
 
+    // Milestone 2: generated and saved, so the reserved ledger credit is
+    // consumed (no-op unless the ledger is armed).
+    await meter.commit();
+
     return NextResponse.json({
       document: { id: persisted.id, version: persisted.version, contentHash: persisted.contentHash, kind: 'CV', title: `${titleName}, ${role}`, content: generatedText },
       report,

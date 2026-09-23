@@ -67,6 +67,7 @@ describe('AIGateway.run ledger', () => {
     const meter = {
       reserve: async () => { throw new AIGatewayError('AI_QUOTA_EXHAUSTED', 'no credits'); },
       refund: async () => undefined,
+      commit: async () => undefined,
     };
     await expect(gw.run(task, {}, { meter, ledger: (e) => { events.push(e); } })).rejects.toThrow('no credits');
     expect(events).toHaveLength(1);
