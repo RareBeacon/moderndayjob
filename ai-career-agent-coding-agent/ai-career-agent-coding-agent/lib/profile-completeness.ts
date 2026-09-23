@@ -34,7 +34,7 @@ const SECTION_WEIGHTS: Record<string, number> = {
 const NA_ELIGIBLE = new Set(['experience', 'education', 'projects']);
 
 export async function getProfileCompleteness(userId: string) {
-  const [{ data: p }, { data: c }, { data: prefs }, { count: docCount }] = await Promise.all([
+  const [profileRes, careerRes, prefsRes, docsRes] = await Promise.all([
     supabaseAdmin.from('profiles').select('full_name,target_roles').eq('user_id', userId).single(),
     supabaseAdmin
       .from('career_profiles')
@@ -48,6 +48,22 @@ export async function getProfileCompleteness(userId: string) {
       .maybeSingle(),
     supabaseAdmin.from('documents').select('*', { count: 'exact', head: true }).eq('user_id', userId),
   ]);
+
+  // Resilience: migration 036 (not_applicable) may not be applied yet in an
+  // environment. A failed career read would silently zero every career
+  // check, so retry once without the N/A column; the feature is simply
+  // inert until the migration lands. Same guard for a failed profile read.
+  const career = (careerRes.error
+    ? await supabaseAdmin
+        .from('career_profiles')
+        .select('headline,summary,skills,experience,education,projects,links')
+        .eq('user_id', userId)
+        .maybeSingle()
+    : careerRes) as typeof careerRes;
+  const p = profileRes.error ? null : profileRes.data;
+  const c = career.data;
+  const prefs = prefsRes.data;
+  const docCount = docsRes.count;
 
   const naSections = (c?.not_applicable ?? ([] as string[])) as string[];
   const na = new Set(naSections.filter((id: string) => NA_ELIGIBLE.has(id)));
