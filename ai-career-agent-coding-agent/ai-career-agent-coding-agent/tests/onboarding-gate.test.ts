@@ -137,7 +137,8 @@ describe('weighted completion', () => {
 });
 
 describe('gate cohort and flag', () => {
-  it('is inert while ONBOARDING_GATE_ENABLED is off, even for incomplete new accounts', async () => {
+  it('is inert while ONBOARDING_GATE_ENABLED is explicitly off, even for incomplete new accounts', async () => {
+    process.env.ONBOARDING_GATE_ENABLED = 'false';
     m.careerData = null;
     m.prefsData = null;
     m.docCount = 0;
@@ -208,7 +209,8 @@ describe('gate wired into /api/preferences/mode', () => {
     expect(m.upsert).not.toHaveBeenCalled();
   });
 
-  it('proceeds for the same account when the gate is not armed', async () => {
+  it('proceeds for the same account when the gate is disarmed by env', async () => {
+    process.env.ONBOARDING_GATE_ENABLED = 'false';
     m.careerData = null;
     m.prefsData = null;
     m.docCount = 0;

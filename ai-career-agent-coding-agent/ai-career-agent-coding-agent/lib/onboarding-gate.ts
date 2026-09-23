@@ -11,9 +11,9 @@ import { getProfileCompleteness } from '@/lib/profile-completeness';
  * Scope rules (owner decision D6):
  *  - The gate applies only to accounts created on/after ONBOARDING_GATE_EPOCH
  *    (accounts that existed before are never locked out; they see prompts).
- *  - The gate is armed by ONBOARDING_GATE_ENABLED=true, read at call time so
- *    it can be flipped without a rebuild and exercised in tests. Until the
- *    wizard's gate-aware UI ships, the flag stays OFF in production.
+ *  - ARMED BY DEFAULT since 2026-09-23 (owner "go" after the wizard's
+ *    gate-aware UI shipped). Set ONBOARDING_GATE_ENABLED=false to disarm
+ *    (read at call time, so it can be flipped per environment).
  *  - The gate never blocks profile/onboarding writes themselves; a blocked
  *    user must always be able to finish onboarding.
  */
@@ -36,8 +36,13 @@ export type OnboardingGateResult = {
  * created on/after the epoch. Used by the dashboard to render the wizard as
  * required, and by onboardingGate for enforcement.
  */
+function gateEnabled(): boolean {
+  const v = process.env.ONBOARDING_GATE_ENABLED;
+  return v == null || v === 'true';
+}
+
 export function isGatedCohort(createdAt?: string | null): boolean {
-  if (process.env.ONBOARDING_GATE_ENABLED !== 'true') return false;
+  if (!gateEnabled()) return false;
   const epoch = process.env.ONBOARDING_GATE_EPOCH ?? DEFAULT_EPOCH;
   const createdMs = createdAt ? new Date(createdAt).getTime() : 0;
   return createdMs >= new Date(epoch).getTime();
