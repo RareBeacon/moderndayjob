@@ -19,6 +19,12 @@ hardened.
 
 ## Milestone 1 · Onboarding gate + weighted completion (no decisions needed)
 
+Status: slice 1 (weights, N/A migration 036, server gate on five routes, 14
+tests) and slice 2 (wizard N/A checkboxes, required-mode dashboard setup for
+the gated cohort, ONBOARDING_REQUIRED handling at every gated call site,
+schema + route tests) shipped 2026-09-23. Flag armed in production for
+accounts created on/after 2026-09-23.
+
 Scope:
 - Extend lib/profile-completeness.ts to the weighted 8-section model with
   optional / not-applicable handling; server-side recalculation only.

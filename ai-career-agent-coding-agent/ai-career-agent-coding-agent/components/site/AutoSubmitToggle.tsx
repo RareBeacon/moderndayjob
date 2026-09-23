@@ -48,7 +48,12 @@ export function AutoSubmitToggle({
       } else if (r.status === 429) {
         setNote('Too many changes just now. Try again in a minute.');
       } else {
-        setNote('Could not save your choice. Please try again.');
+        const body = await r.json().catch(() => null);
+        setNote(
+          body?.error === 'ONBOARDING_REQUIRED'
+            ? 'Finish your profile setup first. The remaining questions are on your dashboard.'
+            : 'Could not save your choice. Please try again.',
+        );
       }
     } catch {
       setNote('Network problem. Please try again.');

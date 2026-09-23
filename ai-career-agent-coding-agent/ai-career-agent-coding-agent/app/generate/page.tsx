@@ -917,6 +917,7 @@ function ClassicGenerator({ jobs, recent, loadRecent }: { jobs: Job[]; recent: G
           DAILY_AI_CREDITS_EXHAUSTED: { title: 'Out of AI generations', detail: 'You have reached your plan generation limit for today.' },
           CAREER_PROFILE_REQUIRED: { title: 'Complete your profile', detail: 'Generation needs your career profile first.' },
           RATE_LIMITED: { title: 'Slow down', detail: 'Too many requests. Wait a moment.' },
+          ONBOARDING_REQUIRED: { title: 'Finish your profile setup', detail: 'Answer the remaining setup questions on your dashboard to unlock generation.' },
           TRUTHFULNESS_FAILED: { title: 'Unsupported facts found', detail: 'The draft contained claims not in your profile, so it was not saved.' },
           ANSWERS_REQUIRES_QUESTIONS: { title: 'Add questions', detail: 'Enter at least one application question.' },
         };

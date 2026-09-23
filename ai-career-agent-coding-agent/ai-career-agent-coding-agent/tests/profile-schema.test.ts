@@ -60,3 +60,20 @@ describe('profileSchema', () => {
     expect(education).toEqual([]);
   });
 });
+
+describe('profileSchema · not_applicable (Milestone 1)', () => {
+  it('defaults to an empty list when omitted', () => {
+    const { not_applicable } = profileSchema.parse(validBase);
+    expect(not_applicable).toEqual([]);
+  });
+
+  it('accepts the three allowed sections', () => {
+    const out = profileSchema.parse({ ...validBase, not_applicable: ['experience', 'education', 'projects'] });
+    expect(out.not_applicable).toEqual(['experience', 'education', 'projects']);
+  });
+
+  it('rejects any other section name (mirrors the DB constraint)', () => {
+    expect(() => profileSchema.parse({ ...validBase, not_applicable: ['name'] })).toThrow();
+    expect(() => profileSchema.parse({ ...validBase, not_applicable: ['skills', 'roles'] })).toThrow();
+  });
+});

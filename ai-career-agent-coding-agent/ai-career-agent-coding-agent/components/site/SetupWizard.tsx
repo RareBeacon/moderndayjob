@@ -22,6 +22,7 @@ type FormState = {
   currency: string;
   application_mode: Mode;
   daily_target: string;
+  not_applicable: string[];
 };
 
 const split = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean);
@@ -50,7 +51,7 @@ const CURRENCIES = ['NGN', 'USD', 'GBP', 'EUR', 'GHS', 'KES', 'ZAR', 'CAD'];
 
 const EMPTY: FormState = {
   full_name: '', target_roles: '', headline: '', summary: '', skills: '', application_email: '',
-  experience: [], education: [],
+  experience: [], education: [], not_applicable: [],
   remote_types: [], locations: '', employment_types: [], salary_min: '', currency: 'NGN', application_mode: 'approval', daily_target: '10',
 };
 
@@ -60,7 +61,7 @@ const EMPTY: FormState = {
  * /api/profile + /api/preferences. onFinish/skip hand control back to the
  * dashboard, which refreshes its own numbers from the server.
  */
-export function SetupWizard({ onFinish, onSkip }: { onFinish: () => void; onSkip: () => void }) {
+export function SetupWizard({ onFinish, onSkip, required = false }: { onFinish: () => void; onSkip: () => void; required?: boolean }) {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(EMPTY);
   const [step, setStep] = useState(0);
@@ -97,6 +98,9 @@ export function SetupWizard({ onFinish, onSkip }: { onFinish: () => void; onSkip
           currency: pr.currency || 'NGN',
           application_mode: (pr.application_mode as Mode) || 'approval',
           daily_target: pr.daily_target != null ? String(pr.daily_target) : '10',
+          not_applicable: Array.isArray(c.not_applicable)
+            ? c.not_applicable.filter((v: string) => ['experience', 'education', 'projects'].includes(v))
+            : [],
         });
       })
       .catch(() => {})
@@ -107,6 +111,15 @@ export function SetupWizard({ onFinish, onSkip }: { onFinish: () => void; onSkip
   function field<K extends keyof FormState>(key: K) {
     return (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
       setForm((f) => ({ ...f, [key]: e.target.value } as FormState));
+  }
+
+  function toggleNA(section: 'experience' | 'education') {
+    setForm((f) => ({
+      ...f,
+      not_applicable: f.not_applicable.includes(section)
+        ? f.not_applicable.filter((v) => v !== section)
+        : [...f.not_applicable, section],
+    }));
   }
 
   function toggle(key: 'remote_types' | 'employment_types', value: string) {
@@ -146,6 +159,7 @@ export function SetupWizard({ onFinish, onSkip }: { onFinish: () => void; onSkip
         .filter((x) => x.institution.trim() && x.qualification.trim())
         .map((x) => ({ institution: x.institution.trim(), qualification: x.qualification.trim() })),
       links: {},
+      not_applicable: form.not_applicable,
     };
     const prefBody = {
       remote_types: form.remote_types,
@@ -203,7 +217,7 @@ export function SetupWizard({ onFinish, onSkip }: { onFinish: () => void; onSkip
     <section className="wizard-card dd-wizard" aria-label="Profile setup">
       <div className="dd-wizard-head">
         <p className="eyebrow">SET UP YOUR CAREER WORKSPACE</p>
-        <button type="button" className="text-button" onClick={onSkip} disabled={saving}>Skip for now</button>
+        {required ? null : <button type="button" className="text-button" onClick={onSkip} disabled={saving}>Skip for now</button>}
       </div>
       <h1>Let’s tailor your agent.</h1>
       <p className="step-sub">Six quick steps. Your profile is the source of facts we use, we never invent.</p>
@@ -276,8 +290,8 @@ export function SetupWizard({ onFinish, onSkip }: { onFinish: () => void; onSkip
           {step === 4 && (
             <div className="form-stack">
               <div>
-                <div className="section-title"><h2>Experience</h2><button type="button" className="text-button" onClick={() => setForm((f) => ({ ...f, experience: [...f.experience, { company: '', title: '', description: '' }] }))}>Add</button></div>
-                {form.experience.map((x, i) => (
+                <div className="section-title"><h2>Experience</h2>{form.not_applicable.includes('experience') ? null : <button type="button" className="text-button" onClick={() => setForm((f) => ({ ...f, experience: [...f.experience, { company: '', title: '', description: '' }] }))}>Add</button>}</div>
+                {!form.not_applicable.includes('experience') && form.experience.map((x, i) => (
                   <div className="repeat-row" key={i}>
                     <input placeholder="Company" value={x.company} onChange={(e) => setForm((f) => ({ ...f, experience: f.experience.map((v, j) => (j === i ? { ...v, company: e.target.value } : v)) }))} />
                     <input placeholder="Role title" value={x.title} onChange={(e) => setForm((f) => ({ ...f, experience: f.experience.map((v, j) => (j === i ? { ...v, title: e.target.value } : v)) }))} />
@@ -286,14 +300,22 @@ export function SetupWizard({ onFinish, onSkip }: { onFinish: () => void; onSkip
                 ))}
               </div>
               <div>
-                <div className="section-title"><h2>Education</h2><button type="button" className="text-button" onClick={() => setForm((f) => ({ ...f, education: [...f.education, { institution: '', qualification: '' }] }))}>Add</button></div>
-                {form.education.map((x, i) => (
+                <div className="section-title"><h2>Education</h2>{form.not_applicable.includes('education') ? null : <button type="button" className="text-button" onClick={() => setForm((f) => ({ ...f, education: [...f.education, { institution: '', qualification: '' }] }))}>Add</button>}</div>
+                {!form.not_applicable.includes('education') && form.education.map((x, i) => (
                   <div className="repeat-row two" key={i}>
                     <input placeholder="Institution" value={x.institution} onChange={(e) => setForm((f) => ({ ...f, education: f.education.map((v, j) => (j === i ? { ...v, institution: e.target.value } : v)) }))} />
                     <input placeholder="Qualification" value={x.qualification} onChange={(e) => setForm((f) => ({ ...f, education: f.education.map((v, j) => (j === i ? { ...v, qualification: e.target.value } : v)) }))} />
                   </div>
                 ))}
               </div>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input type="checkbox" checked={form.not_applicable.includes('experience')} onChange={() => toggleNA('experience')} />
+                <span>I don't have work experience yet</span>
+              </label>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input type="checkbox" checked={form.not_applicable.includes('education')} onChange={() => toggleNA('education')} />
+                <span>I have no formal education to add</span>
+              </label>
               <label>Application email<span>The address used when you apply. No inbox access, just a contact email.</span><input type="email" value={form.application_email} onChange={field('application_email')} placeholder="you@example.com" /></label>
               <label>How much control should your agent have?</label>
               <div className="mode-cards">

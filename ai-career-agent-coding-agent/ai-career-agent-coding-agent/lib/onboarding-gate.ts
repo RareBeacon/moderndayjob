@@ -31,21 +31,28 @@ export type OnboardingGateResult = {
   next: string[];
 };
 
+/**
+ * Pure cohort check (no queries): the gate is armed AND this account was
+ * created on/after the epoch. Used by the dashboard to render the wizard as
+ * required, and by onboardingGate for enforcement.
+ */
+export function isGatedCohort(createdAt?: string | null): boolean {
+  if (process.env.ONBOARDING_GATE_ENABLED !== 'true') return false;
+  const epoch = process.env.ONBOARDING_GATE_EPOCH ?? DEFAULT_EPOCH;
+  const createdMs = createdAt ? new Date(createdAt).getTime() : 0;
+  return createdMs >= new Date(epoch).getTime();
+}
+
 export async function onboardingGate(user: Pick<User, 'id' | 'created_at'>): Promise<OnboardingGateResult> {
-  const enabled = process.env.ONBOARDING_GATE_ENABLED === 'true';
-  if (!enabled) {
-    // Inert: no completeness queries run on any request while the gate is
-    // off, so arming it later is the only change (zero overhead until then).
+  if (!isGatedCohort(user.created_at)) {
+    // Inert: no completeness queries run on any request outside the gated
+    // cohort, so arming the gate is the only change (zero overhead before).
     return { allowed: true, applied: false, percent: 0, next: [] };
   }
   const completeness = await getProfileCompleteness(user.id);
-  const epoch = process.env.ONBOARDING_GATE_EPOCH ?? DEFAULT_EPOCH;
-  const createdMs = user.created_at ? new Date(user.created_at).getTime() : 0;
-  const inCohort = createdMs >= new Date(epoch).getTime();
-  const applied = enabled && inCohort;
   return {
-    allowed: !applied || completeness.percent >= ONBOARDING_THRESHOLD,
-    applied,
+    allowed: completeness.percent >= ONBOARDING_THRESHOLD,
+    applied: true,
     percent: completeness.percent,
     next: completeness.next,
   };

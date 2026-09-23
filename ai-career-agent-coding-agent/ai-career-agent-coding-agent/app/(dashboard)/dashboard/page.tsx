@@ -6,6 +6,7 @@ import { requireUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getEntitlement } from '@packages/security/entitlements';
 import { getProfileCompleteness } from '@/lib/profile-completeness';
+import { isGatedCohort, ONBOARDING_THRESHOLD } from '@/lib/onboarding-gate';
 import { buildBoardLinks, isRemoteOnly } from '@/lib/boardlinks';
 import { AutoSubmitToggle } from '@/components/site/AutoSubmitToggle';
 
@@ -42,6 +43,8 @@ export default async function Dashboard() {
     getEntitlement(user.id),
     getProfileCompleteness(user.id),
   ]);
+
+  const setupRequired = isGatedCohort(user.created_at) && completeness.percent < ONBOARDING_THRESHOLD;
 
   const boardLinks = buildBoardLinks({
     targetRoles: profile?.target_roles ?? [],
@@ -121,7 +124,7 @@ export default async function Dashboard() {
       <div className="dd-rule" aria-hidden="true" />
 
       {/* setup questions live here now: invited, never forced (no redirect) */}
-      <DashboardSetup needsSetup={!profile?.target_roles?.length} />
+      <DashboardSetup needsSetup={!profile?.target_roles?.length} required={setupRequired} />
 
       <section className="dd-stats" aria-label="Your numbers">
         <div className="dd-stat"><b>{applicationCount ?? 0}</b><span>Applications</span></div>

@@ -520,6 +520,7 @@ function friendly(code: string, message?: string): string {
     case 'NOT_ENTITLED': return 'Your plan does not include automatic submission.';
     case 'UNSUPPORTED_PLATFORM': return 'This employer platform is not supported for automatic submission yet.';
     case 'RATE_LIMITED': return 'Too many requests; slow down a moment.';
+    case 'ONBOARDING_REQUIRED': return 'Finish your profile setup first. Open your dashboard and answer the remaining questions to unlock this.';
     default: return message || 'Something went wrong. Please try again.';
   }
 }
@@ -532,6 +533,7 @@ function genError(code: string): string {
     case 'CAREER_PROFILE_REQUIRED': return 'Complete your career profile first.';
     case 'TRUTHFULNESS_FAILED': return 'The draft used unsupported facts and was rejected. Edit your profile and try again.';
     case 'RATE_LIMITED': return 'Too many requests - slow down a moment.';
+    case 'ONBOARDING_REQUIRED': return 'Finish your profile setup first. Open your dashboard and answer the remaining questions to unlock this.';
     default: return 'Generation failed. Please try again.';
   }
 }

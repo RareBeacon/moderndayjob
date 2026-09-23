@@ -50,6 +50,16 @@ export const profileSchema = z.object({
       portfolio: z.string().url().optional().or(z.literal('')),
     })
     .default({}),
+  /**
+   * Sections the user marked not applicable (Milestone 1): they count as
+   * addressed for onboarding completion without inventing data. Only the
+   * three sections a person may genuinely not have are allowed, mirroring
+   * the career_profiles.not_applicable_values constraint (migration 036).
+   */
+  not_applicable: z
+    .array(z.enum(['experience', 'education', 'projects']))
+    .max(3)
+    .default([]),
 });
 
 export type ProfileInput = z.infer<typeof profileSchema>;

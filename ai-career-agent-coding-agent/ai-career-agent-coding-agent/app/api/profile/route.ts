@@ -65,6 +65,7 @@ export async function PUT(request: Request) {
         experience: body.experience,
         education: body.education,
         links: body.links,
+        not_applicable: body.not_applicable,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'user_id' },
