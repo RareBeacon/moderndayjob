@@ -45,6 +45,16 @@ and Render keeps submissions working during any gap.
   (10 Mbps) · 20 GB object storage.
 - **Do not upgrade to Pay As You Go** without an explicit decision — PAYG keeps
   4/24 but risks charges. We stay Always Free.
+- **Backend workers vs web app (2026-09-24 status):** the web app (Vercel),
+  database (Supabase), and the **Render standby worker** all run `190fd6d`
+  (M4 verification layer live on the submission path). The **OCI primary
+  worker** (`worker.jobiest.com`) and the OCI API gateway (`api.jobiest.com`)
+  are healthy but still on the 2026-09-21 build (pre-M4). To update them,
+  either enable the *Compute Instance Run Command* plugin on the `jobiest-ai`
+  instance (Oracle console → Compute → Instances → jobiest-ai → Oracle Cloud
+  Agent tab) so updates can be automated via the OCI API, or SSH in and run:
+  `cd ~/jobiest && git pull && cd ai-career-agent-coding-agent/ai-career-agent-coding-agent/deploy/oci && docker compose up -d --build`.
+
 
 ## Phase 0 — Provision the VM (do once)
 

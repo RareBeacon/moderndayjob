@@ -309,8 +309,13 @@ run a re-encryption migration (decrypt with old key → encrypt with new key)
 
 ### Step-by-step
 1. **Deploy the browser worker on Render** (it can't run on Vercel) — ✅ **DONE (2026-09-08)**:
-   - Live at `https://jobiest-browser-worker.onrender.com` (`srv-dag2nku1egvs73a29dng`,
-     plan **free**, region frankfurt).
+- Live at `https://jobiest-browser-worker.onrender.com` (`srv-dag2nku1egvs73a29dng`,
+   plan **free**, region frankfurt).
+   - **Redeployed 2026-09-24 to `190fd6d`** via the Render API (key stored at
+     `~/keys/render_api_key.txt`), bringing the M4 confirmation-verification
+     layer to the worker. Build went `live` in ~3 min; healthz + 401 gate
+     re-verified after. Deploy command: `POST /v1/services/srv-dag2nku1egvs73a29dng/deploys`
+     with `{"commitId": "<full sha>"}`.
    - **Docker runtime** (still the free plan): Render's native Node runtime
      cannot install Chromium's system deps (`playwright install --with-deps`
      runs `su` inside the build → `su: Authentication failure`), so the worker
