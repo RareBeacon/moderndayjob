@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 
 const faqs = [
   { q: 'How much work is this, really?', a: 'Set your criteria once. On paid plans your agent then searches employer boards for matching roles and prepares the applications; you can also paste any job link yourself. You review each package and approve; on Greenhouse and Lever the submission itself is done for you, or fully automatic if you switch to the Auto send policy. Most evenings take minutes, not hours.' },
-  { q: 'Which job boards does it support?', a: 'The agent fills and submits employer forms on Greenhouse, Lever, Ashby and Workable. It searches public employer boards when looking for roles, and for any job you bring yourself it prepares the complete package, CV, cover letter and answers, with a direct link so you can submit in a couple of clicks. Forms that need a CAPTCHA, a login, or an assessment are handed back to you with everything ready to go.' },
+  { q: 'Which job boards does it support?', a: 'The agent fills and submits employer forms on Greenhouse, Lever, Ashby and Workable, after your approval or on the Auto policy. Jobs it finds itself come from Greenhouse and Lever boards today; any job you paste on a supported board is filled and submitted too. Everything else comes back as the complete package, CV, cover letter and answers, with a direct link so you can submit in a couple of clicks. Forms that need a CAPTCHA, a login, or an assessment are handed back to you with everything ready to go.' },
   { q: 'Will it make up experience for my CV?', a: 'Never. Documents are built only from the facts you verify. Missing details are flagged so you can add context without inventing credentials or achievements, and a truthfulness check runs before any submission: if honest content cannot be verified, the application stops and comes back to you.' },
   { q: 'What can I do on the free plan?', a: 'Use all 10 career tools (full results preview, no account needed), build your profile and criteria, and track applications in one place. You also get three AI generations in total to try the writer. Agent runs start on paid plans. No payment card is required.' },
 ];
@@ -45,7 +45,7 @@ const howSteps = [
   { n: '01', title: 'Give Jobiest your criteria', body: 'Target roles, locations, remote preference, salary floor, daily target. You set the rules once; the agent works inside them.' },
   { n: '02', title: 'Your agent finds the jobs', body: 'On paid plans, your agent searches employer boards for roles that match your criteria and adds them to your pipeline, ready to apply. You can also paste any link yourself, from anywhere. No scrolling job boards inside Jobiest.' },
   { n: '03', title: 'Your agent does the work', body: 'It reads each job description, tailors your CV and cover letter from your verified experience, answers application questions, and completes supported forms.' },
-  { n: '04', title: 'Applications get submitted', body: 'By default you review each package and approve with one tap, and your agent submits on Greenhouse and Lever. Prefer full delegation? On paid plans, switch to the Auto send policy and your agent submits within your rules, then emails you each application it sent on your behalf.' },
+  { n: '04', title: 'Applications get submitted', body: 'By default you review each package and approve with one tap, and your agent submits on Greenhouse, Lever, Ashby and Workable. Prefer full delegation? On paid plans, switch to the Auto send policy and your agent submits within your rules, then emails you each application it sent on your behalf.' },
   { n: '05', title: 'Track everything', body: 'Applied, waiting, interview, rejected, follow-up. One tracker shows every application and its status, every morning.' },
 ];
 
@@ -63,7 +63,7 @@ const trustItems = [
   {
     icon: 'briefcase' as const,
     title: 'Supported boards, stated plainly',
-    body: 'Greenhouse and Lever today: the agent fills and submits the employer form after you approve. Every other job comes back as a complete, ready-to-send package with a direct link.',
+    body: 'On Greenhouse, Lever, Ashby and Workable, the agent fills and submits the employer form after you approve. Jobs your agent finds come from Greenhouse and Lever boards today; every other job comes back as a complete, ready-to-send package with a direct link.',
   },
   {
     icon: 'user' as const,
@@ -133,7 +133,7 @@ export default async function HomePage() {
               <h1>Your AI agent<br />for the <span className={styles['headline-highlight']}>job search.</span></h1>
               <div className={styles['hero-copy']}>
                 <p>
-                  Tell Jobiest what you are looking for once. On paid plans your agent finds matching roles and readies the applications; paste any job yourself too. It tailors your CV and cover letter, answers the questions, fills the form, and submits on Greenhouse, Lever, Ashby and Workable: after your approval by default, or automatically on the Auto policy. You review the results. It does the work.
+                  Tell Jobiest what you want once. It finds matching roles on paid plans, or takes any job link you paste. Every application comes back tailored: CV, cover letter, answers, form filled. One tap approves it, and on Greenhouse, Lever, Ashby and Workable the agent submits for you. You review the results. It does the work.
                 </p>
                 <div className={styles['hero-actions']}>
                   <Link className={`${styles.button} ${styles['button-navy']}`} href="/signup">
@@ -267,8 +267,8 @@ export default async function HomePage() {
               <div>
                 <h3>Where the agent can apply</h3>
                 <ul>
-                  <li><Icon name="check" small /> <strong>Greenhouse and Lever:</strong> after your approval, the agent fills and submits the employer form.</li>
-                  <li><Icon name="check" small /> <strong>Every other job:</strong> you get the complete package, tailored CV, cover letter and answers, with a direct link to submit in a couple of clicks.</li>
+                  <li><Icon name="check" small /> <strong>Jobs you paste:</strong> on Greenhouse, Lever, Ashby and Workable the agent fills and submits the form after you approve; anything else comes back as a ready-to-send package with a direct link.</li>
+                  <li><Icon name="check" small /> <strong>Jobs your agent finds:</strong> Greenhouse and Lever boards today, submitted the same way after your approval.</li>
                   <li><Icon name="check" small /> <strong>CAPTCHA, login or assessment required:</strong> the agent stops and hands it back to you with everything prepared.</li>
                   <li><Icon name="check" small /> <strong>Unclear submissions:</strong> if a submit result cannot be confirmed, it is never auto-retried; you get a manual check instead.</li>
                 </ul>
@@ -305,11 +305,11 @@ export default async function HomePage() {
             </div>
             <div className={styles['limits-explainer']}>
               <strong>What the limits mean</strong>
-              <p>
-                <strong>AI generations</strong> are resumes, cover letters and application answers written by the AI writer: 5 a month on Free, 10 to 100 a month on paid plans. Unused generations never expire; each month's allowance adds to what you already have.
-                <strong> Career-tool uses</strong> cover the 10 free tools: the ATS scanner is rule-based, the other nine are AI-powered, and every tool shows a full preview without an account (copying and saving needs a free account). Tool use never touches your AI-generation allowance.
-                <strong> An agent run</strong> is one complete application: the job is found or pasted, analyzed, your documents tailored, the form filled, and the send happens (after your approval, or automatically on the Auto policy). Basic includes 20 a month, Premium 30, Max 50. Free can unlock 5 a month with a one-time card verification that costs nothing. Credits only count confirmed sends; stopped or unconfirmed ones go back.
-              </p>
+              <ul>
+                <li><strong>AI generations:</strong> resumes, cover letters and application answers written by the AI writer. 5 a month on Free, 10 to 100 a month on paid plans. Unused generations never expire; each month's allowance adds to what you already have.</li>
+                <li><strong>Career-tool uses:</strong> the 10 free tools: the ATS scanner is rule-based, the other nine are AI-powered, and every tool shows a full preview without an account (copying and saving needs a free account). Tool use never touches your AI-generation allowance.</li>
+                <li><strong>Agent runs:</strong> one complete application, found or pasted, analyzed, documents tailored, form filled, sent after your approval or on the Auto policy. Basic includes 20 a month, Premium 30, Max 50. Free can unlock 5 a month with a one-time card verification that costs nothing. Credits only count confirmed sends; stopped or unconfirmed ones go back.</li>
+              </ul>
             </div>
             <p className={styles['pricing-footer']}>
               Prices in Naira. Cancel anytime. <Link href="/pricing">View full plan details <Icon name="arrow-up" small /></Link>

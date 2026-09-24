@@ -166,6 +166,9 @@
 .limits-explainer { margin-top: 34px; background: #f5f6f9; border: 1px solid var(--line); border-radius: 14px; padding: 24px 28px; }
 .limits-explainer strong { color: var(--navy); }
 .limits-explainer p { margin-top: 10px; font-size: .9375rem; color: #5a6778; line-height: 1.8; }
+.limits-explainer ul { list-style: none; margin-top: 10px; display: grid; gap: 12px; }
+.limits-explainer li { font-size: .9375rem; color: #5a6778; line-height: 1.8; padding-left: 22px; position: relative; }
+.limits-explainer li:before { content: ''; position: absolute; left: 0; top: .72em; width: 9px; height: 9px; border-radius: 50%; background: var(--yellow); }
 
 /* Responsive */
 @media (max-width: 1150px) { .hero-promise { grid-template-columns: 1fr; } .platforms-panel { grid-template-columns: 1fr; gap: 22px; } }
