@@ -16,16 +16,6 @@ function isProtected(pathname: string): boolean {
   return PROTECTED.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
-/**
- * Fast session-cookie presence check for the marketing homepage only. The
- * homepage is high-traffic and must not pay for a full getUser() roundtrip;
- * a stale cookie simply means /dashboard re-validates (requireUser) and bounces
- * to /login. Real gating always happens server-side in route handlers.
- */
-function hasSessionCookie(request: NextRequest): boolean {
-  return request.cookies.getAll().some((c) => c.name.startsWith('sb-') && c.name.includes('auth-token'));
-}
-
 /** Social sign-up email gate + account-completion gate: social sessions
  *  (google / linkedin) must verify their email (profiles.email_verified_at)
  *  and then set a password + phone (owner brief 2026-09-21) before the app
@@ -64,12 +54,13 @@ export async function middleware(request: NextRequest) {
   if (!url || !key) return NextResponse.next();
   const { pathname } = request.nextUrl;
 
-  // Authenticated visitors never see the marketing homepage: one clear home.
-  if (pathname === '/' && hasSessionCookie(request)) {
-    const redirect = request.nextUrl.clone();
-    redirect.pathname = '/dashboard';
-    return NextResponse.redirect(redirect);
-  }
+  // The homepage '/' is fully public and is NOT in the matcher: middleware
+  // never runs on it (2026-09-24 fix). The previous fast-path redirected any
+  // visitor with a mere session-cookie PRESENCE to /dashboard without
+  // validating the session, so every browser holding an expired/stale cookie
+  // experienced  /  ->  /dashboard  ->  /login?next=%2Fdashboard. The
+  // homepage must never inherit a protected route's destination; requested
+  // URL determines destination.
 
   let response = NextResponse.next({ request });
   const supabase = createServerClient(url, key, {
@@ -150,5 +141,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/dashboard/:path*', '/onboarding', '/profile', '/settings', '/documents', '/applications', '/billing', '/generate', '/login', '/signup', '/verify-email', '/mfa-verify', '/complete-account'],
+  matcher: ['/dashboard/:path*', '/onboarding', '/profile', '/settings', '/documents', '/applications', '/billing', '/generate', '/login', '/signup', '/verify-email', '/mfa-verify', '/complete-account'],
 };

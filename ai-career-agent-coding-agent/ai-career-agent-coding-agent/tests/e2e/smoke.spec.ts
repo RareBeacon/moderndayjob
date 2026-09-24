@@ -49,6 +49,17 @@ test('retired /match page is gone; /api/jobs is auth-gated, not public', async (
   expect(jobs.status()).toBe(401);
 });
 
+test('homepage is public even with a stale session cookie (no route inheritance)', async ({ request }) => {
+  // 2026-09-24 production bug: a leftover sb-*auth-token cookie (expired or
+  // revoked) made / redirect to /dashboard, which then bounced the visitor to
+  // /login?next=%2Fdashboard. The homepage must load for every session state.
+  const res = await request.get('/', {
+    headers: { Cookie: 'sb-cbxloutahmalorumaihc-auth-token=stale-leftover-value' },
+    maxRedirects: 0,
+  });
+  expect(res.status()).toBe(200);
+});
+
 test('auth pages render', async ({ page }) => {
   await page.goto('/login');
   await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();

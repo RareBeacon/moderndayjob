@@ -111,12 +111,16 @@ describe('auth middleware', () => {
     expect(loc.pathname).toBe('/login');
   });
 
-  it('redirects a visitor with a session cookie from / to /dashboard', async () => {
+  it('shows the homepage to a visitor holding a stale session cookie (2026-09-24 fix)', async () => {
+    // The old fast path redirected mere cookie PRESENCE to /dashboard,
+    // producing  /  ->  /dashboard  ->  /login?next=%2Fdashboard  for every
+    // browser with an expired session. The homepage is public for all
+    // session states; the requested URL determines the destination.
     const r = new NextRequest('http://localhost:3000/', {
       headers: { cookie: 'sb-testref-auth-token=some.jwt.token' },
     });
     const res = await middleware(r);
-    expect(new URL(res.headers.get('location')!).pathname).toBe('/dashboard');
+    expect(res.headers.get('location')).toBeNull();
   });
 
   it('shows the marketing homepage to visitors without a session cookie', async () => {
