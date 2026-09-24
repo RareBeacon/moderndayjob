@@ -47,15 +47,32 @@ and Render keeps submissions working during any gap.
   (10 Mbps) · 20 GB object storage.
 - **Do not upgrade to Pay As You Go** without an explicit decision — PAYG keeps
   4/24 but risks charges. We stay Always Free.
-- **Backend workers vs web app (2026-09-24 status):** the web app (Vercel),
-  database (Supabase), and the **Render standby worker** all run `190fd6d`
-  (M4 verification layer live on the submission path). The **OCI primary
-  worker** (`worker.jobiest.com`) and the OCI API gateway (`api.jobiest.com`)
-  are healthy but still on the 2026-09-21 build (pre-M4). To update them,
-  either enable the *Compute Instance Run Command* plugin on the `jobiest-ai`
-  instance (Oracle console → Compute → Instances → jobiest-ai → Oracle Cloud
-  Agent tab) so updates can be automated via the OCI API, or SSH in and run:
-  `cd ~/jobiest && git pull && cd ai-career-agent-coding-agent/ai-career-agent-coding-agent/deploy/oci && docker compose up -d --build`.
+- **Backend workers vs web app (2026-09-24 status):** all layers now run the
+  same release: web app (Vercel), database (Supabase, migration 040), and
+  BOTH worker deployments (Oracle bridge + Render standby) build from
+  `main`, so the M4 confirmation-verification layer is live on every
+  submission path.
+- **2026-09-24 Oracle rebuild (SSH key lost + capacity):** the original VM's
+  SSH key was generated in a lost session, so the instance was rebuilt from
+  scratch. Free ARM (A1) was "out of host capacity" in all 3 ADs, so the
+  bridge runs on **VM.Standard.E5.Flex 2/12** (paid shape on remaining trial
+  credits, trial ends ~2026-10-07). New reserved public IP:
+  **147.224.218.163** (the old 147.224.189.214 was ephemeral and died with
+  the old instance; DNS A records for worker/api/ai were repointed via the
+  Vercel DNS API). SSH key on file: `~/keys/jobiest-vm-2(.pub)`. Secrets:
+  BROWSER_WORKER_SECRET unchanged (Vercel + Render verified identical);
+  OLLAMA_API_KEY rotated (fresh value set on the VM and in Vercel; the old
+  one was write-only/sensitive and could not be read back); API_KEYS fresh
+  (no customer keys had ever been issued).
+- **A1 watcher (permanent home):** `~/oci-tools/a1_watcher.py` probes for
+  free A1 2/12 capacity every 15 min (background process; restart it each
+  session if dead, it is idempotent). When A1 lands it self-provisions via
+  the same cloud-init; then complete the swap interactively: move reserved
+  IP 147.224.218.163 to the A1's private IP, verify healthz + 401 gates,
+  terminate the E5 bridge. **Hard deadline: 2026-10-05** (trial ends
+  ~2026-10-07; if A1 capacity has not appeared by then, the owner must
+  decide between extending via Pay As You Go (explicit decision required)
+  or accepting downtime until free capacity appears).
 
 
 ## Phase 0 — Provision the VM (do once)
