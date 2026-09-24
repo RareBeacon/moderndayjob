@@ -40,11 +40,13 @@ test('no horizontal overflow on mobile homepage', async ({ page, isMobile }) => 
   expect(overflow).toBeLessThanOrEqual(0);
 });
 
-test('retired jobs routes are gone (no job listings offering)', async ({ request }) => {
-  const jobs = await request.get('/api/jobs');
-  expect(jobs.status()).toBe(404);
+test('retired /match page is gone; /api/jobs is auth-gated, not public', async ({ request }) => {
   const match = await request.get('/match');
   expect(match.status()).toBe(404);
+  // /api/jobs is the mobile app's search endpoint: it exists but must
+  // reject anonymous requests instead of offering job listings publicly.
+  const jobs = await request.get('/api/jobs');
+  expect(jobs.status()).toBe(401);
 });
 
 test('auth pages render', async ({ page }) => {
