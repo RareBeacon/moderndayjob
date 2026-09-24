@@ -83,7 +83,15 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  const { data: { user } } = await supabase.auth.getUser();
+  // Fail soft (2026-09-24 iOS incident): a throwing auth call (hiccup or
+  // revoked mid-rotation session) reads as anonymous; the protected-path
+  // redirect below handles it instead of a middleware 500.
+  let user: Awaited<ReturnType<typeof supabase.auth.getUser>>['data']['user'] = null;
+  try {
+    ({ data: { user } } = await supabase.auth.getUser());
+  } catch {
+    user = null;
+  }
 
   if (isProtected(pathname) && !user) {
     const redirect = request.nextUrl.clone();

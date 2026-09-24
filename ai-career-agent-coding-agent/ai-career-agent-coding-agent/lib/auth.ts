@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { env } from './env';
 import { supabaseAdmin } from './supabase';
 import type { User } from '@supabase/supabase-js';
@@ -54,8 +55,15 @@ function aalFromJwt(token: string): 'aal1' | 'aal2' {
 }
 
 async function bearerAuthContext(token: string): Promise<AuthContext> {
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data?.user) return { user: null, needsMfa: false };
+  // Fail closed: an auth-service transport error on the Bearer path must
+  // read as "not authenticated" (401), never as a 500 crash.
+  let data: Awaited<ReturnType<typeof supabaseAdmin.auth.getUser>>['data'] | null = null;
+  try {
+    ({ data } = await supabaseAdmin.auth.getUser(token));
+  } catch {
+    return { user: null, needsMfa: false };
+  }
+  if (!data?.user) return { user: null, needsMfa: false };
   // Completed-MFA session: never gated.
   if (aalFromJwt(token) === 'aal2') return { user: data.user, needsMfa: false };
   // The aal claim is present on EVERY authenticated token (aal1 for plain
@@ -94,7 +102,17 @@ async function userHasVerifiedMfaFactor(userId: string): Promise<boolean> {
 
 export async function getUser(req?: Request) {
   const supabase = await serverClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  // Fail soft on auth acquisition (2026-09-24 iOS incident, second round): a
+  // Supabase auth hiccup or a revoked/mid-rotation session cookie makes
+  // auth.getUser() throw instead of returning null, which crashed the
+  // dashboard server render even after the UNAUTHENTICATED redirect fix.
+  // Any failure here reads as anonymous: fail closed for access, never a 500.
+  let user: User | null = null;
+  try {
+    ({ data: { user } } = await supabase.auth.getUser());
+  } catch {
+    user = null;
+  }
   if (user) return user;
   if (req) {
     const token = bearerToken(req.headers.get('authorization'));
@@ -108,7 +126,14 @@ export async function getUser(req?: Request) {
 
 export async function getAuthContext(req?: Request): Promise<AuthContext> {
   const supabase = await serverClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  // Same fail-soft policy as getUser(): a throwing auth call is an anonymous
+  // visitor, not a server crash (2026-09-24 iOS incident).
+  let user: User | null = null;
+  try {
+    ({ data: { user } } = await supabase.auth.getUser());
+  } catch {
+    user = null;
+  }
   if (user) {
     try {
       const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
@@ -155,4 +180,38 @@ export async function requireUser(opts: { allowIncompleteMfa?: boolean; req?: Re
     if (error instanceof Error && error.message.startsWith('ACCOUNT_')) throw error;
   }
   return user;
+}
+
+/**
+ * Page-side gate (2026-09-24 iOS incident, second round): requireUser for
+ * server components, with every auth outcome triaged into a redirect instead
+ * of the error boundary. The first fix only handled UNAUTHENTICATED; the
+ * live crash at 16:19Z proved other requireUser failures (MFA_REQUIRED,
+ * ACCOUNT_*, auth-service throws) could still reach the boundary.
+ *
+ * - anonymous/broken session -> /login?next=<path> (re-login recovers)
+ * - enrolled but unverified MFA -> /mfa-verify (matches the middleware)
+ * - suspended/terminated -> sign out, then /login (no automatic loop: each
+ *   pass requires a manual login)
+ * - anything else rethrows to the error boundary (now instrumented)
+ */
+export async function requireUserOrRedirect(nextPath: string): Promise<User> {
+  try {
+    return await requireUser();
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'UNAUTHENTICATED') {
+        redirect(`/login?next=${encodeURIComponent(nextPath)}`);
+      }
+      if (error.message === 'MFA_REQUIRED') {
+        redirect('/mfa-verify');
+      }
+      if (error.message.startsWith('ACCOUNT_')) {
+        const client = await serverClient().catch(() => null);
+        await client?.auth.signOut().catch(() => undefined);
+        redirect(`/login?account=${error.message.toLowerCase()}`);
+      }
+    }
+    throw error;
+  }
 }

@@ -2,27 +2,62 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 
 /**
- * Dashboard resilience (2026-09-24 incident): an iOS Safari user right after
- * Google signup + account completion hit "Something went wrong" on
- * /dashboard ten times (audit_logs, digest 3172225010). Root cause class:
- * a stale/rotated session cookie or a failed display dependency threw inside
- * the server render and landed in the error boundary instead of degrading.
+ * Dashboard resilience (2026-09-24 incident, two rounds): an iOS Safari user
+ * right after Google signup + account completion hit "Something went wrong"
+ * on /dashboard repeatedly. Round 1 added the UNAUTHENTICATED redirect; the
+ * user still crashed at 16:19Z on the fixed code, proving other auth
+ * failures (MFA_REQUIRED, ACCOUNT_*, auth-service throws) reached the
+ * boundary too.
  *
- * These guards keep the fixes in place: authed pages bounce stale sessions
- * to /login, and the dashboard's display data can never hard-crash the page.
+ * Round 2 architecture:
+ * - lib/auth.ts fails soft on auth acquisition (a throwing auth call reads as
+ *   anonymous, never a render crash) and exposes requireUserOrRedirect,
+ *   which triages every requireUser outcome into a redirect.
+ * - The middleware treats a throwing auth call as anonymous.
+ * - Dashboard/settings use requireUserOrRedirect; the dashboard additionally
+ *   records the real server-side error (SERVER_RENDER_ERROR) before the
+ *   boundary renders, because the client reporter only sees a redacted
+ *   message.
+ * - Display data (entitlement, completeness, credits) falls back, never
+ *   throws (round 1, kept).
  */
 describe('authed pages degrade instead of crashing', () => {
   const dashboard = readFileSync('app/(dashboard)/dashboard/page.tsx', 'utf8');
   const settings = readFileSync('app/settings/page.tsx', 'utf8');
+  const auth = readFileSync('lib/auth.ts', 'utf8');
+  const middleware = readFileSync('middleware.ts', 'utf8');
 
-  it('dashboard redirects a stale session to /login instead of the error boundary', () => {
-    expect(dashboard).toContain("error.message === 'UNAUTHENTICATED'");
-    expect(dashboard).toContain("redirect('/login?next=%2Fdashboard')");
+  it('dashboard and settings gate through requireUserOrRedirect', () => {
+    expect(dashboard).toContain("requireUserOrRedirect('/dashboard')");
+    expect(settings).toContain("requireUserOrRedirect('/settings')");
   });
 
-  it('settings page does the same', () => {
-    expect(settings).toContain("error.message === 'UNAUTHENTICATED'");
-    expect(settings).toContain("redirect('/login?next=%2Fsettings')");
+  it('requireUserOrRedirect triages every auth outcome into a redirect', () => {
+    expect(auth).toContain('export async function requireUserOrRedirect');
+    expect(auth).toContain("error.message === 'UNAUTHENTICATED'");
+    expect(auth).toContain("error.message === 'MFA_REQUIRED'");
+    expect(auth).toContain("error.message.startsWith('ACCOUNT_')");
+    expect(auth).toContain("redirect(`/login?next=${encodeURIComponent(nextPath)}`)");
+  });
+
+  it('a throwing auth call reads as anonymous, never a render crash', () => {
+    // both cookie-path acquisitions are wrapped fail-soft
+    const wrapped = auth.match(/\(\{ data: \{ user \} \} = await supabase\.auth\.getUser\(\)\);/g) ?? [];
+    const caught = auth.match(/user = null;\s*\n\s*}/g) ?? [];
+    expect(wrapped.length).toBeGreaterThanOrEqual(2);
+    expect(caught.length).toBeGreaterThanOrEqual(2);
+    // bearer path fails closed too
+    expect(auth).toContain('return { user: null, needsMfa: false };');
+  });
+
+  it('middleware treats a throwing auth call as anonymous', () => {
+    expect(middleware).toContain('await supabase.auth.getUser()');
+    expect(middleware).toMatch(/catch \{\s*\n\s*user = null;\s*\n\s*\}/);
+  });
+
+  it('dashboard records the real server-side error before the boundary', () => {
+    expect(dashboard).toContain("'SERVER_RENDER_ERROR'");
+    expect(dashboard).toContain('DashboardBody');
   });
 
   it('dashboard entitlement and completeness failures fall back, never throw', () => {

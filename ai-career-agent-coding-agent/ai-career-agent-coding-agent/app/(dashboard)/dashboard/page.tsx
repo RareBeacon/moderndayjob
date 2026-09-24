@@ -1,9 +1,9 @@
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import ProfileReadiness from '@/components/ProfileReadiness';
 import { DashboardSetup } from '@/components/site/DashboardSetup';
 import { AppShell } from '@/components/site/AppShell';
-import { requireUser } from '@/lib/auth';
+import { requireUserOrRedirect } from '@/lib/auth';
+import { auditEvent } from '@/lib/audit';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getEntitlement } from '@packages/security/entitlements';
 import { getProfileCompleteness } from '@/lib/profile-completeness';
@@ -31,16 +31,31 @@ function greetingForHour(hour: number): string {
  * they want; this page never dumps a listings pool.
  */
 export default async function Dashboard() {
-  // A stale or rotated session cookie (seen live 2026-09-24: an iOS Safari
-  // user right after Google signup + account completion) must redirect to
-  // login, not crash into the error boundary. The middleware lets the
-  // request through on the older token; this is the page-side backstop.
-  const user = await requireUser().catch((error: unknown) => {
-    if (error instanceof Error && error.message === 'UNAUTHENTICATED') {
-      redirect('/login?next=%2Fdashboard');
-    }
+  // Stale or rotated session (seen live 2026-09-24: an iOS Safari user right
+  // after Google signup + account completion) must redirect to login, not
+  // crash into the error boundary. requireUserOrRedirect triages every auth
+  // outcome (anonymous, MFA, suspended); anything else still thrown is
+  // captured server-side below before reaching the boundary.
+  const user = await requireUserOrRedirect('/dashboard');
+  try {
+    return await DashboardBody(user);
+  } catch (error) {
+    // Keep the boundary UX, but record the real server-side cause: the
+    // client error reporter only sees a redacted message.
+    void auditEvent({
+      action: 'SERVER_RENDER_ERROR',
+      resource: 'dashboard',
+      outcome: 'error',
+      meta: {
+        message: String((error as Error)?.message ?? error).slice(0, 400),
+        userId: user.id,
+      },
+    });
     throw error;
-  });
+  }
+}
+
+async function DashboardBody(user: Awaited<ReturnType<typeof requireUserOrRedirect>>): Promise<import('react').ReactNode> {
   const [
     { data: profile },
     { data: career },

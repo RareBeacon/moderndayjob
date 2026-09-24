@@ -1,10 +1,9 @@
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { AppShell } from '@/components/site/AppShell';
 import { SignOutCard } from '@/components/settings/SignOutCard';
 import { MfaManager } from '@/components/settings/MfaManager';
 import { AutoSubmitToggle } from '@/components/site/AutoSubmitToggle';
-import { requireUser } from '@/lib/auth';
+import { requireUserOrRedirect } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getEntitlement } from '@packages/security/entitlements';
 
@@ -15,14 +14,9 @@ import { getEntitlement } from '@packages/security/entitlements';
 export const metadata = { title: 'Settings - Jobiest' };
 
 export default async function SettingsPage() {
-  // Stale session -> login redirect, never the error boundary (dashboard fix
-  // 2026-09-24, applied to every authed server page that calls requireUser).
-  const user = await requireUser().catch((error: unknown) => {
-    if (error instanceof Error && error.message === 'UNAUTHENTICATED') {
-      redirect('/login?next=%2Fsettings');
-    }
-    throw error;
-  });
+  // Stale session -> login redirect, never the error boundary (2026-09-24
+  // iOS incident; requireUserOrRedirect triages every auth outcome).
+  const user = await requireUserOrRedirect('/settings');
   const [{ data: preferences }, entitlement] = await Promise.all([
     supabaseAdmin.from('job_preferences').select('application_mode').eq('user_id', user.id).maybeSingle(),
     getEntitlement(user.id).catch(() => ({
