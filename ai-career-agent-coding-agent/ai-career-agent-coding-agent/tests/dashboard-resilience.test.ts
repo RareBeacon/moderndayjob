@@ -60,6 +60,14 @@ describe('authed pages degrade instead of crashing', () => {
     expect(dashboard).toContain('DashboardBody');
   });
 
+  it('pipeline tally iterates the DATA of the select, never the response object (M7 bug)', () => {
+    // 2026-09-24 root cause: `pipelineCounts,` in the Promise.all destructure
+    // bound the full PostgREST response object; for-of over it threw
+    // "(B ?? []) is not iterable" and crashed every authenticated load.
+    expect(dashboard).toContain('{ data: pipelineCounts }');
+    expect(dashboard).not.toContain('as unknown as { status: string }[]');
+  });
+
   it('dashboard entitlement and completeness failures fall back, never throw', () => {
     expect(dashboard).toContain('getEntitlement(user.id).catch(');
     expect(dashboard).toContain('getProfileCompleteness(user.id).catch(');

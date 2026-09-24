@@ -100,7 +100,7 @@ async function DashboardBody(user: Awaited<ReturnType<typeof requireUserOrRedire
     { count: interviewCount },
     { count: draftCount },
     { data: drafts },
-    pipelineCounts,
+    { data: pipelineCounts },
     docCredits,
     appCredits,
     { data: activation },
@@ -122,7 +122,12 @@ async function DashboardBody(user: Awaited<ReturnType<typeof requireUserOrRedire
   ]);
 
   const statusTally = new Map<string, number>();
-  for (const row of ((pipelineCounts as unknown as { status: string }[] | null) ?? [])) {
+  // pipelineCounts is the DATA of the select (line above). Iterating the
+  // whole PostgREST response object (the M7 bug: the destructure bound
+  // {data,error,...}) threw "(B ?? []) is not iterable" and crashed every
+  // authenticated dashboard load; the `as unknown as` cast had silenced
+  // TypeScript. No casts on DB data.
+  for (const row of pipelineCounts ?? []) {
     statusTally.set(row.status, (statusTally.get(row.status) ?? 0) + 1);
   }
   const tally = (...statuses: string[]) => statuses.reduce((sum, s) => sum + (statusTally.get(s) ?? 0), 0);
