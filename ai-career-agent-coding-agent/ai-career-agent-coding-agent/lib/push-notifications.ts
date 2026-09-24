@@ -30,7 +30,7 @@ export async function registerPushToken(
     const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('device_tokens')
-      .eq('id', userId)
+      .eq('user_id', userId)
       .maybeSingle();
 
     const existingTokens: DeviceTokenRecord[] = Array.isArray(profile?.device_tokens)
@@ -46,7 +46,7 @@ export async function registerPushToken(
     const { error } = await supabaseAdmin
       .from('profiles')
       .update({ device_tokens: updatedTokens })
-      .eq('id', userId);
+      .eq('user_id', userId);
 
     if (error) {
       // In case device_tokens column doesn't exist yet, store in raw user_metadata
@@ -73,7 +73,7 @@ export async function unregisterPushToken(
     const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('device_tokens')
-      .eq('id', userId)
+      .eq('user_id', userId)
       .maybeSingle();
 
     if (Array.isArray(profile?.device_tokens)) {
@@ -81,7 +81,7 @@ export async function unregisterPushToken(
       await supabaseAdmin
         .from('profiles')
         .update({ device_tokens: remaining })
-        .eq('id', userId);
+        .eq('user_id', userId);
     }
 
     return { ok: true };
@@ -103,7 +103,7 @@ export async function sendPushNotification(
     const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('device_tokens')
-      .eq('id', userId)
+      .eq('user_id', userId)
       .maybeSingle();
 
     let tokens: string[] = [];

@@ -42,7 +42,7 @@ async function saveResult(input: z.infer<typeof body>, userId: string) {
 }
 
 export async function POST(req: Request) {
-  const user = await requireUser().catch(() => null);
+  const user = await requireUser({ req }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'AUTHENTICATION_REQUIRED', message: 'Create a free Jobiest account to unlock this result.' }, { status: 401 });
 
   const parsed = body.safeParse(await req.json().catch(() => ({})));

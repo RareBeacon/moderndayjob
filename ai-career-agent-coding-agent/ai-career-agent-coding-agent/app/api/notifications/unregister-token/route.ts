@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/auth';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { unregisterPushToken } from '@/lib/push-notifications';
 import { z } from 'zod';
 
@@ -13,6 +14,8 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
     }
+    const rl = await enforceRateLimit(`notif-unregister:${requestIp(req)}:${user.id}`, 10, '1 h');
+    if (!rl.allowed) return NextResponse.json({ error: 'RATE_LIMITED' }, { status: 429 });
 
     const body = await req.json().catch(() => null);
     const parsed = unregisterSchema.safeParse(body);

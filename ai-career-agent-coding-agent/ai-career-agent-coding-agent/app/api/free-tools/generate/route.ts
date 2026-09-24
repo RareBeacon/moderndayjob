@@ -37,7 +37,7 @@ function validateRequired(toolId: string, answers: Record<string, unknown>) {
 }
 
 export async function POST(req: Request) {
-  const user = await requireUser().catch(() => null);
+  const user = await requireUser({ req }).catch(() => null);
   const parsed = body.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return NextResponse.json({ error: 'INVALID_BODY', issues: parsed.error.issues }, { status: 400 });
   const toolId = parsed.data.toolId;

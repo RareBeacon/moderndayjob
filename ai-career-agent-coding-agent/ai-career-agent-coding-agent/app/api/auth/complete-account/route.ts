@@ -21,7 +21,7 @@ const body = z.object({ phone: z.string().trim().min(4).max(24) });
 export async function POST(req: Request) {
   let user;
   try {
-    user = await requireUser({ allowIncompleteMfa: true });
+    user = await requireUser({ allowIncompleteMfa: true, req });
   } catch {
     return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   }

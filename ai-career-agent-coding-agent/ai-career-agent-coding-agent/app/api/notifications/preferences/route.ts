@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { z } from 'zod';
 
 const preferencesSchema = z.object({
@@ -17,11 +18,13 @@ export async function GET(req: Request) {
     if (!user) {
       return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
     }
+    const rl = await enforceRateLimit(`notif-prefs:${requestIp(req)}:${user.id}`, 30, '1 m');
+    if (!rl.allowed) return NextResponse.json({ error: 'RATE_LIMITED' }, { status: 429 });
 
     const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('notification_preferences')
-      .eq('id', user.id)
+      .eq('user_id', user.id)
       .maybeSingle();
 
     const preferences = profile?.notification_preferences || {
@@ -45,6 +48,8 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
     }
+    const rl = await enforceRateLimit(`notif-prefs:${requestIp(req)}:${user.id}`, 30, '1 m');
+    if (!rl.allowed) return NextResponse.json({ error: 'RATE_LIMITED' }, { status: 429 });
 
     const body = await req.json().catch(() => null);
     const parsed = preferencesSchema.safeParse(body);
@@ -58,7 +63,7 @@ export async function POST(req: Request) {
     await supabaseAdmin
       .from('profiles')
       .update({ notification_preferences: parsed.data })
-      .eq('id', user.id);
+      .eq('user_id', user.id);
 
     return NextResponse.json({
       ok: true,

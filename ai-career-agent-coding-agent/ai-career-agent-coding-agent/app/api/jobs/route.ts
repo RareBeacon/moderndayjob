@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { getUser } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
+
+/** Strip PostgREST filter syntax from free-text search so the .or() value
+ *  can never be reshaped by a caller (commas, parens and colons alter the
+ *  filter expression; the API only ever means a plain substring search). */
+function sanitizeSearch(value: string): string {
+  return value.replace(/[^\p{L}\p{N} .+#&/'-]/gu, '').slice(0, 80);
+}
 
 /**
  * Mobile and web job discovery API.
@@ -12,9 +20,15 @@ import { getUser } from '@/lib/auth';
  *  - limit: items per page (default 20, max 50)
  */
 export async function GET(req: Request) {
+  // Authenticated endpoint: the jobs pool is not a public listing surface
+  // (owner decision C-04; the site deliberately publishes no job listings).
+  const user = await requireUser({ req }).catch(() => null);
+  if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+  const rl = await enforceRateLimit(`jobs:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return NextResponse.json({ error: 'RATE_LIMITED' }, { status: 429 });
   try {
     const url = new URL(req.url);
-    const q = url.searchParams.get('q')?.trim() || '';
+    const q = sanitizeSearch(url.searchParams.get('q')?.trim() || '');
     const location = url.searchParams.get('location')?.trim() || '';
     const source = url.searchParams.get('source')?.trim() || '';
     const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10));
@@ -43,11 +57,10 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'JOB_SEARCH_FAILED', details: error.message }, { status: 500 });
     }
 
-    // Optional user context to mark saved jobs
-    const user = await getUser(req).catch(() => null);
+    // Saved-job markers for the signed-in caller
     let savedJobIds = new Set<string>();
 
-    if (user && jobs && jobs.length > 0) {
+    if (jobs && jobs.length > 0) {
       const jobIds = jobs.map((j) => j.id);
       const { data: saved } = await supabaseAdmin
         .from('saved_jobs')

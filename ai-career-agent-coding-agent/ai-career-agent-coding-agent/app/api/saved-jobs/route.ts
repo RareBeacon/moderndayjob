@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { z } from 'zod';
 
 const saveJobSchema = z.object({
@@ -14,6 +15,8 @@ export async function GET(req: Request) {
   try {
     const user = await requireUser({ req }).catch(() => null);
     if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    const rl = await enforceRateLimit(`saved-jobs:${requestIp(req)}:${user.id}`, 60, '1 m');
+    if (!rl.allowed) return NextResponse.json({ error: 'RATE_LIMITED' }, { status: 429 });
 
     const { data: saved, error } = await supabaseAdmin
       .from('saved_jobs')
@@ -44,6 +47,8 @@ export async function POST(req: Request) {
   try {
     const user = await requireUser({ req }).catch(() => null);
     if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    const rl = await enforceRateLimit(`saved-jobs:${requestIp(req)}:${user.id}`, 60, '1 m');
+    if (!rl.allowed) return NextResponse.json({ error: 'RATE_LIMITED' }, { status: 429 });
 
     const body = await req.json().catch(() => null);
     const parsed = saveJobSchema.safeParse(body);
@@ -73,6 +78,8 @@ export async function DELETE(req: Request) {
   try {
     const user = await requireUser({ req }).catch(() => null);
     if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    const rl = await enforceRateLimit(`saved-jobs:${requestIp(req)}:${user.id}`, 60, '1 m');
+    if (!rl.allowed) return NextResponse.json({ error: 'RATE_LIMITED' }, { status: 429 });
 
     const url = new URL(req.url);
     let jobId = url.searchParams.get('jobId');
