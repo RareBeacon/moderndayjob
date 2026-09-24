@@ -33,8 +33,46 @@ services:
     depends_on:
       - worker
 
+  # Secret-gated AI gateway in front of the local model host. The web app
+  # (Vercel) calls ai.<domain>/api/chat with the same Bearer key.
+  ai:
+    build:
+      context: ../..
+    command: ['npm', 'run', 'ai']
+    restart: unless-stopped
+    environment:
+      - PORT=8083
+      - OLLAMA_API_KEY=${OLLAMA_API_KEY:?set OLLAMA_API_KEY}
+      - OLLAMA_URL=http://ollama:11434
+    expose:
+      - '8083'
+    depends_on:
+      - ollama
+
+  # Local model host (CPU-only, arm64 image). Never published: only the ai
+  # gateway may reach it, inside the compose network.
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      - ollama:/root/.ollama
+    expose:
+      - '11434'
+
+  # One-shot model pull (qwen2.5:7b primary + llama3.2:3b fallback). Exits
+  # when done; the models persist in the named volume.
+  ollama-pull:
+    image: ollama/ollama:latest
+    restart: 'no'
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - OLLAMA_HOST=http://ollama:11434 ollama pull qwen2.5:7b && OLLAMA_HOST=http://ollama:11434 ollama pull llama3.2:3b
+    depends_on:
+      - ollama
+
   # Edge TLS (Let's Encrypt, automatic) + routing:
-  #   WORKER_DOMAIN -> worker:8082,  API_DOMAIN -> api:8081
+  #   WORKER_DOMAIN -> worker:8082,  API_DOMAIN -> api:8081,
+  #   AI_DOMAIN -> ai:8083
   caddy:
     image: caddy:2
     restart: unless-stopped
@@ -44,6 +82,7 @@ services:
     environment:
       - WORKER_DOMAIN=${WORKER_DOMAIN:?set WORKER_DOMAIN e.g. worker.jobiest.com}
       - API_DOMAIN=${API_DOMAIN:?set API_DOMAIN e.g. api.jobiest.com}
+      - AI_DOMAIN=${AI_DOMAIN:?set AI_DOMAIN e.g. ai.jobiest.com}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -52,3 +91,4 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  ollama: {}

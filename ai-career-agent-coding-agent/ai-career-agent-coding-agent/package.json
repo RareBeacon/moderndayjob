@@ -12,6 +12,7 @@
     "agent": "tsx workers/agent/index.ts",
     "browser": "tsx workers/browser/index.ts",
     "api": "tsx workers/api/index.ts",
+    "ai": "tsx workers/ai/index.ts",
     "scheduler": "tsx workers/scheduler/index.ts",
     "e2e": "playwright test -c playwright.e2e.config.ts"
   },

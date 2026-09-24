@@ -5,3 +5,7 @@
 {$API_DOMAIN} {
 	reverse_proxy api:8081
 }
+
+{$AI_DOMAIN} {
+	reverse_proxy ai:8083
+}

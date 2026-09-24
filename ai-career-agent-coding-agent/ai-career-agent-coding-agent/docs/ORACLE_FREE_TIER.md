@@ -11,6 +11,8 @@ Nothing is billed; this stays at **$0** as long as we respect the limits.
 |---|---|---|---|
 | Browser worker | app `Dockerfile` (Playwright + Chromium) | 8082 | `worker.<domain>` → `/submit`, `/healthz` |
 | API gateway | `workers/api/` (`npm run api`) | 8081 | `api.<domain>` → `/v1/submit`, `/healthz` |
+| AI gateway | `workers/ai/` (`npm run ai`) | 8083 | `ai.<domain>` → `/api/chat`, `/healthz` |
+| Ollama | `ollama/ollama` (arm64) | 11434 | none (compose network only) |
 | Caddy | `caddy:2` | 80/443 | TLS (Let's Encrypt) + routing |
 
 The web app (Vercel) calls the worker through `BROWSER_WORKER_URL` (pointed at
