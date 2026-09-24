@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { AppShell } from '@/components/site/AppShell';
-import { PORTFOLIO_TEMPLATES } from '@/lib/portfolios';
+import { PORTFOLIO_TEMPLATES } from '@/lib/portfolios.shared';
 
 /**
  * Portfolio Studio (Milestone 6). Create, edit, publish, export. The plan's
