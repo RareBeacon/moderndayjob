@@ -28,16 +28,43 @@ export async function POST(req: Request) {
   const { data: planRecord } = await supabaseAdmin.from('subscription_plans').select('*').eq('code', plan).maybeSingle();
   if (!planRecord) return Response.json({ error: 'PLAN_NOT_FOUND' }, { status: 404 });
 
+  // Charge currency follows the visitor's country (server-side decision, so
+  // the checkout always matches what the pricing UI resolved from /api/geo):
+  // Nigeria pays Naira, everyone else pays USD (Paystack international
+  // payments; USD settles in Naira at Paystack's rate). If the account
+  // cannot charge USD, fall back to the Naira checkout rather than fail.
+  const country = (req.headers.get('x-vercel-ip-country') ?? '').trim().toUpperCase();
+  const useUsd = country !== '' && country !== 'NG' && planRecord.amount_usd != null && Number(planRecord.amount_usd) > 0;
+  const currency = useUsd ? 'USD' : 'NGN';
+  const amount = useUsd ? Number(planRecord.amount_usd) : Number(planRecord.amount);
+
   try {
     const reference = `pstk_${user.id}_${Date.now()}`;
-    const result = await initializePaystackTransaction({
-      reference,
-      amount: planRecord.amount,
-      email: user.email ?? '',
-      callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL}/billing/success`,
-      metadata: { plan, userId: user.id, product: 'jobiest subscription' },
-    });
-    return Response.json({ reference, data: { authorization_url: result.authorization_url, access_code: result.access_code } });
+    const init = (cur: 'NGN' | 'USD', amt: number) =>
+      initializePaystackTransaction({
+        reference,
+        amount: amt,
+        currency: cur,
+        email: user.email ?? '',
+        callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL}/billing/success`,
+        metadata: { plan, userId: user.id, product: 'jobiest subscription', currency: cur },
+      });
+    let result;
+    let chargedCurrency = currency;
+    try {
+      result = await init(currency, amount);
+    } catch (firstError) {
+      if (currency === 'USD') {
+        // The account may not have USD charges enabled: charge Naira instead
+        // so checkout still works (the plan is identical either way).
+        result = await init('NGN', Number(planRecord.amount));
+        chargedCurrency = 'NGN';
+        void firstError;
+      } else {
+        throw firstError;
+      }
+    }
+    return Response.json({ reference, currency: chargedCurrency, data: { authorization_url: result.authorization_url, access_code: result.access_code } });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : 'BILLING_UNAVAILABLE' }, { status: 503 });
   }

@@ -11,9 +11,9 @@
    authorizes a plan; the server is the single source of truth. */
 
 import crypto from 'node:crypto';
-import { planForAmount } from './flutterwave';
+import { planForAmount, planForAmountIn } from './flutterwave';
 
-export { planForAmount };
+export { planForAmount, planForAmountIn };
 
 const PAYSTACK_BASE = 'https://api.paystack.co';
 
@@ -23,8 +23,12 @@ export function paystackConfigured(): boolean {
 
 export interface PaystackInitInput {
   reference: string;
-  /** NGN, major units (naira); must match subscription_plans.amount. */
+  /** Major units of the charge currency (naira or USD); must match subscription_plans. */
   amount: number;
+  /** Charge currency. NGN is the default and settles as before; USD is used
+   *  for visitors from outside Nigeria (Paystack international payments) and
+   *  settles in Naira at Paystack's rate. */
+  currency?: 'NGN' | 'USD';
   email: string;
   callbackUrl: string;
   metadata?: Record<string, unknown>;
@@ -43,8 +47,8 @@ export async function initializePaystackTransaction(input: PaystackInitInput): P
     headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       email: input.email,
-      amount: Math.round(input.amount * 100), // Paystack takes kobo
-      currency: 'NGN',
+      amount: Math.round(input.amount * 100), // kobo (NGN) or cents (USD)
+      currency: input.currency ?? 'NGN',
       reference: input.reference,
       callback_url: input.callbackUrl,
       metadata: input.metadata ?? {},

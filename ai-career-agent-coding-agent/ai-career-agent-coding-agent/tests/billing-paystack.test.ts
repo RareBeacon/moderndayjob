@@ -223,8 +223,28 @@ describe('webhook: re-verification and guards', () => {
     expect(rpc).toHaveBeenCalledWith('apply_verified_payment', expect.objectContaining({ p_amount: 5177.67, p_provider: 'paystack' }));
   });
 
-  it('refuses a non-NGN currency', async () => {
-    stubVerify({ status: 'success', amount: 1_000_000, currency: 'USD', reference: REF, customer: { email: 'a@b.co' } });
+  it('refuses a currency that is neither NGN nor USD', async () => {
+    stubVerify({ status: 'success', amount: 1_000_000, currency: 'GHS', reference: REF, customer: { email: 'a@b.co' } });
+    const res = await webhookPOST(req(chargeSuccess, sign(JSON.stringify(chargeSuccess))));
+    expect(res.status).toBe(202);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('accepts a USD charge and passes the paid currency through to the grant', async () => {
+    // $7.99 (799 cents) is the Premium USD price: the webhook must map it to
+    // PREMIUM and record it as a USD payment (2026-09-24 international pricing).
+    stubVerify({ status: 'success', amount: 799, currency: 'USD', reference: REF, customer: { email: 'a@b.co' } });
+    const res = await webhookPOST(req(chargeSuccess, sign(JSON.stringify(chargeSuccess))));
+    expect(res.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith('apply_verified_payment', expect.objectContaining({
+      p_amount: 7.99,
+      p_currency: 'USD',
+      p_provider: 'paystack',
+    }));
+  });
+
+  it('refuses a USD charge below the Basic dollar price', async () => {
+    stubVerify({ status: 'success', amount: 100, currency: 'USD', reference: REF, customer: { email: 'a@b.co' } });
     const res = await webhookPOST(req(chargeSuccess, sign(JSON.stringify(chargeSuccess))));
     expect(res.status).toBe(202);
     expect(rpc).not.toHaveBeenCalled();

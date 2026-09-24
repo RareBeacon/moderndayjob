@@ -103,6 +103,9 @@ export async function verifyFlutterwaveTransaction(transactionId: string | numbe
    the apply_verified_payment threshold). Used to guard the webhook against
    under-payment before granting a plan. */
 export const PLAN_AMOUNTS_NGN = { BASIC: 5000, PREMIUM: 10000, MAX: 20000 } as const;
+/* USD list prices for visitors from outside Nigeria (must match
+   subscription_plans.amount_usd and the apply_verified_payment USD branch). */
+export const PLAN_AMOUNTS_USD = { BASIC: 3.99, PREMIUM: 7.99, MAX: 14.99 } as const;
 export type PaidPlan = 'BASIC' | 'PREMIUM' | 'MAX';
 
 /* Maps a paid amount to the highest plan it fully covers, or null when it
@@ -116,6 +119,21 @@ export function planForAmount(amount: number): PaidPlan | null {
   if (amount >= PLAN_AMOUNTS_NGN.MAX) return 'MAX';
   if (amount >= PLAN_AMOUNTS_NGN.PREMIUM) return 'PREMIUM';
   if (amount >= PLAN_AMOUNTS_NGN.BASIC) return 'BASIC';
+  return null;
+}
+
+/* Currency-aware guard for the Paystack path (NGN or USD charges). NGN keeps
+   the legacy behavior; USD uses the dollar thresholds. Unknown currencies
+   are rejected (null) so the webhook never grants a plan for money we did
+   not intend to collect. */
+export function planForAmountIn(currency: string, amount: number): PaidPlan | null {
+  if (currency === 'USD') {
+    if (amount >= PLAN_AMOUNTS_USD.MAX) return 'MAX';
+    if (amount >= PLAN_AMOUNTS_USD.PREMIUM) return 'PREMIUM';
+    if (amount >= PLAN_AMOUNTS_USD.BASIC) return 'BASIC';
+    return null;
+  }
+  if (currency === 'NGN') return planForAmount(amount);
   return null;
 }
 

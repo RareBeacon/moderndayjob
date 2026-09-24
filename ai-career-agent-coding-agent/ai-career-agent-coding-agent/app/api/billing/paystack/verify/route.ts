@@ -1,7 +1,7 @@
 import { requireUser } from '@/lib/auth';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { supabaseAdmin } from '@/lib/supabase';
-import { paystackConfigured, planForAmount, verifyPaystackTransaction } from '@packages/billing/paystack';
+import { paystackConfigured, planForAmountIn, verifyPaystackTransaction } from '@packages/billing/paystack';
 import { z } from 'zod';
 
 const body = z.object({ reference: z.string().trim().min(8).max(120) });
@@ -37,17 +37,17 @@ export async function POST(req: Request) {
       return Response.json({ status: verified.status }, { status: 200 });
     }
 
-    const amountNGN = verified.amount / 100; // kobo -> naira
-    const plan = planForAmount(amountNGN);
-    if (!plan || verified.currency !== 'NGN' || !verified.email) {
+    const amountMajor = verified.amount / 100; // kobo -> naira, or cents -> USD
+    const plan = planForAmountIn(verified.currency, amountMajor);
+    if (!plan || !verified.email) {
       return Response.json({ status: 'ignored', reason: 'AMOUNT_CURRENCY_OR_EMAIL_MISMATCH' }, { status: 200 });
     }
 
     const { error } = await supabaseAdmin.rpc('apply_verified_payment', {
       p_transaction_id: verified.reference,
       p_tx_ref: verified.reference,
-      p_amount: amountNGN,
-      p_currency: 'NGN',
+      p_amount: amountMajor,
+      p_currency: verified.currency,
       p_email: verified.email,
       p_provider: 'paystack',
     });

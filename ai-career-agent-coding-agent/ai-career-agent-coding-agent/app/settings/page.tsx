@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { AppShell } from '@/components/site/AppShell';
 import { SignOutCard } from '@/components/settings/SignOutCard';
 import { MfaManager } from '@/components/settings/MfaManager';
@@ -14,10 +15,26 @@ import { getEntitlement } from '@packages/security/entitlements';
 export const metadata = { title: 'Settings - Jobiest' };
 
 export default async function SettingsPage() {
-  const user = await requireUser();
+  // Stale session -> login redirect, never the error boundary (dashboard fix
+  // 2026-09-24, applied to every authed server page that calls requireUser).
+  const user = await requireUser().catch((error: unknown) => {
+    if (error instanceof Error && error.message === 'UNAUTHENTICATED') {
+      redirect('/login?next=%2Fsettings');
+    }
+    throw error;
+  });
   const [{ data: preferences }, entitlement] = await Promise.all([
     supabaseAdmin.from('job_preferences').select('application_mode').eq('user_id', user.id).maybeSingle(),
-    getEntitlement(user.id),
+    getEntitlement(user.id).catch(() => ({
+      plan: 'FREE' as const,
+      account_status: 'ACTIVE' as const,
+      subscription_status: null,
+      trial_ends_at: null,
+      automation_enabled: false,
+      ai_credits_remaining: 0,
+      applications_remaining: 0,
+      tool_uses_remaining: null,
+    })),
   ]);
 
   return (

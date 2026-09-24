@@ -15,23 +15,26 @@ type Entitlement = {
 type PaidPlan = 'BASIC' | 'PREMIUM' | 'MAX';
 type Provider = 'flutterwave' | 'paystack';
 
-const PLANS: { code: PaidPlan; name: string; price: string; blurb: string }[] = [
+const PLANS: { code: PaidPlan; name: string; priceNgn: string; priceUsd: string; blurb: string }[] = [
   {
     code: 'BASIC',
     name: 'Basic',
-    price: '₦5,000 / month',
+    priceNgn: '₦5,000 / month',
+    priceUsd: '$3.99 / month',
     blurb: '3 AI generations a day and 2 agent-mode trial runs. 50 tool uses a day.',
   },
   {
     code: 'PREMIUM',
     name: 'Premium',
-    price: '₦10,000 / month',
+    priceNgn: '₦10,000 / month',
+    priceUsd: '$7.99 / month',
     blurb: '10 AI generations and 10 agent-mode applications a day. Unlimited tool uses.',
   },
   {
     code: 'MAX',
     name: 'Max',
-    price: '₦20,000 / month',
+    priceNgn: '₦20,000 / month',
+    priceUsd: '$14.99 / month',
     blurb: '20 AI generations and 20 agent-mode applications a day. Concierge support.',
   },
 ];
@@ -47,12 +50,22 @@ export default function Billing() {
   const [provider, setProvider] = useState<Provider>('flutterwave');
   const [loading, setLoading] = useState('');
   const [message, setMessage] = useState('');
+  // Nigeria pays Naira; visitors from outside Nigeria are charged USD. The
+  // checkout (/api/billing/paystack/create) decides its currency from the
+  // same geo header, so this display always matches the charge.
+  const [usdMode, setUsdMode] = useState(false);
 
   useEffect(() => {
     fetch('/api/entitlements')
       .then((r) => r.json())
       .then(setEntitlement)
       .catch(() => setMessage('Unable to load plan information.'));
+    fetch('/api/geo')
+      .then((r) => r.json())
+      .then((j: { country?: string | null }) => {
+        if (j?.country && j.country !== 'NG') setUsdMode(true);
+      })
+      .catch(() => {});
     fetch('/api/billing/providers')
       .then((r) => r.json())
       .then((j: { flutterwave?: boolean; paystack?: boolean }) => {
@@ -115,14 +128,14 @@ export default function Billing() {
       <section className="plan-grid">
         <article className="card">
           <p className="eyebrow">FREE</p>
-          <h2>₦0</h2>
+          <h2>{usdMode ? '$0' : '₦0'}</h2>
           <p className="muted">3 AI generations in total, free forever. All 10 career tools (10 uses a day), the application agent and tracking.</p>
           <strong>Your career workspace stays yours.</strong>
         </article>
         {PLANS.map((p) => (
           <article key={p.code} className={`card${p.code === 'PREMIUM' ? ' featured-plan' : ''}`}>
             <p className="eyebrow">{p.name.toUpperCase()}</p>
-            <h2>{p.price}</h2>
+            <h2>{usdMode ? p.priceUsd : p.priceNgn}</h2>
             <p className="muted">{p.blurb}</p>
             <button className="btn" disabled={!!loading} onClick={() => buy(p.code)}>
               {loading === p.code ? 'Preparing checkout…' : `Choose ${p.name}`}
@@ -131,7 +144,7 @@ export default function Billing() {
         ))}
       </section>
       <p className="form-hint">
-        Prices are in Naira. See <a href="/pricing" style={{ color: 'var(--brand)' }}>the public pricing page</a> for local-currency estimates and full plan details. Checkout is handled on {providers.length === 1 ? PROVIDER_LABELS[providers[0]] : 'the provider you pick'} secure pages; card details never touch our servers.
+        {usdMode ? 'Prices are in US dollars.' : 'Prices are in Naira; visitors outside Nigeria are charged in US dollars.'} See <a href="/pricing" style={{ color: 'var(--brand)' }}>the public pricing page</a> for full plan details. Checkout is handled on {providers.length === 1 ? PROVIDER_LABELS[providers[0]] : 'the provider you pick'} secure pages; card details never touch our servers.
       </p>
     </AppShell>
   );

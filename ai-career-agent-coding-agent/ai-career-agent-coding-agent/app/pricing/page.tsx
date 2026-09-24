@@ -3,9 +3,10 @@ import { getUser } from '@/lib/auth';
 import { JobletNavbar } from '@/components/site/joblet/Navbar';
 import { JobletFooter } from '@/components/site/joblet/Footer';
 import { PLANS, PLAN_ORDER, type PlanCode } from '@/lib/billing/pricing';
-import { formatNaira } from '@/lib/billing/currency';
+import { formatNaira, formatPlanPrice, resolveCurrency, countryFromHeader } from '@/lib/billing/currency';
 import { jsonLdTag } from '@/lib/seo';
 import { SITE_URL } from '@/lib/site';
+import { headers } from 'next/headers';
 
 export const metadata = {
   title: 'Pricing - Free Plan and Paid Plans in Naira',
@@ -75,6 +76,9 @@ function pricingJsonLd() {
 
 export default async function PricingPage() {
   const user = await getUser();
+  // Nigeria sees Naira; visitors from anywhere else see (and are charged) USD.
+  const country = countryFromHeader((await headers()).get('x-vercel-ip-country'));
+  const currency = resolveCurrency(country);
 
   const rows: { label: string; values: Record<PlanCode, string> }[] = [
     {
@@ -82,7 +86,7 @@ export default async function PricingPage() {
       values: Object.fromEntries(
         PLAN_ORDER.map((code) => {
           const p = PLANS[code];
-          return [code, p.monthlyNgn === 0 ? formatNaira(0) : `${formatNaira(p.monthlyNgn)} / month`];
+          return [code, p.monthlyNgn === 0 ? formatNaira(0) : `${formatPlanPrice(currency, p.monthlyNgn, p.monthlyUsd)} / month`];
         }),
       ) as Record<PlanCode, string>,
     },
@@ -132,7 +136,7 @@ export default async function PricingPage() {
                   <div key={code} className={`jl-plan${p.featured ? ' featured' : ''}`} data-animate data-animate-delay={index * 70}>
                     <h3>{p.name}</h3>
                     <div className="jl-price">
-                      {p.monthlyNgn === 0 ? formatNaira(0) : <>{formatNaira(p.monthlyNgn)}<small> /month</small></>}
+                      {p.monthlyNgn === 0 ? formatNaira(0) : <>{formatPlanPrice(currency, p.monthlyNgn, p.monthlyUsd)}<small> /month</small></>}
                     </div>
                     <p className="jl-plan-tag">{p.tagline}</p>
                     <ul>{p.features.map((f) => <li key={f}><span className="jl-tick">✓</span>{f}</li>)}</ul>
@@ -142,6 +146,7 @@ export default async function PricingPage() {
               })}
             </div>
             <p className="jl-trial-note center">Start free with no card. Upgrade only when you are ready for more volume and approved automation.</p>
+            <p className="jl-trial-note center">{currency === 'USD' ? 'Prices in US dollars.' : 'Prices in Naira (US dollars apply outside Nigeria).'} Cancel anytime.</p>
           </div>
         </section>
 

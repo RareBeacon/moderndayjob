@@ -4,11 +4,11 @@ import Image from 'next/image';
 import { SITE_URL } from '@/lib/site';
 import { websiteJsonLd, organizationJsonLd, faqJsonLd, jsonLdTag } from '@/lib/seo';
 import { PLANS, PLAN_ORDER } from '@/lib/billing/pricing';
-import { formatNaira } from '@/lib/billing/currency';
 import styles from './home.module.css';
 import { Icon } from '@/components/home/Icons';
 import SiteHeader, { BrandWordmark } from '@/components/home/SiteHeader';
 import { ProductTour } from '@/components/home/ProductTour';
+import { GeoPrice } from '@/components/home/GeoPrice';
 
 export const revalidate = 300;
 
@@ -103,7 +103,8 @@ const planCards = PLAN_ORDER.map((code) => {
     code,
     name: plan.name,
     description: copy.description,
-    price: formatNaira(plan.monthlyNgn),
+    ngn: plan.monthlyNgn,
+    usd: plan.monthlyUsd,
     period: plan.monthlyNgn === 0 ? '/ forever' : '/ month',
     includes: copy.includes,
     features: copy.features,
@@ -292,7 +293,7 @@ export default async function HomePage() {
                   {card.featured && <span className={styles['popular-label']}><Icon name="spark" small />MOST POPULAR</span>}
                   <p className={styles['plan-description']}>{card.description}</p>
                   <h3>{card.name}</h3>
-                  <p className={styles.price}>{card.price}<span>{card.period}</span></p>
+                  <p className={styles.price}><GeoPrice ngn={card.ngn} usd={card.usd} /><span>{card.period}</span></p>
                   <Link className={`${styles.button} ${card.featured ? styles['button-yellow'] : styles['button-outline']}`} href="/signup">
                     {card.cta} <Icon name="arrow" small />
                   </Link>
@@ -312,7 +313,7 @@ export default async function HomePage() {
               </ul>
             </div>
             <p className={styles['pricing-footer']}>
-              Prices in Naira. Cancel anytime. <Link href="/pricing">View full plan details <Icon name="arrow-up" small /></Link>
+              Nigeria pays in Naira, everywhere else in US dollars. Cancel anytime. <Link href="/pricing">View full plan details <Icon name="arrow-up" small /></Link>
             </p>
           </div>
         </section>

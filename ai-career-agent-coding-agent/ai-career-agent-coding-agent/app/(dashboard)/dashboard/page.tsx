@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import ProfileReadiness from '@/components/ProfileReadiness';
 import { DashboardSetup } from '@/components/site/DashboardSetup';
 import { AppShell } from '@/components/site/AppShell';
@@ -30,7 +31,16 @@ function greetingForHour(hour: number): string {
  * they want; this page never dumps a listings pool.
  */
 export default async function Dashboard() {
-  const user = await requireUser();
+  // A stale or rotated session cookie (seen live 2026-09-24: an iOS Safari
+  // user right after Google signup + account completion) must redirect to
+  // login, not crash into the error boundary. The middleware lets the
+  // request through on the older token; this is the page-side backstop.
+  const user = await requireUser().catch((error: unknown) => {
+    if (error instanceof Error && error.message === 'UNAUTHENTICATED') {
+      redirect('/login?next=%2Fdashboard');
+    }
+    throw error;
+  });
   const [
     { data: profile },
     { data: career },
@@ -41,8 +51,20 @@ export default async function Dashboard() {
     supabaseAdmin.from('profiles').select('full_name,target_roles,account_status').eq('user_id', user.id).single(),
     supabaseAdmin.from('career_profiles').select('headline,skills').eq('user_id', user.id).maybeSingle(),
     supabaseAdmin.from('job_preferences').select('remote_types,locations,application_mode').eq('user_id', user.id).maybeSingle(),
-    getEntitlement(user.id),
-    getProfileCompleteness(user.id),
+    // Display-only: an entitlements hiccup (missing row, transient read
+    // error) must not take the whole dashboard down. The safe fallback shows
+    // the FREE plan; every real gate is enforced server-side per action.
+    getEntitlement(user.id).catch(() => ({
+      plan: 'FREE' as const,
+      account_status: 'ACTIVE' as const,
+      subscription_status: null,
+      trial_ends_at: null,
+      automation_enabled: false,
+      ai_credits_remaining: 0,
+      applications_remaining: 0,
+      tool_uses_remaining: null,
+    })),
+    getProfileCompleteness(user.id).catch(() => ({ percent: 0, next: [], checks: [] })),
   ]);
 
   const setupRequired = isGatedCohort(user.created_at) && completeness.percent < ONBOARDING_THRESHOLD;

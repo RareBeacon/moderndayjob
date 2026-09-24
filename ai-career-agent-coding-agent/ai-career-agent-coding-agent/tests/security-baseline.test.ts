@@ -117,6 +117,7 @@ describe('endpoint guard (B-024: deny-by-default route registry)', () => {
     '/api/auth/reset-password', // token-gated, rate-limited
     '/api/client-error', // anonymous-safe: rate-limited, bounded, writes to audit_logs only
     '/api/billing/providers', // provider availability booleans only; no secrets, no user data; rate-limited + cacheable
+    '/api/geo', // visitor country only (mirror of the public x-vercel-ip-country edge header); rate-limited, no data access
   ]);
 
   const AUTH_MARKERS = [

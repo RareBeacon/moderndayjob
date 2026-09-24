@@ -16,6 +16,8 @@ export interface PlanDefinition {
   tagline: string;
   /** Monthly price in Naira (major units). FREE is 0. */
   monthlyNgn: number;
+  /** Monthly USD list price for visitors outside Nigeria. FREE is 0. */
+  monthlyUsd: number;
   /** AI document generations per day (0 for FREE: FREE uses lifetimeDocs). */
   documentCredits: number;
   /** Total AI generations ever on FREE (null = not applicable). */
@@ -39,6 +41,7 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
     name: 'Free',
     tagline: 'Profile, matching, tracker, and every career tool. No card required.',
     monthlyNgn: 0,
+    monthlyUsd: 0,
     documentCredits: 0,
     lifetimeDocs: 3,
     automationSlots: 0,
@@ -61,6 +64,7 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
     name: 'Basic',
     tagline: 'Daily documents plus a first taste of agent-mode automation.',
     monthlyNgn: 5000,
+    monthlyUsd: 3.99,
     documentCredits: 3,
     lifetimeDocs: null,
     automationSlots: 0,
@@ -83,6 +87,7 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
     name: 'Premium',
     tagline: 'Agent mode unlocked, with room to run.',
     monthlyNgn: 10000,
+    monthlyUsd: 7.99,
     documentCredits: 10,
     lifetimeDocs: null,
     automationSlots: 10,
@@ -107,6 +112,7 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
     name: 'Max',
     tagline: 'For power users and agencies. Everything, with a human in the loop.',
     monthlyNgn: 20000,
+    monthlyUsd: 14.99,
     documentCredits: 20,
     lifetimeDocs: null,
     automationSlots: 20,

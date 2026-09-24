@@ -1,35 +1,36 @@
 /**
  * Currency display for Jobiest pricing.
  *
- * Jobiest bills exclusively in Naira (₦) via its payment provider. Prices are
- * defined once, in Naira, in lib/billing/pricing.ts and shown everywhere in
- * Naira. Earlier versions of this module converted prices into ~12 visitor
- * currencies using live FX rates with "estimate" labels; that was removed
- * (product-evolution spec, finding V11/V12) because approximate converted
- * prices added confusion next to the single billable currency, and the
- * checkout flow only ever charges Naira.
+ * Two billing currencies (2026-09-24, Paystack international payments
+ * enabled): Nigerian visitors are shown and charged Naira; visitors from
+ * anywhere else are shown and charged US dollars. Prices are defined once
+ * per currency (lib/billing/pricing.ts, subscription_plans) and resolved
+ * from the visitor's country (Vercel geo header on the server, /api/geo in
+ * the browser). The charge currency is decided server-side in
+ * /api/billing/paystack/create from the same header, so what a visitor sees
+ * is what they pay.
  *
- * If multi-currency billing is ever added (e.g. Paystack USD verified
- * enabled), reintroduce conversion here so pricing stays single-sourced.
+ * History: an earlier version converted prices into ~12 visitor currencies
+ * with live FX and "estimate" labels; that was removed (product-evolution
+ * spec, finding V11/V12) because approximate prices next to a single
+ * billable currency added confusion. This is different: USD is now actually
+ * charged, not estimated.
  */
 
-/** The only currency Jobiest bills and displays prices in. */
 export const BILLING_CURRENCY = 'NGN' as const;
 
-/**
- * Kept for compatibility with call sites that used to resolve a visitor
- * currency. It now always resolves to NGN: prices are single-currency.
- */
-export const SUPPORTED_CURRENCIES = ['NGN'] as const;
+export const SUPPORTED_CURRENCIES = ['NGN', 'USD'] as const;
 export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
 
-/** Always NGN; the signature is kept so callers do not need branching. */
-export function resolveCurrency(
-  _ipCountry?: string | null,
-  _locale?: string | null,
-  _override?: string | null,
-): SupportedCurrency {
-  return 'NGN';
+/** Nigeria sees Naira; everyone else sees (and pays) USD. */
+export function resolveCurrency(ipCountry?: string | null): SupportedCurrency {
+  return (ipCountry ?? '').trim().toUpperCase() === 'NG' ? 'NGN' : 'USD';
+}
+
+/** Extract the visitor country from a Vercel geo request header value. */
+export function countryFromHeader(value?: string | null): string | null {
+  const v = (value ?? '').trim();
+  return v.length > 0 ? v.toUpperCase() : null;
 }
 
 /** Format a Naira amount like ₦5,000 (no decimals; Naira has no minor unit in practice). */
@@ -37,9 +38,20 @@ export function formatNaira(ngnAmount: number): string {
   return `₦${Math.round(ngnAmount).toLocaleString('en-NG')}`;
 }
 
-/** Format a money amount in an arbitrary currency; only NGN is used today. */
+/** Format a USD amount like $7.99 (always two decimals). */
+export function formatUsd(usdAmount: number): string {
+  return `$${usdAmount.toFixed(2)}`;
+}
+
+/** Format a plan price in the resolved billing currency. */
+export function formatPlanPrice(currency: SupportedCurrency, ngnAmount: number, usdAmount: number): string {
+  return currency === 'USD' ? formatUsd(usdAmount) : formatNaira(ngnAmount);
+}
+
+/** Format a money amount in an arbitrary currency; NGN/USD use the house style. */
 export function formatMoney(amount: number, currency: string): string {
   if (currency === 'NGN') return formatNaira(amount);
+  if (currency === 'USD') return formatUsd(amount);
   try {
     return new Intl.NumberFormat('en-NG', {
       style: 'currency',

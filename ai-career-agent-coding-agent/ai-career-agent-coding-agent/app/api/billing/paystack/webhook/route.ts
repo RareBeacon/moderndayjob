@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { after } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { verifyPaystackTransaction, planForAmount, paystackWebhookSignature, verifyCardAuthorization } from '@packages/billing/paystack';
+import { verifyPaystackTransaction, planForAmountIn, paystackWebhookSignature, verifyCardAuthorization } from '@packages/billing/paystack';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { runDailyPipeline } from '@/lib/agent/pipeline';
 
@@ -164,12 +164,12 @@ export async function POST(req: Request) {
   }
   if (verified.status !== 'success') return Response.json({ ok: true, verifyStatus: verified.status });
 
-  // 5. Guard: amount must match a known NGN plan (kobo -> naira), with a
-  //    reachable email.
-  const amountNGN = verified.amount / 100;
-  const plan = planForAmount(amountNGN);
-  if (!plan || verified.currency !== 'NGN' || !verified.email) {
-    return Response.json({ ok: false, unexpectedAmount: amountNGN, currency: verified.currency }, { status: 202 });
+  // 5. Guard: amount must match a known plan in the charged currency (kobo
+  //    -> naira, cents -> USD), with a reachable email.
+  const amountMajor = verified.amount / 100;
+  const plan = planForAmountIn(verified.currency, amountMajor);
+  if (!plan || !verified.email) {
+    return Response.json({ ok: false, unexpectedAmount: amountMajor, currency: verified.currency }, { status: 202 });
   }
 
   // 6. Apply upgrade via the idempotent DB function, then record the event.
@@ -177,8 +177,8 @@ export async function POST(req: Request) {
     const { error } = await supabaseAdmin.rpc('apply_verified_payment', {
       p_transaction_id: verified.reference,
       p_tx_ref: verified.reference,
-      p_amount: amountNGN,
-      p_currency: 'NGN',
+      p_amount: amountMajor,
+      p_currency: verified.currency,
       p_email: verified.email,
       p_provider: 'paystack',
     });

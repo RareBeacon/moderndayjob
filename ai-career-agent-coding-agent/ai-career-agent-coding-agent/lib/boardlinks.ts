@@ -34,7 +34,12 @@ const LINKEDIN_REMOTE_FILTER = '2';
 const INDEED_REMOTE_TOKEN = '032b3046-06a3-4876-8dfd-474ebaf14158';
 
 function cleanList(values: string[] | null | undefined): string[] {
-  return (values ?? []).map((v) => v.trim()).filter(Boolean);
+  // Guard against wrong-typed rows (e.g. a client writing a string or an
+  // object into a text[] column): keep only real, non-empty strings.
+  return (Array.isArray(values) ? values : [])
+    .filter((v): v is string => typeof v === 'string')
+    .map((v) => v.trim())
+    .filter(Boolean);
 }
 
 /** Remote-only when the user's remote_types contains only remote-ish values. */
