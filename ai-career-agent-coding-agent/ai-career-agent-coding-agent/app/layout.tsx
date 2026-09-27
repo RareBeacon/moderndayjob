@@ -44,7 +44,13 @@ export const metadata: Metadata = {
   },
   twitter: { card: 'summary_large_image', title: 'Jobiest - your AI career agent', description: 'Your AI career agent. Truthful applications, full tracking, you in control.' },
   robots: { index: true, follow: true },
-  verification: { google: 'IFlK-iarS16eAascWNcpjO_H98qhdlIkN_3GfxyBiyk' },
+  verification: {
+    google: 'IFlK-iarS16eAascWNcpjO_H98qhdlIkN_3GfxyBiyk',
+    // Bing Webmaster Tools verification (2026-09-25 Microsoft SEO pass): set
+    // BING_SITE_VERIFICATION in the environment to the msvalidate.01 code from
+    // bing.com/webmasters and it renders here without another deploy.
+    ...(process.env.BING_SITE_VERIFICATION ? { other: { 'msvalidate.01': process.env.BING_SITE_VERIFICATION } } : {}),
+  },
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },

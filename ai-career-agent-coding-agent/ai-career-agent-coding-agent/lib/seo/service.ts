@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase';
+import { indexNowSubmit, corePublicUrls } from '@/lib/seo/indexnow';
 import { SITE_URL } from '@/lib/site';
 import { BLOG_POSTS } from '@/lib/seo/blog';
 import { STRATEGIC_RESEARCH_SOURCE, STRATEGIC_RESEARCH_TIMESTAMP, STRATEGIC_SEO_POSTS } from '@/lib/seo/strategic-content';
@@ -937,6 +938,21 @@ export async function runSeoDailyLoop() {
   report.strategicContent = await syncStrategicSeoContent(project.id, null).catch((error) => ({ error: error instanceof Error ? error.message : String(error) }));
   report.keywords = await seedKeywordRoadmap(project.id, null).catch((error) => ({ error: error instanceof Error ? error.message : String(error) }));
   report.urlAudit = await runPublicUrlAudit(project, null).catch((error) => ({ error: error instanceof Error ? error.message : String(error) }));
+
+  // Microsoft/Bing IndexNow announcement (best-effort, never blocks the loop):
+  // the day's changed article URLs plus the evergreen core pages.
+  try {
+    const { data: changed } = await supabaseAdmin
+      .from('seo_articles')
+      .select('url')
+      .eq('status', 'PUBLISHED')
+      .gte('last_updated', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+      .limit(10000);
+    const urls = [...corePublicUrls(), ...(changed ?? []).map((r) => String(r.url))];
+    report.indexNow = await indexNowSubmit(urls);
+  } catch (error) {
+    report.indexNow = { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
 
   if (project.google_oauth_ciphertext && project.search_console_property) {
     report.metrics = await importSearchConsoleMetrics(project, null, 7).catch((error) => ({ error: error instanceof Error ? error.message : String(error) }));
