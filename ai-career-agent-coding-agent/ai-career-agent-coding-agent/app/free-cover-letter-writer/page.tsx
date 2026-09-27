@@ -1,15 +1,15 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getUser } from '@/lib/auth';
-import { softwareAppJsonLd, jsonLdTag } from '@/lib/seo';
+import { softwareAppJsonLd, faqJsonLd, jsonLdTag } from '@/lib/seo';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { CoverLetterTool } from '@/components/freetools/CoverLetterTool';
 import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-cover-letter-writer` },
-  title: 'Free Cover Letter Writer',
-  description: 'Generate a professional cover letter built only from your verified profile facts; the truthfulness checker rejects claims your profile cannot support.',
+  title: 'Free Cover Letter Writer From Your Resume + Job Description',
+  description: 'Generate a truthful cover letter built from your profile and the actual job listing. A truthfulness check rejects any claim your profile cannot support.',
   openGraph: {
     title: 'Free Cover Letter Writer · Jobiest',
     images: ['/images/og-card.jpg'],
@@ -32,6 +32,11 @@ export default async function FreeCoverLetterPage() {
       lead="A concise, professional cover letter written from your verified profile facts, checked for truthfulness before it’s saved."
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(softwareAppJsonLd('Free Cover Letter Writer', 'Generate a concise, professional cover letter built only from your verified profile facts. A built-in truthfulness checker rejects any claim your profile can’t support. Free.', '/free-cover-letter-writer'))} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(faqJsonLd([
+    { q: "How is the cover letter written?", a: "From two inputs: the job description you paste and the verified facts in your profile. The letter is assembled from what both actually say." },
+    { q: "Is it free?", a: "Yes, you can generate the letter for free. Copying, downloading and saving unlock with a free account." },
+    { q: "Does it make claims about my background?", a: "Only claims your profile can support. A truthfulness check strips anything the letter cannot back with your own facts." },
+      ]))} />
       {/* Composition B: split, tool left, truth points right */}
       <section className="mk-section tight">
         <div className="mk-shell ft-split">

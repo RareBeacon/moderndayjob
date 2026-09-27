@@ -1,20 +1,20 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getUser } from '@/lib/auth';
-import { softwareAppJsonLd, jsonLdTag } from '@/lib/seo';
+import { softwareAppJsonLd, faqJsonLd, jsonLdTag } from '@/lib/seo';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { ResumeSummaryTool } from '@/components/freetools/ResumeSummaryTool';
 import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-resume-summary-generator` },
-  title: 'Free Resume Summary Generator',
+  title: 'Resume Summary Generator From Your Real Experience',
   description:
     'Three professional resume summary options written only from your verified profile facts, checked by a truthfulness gate before you see them. Free.',
   openGraph: {
     title: 'Free Resume Summary Generator · Jobiest',
     images: ['/images/og-card.jpg'],
-    description: 'Truthful resume summaries from your verified facts, never invented employers or metrics. Free to use.',
+    description: 'Build a professional resume summary from your verified experience, no invented metrics, no generic filler. Grounded in facts you control. Free.',
   },
 };
 
@@ -32,6 +32,11 @@ export default async function FreeResumeSummaryPage() {
       lead="Three summary options for the top of your CV, written from your verified facts and checked for truthfulness before you see a single word."
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(softwareAppJsonLd('Free Resume Summary Generator', 'Three professional resume summary options written only from your verified profile facts, checked by a truthfulness gate before you see them. Free.', '/free-resume-summary-generator'))} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(faqJsonLd([
+    { q: "What does the resume summary generator write?", a: "A short professional summary built only from the experience and facts you provide. It does not add metrics, titles or achievements you have not entered." },
+    { q: "Is it free?", a: "Yes, you can generate the summary for free. A free account unlocks copying, downloading and saving the result." },
+    { q: "Will it exaggerate my experience?", a: "No. Jobiest rejects claims your own facts cannot support \u2014 the summary stays truthful to what you entered." },
+      ]))} />
       <section className="mk-section tight">
         <div className="mk-shell ft-split">
           <div>

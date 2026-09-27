@@ -1,20 +1,20 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getUser } from '@/lib/auth';
-import { softwareAppJsonLd, jsonLdTag } from '@/lib/seo';
+import { softwareAppJsonLd, faqJsonLd, jsonLdTag } from '@/lib/seo';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { FollowupEmailTool } from '@/components/freetools/FollowupEmailTool';
 import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-follow-up-email-writer` },
-  title: 'Free Follow-up Email Writer',
+  title: 'Follow-Up Email Writer After a Job Application (Free)',
   description:
     'Draft a short, polite follow-up email after a job application, built only from the facts you provide. No invented names, dates, or conversations. Free.',
   openGraph: {
     title: 'Free Follow-up Email Writer · Jobiest',
     images: ['/images/og-card.jpg'],
-    description: 'A polite follow-up drafted from your facts, nothing invented. Free to use.',
+    description: 'Write a polite, professional follow-up email for your job application, grounded in your actual application history, ready to send. Free.',
   },
 };
 
@@ -26,6 +26,11 @@ export default async function FreeFollowupPage() {
       lead="A short, polite nudge to a recruiter, drafted from the facts you give us, and nothing else."
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(softwareAppJsonLd('Free Follow-up Email Writer', 'Draft a short, polite follow-up email after a job application, built only from the facts you provide. No invented names, dates, or conversations. Free.', '/free-follow-up-email-writer'))} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(faqJsonLd([
+    { q: "What does the follow-up email writer produce?", a: "A short, polite follow-up email you can send after a job application, referencing the real role and your actual application details." },
+    { q: "When should I follow up on a job application?", a: "Most recruiters suggest roughly one to two weeks after applying. The writer keeps the tone professional and the ask simple \u2014 a status check, never pressure." },
+    { q: "Is it free?", a: "Yes, the follow-up email is free to generate. A free account unlocks copying, downloading and saving." },
+      ]))} />
       <section className="mk-section tight">
         <div className="mk-shell" style={{ maxWidth: 860 }}>
           <FollowupEmailTool signedIn={!!user} />

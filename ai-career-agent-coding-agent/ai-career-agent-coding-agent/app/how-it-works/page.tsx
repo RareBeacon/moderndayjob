@@ -6,7 +6,7 @@ import { SITE_URL } from '@/lib/site';
 import { breadcrumbJsonLd, jsonLdTag } from '@/lib/seo';
 
 export const metadata: Metadata = {
-  title: 'How It Works',
+  title: 'How Jobiest Works: Your Job Application Agent in 3 Steps',
   description: 'Three steps between you and a working job agent: build your profile, bring the jobs you want, then approve and track every send.',
   alternates: { canonical: `${SITE_URL}/how-it-works` },
 };

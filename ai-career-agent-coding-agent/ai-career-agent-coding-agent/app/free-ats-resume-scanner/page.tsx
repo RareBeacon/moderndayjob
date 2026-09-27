@@ -1,15 +1,15 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getUser } from '@/lib/auth';
-import { softwareAppJsonLd, jsonLdTag } from '@/lib/seo';
+import { softwareAppJsonLd, faqJsonLd, jsonLdTag } from '@/lib/seo';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { AtsScannerTool } from '@/components/freetools/AtsScannerTool';
 import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-ats-resume-scanner` },
-  title: 'Free ATS Resume Scanner',
-  description: 'Paste your CV for an instant parseability score: contact details, sections, dates, action verbs, and keyword match against any job description.',
+  title: 'Free ATS Resume Scanner: Check Your CV in Seconds',
+  description: 'Paste your CV for an instant ATS parseability score, contact details, core sections, dates, action verbs, plus keyword match against any job description. Free, no AI credits.',
   openGraph: {
     title: 'Free ATS Resume Scanner · Jobiest',
     images: ['/images/og-card.jpg'],
@@ -33,6 +33,11 @@ export default async function FreeAtsScannerPage() {
       lead="Paste your CV, get a parseability score in seconds, deterministic checks, a fixed public rubric, and zero AI credits. Optionally check keyword overlap against a specific listing."
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(softwareAppJsonLd('Free ATS Resume Scanner', 'Paste your CV and get an instant parseability score: contact details, sections, dates, action verbs, and keyword match against any job description. Deterministic checks, free, unlimited.', '/free-ats-resume-scanner'))} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(faqJsonLd([
+    { q: "What does the ATS resume scanner check?", a: "Five deterministic checks on a public rubric: machine-readable contact details, the core sections parsers expect (experience, education, skills), a parseable timeline of dates, action-verb bullets, and optional keyword overlap against a specific job description." },
+    { q: "Is the ATS scan free?", a: "Yes. The checks are deterministic \u2014 they run on rules, not AI credits \u2014 so the scan is free to run on any CV, as often as you like." },
+    { q: "Does a high ATS score guarantee interviews?", a: "No. The score measures whether your CV is readable by applicant tracking systems, not whether you are a fit for the role. Jobiest never promises interview outcomes." },
+      ]))} />
       <section className="mk-section tight">
         <div className="mk-shell ft-split">
           <div>

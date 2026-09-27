@@ -1,14 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getUser } from '@/lib/auth';
-import { softwareAppJsonLd, jsonLdTag } from '@/lib/seo';
+import { softwareAppJsonLd, faqJsonLd, jsonLdTag } from '@/lib/seo';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { SkillsMatcherTool } from '@/components/freetools/SkillsMatcherTool';
 import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-skills-matcher` },
-  title: 'Free Skills Matcher',
+  title: 'Skills Matcher: Compare Your Skills to Any Job Description',
   description:
     'Score the jobs in your pool against your real profile with explainable results: fit score, strengths, gaps, and the reasons, not a black box. Free.',
   openGraph: {
@@ -27,6 +27,11 @@ export default async function FreeSkillsMatcherPage() {
       lead="See which of your skills a job actually rewards, with the fit score, the strengths, and the gaps explained, not a black-box number."
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(softwareAppJsonLd('Free Skills Matcher', 'Score the jobs in your pool against your real profile with explainable results: fit score, strengths, gaps, and the reasons, not a black box. Free.', '/free-skills-matcher'))} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(faqJsonLd([
+    { q: "How does the skills matcher work?", a: "You paste the job description and your skills (or connect your profile). The matcher lists the skills the posting actually asks for, marks the ones you already have, and shows the concrete gaps." },
+    { q: "Is it free?", a: "Yes, the skills match is free. Creating a free account also lets you save the result and track the gaps you close." },
+    { q: "Does it invent skills I do not have?", a: "No. Matching only compares what the listing states against the skills you actually provide. Nothing is added to your profile automatically." },
+      ]))} />
       {/* Composition C: centered tool, editorial differentiator band below */}
       <section className="mk-section tight">
         <div className="mk-shell" style={{ maxWidth: 860 }}>

@@ -1,15 +1,15 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getUser } from '@/lib/auth';
-import { softwareAppJsonLd, jsonLdTag } from '@/lib/seo';
+import { softwareAppJsonLd, faqJsonLd, jsonLdTag } from '@/lib/seo';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { InterviewQuestionsTool } from '@/components/freetools/InterviewQuestionsTool';
 import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-interview-question-generator` },
-  title: 'Free Interview Question Generator',
-  description: 'Paste any job description and get realistic interview practice questions with what each one tests, grounded in what the listing actually states.',
+  title: 'Interview Question Generator From Any Job Description',
+  description: 'Paste the job description and get realistic interview practice questions, each with what it is testing, grounded in what the listing states. Free.',
   openGraph: {
     title: 'Free Interview Question Generator · Jobiest',
     images: ['/images/og-card.jpg'],
@@ -31,6 +31,11 @@ export default async function FreeInterviewQuestionsPage() {
       lead="Paste the job description. Get realistic interview questions, each with a note on what it is really testing, plus practical preparation tips."
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(softwareAppJsonLd('Free Interview Question Generator', 'Paste any job description and get realistic interview practice questions with what each one tests, plus preparation tips. Grounded in what the listing actually states. Free.', '/free-interview-question-generator'))} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(faqJsonLd([
+    { q: "How are the interview questions generated?", a: "From the job description you paste. Each question maps to something the listing actually asks for, with a note on what the question is testing." },
+    { q: "Is it free?", a: "Yes, the practice questions are free to generate. A free account unlocks copying and saving." },
+    { q: "Are these the exact questions I will be asked?", a: "No \u2014 no one can promise that. They are realistic practice questions derived from the stated requirements." },
+      ]))} />
       <section className="mk-section tight">
         <div className="mk-shell" style={{ maxWidth: 920 }}>
           <InterviewQuestionsTool signedIn={!!user} />

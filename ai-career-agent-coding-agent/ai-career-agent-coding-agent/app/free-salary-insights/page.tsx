@@ -1,15 +1,15 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getUser } from '@/lib/auth';
-import { softwareAppJsonLd, jsonLdTag } from '@/lib/seo';
+import { softwareAppJsonLd, faqJsonLd, jsonLdTag } from '@/lib/seo';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { SalaryInsightsTool } from '@/components/freetools/SalaryInsightsTool';
 import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-salary-insights` },
-  title: 'Free Salary Insights',
-  description: 'We read real job listings for your role and report only the pay ranges they explicitly state. No estimates, no invented market averages.',
+  title: 'Salary Insights: Pay Ranges Stated in Real Job Listings',
+  description: 'See the pay employers actually print in job listings for your role, cited ranges, no invented averages, no estimates. Free salary insight.',
   openGraph: {
     title: 'Free Salary Insights · Jobiest',
     images: ['/images/og-card.jpg'],
@@ -25,6 +25,11 @@ export default async function FreeSalaryInsightsPage() {
       lead="What do employers actually say they pay? We read real listings for your role and report only the pay they explicitly state, never an estimate dressed up as data."
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(softwareAppJsonLd('Free Salary Insights', 'We read real job listings for your role and report only the pay ranges they explicitly state, no estimates, no invented market averages. Honest salary signals, free.', '/free-salary-insights'))} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(faqJsonLd([
+    { q: "Where do the salary ranges come from?", a: "Only from job listings that explicitly state pay. Every number is cited to the listing that printed it." },
+    { q: "What if listings do not mention salary?", a: "We say exactly that, and show how many listings were scanned versus how many stated pay. We refuse to invent a \"market average\" from silence." },
+    { q: "Is it free?", a: "Yes. Salary insights are free to explore for any role." },
+      ]))} />
       <section className="mk-section tight">
         <div className="mk-shell ft-split">
           <div>
