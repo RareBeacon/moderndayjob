@@ -1,4 +1,5 @@
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
+import { dodoConfigured } from '@packages/billing/dodo';
 import { flutterwaveConfigured } from '@packages/billing/flutterwave';
 import { paystackConfigured } from '@packages/billing/paystack';
 
@@ -10,7 +11,7 @@ export async function GET(req: Request) {
   const rl = await enforceRateLimit(`billing:providers:${requestIp(req)}`, 60, '1 m');
   if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
   return Response.json(
-    { flutterwave: flutterwaveConfigured(), paystack: paystackConfigured() },
+    { flutterwave: flutterwaveConfigured(), paystack: paystackConfigured(), dodo: dodoConfigured() },
     { headers: { 'cache-control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600' } },
   );
 }

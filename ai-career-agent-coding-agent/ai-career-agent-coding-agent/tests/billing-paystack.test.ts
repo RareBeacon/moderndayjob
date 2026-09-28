@@ -371,7 +371,7 @@ describe('providers route (no secrets leave the server)', () => {
     process.env.FLW_SECRET_KEY = 'sk';
     process.env.FLW_SECRET_HASH = 'h';
     const res = await providersGET(new Request('http://localhost/api/billing/providers'));
-    expect(await res.json()).toEqual({ flutterwave: true, paystack: true });
+    expect(await res.json()).toEqual({ flutterwave: true, paystack: true, dodo: false });
   });
 
   it('reports paystack false when only flutterwave is configured', async () => {
@@ -379,13 +379,13 @@ describe('providers route (no secrets leave the server)', () => {
     process.env.FLW_SECRET_HASH = 'h';
     delete process.env.PAYSTACK_SECRET_KEY;
     const res = await providersGET(new Request('http://localhost/api/billing/providers'));
-    expect(await res.json()).toEqual({ flutterwave: true, paystack: false });
+    expect(await res.json()).toEqual({ flutterwave: true, paystack: false, dodo: false });
   });
 
   it('reports both false when neither is configured', async () => {
     delete process.env.PAYSTACK_SECRET_KEY;
     const res = await providersGET(new Request('http://localhost/api/billing/providers'));
-    expect(await res.json()).toEqual({ flutterwave: false, paystack: false });
+    expect(await res.json()).toEqual({ flutterwave: false, paystack: false, dodo: false });
   });
 });
 

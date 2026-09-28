@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppShell } from '@/components/site/AppShell';
 
 type Entitlement = {
@@ -13,7 +13,7 @@ type Entitlement = {
 };
 
 type PaidPlan = 'BASIC' | 'PREMIUM' | 'MAX';
-type Provider = 'flutterwave' | 'paystack';
+type Provider = 'flutterwave' | 'paystack' | 'dodo';
 
 const PLANS: { code: PaidPlan; name: string; priceNgn: string; priceUsd: string; blurb: string }[] = [
   {
@@ -42,6 +42,7 @@ const PLANS: { code: PaidPlan; name: string; priceNgn: string; priceUsd: string;
 const PROVIDER_LABELS: Record<Provider, string> = {
   flutterwave: 'Flutterwave',
   paystack: 'Paystack',
+  dodo: 'Dodo (USD)',
 };
 
 export default function Billing() {
@@ -54,6 +55,11 @@ export default function Billing() {
   // checkout (/api/billing/paystack/create) decides its currency from the
   // same geo header, so this display always matches the charge.
   const [usdMode, setUsdMode] = useState(false);
+  // Shared between the two fetches below so whichever resolves last can
+  // still apply the USD-visitor default provider (Dodo: Merchant of Record,
+  // so VAT/sales tax is handled by them for international checkouts).
+  let usdVisitor = false;
+  const providersRef = useRef<Provider[]>([]);
 
   useEffect(() => {
     fetch('/api/entitlements')
@@ -63,19 +69,25 @@ export default function Billing() {
     fetch('/api/geo')
       .then((r) => r.json())
       .then((j: { country?: string | null }) => {
-        if (j?.country && j.country !== 'NG') setUsdMode(true);
+        if (j?.country && j.country !== 'NG') {
+          usdVisitor = true;
+          setUsdMode(true);
+          setProvider((current) => (current === 'dodo' ? current : providersRef.current.includes('dodo') ? 'dodo' : current));
+        }
       })
       .catch(() => {});
     fetch('/api/billing/providers')
       .then((r) => r.json())
-      .then((j: { flutterwave?: boolean; paystack?: boolean }) => {
+      .then((j: { flutterwave?: boolean; paystack?: boolean; dodo?: boolean }) => {
         const available: Provider[] = [];
         if (j.flutterwave) available.push('flutterwave');
         if (j.paystack) available.push('paystack');
+        if (j.dodo) available.push('dodo');
         setProviders(available);
-        if (available.length > 0) setProvider(available[0]);
+        if (available.length > 0) setProvider(usdVisitor && available.includes('dodo') ? 'dodo' : available[0]);
       })
       .catch(() => setProviders(['flutterwave', 'paystack']));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function buy(plan: PaidPlan) {
@@ -87,8 +99,9 @@ export default function Billing() {
       body: JSON.stringify({ plan }),
     });
     const j = await r.json();
-    // Flutterwave returns data.link; Paystack returns data.authorization_url.
-    const link = j.data?.link ?? j.data?.authorization_url;
+    // Flutterwave returns data.link; Paystack returns data.authorization_url;
+    // Dodo returns data.checkout_url.
+    const link = j.data?.link ?? j.data?.authorization_url ?? j.data?.checkout_url;
     if (link) location.href = link;
     else setMessage(j.error === 'BILLING_NOT_CONFIGURED' ? 'Payments are not available yet. Please check back soon.' : j.error ?? 'Unable to start payment');
     setLoading('');
@@ -144,7 +157,7 @@ export default function Billing() {
         ))}
       </section>
       <p className="form-hint">
-        {usdMode ? 'Prices are in US dollars.' : 'Prices are in Naira; visitors outside Nigeria are charged in US dollars.'} See <a href="/pricing" style={{ color: 'var(--brand)' }}>the public pricing page</a> for full plan details. Checkout is handled on {providers.length === 1 ? PROVIDER_LABELS[providers[0]] : 'the provider you pick'} secure pages; card details never touch our servers.
+        {usdMode ? 'Prices are in US dollars.' : 'Prices are in Naira; visitors outside Nigeria are charged in US dollars.'} See <a href="/pricing" style={{ color: 'var(--brand)' }}>the public pricing page</a> for full plan details. Checkout is handled on {providers.length === 1 ? PROVIDER_LABELS[providers[0]] : 'the provider you pick'} secure pages; card details never touch our servers.{provider === 'dodo' && ' Dodo is the merchant of record: VAT or sales tax for your country is calculated and handled by them at checkout.'}
       </p>
     </AppShell>
   );

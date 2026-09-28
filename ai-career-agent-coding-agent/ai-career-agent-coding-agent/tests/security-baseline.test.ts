@@ -129,6 +129,7 @@ describe('endpoint guard (B-024: deny-by-default route registry)', () => {
     'verif-hash',
     'FLW_SECRET',
     'PAYSTACK_SECRET', // Paystack webhook: x-paystack-signature HMAC-SHA512 over the raw body
+    'DODO_PAYMENTS_WEBHOOK_KEY', // Dodo webhook: Standard Webhooks HMAC-SHA256 over id.timestamp.rawBody
     'TALLY_WEBHOOK_SECRET',
   ];
 
