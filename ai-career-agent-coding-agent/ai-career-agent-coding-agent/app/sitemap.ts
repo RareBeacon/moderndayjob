@@ -53,7 +53,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const core: MetadataRoute.Sitemap = CORE_SEO_PATHS.map((path) => ({
     url: canonicalPublicUrl(path),
     lastModified: now,
-    changeFrequency: path === '/' ? 'daily' as const : path === '/pricing' || path === '/blog' || path === '/tools' ? 'weekly' as const : path === '/terms' || path === '/privacy' || path === '/refund' ? 'yearly' as const : 'monthly' as const,
+    changeFrequency: path === '/' ? 'daily' as const : path === '/pricing' || path === '/blog' || path === '/tools' ? 'weekly' as const : path === '/terms' || path === '/privacy' || path === '/refund' || path === '/contact' ? 'yearly' as const : 'monthly' as const,
     priority: path === '/' ? 1 : path === '/pricing' || path === '/how-it-works' || path === '/tools' ? 0.9 : path === '/blog' ? 0.85 : path === '/about' ? 0.8 : path === '/help' ? 0.6 : 0.2,
   }));
   const staticBlog = BLOG_POSTS.map((post) => ({

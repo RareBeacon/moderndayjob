@@ -427,6 +427,7 @@ export default async function HomePage() {
             <div className={styles['footer-column']}>
               <h3>Get to know us</h3>
               <Link href="/about">About Jobiest</Link>
+              <Link href="/contact">Contact us</Link>
               <Link href="/blog">Blog</Link>
               <Link href="/help">Help centre</Link>
               <a href="#tools">Free tools</a>

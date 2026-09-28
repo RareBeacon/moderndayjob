@@ -12,6 +12,7 @@ export const CORE_SEO_PATHS = [
   '/terms',
   '/privacy',
   '/refund',
+  '/contact',
 ] as const;
 
 export const FREE_TOOL_SEO_PATHS = [

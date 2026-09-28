@@ -33,6 +33,7 @@ export function JobletFooter() {
                 <li><a href="/signup">Start free</a></li>
                 <li><a href="/login">Sign in</a></li>
                 <li><a href="/about">About</a></li>
+                <li><a href="/contact">Contact</a></li>
                 <li><a href="/help">Help</a></li>
               </ul>
             </div>
