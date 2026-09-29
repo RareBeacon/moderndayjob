@@ -15,6 +15,9 @@ export interface BlogPost {
   secondaryKeywords: string[];
   sections: BlogSection[];
   cta: string;
+  /** Contextual internal links to free tools/pages, rendered at the end of the
+   *  article (internal linking for SEO + reader value). */
+  relatedTools?: { href: string; label: string }[];
 }
 
 export const BLOG_POSTS: BlogPost[] = [
@@ -81,6 +84,11 @@ export const BLOG_POSTS: BlogPost[] = [
       },
     ],
     cta: 'Start your free Jobiest account today. Your first matches can be ready within minutes of completing your profile.',
+    relatedTools: [
+      { href: '/free-career-path-explorer', label: 'Free Career Path Explorer' },
+      { href: '/free-salary-insights', label: 'Free Salary Insights' },
+      { href: '/how-it-works', label: 'How Jobiest Works' },
+    ],
   },
   {
     slug: 'ats-problem-how-to-fix-it',
@@ -137,6 +145,11 @@ export const BLOG_POSTS: BlogPost[] = [
       },
     ],
     cta: 'Scan your CV for free at Jobiest. Your first scan takes a few minutes and can save weeks of silence.',
+    relatedTools: [
+      { href: '/free-ats-resume-scanner', label: 'Free ATS Resume Scanner' },
+      { href: '/free-skills-matcher', label: 'Free Skills Matcher' },
+      { href: '/free-resume-summary-generator', label: 'Free Resume Summary Generator' },
+    ],
   },
   {
     slug: 'apply-to-20-jobs-a-week-without-burning-out',
@@ -194,6 +207,11 @@ export const BLOG_POSTS: BlogPost[] = [
       },
     ],
     cta: 'Start your free Jobiest account and see how much of your search can move from production to review.',
+    relatedTools: [
+      { href: '/how-it-works', label: 'How Jobiest Works' },
+      { href: '/free-follow-up-email-writer', label: 'Free Follow-Up Email Writer' },
+      { href: '/pricing', label: 'Pricing' },
+    ],
   },
   {
     slug: 'tailored-cv-without-two-hours-per-application',
@@ -249,6 +267,11 @@ export const BLOG_POSTS: BlogPost[] = [
       },
     ],
     cta: 'Build your free Jobiest profile and see your first tailored CV in minutes.',
+    relatedTools: [
+      { href: '/free-ats-resume-scanner', label: 'Free ATS Resume Scanner' },
+      { href: '/free-resume-summary-generator', label: 'Free Resume Summary Generator' },
+      { href: '/free-cover-letter-writer', label: 'Free Cover Letter Writer' },
+    ],
   },
   {
     slug: 'why-you-are-not-getting-interview-callbacks',
@@ -309,6 +332,11 @@ export const BLOG_POSTS: BlogPost[] = [
       },
     ],
     cta: 'Fix your process before your next application. Start with Jobiest for free today.',
+    relatedTools: [
+      { href: '/free-interview-question-generator', label: 'Free Interview Question Generator' },
+      { href: '/free-follow-up-email-writer', label: 'Free Follow-Up Email Writer' },
+      { href: '/free-ats-resume-scanner', label: 'Free ATS Resume Scanner' },
+    ],
   },
 ];
 

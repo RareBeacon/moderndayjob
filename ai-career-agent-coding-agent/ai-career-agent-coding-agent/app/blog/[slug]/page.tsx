@@ -191,6 +191,16 @@ function StaticArticle({ post }: { post: BlogPost }) {
           {section.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
         </section>
       ))}
+      {post.relatedTools?.length ? (
+        <section className="blog-internal-links">
+          <h2>Free tools that help with this</h2>
+          <ul>
+            {post.relatedTools.map((tool) => (
+              <li key={tool.href}><Link className="inline-link" href={tool.href}>{tool.label}</Link></li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <section className="blog-cta-box">
         <h2>Ready to change how your search works?</h2>
         <p>{post.cta}</p>

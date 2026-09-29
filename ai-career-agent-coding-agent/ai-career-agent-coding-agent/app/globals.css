@@ -2370,3 +2370,9 @@ body { background: var(--background); color: var(--foreground); font-family: var
 .seo-trend-legend .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
 .seo-trend-legend .swatch.impressions { background: #111c35; opacity: 0.25; }
 .seo-trend-legend .swatch.clicks { background: #f8d64d; }
+
+/* Related free tools list at the end of static blog posts (internal links). */
+.blog-internal-links { margin-top: 26px; }
+.blog-internal-links ul { list-style: none; padding: 0; display: grid; gap: 10px; }
+.blog-internal-links li { padding-left: 22px; position: relative; }
+.blog-internal-links li::before { content: "\2192"; position: absolute; left: 0; color: var(--brand, #0a66ff); }
