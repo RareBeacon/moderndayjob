@@ -131,7 +131,7 @@ export default async function HomePage() {
               <a href="#case-study" className={styles['quiet-link']}>Watch it work <Icon name="play" small /></a>
             </div>
             <div className={styles['hero-intro']}>
-              <h1>Your AI agent<br />for the <span className={styles['headline-highlight']}>job search.</span></h1>
+              <h1>Jobiest: Your AI agent<br />for the <span className={styles['headline-highlight']}>job search.</span></h1>
               <div className={styles['hero-copy']}>
                 <p>
                   Tell Jobiest what you want once. It finds matching roles on paid plans, or takes any job link you paste. Every application comes back tailored: CV, cover letter, answers, form filled. One tap approves it, and on Greenhouse, Lever, Ashby and Workable the agent submits for you. You review the results. It does the work.

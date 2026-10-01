@@ -22,6 +22,13 @@ export function organizationJsonLd() {
     name: 'Jobiest',
     url: SITE_URL,
     logo: `${SITE_URL}/icon.svg`,
+    description: 'Jobiest is an AI career agent that finds job openings, prepares truthful tailored applications, and submits them only after the user approves. Includes 10 free career tools. Built in Lagos, Nigeria.',
+    sameAs: [
+      'https://www.instagram.com/jobiest_ai',
+      'https://www.tiktok.com/@jobiest',
+      'https://x.com/Jobiest_ai',
+      'https://whatsapp.com/channel/0029VbE1oVxHVvTk2cnfdj2r',
+    ],
   };
 }
 
