@@ -43,6 +43,8 @@ export function JobletFooter() {
                 <li><a href="/terms">Terms of service</a></li>
                 <li><a href="/privacy">Privacy policy</a></li>
                 <li><a href="/refund">Refund policy</a></li>
+                <li><a href="/dpa">Data processing</a></li>
+                <li><a href="/msa">Service agreement</a></li>
               </ul>
             </div>
           </div>

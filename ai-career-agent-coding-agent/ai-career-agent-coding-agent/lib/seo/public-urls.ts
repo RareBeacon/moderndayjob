@@ -12,6 +12,8 @@ export const CORE_SEO_PATHS = [
   '/terms',
   '/privacy',
   '/refund',
+  '/dpa',
+  '/msa',
   '/contact',
 ] as const;
 
