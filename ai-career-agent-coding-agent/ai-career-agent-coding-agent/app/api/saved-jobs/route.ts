@@ -25,7 +25,8 @@ export async function GET(req: Request) {
       .order('created_at', { ascending: false });
 
     if (error) {
-      return NextResponse.json({ error: 'SAVED_JOBS_FETCH_FAILED', details: error.message }, { status: 500 });
+      console.error('saved-jobs fetch failed', { userId: user.id, code: error.code });
+      return NextResponse.json({ error: 'SAVED_JOBS_FETCH_FAILED' }, { status: 500 });
     }
 
     const savedJobs = (saved || []).map((s) => ({
@@ -35,8 +36,8 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ savedJobs });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: 'INTERNAL_ERROR', details: message }, { status: 500 });
+    console.error('saved-jobs route error', { err: String(err).slice(0, 300) });
+    return NextResponse.json({ error: 'INTERNAL_ERROR' }, { status: 500 });
   }
 }
 
@@ -56,18 +57,38 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'INVALID_JOB_ID', issues: parsed.error.issues }, { status: 400 });
     }
 
-    const { error } = await supabaseAdmin
-      .from('saved_jobs')
-      .upsert({ user_id: user.id, job_id: parsed.data.jobId }, { onConflict: 'user_id,job_id' });
+    const jobId = parsed.data.jobId;
 
-    if (error) {
-      return NextResponse.json({ error: 'SAVE_JOB_FAILED', details: error.message }, { status: 500 });
+    // The job must exist. A stale id from the client (list refreshed, job
+    // garbage-collected) would otherwise surface as a raw foreign-key 500
+    // that also leaked the SQL error text. Answer a clean 404 instead.
+    const { data: job } = await supabaseAdmin
+      .from('jobs')
+      .select('id')
+      .eq('id', jobId)
+      .maybeSingle();
+    if (!job) {
+      return NextResponse.json({ error: 'JOB_NOT_FOUND' }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, jobId: parsed.data.jobId });
+    const { error } = await supabaseAdmin
+      .from('saved_jobs')
+      .upsert({ user_id: user.id, job_id: jobId }, { onConflict: 'user_id,job_id' });
+
+    if (error) {
+      // The job can vanish between the check above and the upsert (race);
+      // the FK violation then means the same thing: job no longer exists.
+      if (error.code === '23503') {
+        return NextResponse.json({ error: 'JOB_NOT_FOUND' }, { status: 404 });
+      }
+      console.error('saved-jobs upsert failed', { userId: user.id, code: error.code });
+      return NextResponse.json({ error: 'SAVE_JOB_FAILED' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, jobId });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: 'INTERNAL_ERROR', details: message }, { status: 500 });
+    console.error('saved-jobs route error', { err: String(err).slice(0, 300) });
+    return NextResponse.json({ error: 'INTERNAL_ERROR' }, { status: 500 });
   }
 }
 
@@ -100,12 +121,13 @@ export async function DELETE(req: Request) {
       .eq('job_id', jobId);
 
     if (error) {
-      return NextResponse.json({ error: 'DELETE_SAVED_JOB_FAILED', details: error.message }, { status: 500 });
+      console.error('saved-jobs delete failed', { userId: user.id, code: error.code });
+      return NextResponse.json({ error: 'DELETE_SAVED_JOB_FAILED' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, jobId });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: 'INTERNAL_ERROR', details: message }, { status: 500 });
+    console.error('saved-jobs route error', { err: String(err).slice(0, 300) });
+    return NextResponse.json({ error: 'INTERNAL_ERROR' }, { status: 500 });
   }
 }
