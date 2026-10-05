@@ -37,8 +37,8 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ preferences });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: 'INTERNAL_ERROR', details: message }, { status: 500 });
+    console.error('route error (details logged server-side only)', { err: String(err).slice(0, 300) });
+    return NextResponse.json({ error: 'INTERNAL_ERROR' }, { status: 500 });
   }
 }
 
@@ -71,7 +71,7 @@ export async function POST(req: Request) {
       message: 'Notification preferences updated successfully',
     });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: 'INTERNAL_ERROR', details: message }, { status: 500 });
+    console.error('route error (details logged server-side only)', { err: String(err).slice(0, 300) });
+    return NextResponse.json({ error: 'INTERNAL_ERROR' }, { status: 500 });
   }
 }

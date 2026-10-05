@@ -54,7 +54,8 @@ export async function GET(req: Request) {
     const { data: jobs, count, error } = await query;
 
     if (error) {
-      return NextResponse.json({ error: 'JOB_SEARCH_FAILED', details: error.message }, { status: 500 });
+      console.error('job search failed', { err: String(error.message).slice(0, 300) });
+      return NextResponse.json({ error: 'JOB_SEARCH_FAILED' }, { status: 500 });
     }
 
     // Saved-job markers for the signed-in caller
@@ -88,7 +89,7 @@ export async function GET(req: Request) {
       },
     });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: 'INTERNAL_ERROR', details: message }, { status: 500 });
+    console.error('route error (details logged server-side only)', { err: String(err).slice(0, 300) });
+    return NextResponse.json({ error: 'INTERNAL_ERROR' }, { status: 500 });
   }
 }
