@@ -282,3 +282,47 @@ export async function sendAgentFoundJobsEmail(to: string, input: AgentFoundJobsI
   const text = `Hello ${first},\n\nYour agent found ${n} matching your criteria and prepared the applications (tailored CV and cover letter).\n\nNothing has been sent: you approve every send.\n\nReview them here: ${input.pipelineUrl}\n\nJobiest - Your next opportunity is here.`;
   return sendEmail({ to, subject: input.count === 1 ? 'Your agent found a job for you' : `Your agent found ${input.count} jobs for you`, html, text });
 }
+
+/** First-win activation nudge for verified-but-dormant accounts (2026-10-05).
+ *  One tiny action: scan your current CV against one real job. Reply-to is
+ *  support@ because the copy promises a human reply. */
+export async function sendFirstWinEmail(to: string, firstName?: string): Promise<SendEmailResult> {
+  const name = firstName?.trim() || 'there';
+  const first = name.split(' ')[0];
+  const steps = [
+    'Open the free ATS resume scanner - no upload needed.',
+    'Paste your current CV, and one job post you actually want.',
+    'Read the score, and the fixes that would move it most.',
+  ]
+    .map((item) => `<div style="padding:4px 0;font-size:14px;color:#333D52;">&#10003;&nbsp; ${item}</div>`)
+    .join('');
+  const html = composeEmail(
+    [
+      emailHero('Your first scan takes 90 seconds'),
+      emailHeading(`Hello ${escapeHtmlEmail(first)},`),
+      emailParagraph(
+        'Your Jobiest account is ready and your free daily credits are in - but nothing has run through them yet. No judgement: most people sign up on a busy Monday and get pulled away. Here is the whole thing, three lines.',
+      ),
+      emailParagraph(steps),
+      emailParagraph(
+        'Do not try to overhaul your whole career tonight. Just scan your CV against one real job. That proves the agent works, which is the only hard part. Everything after that - tailored CVs, cover letters, applications you approve one by one - builds on that one score.',
+      ),
+      emailButton('Scan my CV now', `${SITE_URL}/free-ats-resume-scanner`),
+      emailParagraph('Your free daily credits refill every day, so there is nothing to lose by starting small.', {
+        muted: true,
+      }),
+      emailParagraph(
+        'Something not working? Just reply to this email - it lands in a real inbox, and we read every one.',
+      ),
+    ],
+    'Jobiest - your first scan takes 90 seconds',
+  );
+  const text = `Hello ${first},\n\nYour Jobiest account is ready and your free daily credits are in - but nothing has run through them yet. No judgement: most people sign up on a busy Monday and get pulled away. Here is the whole thing, three lines:\n\n1. Open the free ATS resume scanner: ${SITE_URL}/free-ats-resume-scanner\n2. Paste your current CV, and one job post you actually want.\n3. Read the score, and the fixes that would move it most.\n\nDo not try to overhaul your whole career tonight. Just scan your CV against one real job. That proves the agent works, which is the only hard part. Everything after that - tailored CVs, cover letters, applications you approve one by one - builds on that one score.\n\nYour free daily credits refill every day, so there is nothing to lose by starting small.\n\nSomething not working? Just reply to this email - it lands in a real inbox, and we read every one.\n\nIf you have any issues or enquiry, you can reach out to us at support@jobiest.com`;
+  return sendEmail({
+    to,
+    subject: 'Your first scan takes 90 seconds',
+    html,
+    text,
+    replyTo: 'support@jobiest.com',
+  });
+}
