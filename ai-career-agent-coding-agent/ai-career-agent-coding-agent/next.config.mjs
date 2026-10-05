@@ -54,6 +54,7 @@ const noStoreSources = [
 ];
 
 const nextConfig = {
+  poweredByHeader: false,
   reactStrictMode: true,
   experimental: { serverActions: { bodySizeLimit: '5mb' } },
   async headers() {
