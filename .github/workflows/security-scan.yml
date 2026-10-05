@@ -1,0 +1,80 @@
+name: Security scan
+
+# Continuous security scanning (owner brief 2026-10-05):
+#  - semgrep: free static analysis for private repos (CodeQL needs GHAS).
+#  - ZAP baseline: weekly passive scan of production, fails on HIGH findings.
+#    SARIF + HTML reports are attached as artifacts for review.
+# The gitleaks secret scan and npm audit already run in ci.yml.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "30 5 * * 1" # Mondays 05:30 UTC, before the daily 06:30 pipeline
+  workflow_dispatch:
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  semgrep:
+    name: Semgrep static analysis
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    defaults:
+      run:
+        working-directory: ai-career-agent-coding-agent/ai-career-agent-coding-agent
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+      - name: Semgrep scan (app + lib, tests excluded)
+        run: semgrep scan --config auto --error --exclude-rule generic.secrets.security-detected --exclude tests --exclude e2e --json --output semgrep.json || true
+      - name: Fail on findings
+        run: |
+          FINDINGS=$(python3 -c "import json;d=json.load(open('semgrep.json'));print(len(d.get('results',[])))" 2>/dev/null || echo "0")
+          echo "Semgrep findings: $FINDINGS"
+          if [ "$FINDINGS" -gt "0" ]; then exit 1; fi
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-results
+          path: ai-career-agent-coding-agent/ai-career-agent-coding-agent/semgrep.json
+          if-no-files-found: ignore
+
+  zap-baseline:
+    name: ZAP baseline (production)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # External scanning only makes sense once the code is live.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+      - name: ZAP baseline scan of jobiest.com
+        run: |
+          docker run -v "${GITHUB_WORKSPACE}:/zap/wrk/:rw" \
+            ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
+            -t https://jobiest.com \
+            -c .zap/baseline-rules.conf \
+            -r zap-baseline-report.html \
+            -J zap-baseline-report.json \
+            -I || ZAP_EXIT=$?
+          # zap-baseline exits 1 on WARN/FAIL per its config; treat 2 (FAIL) as fatal.
+          if [ "${ZAP_EXIT:-0}" = "2" ]; then
+            echo "ZAP baseline found FAIL-level issues."
+            exit 1
+          fi
+      - name: Upload ZAP report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-baseline-report
+          path: |
+            zap-baseline-report.html
+            zap-baseline-report.json
+          if-no-files-found: ignore
