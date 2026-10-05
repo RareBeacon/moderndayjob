@@ -449,6 +449,8 @@ export default async function HomePage() {
               ))}
               <Link href="/privacy">Privacy</Link>
               <Link href="/terms">Terms</Link>
+              <Link href="/dpa">Data processing</Link>
+              <Link href="/msa">Service agreement</Link>
             </div>
           </div>
         </div>
