@@ -60,7 +60,9 @@ function healthyInternet(breach?: 'admin-open'): typeof fetch {
       return res(401, { error: 'UNAUTHENTICATED' });
     }
     if (u.pathname === '/api/admin/users' || u.pathname === '/api/admin/credentials') {
-      if (init?.method === 'POST' && auth === `Bearer ${TOKEN}`) {
+      const isScanner = auth === `Bearer ${TOKEN}`;
+      const methodOk = (u.pathname === '/api/admin/users') ? (init?.method ?? 'GET') === 'GET' : init?.method === 'POST';
+      if (isScanner && methodOk) {
         if (breach === 'admin-open' && u.pathname === '/api/admin/users') {
           return res(200, { users: [{ email: 'owner@jobiest.com' }] });
         }

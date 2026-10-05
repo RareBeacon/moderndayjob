@@ -166,10 +166,13 @@ export async function runSelfScan(origin: string, fetchFn: FetchLike = fetch): P
     check('JWT: alg=none rejected', [401, 403].includes((await get('/api/profile', { Authorization: `Bearer ${noneJwt(token)}` })).status));
     check('JWT: garbage rejected', (await get('/api/profile', { Authorization: 'Bearer garbage.token.here' })).status === 401);
 
-    for (const path of ['/api/admin/users', '/api/admin/credentials']) {
-      const res = await fetchFn(`${origin}${path}`, { method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' }, body: '{}' });
-      check(`admin blocked: ${path}`, res.status === 403, `status ${res.status}`);
-    }
+    // GET-only route (405 on POST) and POST-only route; a block is 401 or 403.
+    const adminUsers = await get('/api/admin/users', auth);
+    check('admin blocked: /api/admin/users', [401, 403].includes(adminUsers.status), `status ${adminUsers.status}`);
+    const adminCreds = await fetchFn(`${origin}/api/admin/credentials`, {
+      method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' }, body: '{}',
+    });
+    check('admin blocked: /api/admin/credentials', [401, 403].includes(adminCreds.status), `status ${adminCreds.status}`);
 
     const victim = '99999999-9999-4999-8999-999999999999';
     check('IDOR: foreign document blocked', (await get(`/api/documents/${victim}/export?format=pdf`, auth)).status === 404);
