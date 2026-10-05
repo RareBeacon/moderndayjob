@@ -11,6 +11,7 @@ import { processAgentTask, runDailyPipeline, failTask, type AgentTask } from '..
  */
 
 vi.mock('../lib/apply/task', () => ({ processApplicationTask: vi.fn() }));
+vi.mock('../lib/credits', () => ({ ensurePeriodGrants: vi.fn(async () => 0) }));
 vi.mock('../lib/agent/discovery', () => ({
   runDiscoveryStage: vi.fn(async () => ({ usersConsidered: 0, usersRun: 0, applicationsCreated: 0, sources: [], outcomes: [] })),
   runDiscoveryForUser: vi.fn(async () => ({ userId: 'u1', scanned: 0, matched: 0, created: 0, crafted: 0, autoSubmittedQueued: 0, errors: [] })),
