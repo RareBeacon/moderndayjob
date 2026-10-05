@@ -102,6 +102,16 @@ export async function runDailyPipeline(partial: Partial<PipelineDeps> = {}): Pro
   const deps: PipelineDeps = { ...defaultDeps(), ...partial };
   const report: PipelineReport = { day: new Date().toISOString().slice(0, 10), tasksProcessed: 0, taskOutcomes: [], errors: [] };
 
+  // Milestone 2 credit ledger: open due periods and issue their grants FIRST.
+  // Without this, credit_reserve() finds no grants and every document
+  // generation is refused with CREDIT_EXHAUSTED while the ledger is armed.
+  // Wrapped so a grants failure never stops the task drain below.
+  try {
+    report.creditGrants = await ensurePeriodGrants();
+  } catch (error) {
+    report.errors.push(`credit-grants: ${error instanceof Error ? error.message : 'GRANTS_FAILED'}`);
+  }
+
   // Discovery first: paid users' agents find matching roles, craft packages,
   // and (auto send policy) enqueue APPLICATION tasks that the drain loop
   // below then submits in this same run.
