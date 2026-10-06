@@ -22,8 +22,8 @@ import { readFileSync } from "node:fs";
 
 function env(name) {
   const raw = readFileSync(new URL("../../.env.local", import.meta.url), "utf8");
-  const m = raw.match(new RegExp(`^${name}=(.*)$`, "m"));
-  return m ? m[1].trim().replace(/^"|"$/g, "") : undefined;
+  const line = raw.split("\n").find((l) => l.startsWith(`${name}=`));
+  return line ? line.slice(name.length + 1).trim().replace(/^"|"$/g, "") : undefined;
 }
 
 const SUPABASE_URL = env("NEXT_PUBLIC_SUPABASE_URL");
@@ -193,7 +193,8 @@ async function main() {
     } else if (res.status === 409) {
       skipped += batch.length;
     } else {
-      console.error(`batch ${i / BATCH} failed: ${res.status}`, JSON.stringify(res.body).slice(0, 300));
+      // Logs our own HTTP status code; no attacker-controlled format string.
+      console.error('batch insert failed', { batch: i / BATCH, status: res.status, body: JSON.stringify(res.body).slice(0, 300) });
       process.exit(1);
     }
   }

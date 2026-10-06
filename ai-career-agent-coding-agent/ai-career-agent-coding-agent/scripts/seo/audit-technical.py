@@ -16,9 +16,11 @@ UA = {"User-Agent": "Mozilla/5.0 (compatible; JobiestSEOAudit/1.0)"}
 
 
 def fetch(url, timeout=20):
+    if not url.lower().startswith(("http://", "https://")):
+        raise ValueError("only http(s) URLs are allowed")
     req = urllib.request.Request(url, headers=UA)
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as res:
+        with urllib.request.urlopen(req, timeout=timeout) as res:  # nosemgrep
             return res.status, res.read().decode("utf-8", "replace"), dict(res.headers)
     except urllib.error.HTTPError as e:
         return e.code, e.read().decode("utf-8", "replace"), dict(e.headers)

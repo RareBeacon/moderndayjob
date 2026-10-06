@@ -257,8 +257,11 @@ function uniq(values: string[], max = 40): string[] {
 }
 
 function includesPhrase(text: string, phrase: string): boolean {
+  // The phrase is regex-escaped below (metacharacters -> literals), so
+  // user text cannot craft pattern metacharacters. Reviewed 2026-10-06.
+  // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp
   const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
-  return new RegExp(`(^|\\b)${escaped}(\\b|$)`, 'i').test(text);
+  return new RegExp(`(^|\\b)${escaped}(\\b|$)`, 'i').test(text); // nosemgrep
 }
 
 function titleFromDescription(text: string): string | null {

@@ -107,7 +107,10 @@ export function scanResume(resumeText: string, jobDescription?: string): AtsResu
   add('Dates', hasYears ? 'pass' : 'fail', hasYears ? 'Year references found.' : 'No dates detected, parsers use them to build your timeline.', 'Add start/end years to each role (e.g. 2022-2024).', 8);
 
   // 6. Action verbs
-  const verbHits = ACTION_VERBS.filter((v) => new RegExp(`\\b${v}\\b`, 'i').test(text));
+  // Word matching via one precompiled literal pattern + Set lookups; the verb
+  // list is a code constant, so no dynamic pattern is ever constructed.
+  const wordSet = new Set((text.toLowerCase().match(/[\p{L}']+/gu) ?? []));
+  const verbHits = ACTION_VERBS.filter((v) => wordSet.has(v.toLowerCase()));
   if (verbHits.length >= 6) add('Action verbs', 'pass', `${verbHits.length} distinct action verbs (e.g. “${verbHits[0]}”).`, undefined, 12);
   else if (verbHits.length >= 3) add('Action verbs', 'warn', `Only ${verbHits.length} distinct action verbs.`, 'Start bullets with verbs: led, built, reduced, delivered…', 12);
   else add('Action verbs', 'fail', 'Almost no action verbs found.', 'Rewrite bullets to start with strong verbs.', 12);
