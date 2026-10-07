@@ -15,7 +15,8 @@ export type ClaimCategory =
   | 'school'
   | 'skill'
   | 'metric'
-  | 'credential';
+  | 'credential'
+  | 'contact';
 
 export interface Claim {
   category: ClaimCategory;

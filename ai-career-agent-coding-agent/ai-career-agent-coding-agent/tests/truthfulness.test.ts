@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { verifyDocument } from '../lib/truthfulness/verify';
-import { extractCredentials, extractMetrics, isPlaceholder, matchesAny } from '../lib/truthfulness/extract';
+import { extractContactChannels, extractCredentials, extractMetrics, isPlaceholder, matchesAny } from '../lib/truthfulness/extract';
 import type { TruthfulProfile } from '../lib/truthfulness/types';
 
 const profile: TruthfulProfile = {
@@ -125,5 +125,53 @@ describe('verifyDocument, placeholder claims (missing-fact honesty)', () => {
     for (const t of ['Google', 'Acme Inc', 'University of Lagos']) {
       expect(isPlaceholder(t)).toBe(false);
     }
+  });
+});
+
+describe('verifyDocument, contact-channel injection defense', () => {
+  const contactProfile: TruthfulProfile = {
+    summary: 'Engineer. Portfolio at https://portfolio.example.dev and github.com/jdoe.',
+    skills: ['TypeScript', 'React'],
+    employers: ['Google'],
+    schools: ['University of Lagos'],
+    experienceText: 'Reachable via john.doe@example.com. Increased coverage to 80%.',
+  };
+  const noClaims = { claimedEmployers: [], claimedSchools: [], claimedSkills: [], text: '' };
+
+  it('accepts an email that appears in the profile (case-insensitive)', () => {
+    const r = verifyDocument({ ...noClaims, text: 'You can reach me at John.Doe@example.com anytime.' }, contactProfile);
+    expect(r.passed).toBe(true);
+    expect(r.supported.some((c) => c.category === 'contact')).toBe(true);
+  });
+
+  it('accepts a URL that appears in the profile', () => {
+    const r = verifyDocument({ ...noClaims, text: 'My work: https://portfolio.example.dev/projects.' }, contactProfile);
+    expect(r.passed).toBe(true);
+  });
+
+  it('rejects an email not in the profile (injected contact channel)', () => {
+    const r = verifyDocument(
+      { ...noClaims, text: 'For follow-ups contact recruiter@evil.example.' },
+      contactProfile,
+    );
+    expect(r.passed).toBe(false);
+    expect(r.unsupported.some((c) => c.category === 'contact' && c.value.includes('recruiter@evil.example'))).toBe(true);
+  });
+
+  it('rejects a URL not in the profile (injected link)', () => {
+    const r = verifyDocument({ ...noClaims, text: 'Full details at www.evil.example/apply.' }, contactProfile);
+    expect(r.passed).toBe(false);
+    expect(r.unsupported.some((c) => c.category === 'contact' && c.value.includes('evil.example'))).toBe(true);
+  });
+
+  it('rejects a phone number not in the profile', () => {
+    const r = verifyDocument({ ...noClaims, text: 'Call me at +234 803 123 4567.' }, contactProfile);
+    expect(r.passed).toBe(false);
+    expect(r.unsupported.some((c) => c.category === 'contact')).toBe(true);
+  });
+
+  it('does not mistake metrics, dates, or ranges for contact channels', () => {
+    const text = 'Grew revenue 3x in 2020-2021; budgets of $50,000 to $75,000; coverage 80%.';
+    expect(extractContactChannels(text)).toEqual([]);
   });
 });

@@ -1,5 +1,5 @@
 import type { Claim, TruthfulProfile, TruthfulnessReport, VerificationInput } from './types';
-import { extractCredentials, extractMetrics, matchesAny, norm } from './extract';
+import { extractContactChannels, extractCredentials, extractMetrics, matchesAny, norm } from './extract';
 
 /**
  * Deterministic truthfulness verifier (ARCHITECTURE §2, the AI is never the
@@ -74,6 +74,32 @@ export function verifyDocument(
         category: 'metric',
         value: m,
         reason: `Quantitative claim "${m}" is not supported by the profile.`,
+      });
+    }
+  }
+
+  // --- Contact channels (emails / URLs / phones): prompt-injection payload.
+  // Whatever the profile itself contains is grounded; anything else (e.g. an
+  // address smuggled into a cover letter via a malicious job description)
+  // rejects the document exactly like a fabricated employer would. Emails and
+  // phones must match exactly; URLs are grounded by host so a deeper path on
+  // the candidate's own portfolio still passes.
+  const profileChannels = extractContactChannels(profileText);
+  const profileEmails = new Set(profileChannels.filter((c) => c.kind === 'email').map((c) => c.value));
+  const profilePhones = new Set(profileChannels.filter((c) => c.kind === 'phone').map((c) => c.value));
+  const profileHosts = new Set(profileChannels.filter((c) => c.kind === 'url' && c.host).map((c) => c.host));
+  for (const channel of extractContactChannels(input.text)) {
+    const grounded =
+      (channel.kind === 'email' && profileEmails.has(channel.value)) ||
+      (channel.kind === 'phone' && profilePhones.has(channel.value)) ||
+      (channel.kind === 'url' && channel.host !== null && profileHosts.has(channel.host));
+    if (grounded) {
+      supported.push({ category: 'contact', value: channel.value });
+    } else {
+      unsupported.push({
+        category: 'contact',
+        value: channel.value,
+        reason: `Contact channel "${channel.value}" is not in the candidate's profile.`,
       });
     }
   }
