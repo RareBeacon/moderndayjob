@@ -97,8 +97,12 @@ create table if not exists public.coupons (
   updated_at timestamptz not null default now()
 );
 do $$ begin
-  alter table public.coupons add constraint coupons_code_unique unique (code);
-exception when duplicate_object then null; end $$;
+  if not exists (select 1 from pg_constraint c
+                 where c.conname = 'coupons_code_unique'
+                   and c.conrelid = 'public.coupons'::regclass) then
+    alter table public.coupons add constraint coupons_code_unique unique (code);
+  end if;
+end $$;
 create index if not exists idx_coupons_active on public.coupons(is_active, expires_at);
 alter table public.coupons enable row level security;
 comment on table public.coupons is 'Promotion engine: percentage or fixed-amount discounts on selected plans. Service-role only (validation happens server-side).';
@@ -117,7 +121,13 @@ create table if not exists public.coupon_redemptions (
   final_amount numeric(12,2) not null,
   redeemed_at timestamptz not null default now()
 );
-alter table public.coupon_redemptions add constraint coupon_redemptions_txref_unique unique (payment_tx_ref);
+do $$ begin
+  if not exists (select 1 from pg_constraint c
+                 where c.conname = 'coupon_redemptions_txref_unique'
+                   and c.conrelid = 'public.coupon_redemptions'::regclass) then
+    alter table public.coupon_redemptions add constraint coupon_redemptions_txref_unique unique (payment_tx_ref);
+  end if;
+end $$;
 create index if not exists idx_redemptions_coupon_user on public.coupon_redemptions(coupon_id, user_id);
 create index if not exists idx_redemptions_coupon on public.coupon_redemptions(coupon_id);
 alter table public.coupon_redemptions enable row level security;
@@ -188,8 +198,6 @@ select
   ep.plan_code as plan,
   s.status as subscription_status,
   s.trial_ends_at,
-  s.current_period_end as subscription_expires_at,
-  s.source as subscription_source,
   case when p.account_status = 'ACTIVE'
         and (ep.plan_code in ('PREMIUM','MAX')
              or (ep.plan_code = 'BASIC' and coalesce(l.auto_apply_used, 0) < 2))
@@ -207,7 +215,11 @@ select
     end) as applications_remaining,
   case when ep.plan_code='PREMIUM' or ep.plan_code='MAX' then null
        when ep.plan_code='BASIC' then greatest(0, 50 - coalesce(u.tools_used, 0))
-       else greatest(0, 10 - coalesce(u.tools_used, 0)) end as tool_uses_remaining
+       else greatest(0, 10 - coalesce(u.tools_used, 0)) end as tool_uses_remaining,
+  -- New columns MUST be appended at the end: CREATE OR REPLACE VIEW keeps
+  -- existing columns by position and only allows additions (42P16 otherwise).
+  s.current_period_end as subscription_expires_at,
+  s.source as subscription_source
 from public.profiles p
 cross join lateral public.effective_plan(p.user_id) as ep(plan_code)
 left join public.subscriptions s on s.user_id = p.user_id
