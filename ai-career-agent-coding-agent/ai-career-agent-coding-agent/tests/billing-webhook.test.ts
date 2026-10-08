@@ -9,6 +9,27 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
  */
 
 const { rpc, upsert, dedupQuery } = vi.hoisted(() => ({ rpc: vi.fn(), upsert: vi.fn(), dedupQuery: vi.fn() }));
+const { applyQuotedPayment } = vi.hoisted(() => ({ applyQuotedPayment: vi.fn() }));
+vi.mock('@/lib/billing/checkout', () => ({
+  applyQuotedPayment,
+  createCheckoutQuote: vi.fn(async (p: { reference: string; plan: string; currency: string; originalAmount: number }) => ({
+    reference: p.reference,
+    plan: p.plan,
+    currency: p.currency,
+    originalAmount: p.originalAmount,
+    discountAmount: 0,
+    finalAmount: p.originalAmount,
+    couponCode: null,
+    couponId: null,
+  })),
+  CouponApplyError: class CouponApplyError extends Error {
+    constructor(public readonly reason: string, message: string) {
+      super(message);
+      this.name = 'CouponApplyError';
+    }
+  },
+}));
+
 vi.mock('@/lib/supabase', () => ({
   supabaseAdmin: {
     rpc,
@@ -43,6 +64,7 @@ beforeEach(() => {
   process.env.FLW_SECRET_HASH = SECRET;
   process.env.FLW_SECRET_KEY = 'sk_test';
   rpc.mockReset().mockResolvedValue({ data: null, error: null });
+  applyQuotedPayment.mockReset().mockResolvedValue(null);
   upsert.mockReset().mockResolvedValue({ error: null });
   dedupQuery.mockReset().mockResolvedValue({ data: null, error: null });
 });

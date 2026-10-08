@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { after } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { verifyPaystackTransaction, planForAmountIn, paystackWebhookSignature, verifyCardAuthorization } from '@packages/billing/paystack';
+import { applyQuotedPayment } from '@/lib/billing/checkout';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { runDailyPipeline } from '@/lib/agent/pipeline';
 
@@ -164,25 +165,56 @@ export async function POST(req: Request) {
   }
   if (verified.status !== 'success') return Response.json({ ok: true, verifyStatus: verified.status });
 
-  // 5. Guard: amount must match a known plan in the charged currency (kobo
-  //    -> naira, cents -> USD), with a reachable email.
   const amountMajor = verified.amount / 100;
-  const plan = planForAmountIn(verified.currency, amountMajor);
-  if (!plan || !verified.email) {
-    return Response.json({ ok: false, unexpectedAmount: amountMajor, currency: verified.currency }, { status: 202 });
+
+  // 5. Quote-first (coupon-aware): new checkouts carry a server-trusted
+  //    payment_quotes row. The granted plan and the expected amount come from
+  //    the quote, NOT from amount thresholds: a discounted Premium payment of
+  //    NGN 5,000 must still grant PREMIUM. A quote that exists but mismatches
+  //    is an anomaly that must never be reinterpreted by thresholds.
+  let plan: 'BASIC' | 'PREMIUM' | 'MAX' | null = null;
+  let usedQuotedPath = false;
+  try {
+    if (verified.email) {
+      plan = await applyQuotedPayment({
+        reference: verified.reference,
+        provider: 'paystack',
+        verifiedAmountMajor: amountMajor,
+        verifiedCurrency: verified.currency,
+        verifiedEmail: verified.email,
+      });
+    }
+    if (plan) usedQuotedPath = true;
+  } catch (quoteError) {
+    console.error('paystack webhook quote apply failed', {
+      reference: verified.reference,
+      error: quoteError instanceof Error ? quoteError.message.slice(0, 200) : String(quoteError).slice(0, 200),
+    });
+    return Response.json({ ok: false, error: 'QUOTE_APPLY_FAILED' }, { status: 202 });
+  }
+
+  // 5b. Legacy path (no quote): amount must match a known plan in the charged
+  //     currency (kobo -> naira, cents -> USD), with a reachable email.
+  if (!usedQuotedPath) {
+    plan = planForAmountIn(verified.currency, amountMajor);
+    if (!plan || !verified.email) {
+      return Response.json({ ok: false, unexpectedAmount: amountMajor, currency: verified.currency }, { status: 202 });
+    }
   }
 
   // 6. Apply upgrade via the idempotent DB function, then record the event.
   try {
-    const { error } = await supabaseAdmin.rpc('apply_verified_payment', {
-      p_transaction_id: verified.reference,
-      p_tx_ref: verified.reference,
-      p_amount: amountMajor,
-      p_currency: verified.currency,
-      p_email: verified.email,
-      p_provider: 'paystack',
-    });
-    if (error) throw error;
+    if (!usedQuotedPath) {
+      const { error } = await supabaseAdmin.rpc('apply_verified_payment', {
+        p_transaction_id: verified.reference,
+        p_tx_ref: verified.reference,
+        p_amount: amountMajor,
+        p_currency: verified.currency,
+        p_email: verified.email,
+        p_provider: 'paystack',
+      });
+      if (error) throw error;
+    }
 
     await supabaseAdmin
       .from('payment_events')

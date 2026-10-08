@@ -91,6 +91,70 @@ export interface PipelineReport {
   /** Milestone 2 credit ledger: number of period grants issued this run
    *  (parallel-run phase; enforcement is armed separately). */
   creditGrants?: number;
+  /** Subscription bookkeeping (migration 043): expired periods marked and
+   *  due scheduled admin grants applied. Paid ACCESS never depends on this
+   *  sweep: effective_plan already checks expiry at read time. */
+  subscriptionsExpired?: { userId: string; plan: string }[];
+  scheduledGrantsApplied?: { userId: string; plan: string }[];
+}
+
+/**
+ * Subscription maintenance (spec Part 23). Runs inside the daily pipeline:
+ *   1. mark ACTIVE_* subscriptions whose period ended as EXPIRED (+history),
+ *   2. apply due scheduled admin grants (queued "after current subscription"),
+ *   3. notify the affected users in-app (best-effort).
+ * The RPCs are missing before migration 043 is applied; the step then reports
+ * empty arrays instead of failing the pipeline.
+ */
+async function runSubscriptionMaintenance(deps: PipelineDeps): Promise<Pick<PipelineReport, 'subscriptionsExpired' | 'scheduledGrantsApplied' | 'errors'>> {
+  const out: Pick<PipelineReport, 'subscriptionsExpired' | 'scheduledGrantsApplied' | 'errors'> = {
+    subscriptionsExpired: [],
+    scheduledGrantsApplied: [],
+    errors: [],
+  };
+  const notify = async (userId: string, title: string, body: string, type: string) => {
+    try {
+      await deps.db.from('notifications').insert({ user_id: userId, title, body, deep_link: '/billing', type });
+    } catch {
+      // Best-effort: never fails the sweep.
+    }
+  };
+
+  try {
+    const { data: expired, error } = await deps.db.rpc('expire_due_subscriptions');
+    if (error) throw error;
+    for (const row of (expired ?? []) as Array<{ o_user_id: string; o_plan: string }>) {
+      out.subscriptionsExpired!.push({ userId: row.o_user_id, plan: row.o_plan });
+      const planName = row.o_plan === 'MAX' ? 'Max' : row.o_plan === 'PREMIUM' ? 'Premium' : 'Basic';
+      await notify(
+        row.o_user_id,
+        'Your plan has expired',
+        `Your Jobiest ${planName} plan has ended. Your account is back on Free. Upgrade again any time to keep the daily credits and automation running.`,
+        'SUBSCRIPTION_EXPIRED',
+      );
+    }
+  } catch (error) {
+    out.errors.push(`subscriptions-expiry: ${error instanceof Error ? error.message : 'FAILED'}`);
+  }
+
+  try {
+    const { data: applied, error } = await deps.db.rpc('apply_due_scheduled_changes');
+    if (error) throw error;
+    for (const row of (applied ?? []) as Array<{ o_user_id: string; o_plan: string }>) {
+      out.scheduledGrantsApplied!.push({ userId: row.o_user_id, plan: row.o_plan });
+      const planName = row.o_plan === 'MAX' ? 'Max' : row.o_plan === 'PREMIUM' ? 'Premium' : 'Basic';
+      await notify(
+        row.o_user_id,
+        `Your ${planName} upgrade is active`,
+        `Your queued Jobiest upgrade is now live: you are on ${planName}. Enjoy the daily credits and automation.`,
+        'SUBSCRIPTION_UPGRADED',
+      );
+    }
+  } catch (error) {
+    out.errors.push(`subscriptions-scheduled: ${error instanceof Error ? error.message : 'FAILED'}`);
+  }
+
+  return out;
 }
 
 /**
@@ -101,6 +165,13 @@ export interface PipelineReport {
 export async function runDailyPipeline(partial: Partial<PipelineDeps> = {}): Promise<PipelineReport> {
   const deps: PipelineDeps = { ...defaultDeps(), ...partial };
   const report: PipelineReport = { day: new Date().toISOString().slice(0, 10), tasksProcessed: 0, taskOutcomes: [], errors: [] };
+
+  // Subscription bookkeeping first (expiry + due scheduled grants). Access
+  // control itself never depends on this: effective_plan is checked on read.
+  const maintenance = await runSubscriptionMaintenance(deps);
+  report.subscriptionsExpired = maintenance.subscriptionsExpired;
+  report.scheduledGrantsApplied = maintenance.scheduledGrantsApplied;
+  report.errors.push(...maintenance.errors);
 
   // Milestone 2 credit ledger: open due periods and issue their grants FIRST.
   // Without this, credit_reserve() finds no grants and every document

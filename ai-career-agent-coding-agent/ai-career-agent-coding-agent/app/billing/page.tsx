@@ -10,6 +10,17 @@ type Entitlement = {
   automation_enabled: boolean;
   subscription_status: string | null;
   trial_ends_at: string | null;
+  subscription_expires_at?: string | null;
+  subscription_source?: string | null;
+};
+
+type AppliedCoupon = {
+  code: string;
+  plan: PaidPlan;
+  currency: string;
+  originalAmount: number;
+  discountAmount: number;
+  finalAmount: number;
 };
 
 type PaidPlan = 'BASIC' | 'PREMIUM' | 'MAX';
@@ -55,6 +66,13 @@ export default function Billing() {
   // checkout (/api/billing/paystack/create) decides its currency from the
   // same geo header, so this display always matches the charge.
   const [usdMode, setUsdMode] = useState(false);
+  // Coupon flow (server-priced): the user enters a code, the server validates
+  // it and returns the trusted price; checkout then initializes with it.
+  const [couponInput, setCouponInput] = useState('');
+  const [couponPlan, setCouponPlan] = useState<PaidPlan>('PREMIUM');
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+  const [couponBusy, setCouponBusy] = useState(false);
+  const [couponMessage, setCouponMessage] = useState('');
   // Shared between the two fetches below so whichever resolves last can
   // still apply the USD-visitor default provider (Dodo: Merchant of Record,
   // so VAT/sales tax is handled by them for international checkouts).
@@ -90,13 +108,51 @@ export default function Billing() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  async function applyCoupon() {
+    if (couponBusy || couponInput.trim().length < 3) return;
+    setCouponBusy(true);
+    setCouponMessage('');
+    setAppliedCoupon(null);
+    try {
+      const r = await fetch('/api/billing/coupon/validate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code: couponInput.trim(), plan: couponPlan }),
+      });
+      const j = await r.json();
+      if (j.ok) {
+        setAppliedCoupon({ code: j.code, plan: j.plan, currency: j.currency, originalAmount: j.originalAmount, discountAmount: j.discountAmount, finalAmount: j.finalAmount });
+        setCouponMessage(`Coupon ${j.code} applied.`);
+      } else {
+        setCouponMessage(j.message ?? 'This coupon code is invalid.');
+      }
+    } catch {
+      setCouponMessage('Unable to check this coupon right now.');
+    } finally {
+      setCouponBusy(false);
+    }
+  }
+
+  function priceFor(plan: PaidPlan): { display: string; struck?: string } {
+    if (appliedCoupon && appliedCoupon.plan === plan) {
+      const symbol = appliedCoupon.currency === 'USD' ? '$' : '₦';
+      return {
+        display: `${symbol}${appliedCoupon.finalAmount.toLocaleString()} / month`,
+        struck: `${symbol}${appliedCoupon.originalAmount.toLocaleString()} / month`,
+      };
+    }
+    const p = PLANS.find((x) => x.code === plan)!;
+    return { display: usdMode ? p.priceUsd : p.priceNgn };
+  }
+
   async function buy(plan: PaidPlan) {
     setLoading(plan);
     setMessage('');
+    const couponCode = appliedCoupon && appliedCoupon.plan === plan ? appliedCoupon.code : undefined;
     const r = await fetch(`/api/billing/${provider}/create`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ plan }),
+      body: JSON.stringify({ plan, couponCode }),
     });
     const j = await r.json();
     // Flutterwave returns data.link; Paystack returns data.authorization_url;
@@ -119,8 +175,31 @@ export default function Billing() {
             <span><b>{entitlement.ai_credits_remaining}</b> {entitlement.plan === 'FREE' ? 'free documents left' : 'AI generations today'}</span>
             <span><b>{entitlement.tool_uses_remaining === null ? 'Unlimited' : entitlement.tool_uses_remaining}</b> tool uses today</span>
             <span><b>{entitlement.applications_remaining}</b> {entitlement.plan === 'BASIC' ? 'trial auto-applies left' : 'automation slots today'}</span>
+            {entitlement.plan !== 'FREE' && entitlement.subscription_expires_at && (
+              <span>
+                <b>{new Date(entitlement.subscription_expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</b>{' '}
+                active until · {Math.max(0, Math.ceil((new Date(entitlement.subscription_expires_at).getTime() - Date.now()) / 86400000))} day(s) remaining
+              </span>
+            )}
           </div>
         )}
+        <div className="coupon-box" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', margin: '14px 0' }}>
+          <span style={{ fontSize: 13 }}>Have a coupon?</span>
+          <input
+            value={couponInput}
+            maxLength={32}
+            placeholder="JOBIEST50"
+            style={{ width: 150, textTransform: 'uppercase' }}
+            onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+          />
+          <select value={couponPlan} onChange={(e) => { setCouponPlan(e.target.value as PaidPlan); setAppliedCoupon(null); }} style={{ width: 120 }}>
+            {PLANS.map((p) => <option key={p.code} value={p.code}>{p.name}</option>)}
+          </select>
+          <button type="button" className="btn-ghost" style={{ minHeight: 36, padding: '6px 14px', fontSize: 13 }} disabled={couponBusy} onClick={applyCoupon}>
+            {couponBusy ? 'Checking…' : 'Apply'}
+          </button>
+          {couponMessage && <span className="muted" style={{ fontSize: 12 }} role="status">{couponMessage}</span>}
+        </div>
         {message && <p className="form-status">{message}</p>}
       </section>
       {providers.length > 1 && (
@@ -145,16 +224,22 @@ export default function Billing() {
           <p className="muted">3 AI generations in total, free forever. All 10 career tools (10 uses a day), the application agent and tracking.</p>
           <strong>Your career workspace stays yours.</strong>
         </article>
-        {PLANS.map((p) => (
+        {PLANS.map((p) => {
+          const price = priceFor(p.code);
+          return (
           <article key={p.code} className={`card${p.code === 'PREMIUM' ? ' featured-plan' : ''}`}>
-            <p className="eyebrow">{p.name.toUpperCase()}</p>
-            <h2>{usdMode ? p.priceUsd : p.priceNgn}</h2>
+            <p className="eyebrow">{p.name.toUpperCase()}{appliedCoupon?.plan === p.code ? ` · ${appliedCoupon.code}` : ''}</p>
+            <h2>
+              {price.struck && <s style={{ opacity: 0.5, fontSize: '0.65em', marginRight: 6 }}>{price.struck}</s>}
+              {price.display}
+            </h2>
             <p className="muted">{p.blurb}</p>
             <button className="btn" disabled={!!loading} onClick={() => buy(p.code)}>
               {loading === p.code ? 'Preparing checkout…' : `Choose ${p.name}`}
             </button>
           </article>
-        ))}
+          );
+        })}
       </section>
       <p className="form-hint">
         {usdMode ? 'Prices are in US dollars.' : 'Prices are in Naira; visitors outside Nigeria are charged in US dollars.'} See <a href="/pricing" style={{ color: 'var(--brand)' }}>the public pricing page</a> for full plan details. Checkout is handled on {providers.length === 1 ? PROVIDER_LABELS[providers[0]] : 'the provider you pick'} secure pages; card details never touch our servers.{provider === 'dodo' && ' Dodo is the merchant of record: VAT or sales tax for your country is calculated and handled by them at checkout.'}

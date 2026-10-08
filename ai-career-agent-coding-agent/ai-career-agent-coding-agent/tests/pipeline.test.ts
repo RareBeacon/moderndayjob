@@ -104,7 +104,7 @@ describe('runDailyPipeline', () => {
     expect(runDiscoveryStage).toHaveBeenCalledOnce();
     expect(report.discovery).toMatchObject({ usersConsidered: 0 });
     // Then the drain loop: only claim RPCs may run.
-    expect(calls.rpcs.map((r) => r.name)).toEqual(['claim_agent_tasks', 'claim_agent_tasks', 'claim_agent_tasks']);
+    expect(calls.rpcs.map((r) => r.name)).toEqual(['expire_due_subscriptions', 'apply_due_scheduled_changes', 'claim_agent_tasks', 'claim_agent_tasks', 'claim_agent_tasks']);
     // completed updates carry the lease guard
     expect(calls.updates.length).toBe(3);
     expect(calls.updates[0].values.status).toBe('WAITING_APPROVAL');

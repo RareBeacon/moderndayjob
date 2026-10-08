@@ -36,7 +36,7 @@ async function noteRateLimitTrip(key: string, ip?: string): Promise<void> {
 export async function enforceRateLimit(
   key: string,
   limit: number,
-  window: '1 m' | '1 h' | '1 d' = '1 m',
+  window: '1 m' | '10 m' | '1 h' | '1 d' = '1 m',
   ip?: string,
 ) {
   if (!redis) return { allowed: true, remaining: limit };

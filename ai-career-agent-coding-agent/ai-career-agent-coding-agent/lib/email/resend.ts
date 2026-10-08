@@ -326,3 +326,34 @@ export async function sendFirstWinEmail(to: string, firstName?: string): Promise
     replyTo: 'support@jobiest.com',
   });
 }
+
+export interface PlanChangeEmailInput {
+  firstName?: string;
+  planName: string;
+  mode: 'applied' | 'scheduled' | 'cancelled';
+  until?: string | null;
+}
+
+/** Admin-granted plan change notice (best-effort; never blocks the change). */
+export async function sendPlanChangeEmail(to: string, input: PlanChangeEmailInput): Promise<SendEmailResult> {
+  const first = input.firstName?.trim() || 'there';
+  const plan = input.planName;
+  const until = input.until ? ` until ${input.until}` : '';
+  const line =
+    input.mode === 'cancelled'
+      ? 'Your Jobiest account is now on the Free plan. Your documents and applications stay exactly as they are, and you can upgrade again any time.'
+      : input.mode === 'scheduled'
+        ? `Your upgrade to Jobiest ${plan} is queued. It activates automatically when your current plan ends${until ? ` (${input.until})` : ''}. You do not need to do anything.`
+        : `Your Jobiest account has been upgraded to ${plan}${until}. Everything in the plan is active right now.`;
+  const html = composeEmail(
+    [
+      emailHeading(`Hello ${escapeHtmlEmail(first)},`),
+      emailParagraph(line),
+      emailButton('Open my plan', `${SITE_URL}/billing`),
+      emailParagraph('If you did not expect this change, just reply to this email and we will sort it out.', { muted: true }),
+    ],
+    input.mode === 'cancelled' ? 'Your Jobiest plan has changed' : `You are now on Jobiest ${plan}`,
+  );
+  const text = `Hello ${first},\n\n${line}\n\nOpen your plan: ${SITE_URL}/billing\n\nIf you did not expect this change, just reply to this email and we will sort it out.\n\nJobiest support`;
+  return sendEmail({ to, subject: input.mode === 'cancelled' ? 'Your Jobiest plan has changed' : `You are now on Jobiest ${plan}`, html, text, replyTo: 'support@jobiest.com' });
+}

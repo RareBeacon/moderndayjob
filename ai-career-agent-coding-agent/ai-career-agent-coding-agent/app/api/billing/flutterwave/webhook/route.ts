@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { after } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { verifyFlutterwaveTransaction, planForAmount } from '@packages/billing/flutterwave';
+import { applyQuotedPayment } from '@/lib/billing/checkout';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { runDailyPipeline } from '@/lib/agent/pipeline';
 
@@ -96,23 +97,52 @@ export async function POST(req: Request) {
   }
   if (verified.status !== 'successful') return Response.json({ ok: true, verifyStatus: verified.status });
 
-  // 5. Guard: amount must match a known NGN plan, with a reachable email
   const amount = Number(verified.amount);
-  const plan = planForAmount(amount);
-  if (!plan || verified.currency !== 'NGN' || !verified.customer?.email) {
-    return Response.json({ ok: false, unexpectedAmount: amount, currency: verified.currency }, { status: 202 });
+
+  // 5. Quote-first (coupon-aware): the granted plan and expected amount come
+  //    from the server-trusted payment_quotes row when one exists; amount
+  //    thresholds only apply to legacy references without a quote.
+  let plan: 'BASIC' | 'PREMIUM' | 'MAX' | null = null;
+  let usedQuotedPath = false;
+  if (verified.tx_ref && verified.customer?.email) {
+    try {
+      plan = await applyQuotedPayment({
+        reference: verified.tx_ref,
+        provider: 'flutterwave',
+        verifiedAmountMajor: amount,
+        verifiedCurrency: verified.currency,
+        verifiedEmail: verified.customer.email,
+      });
+      if (plan) usedQuotedPath = true;
+    } catch (quoteError) {
+      console.error('flutterwave webhook quote apply failed', {
+        txRef: verified.tx_ref,
+        error: quoteError instanceof Error ? quoteError.message.slice(0, 200) : String(quoteError).slice(0, 200),
+      });
+      return Response.json({ ok: false, error: 'QUOTE_APPLY_FAILED' }, { status: 202 });
+    }
+  }
+
+  // 5b. Legacy path: amount must match a known NGN plan, with a reachable email.
+  if (!usedQuotedPath) {
+    plan = planForAmount(amount);
+    if (!plan || verified.currency !== 'NGN' || !verified.customer?.email) {
+      return Response.json({ ok: false, unexpectedAmount: amount, currency: verified.currency }, { status: 202 });
+    }
   }
 
   // 6. Apply upgrade via the idempotent DB function, then record the event
   try {
-    const { error } = await supabaseAdmin.rpc('apply_verified_payment', {
-      p_transaction_id: String(verified.id),
-      p_tx_ref: verified.tx_ref,
-      p_amount: amount,
-      p_currency: verified.currency,
-      p_email: verified.customer.email,
-    });
-    if (error) throw error;
+    if (!usedQuotedPath) {
+      const { error } = await supabaseAdmin.rpc('apply_verified_payment', {
+        p_transaction_id: String(verified.id),
+        p_tx_ref: verified.tx_ref,
+        p_amount: amount,
+        p_currency: verified.currency,
+        p_email: verified.customer.email,
+      });
+      if (error) throw error;
+    }
 
     if (payload.event_id) {
       await supabaseAdmin

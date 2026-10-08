@@ -9,6 +9,7 @@ import type { ReactNode } from 'react';
 
 const NAV = [
   { href: '/admin/users', key: 'users', label: 'Users' },
+  { href: '/admin/coupons', key: 'coupons', label: 'Coupons' },
   { href: '/admin/credentials', key: 'credentials', label: 'AI credentials' },
   { href: '/admin/security', key: 'security', label: 'Security' },
   { href: '/admin/usage', key: 'usage', label: 'AI usage' },

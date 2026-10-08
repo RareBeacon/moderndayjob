@@ -7,6 +7,7 @@ import {
   planForAmount,
   flutterwaveConfigured,
 } from '@packages/billing/flutterwave';
+import { applyQuotedPayment } from '@/lib/billing/checkout';
 import { z } from 'zod';
 
 const body = z.object({ tx_ref: z.string().trim().min(8).max(120) });
@@ -47,19 +48,38 @@ export async function POST(req: Request) {
     }
 
     const amount = Number(verified.amount);
-    const plan = planForAmount(amount);
-    if (!plan || verified.currency !== 'NGN' || !verified.customer?.email) {
-      return Response.json({ status: 'successful', plan: null, unexpectedAmount: amount }, { status: 200 });
+    if (!verified.customer?.email) {
+      return Response.json({ status: 'ignored', reason: 'EMAIL_UNREACHABLE' }, { status: 200 });
     }
 
-    const { error } = await supabaseAdmin.rpc('apply_verified_payment', {
-      p_transaction_id: String(verified.id),
-      p_tx_ref: verified.tx_ref,
-      p_amount: amount,
-      p_currency: verified.currency,
-      p_email: verified.customer.email,
-    });
-    if (error) throw error;
+    // Quote-first (coupon-aware), then the legacy threshold path.
+    let plan: 'BASIC' | 'PREMIUM' | 'MAX' | null = null;
+    try {
+      plan = await applyQuotedPayment({
+        reference: txRef,
+        provider: 'flutterwave',
+        verifiedAmountMajor: amount,
+        verifiedCurrency: verified.currency,
+        verifiedEmail: verified.customer.email,
+      });
+    } catch {
+      return Response.json({ error: 'VERIFY_ERROR', detail: 'QUOTE_APPLY_FAILED' }, { status: 502 });
+    }
+
+    if (!plan) {
+      plan = planForAmount(amount);
+      if (!plan || verified.currency !== 'NGN') {
+        return Response.json({ status: 'successful', plan: null, unexpectedAmount: amount }, { status: 200 });
+      }
+      const { error } = await supabaseAdmin.rpc('apply_verified_payment', {
+        p_transaction_id: String(verified.id),
+        p_tx_ref: verified.tx_ref,
+        p_amount: amount,
+        p_currency: verified.currency,
+        p_email: verified.customer.email,
+      });
+      if (error) throw error;
+    }
     return Response.json({ status: 'successful', plan });
   } catch (error) {
     return Response.json(

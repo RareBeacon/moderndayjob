@@ -2,6 +2,7 @@ import { requireUser } from '@/lib/auth';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { supabaseAdmin } from '@/lib/supabase';
 import { paystackConfigured, planForAmountIn, verifyPaystackTransaction } from '@packages/billing/paystack';
+import { applyQuotedPayment } from '@/lib/billing/checkout';
 import { z } from 'zod';
 
 const body = z.object({ reference: z.string().trim().min(8).max(120) });
@@ -38,20 +39,41 @@ export async function POST(req: Request) {
     }
 
     const amountMajor = verified.amount / 100; // kobo -> naira, or cents -> USD
-    const plan = planForAmountIn(verified.currency, amountMajor);
-    if (!plan || !verified.email) {
-      return Response.json({ status: 'ignored', reason: 'AMOUNT_CURRENCY_OR_EMAIL_MISMATCH' }, { status: 200 });
+    if (!verified.email) {
+      return Response.json({ status: 'ignored', reason: 'EMAIL_UNREACHABLE' }, { status: 200 });
     }
 
-    const { error } = await supabaseAdmin.rpc('apply_verified_payment', {
-      p_transaction_id: verified.reference,
-      p_tx_ref: verified.reference,
-      p_amount: amountMajor,
-      p_currency: verified.currency,
-      p_email: verified.email,
-      p_provider: 'paystack',
-    });
-    if (error) throw error;
+    // Quote-first (coupon-aware): the granted plan and expected amount come
+    // from the server-trusted quote when one exists; thresholds only apply to
+    // references created before the quote system (or without a quote row).
+    let plan: 'BASIC' | 'PREMIUM' | 'MAX' | null = null;
+    try {
+      plan = await applyQuotedPayment({
+        reference,
+        provider: 'paystack',
+        verifiedAmountMajor: amountMajor,
+        verifiedCurrency: verified.currency,
+        verifiedEmail: verified.email,
+      });
+    } catch {
+      return Response.json({ error: 'VERIFY_ERROR', detail: 'QUOTE_APPLY_FAILED' }, { status: 500 });
+    }
+
+    if (!plan) {
+      plan = planForAmountIn(verified.currency, amountMajor);
+      if (!plan || !verified.email) {
+        return Response.json({ status: 'ignored', reason: 'AMOUNT_CURRENCY_OR_EMAIL_MISMATCH' }, { status: 200 });
+      }
+      const { error } = await supabaseAdmin.rpc('apply_verified_payment', {
+        p_transaction_id: verified.reference,
+        p_tx_ref: verified.reference,
+        p_amount: amountMajor,
+        p_currency: verified.currency,
+        p_email: verified.email,
+        p_provider: 'paystack',
+      });
+      if (error) throw error;
+    }
     return Response.json({ status: 'successful', plan });
   } catch (error) {
     const detail = error instanceof Error ? error.message : 'VERIFY_ERROR';
