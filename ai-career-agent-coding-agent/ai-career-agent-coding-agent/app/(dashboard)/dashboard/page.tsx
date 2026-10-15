@@ -1,7 +1,6 @@
-import Link from 'next/link';
-import ProfileReadiness from '@/components/ProfileReadiness';
-import { DashboardSetup } from '@/components/site/DashboardSetup';
 import { AppShell } from '@/components/site/AppShell';
+import { DashboardView } from '@/components/dashboard/DashboardView';
+import { PLANS } from '@/lib/billing/pricing';
 import { requireUserOrRedirect } from '@/lib/auth';
 import { auditEvent } from '@/lib/audit';
 import { supabaseAdmin } from '@/lib/supabase';
@@ -170,138 +169,55 @@ async function DashboardBody(user: Awaited<ReturnType<typeof requireUserOrRedire
   if ((portfolioCount ?? 0) === 0) suggestions.push({ text: 'Create your portfolio page and share one link with recruiters.', href: '/portfolios' });
   if (suggestions.length === 0) suggestions.push({ text: 'Refresh your CV and run an ATS check for your next role.', href: '/generate' });
 
+  // Allowance meters: real numbers, honest captions. The bar shows the
+  // remaining fraction of the plan allowance; the caption keeps the exact
+  // ledger wording so daily/monthly semantics are never blurred.
+  const planCode = entitlement.plan as keyof typeof PLANS;
+  const docLeft = docCredits !== null ? docCredits : entitlement.ai_credits_remaining;
+  const docMax = planCode === 'FREE' ? (PLANS.FREE.lifetimeDocs ?? 3) : (PLANS[planCode]?.documentCredits ?? 3);
+  const autoLeft = appCredits ?? 0;
+  const autoMax = PLANS[planCode]?.automationSlots ?? 0;
+  const autoLocked = !entitlement.automation_enabled && !activationActive;
+
   return (
     <AppShell active="dashboard" title="Dashboard">
-      <div className="dd-banner" role="note">
-        {autoMode ? (
-          <>
-            Your application is free. Jobiest never asks candidates for money. Automatic submission
-            is on for your account and we email you after every submission.
-          </>
-        ) : (
-          <>
-            Your application is free. Jobiest never asks candidates for money, and nothing is ever
-            sent without your approval.
-          </>
-        )}
-      </div>
-
-      <header className="dd-head">
-        <span className="dd-over">Dashboard</span>
-        <h1>{greeting}, {firstName}.</h1>
-        <p>Let&apos;s get your next application moving.</p>
-        <div className="dd-cta-row">
-          <Link className="btn" href="/applications">Start an application</Link>
-        </div>
-        <span className="dd-meta">Plan · {entitlement.plan} · {quotaLine}</span>
-      </header>
-      <div className="dd-rule" aria-hidden="true" />
-
-      {/* setup questions live here now: invited, never forced (no redirect) */}
-      <DashboardSetup needsSetup={!profile?.target_roles?.length} required={setupRequired} />
-
-      <section className="dd-stats" aria-label="Your numbers">
-        <div className="dd-stat"><b>{applicationCount ?? 0}</b><span>Applications</span></div>
-        <div className="dd-stat"><b>{interviews}</b><span>Interviews</span></div>
-        <div className="dd-stat"><b>{responseRate}%</b><span>Response rate</span></div>
-        <div className="dd-stat"><b>{completeness.percent}%</b><span>Profile strength</span></div>
-      </section>
-
-      <section className="dd-sec" aria-label="Application pipeline">
-        <span className="dd-over">Pipeline</span>
-        <div className="dd-stats">
-          <div className="dd-stat"><b>{preparedCount}</b><span>Prepared or awaiting you</span></div>
-          <div className="dd-stat"><b>{checkingCount}</b><span>Checking send</span></div>
-          <div className="dd-stat"><b>{sentCount}</b><span>Submitted</span></div>
-          <div className="dd-stat"><b>{interviews}</b><span>Verified (interview)</span></div>
-        </div>
-        <p className="muted dd-note">
-          Auto-apply credits: {appCredits ?? 0} left this month
-          {entitlement.automation_enabled ? '' : activationActive ? '' : ' · unlock 5 free with a card check'}
-          {(portfolioCount ?? 0) > 0 ? ` · ${(portfolioCount ?? 0)} portfolio${portfolioCount === 1 ? '' : 's'}` : ''}
-        </p>
-      </section>
-
-      <div className="dd-cols">
-        <div className="dd-main">
-          {draftApps.length > 0 && (
-            <section className="dd-sec" aria-label="Awaiting your approval">
-              <span className="dd-over">Awaiting your approval</span>
-              <ul className="dd-rows">
-                {draftApps.map((a) => (
-                  <li key={a.id} className="dd-row">
-                    <div>
-                      <b>{a.jobs?.title || 'Untitled role'}</b>
-                      <span>{a.jobs?.company || 'Unknown company'}</span>
-                    </div>
-                    <Link className="inline-link" href="/applications">Review →</Link>
-                  </li>
-                ))}
-              </ul>
-              <p className="muted dd-note">Drafts are prepared from your verified facts only. Approve, edit, or reject, your call, every time.</p>
-            </section>
-          )}
-
-          <section className="dd-sec" aria-label="Your next application">
-            <span className="dd-over">Your next application</span>
-            <div className="dd-empty">
-              <p className="muted">
-                Bring the job you want as a link or a description. Your agent prepares a truthful,
-                tailored package and you approve every send.
-              </p>
-              <Link className="inline-link" href="/applications">Start an application →</Link>
-            </div>
-          </section>
-        </div>
-
-        <aside className="dd-side">
-          <section className="dd-sec" aria-label="Automatic submission">
-            <span className="dd-over">Automatic submission</span>
-            <AutoSubmitToggle
-              initialMode={preferences?.application_mode ?? 'approval'}
-              planIncludesAutomation={entitlement.automation_enabled}
-              sendingLive={process.env.AUTOMATION_SUBMIT_ENABLED === 'true'}
-            />
-          </section>
-
-          {boardLinks.length > 0 && (
-            <section className="dd-sec" aria-label="Browse the big boards yourself">
-              <span className="dd-over">Browse the boards yourself</span>
-              <ul className="dd-suggest">
-                {boardLinks.map((l) => (
-                  <li key={l.url}>
-                    <a href={l.url} className="inline-link" target="_blank" rel="noopener noreferrer">
-                      {l.boardLabel}: {l.role}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-              <p className="muted dd-note">
-                Search links built from your roles and locations. Your agent applies through employers&apos; own
-                career sites; these boards are for your own browsing.
-              </p>
-            </section>
-          )}
-
-          <section className="dd-sec">
-            <span className="dd-over">Next steps</span>
-            <ul className="dd-suggest">
-              {suggestions.map((s, i) => (
-                <li key={i}>
-                  <Link href={s.href} className="inline-link">{s.text}</Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          <section className="dd-sec">
-            <span className="dd-over">Profile readiness</span>
-            <ProfileReadiness />
-          </section>
-
-          {career?.headline && <p className="muted dd-note">{career.headline}</p>}
-        </aside>
-      </div>
+      <DashboardView
+        greeting={greeting}
+        firstName={firstName}
+        autoMode={autoMode}
+        planLabel={entitlement.plan}
+        quotaLine={quotaLine}
+        profilePercent={completeness.percent}
+        stats={{ applications: applicationCount ?? 0, interviews, responseRate }}
+        pipeline={{ prepared: preparedCount, checking: checkingCount, sent: sentCount, interviews }}
+        drafts={draftApps.map((a) => ({
+          id: a.id,
+          role: a.jobs?.title || 'Untitled role',
+          company: a.jobs?.company || 'Unknown company',
+        }))}
+        allowances={{
+          documents: { left: docLeft, max: docMax, note: quotaLine },
+          autoApply: {
+            left: autoLeft,
+            max: Math.max(autoMax, autoLeft),
+            locked: autoLocked,
+            note: `Auto-apply credits: ${autoLeft} left this month${autoLocked ? ' \u00b7 unlock 5 free with a card check' : ''}`,
+          },
+          extraNote:
+            (portfolioCount ?? 0) > 0
+              ? `${portfolioCount} portfolio${portfolioCount === 1 ? '' : 's'} \u00b7 view them from the Portfolios tab`
+              : undefined,
+        }}
+        autoSubmit={{
+          initialMode: preferences?.application_mode ?? 'approval',
+          planIncludesAutomation: entitlement.automation_enabled,
+          sendingLive: process.env.AUTOMATION_SUBMIT_ENABLED === 'true',
+        }}
+        boardLinks={boardLinks}
+        suggestions={suggestions}
+        setup={{ needsSetup: !profile?.target_roles?.length, required: setupRequired }}
+        careerHeadline={career?.headline ?? null}
+      />
     </AppShell>
   );
 }

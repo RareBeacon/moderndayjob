@@ -1,0 +1,590 @@
+/* Command Deck: the dashboard interior. Navy hero band, pipeline rail,
+   bento cards. Token-driven, matches the redesigned marketing system. */
+
+.deck {
+  display: grid;
+  gap: 14px;
+}
+
+/* Trust strip */
+.trustStrip {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-line);
+  background: var(--color-surface-soft);
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--color-ink);
+  text-align: center;
+}
+
+.trustStrip svg {
+  color: var(--color-primary-navy);
+  flex: none;
+}
+
+/* Hero band */
+.heroBand {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--color-deep-navy) 0%, var(--color-primary-navy) 58%, #1c2a4c 100%);
+  color: #fff;
+  border-radius: 20px;
+  padding: clamp(24px, 4vw, 40px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 28px;
+  align-items: center;
+}
+
+.heroBand::before {
+  content: "";
+  position: absolute;
+  right: -120px;
+  bottom: -160px;
+  width: 380px;
+  height: 380px;
+  background: radial-gradient(circle, rgb(215 249 75 / 16%) 0%, transparent 65%);
+  pointer-events: none;
+}
+
+.heroBand::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgb(255 255 255 / 4%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 4%) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
+}
+
+.heroCopy {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.heroKicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--color-lime);
+  font-size: var(--text-13);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.heroTitle {
+  margin: 0;
+  font: 600 clamp(28px, 4vw, 40px) / 1.08 var(--font-display);
+  letter-spacing: -0.015em;
+}
+
+.heroLead {
+  margin: 0;
+  max-width: 52ch;
+  color: rgb(255 255 255 / 78%);
+  font-size: var(--text-15);
+  line-height: 1.55;
+}
+
+.heroActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.heroCta {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: var(--radius-standard);
+  padding: 0.65rem 1.1rem;
+  font-size: var(--text-14);
+  font-weight: 700;
+  text-decoration: none;
+  color: var(--color-primary-navy);
+  background: var(--color-lime);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.heroCta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgb(215 249 75 / 30%);
+}
+
+.heroChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid rgb(255 255 255 / 22%);
+  background: rgb(255 255 255 / 8%);
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  font-size: var(--text-13);
+  font-weight: 600;
+  color: rgb(255 255 255 / 88%);
+}
+
+/* Profile strength ring */
+.ringWrap {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.ring {
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  background: conic-gradient(var(--color-lime) calc(var(--pct) * 1%), rgb(255 255 255 / 14%) 0);
+  display: grid;
+  place-items: center;
+}
+
+.ringCore {
+  width: calc(100% - 20px);
+  height: calc(100% - 20px);
+  border-radius: 50%;
+  background: var(--color-primary-navy);
+  display: grid;
+  place-content: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.ringNum {
+  font: 700 28px / 1 var(--font-display);
+}
+
+.ringNum small {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.ringLbl {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgb(255 255 255 / 65%);
+}
+
+.ringCaption {
+  font-size: 12.5px;
+  color: rgb(255 255 255 / 72%);
+  max-width: 16ch;
+}
+
+/* Pipeline rail */
+.rail {
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  box-shadow: var(--shadow-1);
+  padding: 18px 22px 20px;
+}
+
+.railHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.railTitle {
+  margin: 0;
+  font: 600 var(--text-17) / 1.25 var(--font-display);
+}
+
+.railLink {
+  font-size: var(--text-14);
+  font-weight: 700;
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.railLink:hover {
+  text-decoration: underline;
+}
+
+.railTrack {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+  position: relative;
+}
+
+.railTrack::before {
+  content: "";
+  position: absolute;
+  top: 11px;
+  left: 6%;
+  right: 6%;
+  height: 2px;
+  background: var(--color-line);
+}
+
+.node {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+}
+
+.nodeDot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--color-line);
+  background: #fff;
+  display: grid;
+  place-items: center;
+}
+
+.nodeOn .nodeDot {
+  border-color: var(--color-primary-navy);
+  background: var(--color-lime);
+}
+
+.nodeOn .nodeDot::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-primary-navy);
+}
+
+.nodeNum {
+  font: 700 26px / 1.1 var(--font-display);
+  color: var(--color-ink);
+}
+
+.nodeLbl {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-muted);
+  line-height: 1.35;
+}
+
+/* Bento grid */
+.bento {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 14px;
+}
+
+.card {
+  grid-column: span 12;
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  box-shadow: var(--shadow-1);
+  padding: 18px 20px;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.span7 {
+  grid-column: span 7;
+}
+
+.span5 {
+  grid-column: span 5;
+}
+
+.span4 {
+  grid-column: span 4;
+}
+
+.cardKicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--color-muted);
+  font-size: var(--text-13);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.cardTitle {
+  margin: 0;
+  font: 600 var(--text-17) / 1.25 var(--font-display);
+}
+
+/* Needs-you (approvals) card */
+.needsYou {
+  border-left: 4px solid var(--color-lime);
+}
+
+.needsHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pulseDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--color-lime);
+  box-shadow: 0 0 0 0 rgb(215 249 75 / 55%);
+  animation: deckPulse 2s infinite;
+  flex: none;
+}
+
+@keyframes deckPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgb(215 249 75 / 55%);
+  }
+  70% {
+    box-shadow: 0 0 0 9px rgb(215 249 75 / 0%);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(215 249 75 / 0%);
+  }
+}
+
+.draftRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--color-line);
+}
+
+.draftRow:first-of-type {
+  border-top: 0;
+  padding-top: 2px;
+}
+
+.draftWho b {
+  display: block;
+  font-size: var(--text-15);
+}
+
+.draftWho span {
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.reviewLink {
+  font-size: var(--text-14);
+  font-weight: 700;
+  color: var(--color-ink);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.reviewLink:hover {
+  text-decoration: underline;
+}
+
+.cardNote {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-muted);
+  line-height: 1.5;
+}
+
+/* Allowance meters */
+.meter {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.meterTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  font-size: var(--text-14);
+  font-weight: 600;
+}
+
+.meterTop strong {
+  font: 700 16px / 1 var(--font-display);
+}
+
+.meterBar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-surface-tint);
+  overflow: hidden;
+}
+
+.meterFill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--color-primary-navy), #31446f);
+}
+
+.meterFill.lime {
+  background: linear-gradient(90deg, #b8e83e, var(--color-lime));
+}
+
+.meterNote {
+  font-size: 12.5px;
+  color: var(--color-muted);
+}
+
+/* Stat tiles */
+.statTile {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.statIco {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 12px;
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-line);
+  display: grid;
+  place-items: center;
+  color: var(--color-primary-navy);
+}
+
+.statNum {
+  font: 700 26px / 1.05 var(--font-display);
+}
+
+.statLbl {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+/* Suggestion rows */
+.suggestRow {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 9px 0;
+  border-top: 1px solid var(--color-line);
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+
+.suggestRow:first-of-type {
+  border-top: 0;
+}
+
+.suggestRow svg {
+  flex: none;
+  transform: translateY(2px);
+  color: var(--color-muted);
+}
+
+.suggestRow a {
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.suggestRow a:hover {
+  text-decoration: underline;
+}
+
+/* Board chips */
+.boardChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.boardChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  background: var(--color-surface-soft);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.boardChip:hover {
+  border-color: var(--color-primary-navy);
+}
+
+/* Profile readiness lives in its existing component; card frames it. */
+.readinessNote {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--color-muted);
+}
+
+/* Responsive */
+@media (max-width: 980px) {
+  .heroBand {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+  .heroCopy {
+    justify-items: center;
+  }
+  .span7,
+  .span5 {
+    grid-column: span 12;
+  }
+  .span4 {
+    grid-column: span 12;
+  }
+  .railTrack {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px 12px;
+  }
+  .railTrack::before {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulseDot {
+    animation: none;
+  }
+  .heroCta:hover {
+    transform: none;
+  }
+}
+
+/* Stats row (3 tiles inside one bento slot) */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 980px) {
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+}
