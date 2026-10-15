@@ -102,7 +102,7 @@ export default async function HomePage() {
               </span>
             </div>
 
-            <aside className={styles.heroPanel} data-animate data-parallax="0.05" aria-label="Example of the Jobiest agent at work">
+            <aside className={styles.heroPanel} data-parallax="0.05" aria-label="Example of the Jobiest agent at work">
               <div className={styles.panelHeader}>
                 <div>
                   <span className={styles.eyebrow}>Example work</span>
