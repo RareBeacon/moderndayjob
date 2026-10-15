@@ -60,6 +60,27 @@ async function getDbArticle(slug: string): Promise<DbArticle | null> {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
+  // DB is the source of truth for published articles; the static list is a
+  // fallback so legacy posts keep rendering if a row is ever missing.
+  const db = await getDbArticle(slug);
+  if (db) {
+    return {
+      title: /jobiest/i.test(db.meta_title || db.title) ? { absolute: db.meta_title || db.title } : db.meta_title || db.title,
+      description: db.meta_description || undefined,
+      keywords: [db.target_keyword ?? '', ...(db.secondary_keywords ?? [])].filter(Boolean),
+      alternates: { canonical: db.canonical_url || db.url },
+      openGraph: {
+        title: db.title,
+        description: db.meta_description || undefined,
+        type: 'article',
+        url: db.url,
+        images: [db.featured_image_url || `${SITE_URL}/images/og-card.jpg`],
+        publishedTime: db.published_at ?? undefined,
+        modifiedTime: db.last_updated ?? undefined,
+        authors: ['Jobiest'],
+      },
+    };
+  }
   const post = getBlogPost(slug);
   if (post) {
     return {
@@ -77,24 +98,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       },
     };
   }
-  const db = await getDbArticle(slug);
-  if (!db) return {};
-  return {
-    title: /jobiest/i.test(db.meta_title || db.title) ? { absolute: db.meta_title || db.title } : db.meta_title || db.title,
-    description: db.meta_description || undefined,
-    keywords: [db.target_keyword ?? '', ...(db.secondary_keywords ?? [])].filter(Boolean),
-    alternates: { canonical: db.canonical_url || db.url },
-    openGraph: {
-      title: db.title,
-      description: db.meta_description || undefined,
-      type: 'article',
-      url: db.url,
-      images: [db.featured_image_url || `${SITE_URL}/images/og-card.jpg`],
-      publishedTime: db.published_at ?? undefined,
-      modifiedTime: db.last_updated ?? undefined,
-      authors: ['Jobiest'],
-    },
-  };
+  return {};
 }
 
 function articleJsonLd(input: { title: string; description?: string | null; publishedAt?: string | null; updatedAt?: string | null; url: string; keywords: string[]; image?: string | null }) {
@@ -244,7 +248,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
                 <strong>{db!.target_keyword ?? title}</strong>
               </figure>
             )}
-            {post ? <StaticArticle post={post} /> : <MarkdownArticle markdown={db!.content_markdown} faq={db!.faq} internalLinks={db!.internal_links} />}
+            {db ? <MarkdownArticle markdown={db.content_markdown} faq={db.faq} internalLinks={db.internal_links} /> : post ? <StaticArticle post={post} /> : null}
           </div>
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
           {faqLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />}
