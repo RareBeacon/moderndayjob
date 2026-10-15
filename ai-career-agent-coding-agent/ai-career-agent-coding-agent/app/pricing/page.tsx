@@ -8,7 +8,7 @@ import { PricingCards } from "@/components/marketing/pricing-cards";
 import styles from "../marketing.module.css";
 
 export const metadata: Metadata = marketingMetadata({
-  title: "Pricing - Free Plan and Paid Plans in Naira - Jobiest",
+  title: "Pricing - Free Plan and Paid Plans in Naira",
   description:
     "Free plan: 3 CV or cover letter generations and 10 tool uses a day. Paid plans start at ₦5,000 a month in Nigeria or $3.99 a month globally.",
   path: "/pricing",

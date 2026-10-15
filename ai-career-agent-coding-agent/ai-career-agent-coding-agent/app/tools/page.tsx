@@ -7,7 +7,7 @@ import { marketingMetadata } from "@/components/marketing/metadata";
 import styles from "../marketing.module.css";
 
 export const metadata: Metadata = marketingMetadata({
-  title: "Free Career Tools - Jobiest",
+  title: "Free Career Tools",
   description:
     "Ten free career tools: ATS resume scanner, cover letter writer, job description analyzer, skills matcher, interview prep, salary insights and more.",
   path: "/tools",
