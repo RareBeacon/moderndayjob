@@ -20,13 +20,8 @@ const NAV = [
 export function BrandWordmark() {
   return (
     <Link className={styles.brand} href="/" aria-label="Jobiest home">
-      <span className={styles['brand-mark']} aria-hidden="true">
-        <svg viewBox="0 0 64 64">
-          <path d="M11 43 24 24 35 35 53 13" />
-          <circle cx="53" cy="13" r="5" />
-        </svg>
-      </span>
-      jobiest<span className={styles['brand-period']}>.</span>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/images/logo-wordmark-dark.png" alt="Jobiest" width={124} height={34} style={{ display: 'block' }} />
     </Link>
   );
 }
