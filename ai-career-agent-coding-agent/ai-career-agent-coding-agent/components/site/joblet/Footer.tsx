@@ -19,7 +19,7 @@ export function JobletFooter() {
 
           <div className="jl-footer-cols">
             <div>
-              <h4>Product</h4>
+              <h2>Product</h2>
               <ul>
                 <li><a href="/how-it-works">How it works</a></li>
                 <li><a href="/tools">Free tools</a></li>
@@ -28,7 +28,7 @@ export function JobletFooter() {
               </ul>
             </div>
             <div>
-              <h4>Account</h4>
+              <h2>Account</h2>
               <ul>
                 <li><a href="/signup">Start free</a></li>
                 <li><a href="/login">Sign in</a></li>
@@ -38,7 +38,7 @@ export function JobletFooter() {
               </ul>
             </div>
             <div>
-              <h4>Legal</h4>
+              <h2>Legal</h2>
               <ul>
                 <li><a href="/terms">Terms of service</a></li>
                 <li><a href="/privacy">Privacy policy</a></li>

@@ -15,7 +15,7 @@ export const revalidate = 300;
 export const metadata: Metadata = {
   // Root page titles do not get the layout template suffix, so the brand is included here once.
   title: 'Jobiest - Your AI Agent for the Job Search',
-  description: 'Jobiest is the AI agent for your job search: tell it your criteria once, drop in the jobs you want, and it tailors your CV and cover letter, fills supported forms, and submits after your approval. Start free.',
+  description: 'The AI agent for your job search: tell it your criteria once, add jobs, and it tailors your CV and cover letter and submits after your approval. Start free.',
   alternates: { canonical: SITE_URL },
 };
 

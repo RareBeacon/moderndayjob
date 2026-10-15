@@ -10,7 +10,7 @@ import { headers } from 'next/headers';
 
 export const metadata = {
   title: 'Pricing - Free Plan and Paid Plans in Naira',
-  description: 'Free plan with 5 AI generations a month, then Basic at ₦5,000, Premium at ₦10,000 or Max at ₦20,000 a month for more monthly volume. Priced in Naira, no card required.',
+  description: 'Free plan: 3 CV or cover letter generations, 10 tool uses a day. Paid from ₦5,000 a month with daily credits, automation and unlimited tools. Naira and USD.',
   alternates: { canonical: `${SITE_URL}/pricing` },
 };
 

@@ -1,11 +1,13 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { applyAdapters } from '@/lib/apply/registry';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'Supported application systems',
   description:
     'Exactly which employer application systems Jobiest can fill and submit for you today, what it refuses to do, and why. No inflating, no fine print.',
+  alternates: { canonical: `${SITE_URL}/supported-systems` },
 };
 
 /**

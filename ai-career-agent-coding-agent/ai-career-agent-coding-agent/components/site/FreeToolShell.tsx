@@ -58,7 +58,7 @@ export function FreeToolShell({
             </div>
             <div className="cols">
               <div>
-                <h4>Free tools</h4>
+                <h2>Free tools</h2>
                 <ul>
                   <li><Link href="/free-job-description-analyzer">JD Analyzer</Link></li>
                   <li><Link href="/free-cover-letter-writer">Cover Letter Writer</Link></li>
@@ -68,7 +68,7 @@ export function FreeToolShell({
                 </ul>
               </div>
               <div>
-                <h4>Product</h4>
+                <h2>Product</h2>
                 <ul>
                   <li><Link href="/how-it-works">How it works</Link></li>
                   <li><Link href="/pricing">Pricing</Link></li>

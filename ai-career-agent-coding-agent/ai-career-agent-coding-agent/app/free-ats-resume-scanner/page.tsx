@@ -8,7 +8,7 @@ import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-ats-resume-scanner` },
-  title: 'Free ATS Resume Scanner: Check Your CV in Seconds',
+  title: 'Free ATS Resume Checker and Scanner',
   description: 'Paste your CV for an instant ATS parseability score, contact details, core sections, dates, action verbs, plus keyword match against any job description. Free, no AI credits.',
   openGraph: {
     title: 'Free ATS Resume Scanner · Jobiest',

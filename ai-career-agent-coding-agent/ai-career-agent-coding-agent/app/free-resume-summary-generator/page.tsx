@@ -8,7 +8,7 @@ import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-resume-summary-generator` },
-  title: 'Resume Summary Generator From Your Real Experience',
+  title: 'Resume Summary Generator',
   description:
     'Three professional resume summary options written only from your verified profile facts, checked by a truthfulness gate before you see them. Free.',
   openGraph: {

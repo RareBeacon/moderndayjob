@@ -4,7 +4,7 @@ import { SITE_URL } from '@/lib/site';
 export const metadata = {
   alternates: { canonical: `${SITE_URL}/msa` },
   title: 'Master Service Agreement',
-  description: 'The framework agreement for business and API customers of Jobiest.',
+  description: 'The master service agreement for Jobiest business and API customers: scope, fees, data handling, liability and termination.',
 };
 
 export default function MsaPage() {

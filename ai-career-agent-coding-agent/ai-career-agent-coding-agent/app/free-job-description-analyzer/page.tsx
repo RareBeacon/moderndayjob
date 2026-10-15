@@ -8,7 +8,7 @@ import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-job-description-analyzer` },
-  title: 'Job Description Analyzer: Requirements, Keywords, Gaps',
+  title: 'Job Description Analyzer: Keywords and Gaps',
   description: 'Paste any job description for a structured breakdown: required skills, keywords, responsibilities, and which requirements your profile already matches.',
   openGraph: {
     title: 'Free Job Description Analyzer · Jobiest',

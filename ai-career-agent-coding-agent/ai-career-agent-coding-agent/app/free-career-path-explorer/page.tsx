@@ -8,7 +8,7 @@ import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-career-path-explorer` },
-  title: 'Career Path Explorer: Where Your Skills Can Take You',
+  title: 'Career Path Explorer for Your Skills',
   description:
     'Three career directions worth exploring, based only on the skills in your verified profile, each citing the exact skills it builds on. Checked, grounded, free.',
   openGraph: {

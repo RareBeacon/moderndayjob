@@ -4,7 +4,7 @@ import { SITE_URL } from '@/lib/site';
 export const metadata = {
   alternates: { canonical: `${SITE_URL}/refund` },
   title: 'Refund Policy',
-  description: 'Jobiest refund policy for paid subscriptions.',
+  description: 'When and how to get a refund on a Jobiest subscription: what the policy covers, how to request one and how long payouts take.',
 };
 
 export default function RefundPage() {

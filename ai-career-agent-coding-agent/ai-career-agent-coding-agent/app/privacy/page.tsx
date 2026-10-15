@@ -4,7 +4,7 @@ import { SITE_URL } from '@/lib/site';
 export const metadata = {
   alternates: { canonical: `${SITE_URL}/privacy` },
   title: 'Privacy Policy',
-  description: 'How Jobiest collects, uses and protects your data.',
+  description: 'How Jobiest collects, uses, shares and protects your data: AI processing, third-party providers, retention and your rights.',
 };
 
 export default function PrivacyPage() {

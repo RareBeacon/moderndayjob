@@ -28,6 +28,7 @@ export default function TemplatesPage() {
         </section>
         <section className="jl-sec tint">
           <div className="jl-shell">
+            <h2 style={{ fontSize: 24, marginBottom: 18 }}>Browse all 70 templates</h2>
             <TemplateGallery templates={RESUME_TEMPLATES} />
           </div>
         </section>

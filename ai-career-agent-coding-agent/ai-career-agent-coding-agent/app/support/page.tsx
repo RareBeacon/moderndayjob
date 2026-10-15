@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { SITE_URL } from '@/lib/site';
 import { SupportForm } from '@/components/support/SupportForm';
 import { JobletNavbar } from '@/components/site/joblet/Navbar';
 import { JobletFooter } from '@/components/site/joblet/Footer';
@@ -9,8 +10,9 @@ import { JobletFooter } from '@/components/site/joblet/Footer';
  * works logged-out too, because login trouble is a support category.
  */
 export const metadata: Metadata = {
-  title: 'Contact Support - Jobiest',
+  title: 'Contact Support',
   description: 'How can we help? Account and login, jobs, CV and resume, applications, AI agent, payments and subscriptions.',
+  alternates: { canonical: `${SITE_URL}/support` },
 };
 
 const CATEGORIES = [

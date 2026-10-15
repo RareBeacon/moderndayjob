@@ -4,7 +4,7 @@ import { SITE_URL } from '@/lib/site';
 export const metadata = {
   alternates: { canonical: `${SITE_URL}/terms` },
   title: 'Terms of Service',
-  description: 'The terms that govern your use of Jobiest.',
+  description: 'The terms of service that govern your use of Jobiest: accounts, acceptable use, payments, refunds and account closure.',
 };
 
 export default function TermsPage() {

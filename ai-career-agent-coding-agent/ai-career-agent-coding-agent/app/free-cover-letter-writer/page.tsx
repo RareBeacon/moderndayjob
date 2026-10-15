@@ -8,7 +8,7 @@ import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-cover-letter-writer` },
-  title: 'Free Cover Letter Writer From Your Resume + Job Description',
+  title: 'Free AI Cover Letter Writer',
   description: 'Generate a truthful cover letter built from your profile and the actual job listing. A truthfulness check rejects any claim your profile cannot support.',
   openGraph: {
     title: 'Free Cover Letter Writer · Jobiest',

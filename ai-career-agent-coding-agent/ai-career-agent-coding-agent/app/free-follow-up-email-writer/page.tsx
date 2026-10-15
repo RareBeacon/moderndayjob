@@ -8,7 +8,7 @@ import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/free-follow-up-email-writer` },
-  title: 'Follow-Up Email Writer After a Job Application (Free)',
+  title: 'Follow-Up Email Writer for Job Applications',
   description:
     'Draft a short, polite follow-up email after a job application, built only from the facts you provide. No invented names, dates, or conversations. Free.',
   openGraph: {
