@@ -6,7 +6,7 @@ import { marketingMetadata } from '@/components/marketing/metadata';
 import styles from '../marketing.module.css';
 
 export const metadata: Metadata = marketingMetadata({
-  title: 'Contact Support - Jobiest',
+  title: 'Contact Support',
   description: 'How can we help? Account and login, jobs, CV and resume, applications, AI agent, payments and subscriptions.',
   path: '/support',
 });
