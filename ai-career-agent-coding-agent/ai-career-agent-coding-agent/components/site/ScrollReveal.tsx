@@ -3,19 +3,27 @@
 import { useEffect } from 'react';
 
 /**
- * Global scroll-motion driver (v2).
+ * Global scroll-motion driver (v3).
  *
  * 1. Entrance reveals: elements matching [data-animate] (authored) or
- *    .jl-sec / .ft-sec / .mk-section (auto-tagged) fade/rise in once as
- *    they approach the viewport. Reveal-once: elements never re-hide, so
- *    nothing loops or flickers while scrolling.
- * 2. Live DOM: a MutationObserver picks up elements added by client-side
+ *    .jl-sec / .ft-sec / .mk-section (auto-tagged) fade/rise in as they
+ *    approach the viewport. Default is reveal-once: content pages never
+ *    re-hide, so nothing flickers while reading.
+ * 2. Repeat mode (new): elements with data-animate-repeat re-hide once they
+ *    have FULLY left the viewport and animate in again on every re-entry,
+ *    so sections respond while scrolling both up and down. Used on the
+ *    homepage sections.
+ * 3. Stagger (new): containers with data-stagger turn their direct children
+ *    into fade targets with a sequential delay, so cards and list lines
+ *    arrive one after another. Children repeat too when the container also
+ *    has data-animate-repeat.
+ * 4. Live DOM: a MutationObserver picks up elements added by client-side
  *    navigation, so reveals keep working on every page change. (v1 bug:
  *    the element list was captured once at first load and went stale,
  *    leaving sections on later pages permanently hidden.)
- * 3. Auto-tagged sections already above the fold are left untouched, so
- *    first paint never flashes.
- * 4. Parallax: [data-parallax] elements drift on scroll (desktop pointer
+ * 5. Auto-tagged or staggered elements already above the fold are left
+ *    untouched, so first paint never flashes.
+ * 6. Parallax: [data-parallax] elements drift on scroll (desktop pointer
  *    devices only, reduced motion respected). Parallax elements must not
  *    also carry data-animate: the entrance transition and the per-frame
  *    transforms fight and smear.
@@ -33,7 +41,10 @@ export function ScrollReveal() {
     const ALL = `${AUTHORED}, ${AUTO.join(', ')}`;
 
     const seen = new WeakSet<HTMLElement>();
+    const staggeredHosts = new WeakSet<HTMLElement>();
+    const repeating = new WeakSet<HTMLElement>();
     const reveal = (el: HTMLElement) => el.classList.add('is-visible');
+    const hide = (el: HTMLElement) => el.classList.remove('is-visible');
 
     if (typeof IntersectionObserver === 'undefined') {
       document.querySelectorAll<HTMLElement>(AUTHORED).forEach(reveal);
@@ -43,9 +54,15 @@ export function ScrollReveal() {
     const io = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
+          const el = entry.target as HTMLElement;
           if (entry.isIntersecting) {
-            reveal(entry.target as HTMLElement);
-            io.unobserve(entry.target); // reveal once, never re-hide
+            reveal(el);
+            if (!repeating.has(el)) io.unobserve(el); // reveal once, never re-hide
+          } else if (repeating.has(el)) {
+            // Only re-arm animation once the element is fully out of view,
+            // in either direction, so on-screen content never disappears.
+            const r = el.getBoundingClientRect();
+            if (r.bottom <= 0 || r.top >= window.innerHeight) hide(el);
           }
         }
       },
@@ -61,12 +78,33 @@ export function ScrollReveal() {
         if (el.getBoundingClientRect().top < window.innerHeight) return;
         el.setAttribute('data-animate', 'fade');
       }
+      if (el.hasAttribute('data-animate-repeat')) repeating.add(el);
       const delay = el.getAttribute('data-animate-delay');
-      if (delay) el.style.transitionDelay = `${delay}ms`;
+      if (delay && !el.style.transitionDelay) el.style.transitionDelay = `${delay}ms`;
       io.observe(el);
     }
 
+    /** data-stagger containers: children become staggered fade targets. */
+    function prepStagger(host: HTMLElement) {
+      if (staggeredHosts.has(host)) return;
+      staggeredHosts.add(host);
+      const repeat = host.hasAttribute('data-animate-repeat');
+      const children = Array.from(host.children).slice(0, 12) as HTMLElement[];
+      children.forEach((child, i) => {
+        if (!child.hasAttribute('data-animate')) {
+          // Above the fold at tagging time? Leave it plainly visible.
+          if (child.getBoundingClientRect().top < window.innerHeight) return;
+          child.setAttribute('data-animate', 'fade');
+        }
+        if (repeat) child.setAttribute('data-animate-repeat', '');
+        if (!child.style.transitionDelay && !child.hasAttribute('data-animate-delay')) {
+          child.style.transitionDelay = `${i * 90}ms`;
+        }
+      });
+    }
+
     function scan() {
+      document.querySelectorAll<HTMLElement>('[data-stagger]').forEach(prepStagger);
       document.querySelectorAll<HTMLElement>(ALL).forEach(prep);
     }
 

@@ -3,9 +3,10 @@ import Link from "next/link";
 import { Icon, type IconName } from "@/components/icons/icons";
 import { MarketingShell } from "@/components/marketing/marketing-shell";
 import { getUser } from "@/lib/auth";
-import { websiteJsonLd, organizationJsonLd, faqJsonLd, jsonLdTag } from "@/lib/seo";
+import { websiteJsonLd, organizationJsonLd, jsonLdTag } from "@/lib/seo";
 import { marketingMetadata } from "@/components/marketing/metadata";
-import { AgentTimeline, ToolResultHero } from "@/components/product/product-components";
+import { PLANS, PLAN_ORDER } from "@/lib/billing/pricing";
+import { AgentTimeline } from "@/components/product/product-components";
 import styles from "./marketing.module.css";
 
 export const metadata: Metadata = marketingMetadata({
@@ -18,83 +19,81 @@ export const metadata: Metadata = marketingMetadata({
 const liveSignup = "/signup";
 const liveTools = "/tools";
 
-const toolLinks = [
-  ["ATS Resume Scanner", "/free-ats-resume-scanner"],
-  ["Job Description Analyzer", "/free-job-description-analyzer"],
-  ["Skills Matcher", "/free-skills-matcher"],
-  ["Salary Insights", "/free-salary-insights"],
-  ["Interview Question Generator", "/free-interview-question-generator"],
-  ["LinkedIn Headline Builder", "/free-linkedin-headline-builder"],
-  ["Cover Letter Writer", "/free-cover-letter-writer"],
-  ["Resume Summary Generator", "/free-resume-summary-generator"],
-  ["Follow-up Email Writer", "/free-follow-up-email-writer"],
-  ["Career Path Explorer", "/free-career-path-explorer"],
-] as const;
+const frustrations = [
+  "You rewrite your CV for every single job.",
+  "You write cover letters late at night.",
+  "You fill in the same forms, again and again.",
+  "You scroll job boards on the bus, at lunch, at midnight.",
+  "And most applications are met with silence.",
+];
+
+const dream = [
+  "You wake up to new matching jobs, already found.",
+  "Your CV and cover letter are written for each one.",
+  "You review for fifteen minutes and approve.",
+  "You apply to more jobs in a week than you used to in a month.",
+  "The rest of your day belongs to you.",
+];
 
 const steps: { number: string; title: string; body: string; sample: string; icon: IconName }[] = [
   {
     number: "1",
-    title: "Set your criteria",
-    body: "Tell Jobiest your target roles, locations, salary needs, and must-haves once.",
-    sample: "Your search preferences become clear profile facts.",
+    title: "Add your details once",
+    body: "Your experience, your skills, and the jobs you want. This becomes your one true profile, and Jobiest uses it for everything after.",
+    sample: "Takes about fifteen minutes.",
     icon: "user",
   },
   {
     number: "2",
-    title: "Add the jobs you want",
-    body: "Paste a job link or listing. The agent checks the role against your verified experience.",
-    sample: "Gaps are flagged. Unsupported claims are never filled in.",
+    title: "Jobiest does the work",
+    body: "It finds real, matching jobs on employer boards and writes your CV and cover letter for each one. Every document is tailored. Every fact is checked.",
+    sample: "Everything waits for your review.",
     icon: "briefcase",
   },
   {
     number: "3",
-    title: "Review and approve",
-    body: "Read the tailored CV and cover letter. Approve, edit, or ask for changes before anything sends.",
-    sample: "Nothing goes to an employer without your explicit approval.",
+    title: "You approve, it sends",
+    body: "Look it over. Change anything you like. Click approve. On supported job boards, Jobiest submits the application for you.",
+    sample: "You always know what went out, and when.",
     icon: "shield",
   },
 ];
 
-const faqs = [
-  { question: 'How much work is this, really?', answer: 'Set your criteria once. On paid plans your agent then searches employer boards for matching roles and prepares the applications; you can also paste any job link yourself. You review each package and approve; on Greenhouse and Lever the submission itself is done for you, or fully automatic if you switch to the Auto send policy. Most evenings take minutes, not hours.' },
-  { question: 'Which job boards does it support?', answer: 'The agent fills and submits employer forms on Greenhouse, Lever, Ashby and Workable, after your approval or on the Auto policy. Jobs it finds itself come from Greenhouse and Lever boards today; any job you paste on a supported board is filled and submitted too. Everything else comes back as the complete package, CV, cover letter and answers, with a direct link so you can submit in a couple of clicks. Forms that need a CAPTCHA, a login, or an assessment are handed back to you with everything ready to go.' },
-  { question: 'Will it make up experience for my CV?', answer: 'Never. Documents are built only from the facts you verify. Missing details are flagged so you can add context without inventing credentials or achievements, and a truthfulness check runs before any submission: if honest content cannot be verified, the application stops and comes back to you.' },
-  { question: 'What can I do on the free plan?', answer: 'Use all 10 career tools (full results preview, no account needed), build your profile and criteria, and track applications in one place. You also get three AI generations in total to try the writer. Agent runs start on paid plans. No payment card is required.' },
-];
-
 export default async function HomePage() {
   const user = await getUser();
+  const paidPlans = PLAN_ORDER.filter((code) => PLANS[code].monthlyNgn > 0);
   return (
     <MarketingShell activePath="/" authenticated={!!user}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd()) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd()) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd(faqs.map((f) => ({ q: f.question, a: f.answer })))) }} />
       <main className={styles.page}>
-        <section data-animate className={styles.hero} aria-labelledby="home-title">
+        <section data-animate data-animate-repeat className={styles.hero} aria-labelledby="home-title">
           <div className={styles.heroInner}>
-            <div className={styles.heroCopy} data-animate>
+            <div className={styles.heroCopy} data-animate data-animate-repeat>
               <p className={styles.eyebrow}>
                 <Icon name="spark" width={17} height={17} />
                 AI career agent
               </p>
               <h1 id="home-title">
-                Your AI agent for the job search. <span>You approve everything it sends.</span>
+                More interviews. Less job hunting. <span>You approve every send.</span>
               </h1>
               <p className={styles.heroLead}>
-                Set your criteria once. Add the jobs you want. Jobiest prepares truthful applications from your verified experience, then shows you every change before anything goes to an employer.
+                Jobiest is your AI career agent. Tell it the jobs you want once. From there, it finds matching
+                openings, writes your CV and cover letter for each one, and applies for you. Nothing is sent until
+                you say yes.
               </p>
               <div className={styles.heroActions}>
                 <a className={styles.primaryAction} href={liveSignup}>
                   Create free account
                   <Icon name="arrow-right" width={18} height={18} />
                 </a>
-                <a className={styles.secondaryAction} href={liveTools}>
-                  Try the free tools
+                <a className={styles.secondaryAction} href="#how">
+                  See how it works
                 </a>
               </div>
               <p className={styles.heroTrust}>
                 <Icon name="shield" width={19} height={19} />
-                Nothing is sent without your approval.
+                Nothing is sent until you say yes.
               </p>
               <span className={styles.heroFreeFact}>
                 <Icon name="check-circle" width={16} height={16} />
@@ -141,14 +140,116 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section data-animate className={styles.section} aria-labelledby="steps-title">
+        <section className={`${styles.section} ${styles.sectionSoft}`} aria-labelledby="frustrations-title">
           <div className={styles.container}>
-            <div className={styles.sectionHead}>
-              <p className={styles.eyebrow}>How it works</p>
-              <h2 id="steps-title">A calmer way to prepare job applications.</h2>
-              <p>Jobiest handles the repetitive preparation. You bring the facts and decide what leaves your account.</p>
+            <div className={styles.sectionHead} data-animate data-animate-repeat>
+              <p className={styles.eyebrow}>Sound familiar?</p>
+              <h2 id="frustrations-title">Job hunting is a full-time job. Without the pay.</h2>
+              <p className={styles.sectionIntro}>
+                If you are job hunting right now, you already know the routine.
+              </p>
             </div>
-            <div className={styles.stepsGrid}>
+            <ul className={styles.plainList} data-stagger data-animate-repeat>
+              {frustrations.map((line) => (
+                <li key={line}>
+                  <Icon name="arrow-right" width={17} height={17} />
+                  {line}
+                </li>
+              ))}
+            </ul>
+            <div data-animate data-animate-repeat>
+              <p className={styles.sectionNote}>
+                Weeks of this. Months, even. It drains the energy you should be spending on the interviews
+                themselves. It doesn&apos;t have to be your life.
+              </p>
+              <Link className={styles.inlineCta} href="#how">
+                There&apos;s a better way
+                <Icon name="arrow-right" width={17} height={17} />
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <section className={styles.section} aria-labelledby="fears-title">
+          <div className={styles.container}>
+            <div className={styles.sectionHead} data-animate data-animate-repeat>
+              <p className={styles.eyebrow}>The hard truth</p>
+              <h2 id="fears-title">It&apos;s not you. It&apos;s the numbers.</h2>
+              <p>
+                Every good job gets hundreds of applicants. The people who get interviews aren&apos;t better than
+                you. They just applied sooner, with documents made for that exact job.
+              </p>
+              <p>
+                And here is what nobody says out loud: the longer the search takes, the more it starts to feel like
+                it&apos;s you. It isn&apos;t. The silence isn&apos;t feedback. It&apos;s just numbers. And numbers
+                problems have tools.
+              </p>
+              <Link className={styles.inlineCta} href="#how">
+                Get the numbers on your side
+                <Icon name="arrow-right" width={17} height={17} />
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <section className={`${styles.section} ${styles.sectionSoft}`} aria-labelledby="dream-title">
+          <div className={styles.container}>
+            <div className={styles.sectionHead} data-animate data-animate-repeat>
+              <p className={styles.eyebrow}>Picture this</p>
+              <h2 id="dream-title">Your job search, handled.</h2>
+              <p className={styles.sectionIntro}>Imagine your search running like this instead:</p>
+            </div>
+            <ul className={styles.plainList} data-stagger data-animate-repeat>
+              {dream.map((line) => (
+                <li key={line}>
+                  <Icon name="check-circle" width={17} height={17} />
+                  {line}
+                </li>
+              ))}
+            </ul>
+            <div data-animate data-animate-repeat>
+              <p className={styles.sectionNote}>
+                That&apos;s Jobiest. Built in Lagos for people with real skills and no time to waste. People who want
+                the job, not the job hunt.
+              </p>
+            </div>
+            <div className={styles.proofGrid} data-stagger data-animate-repeat>
+              <article className={styles.proofCard}>
+                <p className={styles.eyebrow}>Rule one</p>
+                <h3>No lies. Ever.</h3>
+                <p>
+                  Your CV is built only from facts you gave us. If something is missing, we flag it for you to add.
+                  We never invent experience. We never pad your achievements. What you send is what is true.
+                </p>
+              </article>
+              <article className={styles.proofCard}>
+                <p className={styles.eyebrow}>Rule two</p>
+                <h3>You say yes. Or it doesn&apos;t send.</h3>
+                <p>
+                  Every document and every application waits for your approval. One look, one click. And you can
+                  always see exactly what was sent, to whom, and when.
+                </p>
+              </article>
+            </div>
+            <div data-animate data-animate-repeat style={{ marginTop: "1.6rem" }}>
+              <a className={styles.primaryAction} href={liveSignup}>
+                Start free tonight
+                <Icon name="arrow-right" width={18} height={18} />
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <section id="how" className={styles.section} aria-labelledby="steps-title">
+          <div className={styles.container}>
+            <div className={styles.sectionHead} data-animate data-animate-repeat>
+              <p className={styles.eyebrow}>How it works</p>
+              <h2 id="steps-title">Three steps. Fifteen minutes to set up.</h2>
+              <p className={styles.sectionIntro}>
+                No new apps to learn. No complicated setup. Just this:
+              </p>
+            </div>
+            <div className={styles.stepsGrid} data-stagger data-animate-repeat>
               {steps.map((step) => (
                 <article className={styles.stepCard} key={step.number}>
                   <div className={styles.stepTop}>
@@ -164,128 +265,80 @@ export default async function HomePage() {
                 </article>
               ))}
             </div>
-            <Link className={styles.inlineCta} href="/how-it-works">
-              See the full three-step flow <Icon name="arrow-right" width={17} height={17} />
-            </Link>
-          </div>
-        </section>
-
-        <section data-animate className={`${styles.section} ${styles.sectionSoft}`} aria-labelledby="proof-title">
-          <div className={styles.container}>
-            <div className={styles.sectionHead}>
-              <p className={styles.eyebrow}>Proof before promises</p>
-              <h2 id="proof-title">Useful results, with the limits in view.</h2>
-              <p>These are actual tool outputs from clearly fictional test inputs. The ATS score belongs only to one incomplete sample CV. Salary Insights found no stated pay in one fictional listing. Neither is a benchmark or market estimate.</p>
-            </div>
-            <div className={styles.proofGrid}>
-              <article className={styles.proofCard}>
-                <p className={styles.eyebrow}>ATS Resume Scanner</p>
-                <h3>Rule-based checks you can inspect</h3>
-                <p>The live tool checks parseability and core CV structure, with optional role-keyword overlap.</p>
-                <ToolResultHero
-                  eyebrow="Fictional sample CV · 47 words"
-                  metric="54 / 100"
-                  detail="This score belongs to this deliberately incomplete sample. It is not a typical result or a measure of candidate worth."
-                >
-                  <ul className={styles.resultFindings} aria-label="Actual findings from the fictional sample scan">
-                    <li>Length flagged at 47 words. No email found; phone found.</li>
-                    <li>3 of 3 standard sections and year references detected.</li>
-                    <li>Action verbs flagged as weak. 7 of 12 role terms matched.</li>
-                  </ul>
-                </ToolResultHero>
-                <a className={styles.inlineCta} href="/free-ats-resume-scanner">
-                  Open the real ATS scanner
-                  <Icon name="arrow-up-right" width={17} height={17} />
-                </a>
-              </article>
-              <article className={styles.proofCard}>
-                <p className={styles.eyebrow}>Salary Insights</p>
-                <h3>Stated pay only</h3>
-                <p>The tool reports the pay that your pasted listing explicitly states. It does not create a market average when the listing is silent.</p>
-                <ToolResultHero
-                  eyebrow="Fictional listing · pay omitted"
-                  metric="0 stated pay"
-                  detail="Actual output: 1 listing source(s) scanned. No estimates or averages are included."
-                >
-                  <p className={styles.resultContext}>The single fictional listing did not state compensation, so no salary figure appears.</p>
-                </ToolResultHero>
-                <a className={styles.inlineCta} href="/free-salary-insights">
-                  Open Salary Insights
-                  <Icon name="arrow-up-right" width={17} height={17} />
-                </a>
-              </article>
-            </div>
-          </div>
-        </section>
-
-        <section data-animate className={styles.section} aria-labelledby="tools-title">
-          <div className={styles.container}>
-            <div className={styles.sectionHead}>
-              <p className={styles.eyebrow}>Free career tools</p>
-              <h2 id="tools-title">Ten tools for the parts that eat your week.</h2>
-              <p>Use them without an account. Each result works from the text you provide, and missing facts stay missing.</p>
-            </div>
-            <div className={styles.toolGrid}>
-              {toolLinks.map(([label, href]) => (
-                <a className={styles.toolLink} key={label} href={href}>
-                  {label}
-                  <Icon name="arrow-up-right" width={17} height={17} />
-                </a>
-              ))}
-            </div>
-            <Link className={styles.inlineCta} href="/tools">
-              See all tool details <Icon name="arrow-right" width={17} height={17} />
-            </Link>
-          </div>
-        </section>
-
-        <section data-animate className={`${styles.section} ${styles.sectionSoft}`} aria-labelledby="pricing-title">
-          <div className={styles.container}>
-            <div className={styles.pricingTeaser}>
-              <div>
-                <p className={styles.eyebrow}>Start free</p>
-                <h2 id="pricing-title">Try the useful part before you pay.</h2>
-                <p>The free plan includes 3 CV or cover letter generations and 10 tool uses a day. Paid plans start at ₦5,000 a month in Nigeria or $3.99 a month globally.</p>
-                <Link className={styles.inlineCta} href="/pricing">
-                  Compare the plans <Icon name="arrow-right" width={17} height={17} />
-                </Link>
-              </div>
-              <div className={styles.priceStart}>
-                <strong>₦0 to begin</strong>
-                <span>No card is needed for the free tools.</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section data-animate className={styles.section} aria-labelledby="faq-title">
-          <div className={styles.container}>
-            <div className={styles.sectionHead}>
-              <p className={styles.eyebrow}>Questions, answered</p>
-              <h2 id="faq-title">Trust should not need a footnote.</h2>
-            </div>
-            <div className={styles.faqList}>
-              {faqs.map((faq, index) => (
-                <details key={faq.question} open={index === 0}>
-                  <summary>{faq.question}</summary>
-                  <p>{faq.answer}</p>
-                </details>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section data-animate className={styles.section} aria-labelledby="home-cta-title">
-          <div className={styles.container}>
-            <div className={styles.ctaBand}>
-              <div>
-                <h2 id="home-cta-title">Your next step stays yours.</h2>
-                <p>Start with the free tools or create an account when you want the agent to prepare applications.</p>
-              </div>
+            <div data-animate data-animate-repeat style={{ marginTop: "1.6rem", display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
               <a className={styles.primaryAction} href={liveSignup}>
                 Create free account
                 <Icon name="arrow-right" width={18} height={18} />
               </a>
+              <Link className={styles.inlineCta} href="/how-it-works">
+                See the full three-step flow <Icon name="arrow-right" width={17} height={17} />
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <section className={`${styles.section} ${styles.sectionSoft}`} aria-labelledby="pricing-title">
+          <div className={styles.container}>
+            <div className={styles.sectionHead} data-animate data-animate-repeat>
+              <p className={styles.eyebrow}>Pricing</p>
+              <h2 id="pricing-title">Start free. Upgrade if it works for you.</h2>
+              <p>
+                Free means free. No card. No trial clock. The free plan gives you 3 CV or cover letter generations
+                and 10 tool uses a day, for as long as you want. When you are ready for more, paid plans add daily
+                generations and the job-finding agent, from ₦5,000 a month.
+              </p>
+            </div>
+            <div className={styles.planGrid} data-stagger data-animate-repeat>
+              {paidPlans.map((code) => {
+                const plan = PLANS[code];
+                return (
+                  <article className={`${styles.proofCard}${plan.featured ? ` ${styles.planFeatured}` : ""}`} key={code}>
+                    <p className={styles.eyebrow}>
+                      {plan.name}
+                      {plan.featured ? <span className={styles.planBadge}>Most popular</span> : null}
+                    </p>
+                    <h3>₦{plan.monthlyNgn.toLocaleString("en-NG")} a month</h3>
+                    <p className={styles.planGlobal}>${plan.monthlyUsd.toFixed(2)} a month globally</p>
+                    <p>{plan.tagline}</p>
+                    <Link className={styles.inlineCta} href="/pricing">
+                      See what&apos;s included
+                      <Icon name="arrow-right" width={17} height={17} />
+                    </Link>
+                  </article>
+                );
+              })}
+            </div>
+            <div data-animate data-animate-repeat>
+              <p className={styles.sectionNote} style={{ marginTop: "1.6rem" }}>Cancel anytime from your settings.</p>
+              <div style={{ marginTop: "1.2rem", display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
+                <a className={styles.primaryAction} href={liveSignup}>
+                  Create free account
+                  <Icon name="arrow-right" width={18} height={18} />
+                </a>
+                <Link className={styles.inlineCta} href="/pricing">
+                  Compare the full plans <Icon name="arrow-right" width={17} height={17} />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className={styles.section} aria-labelledby="home-cta-title">
+          <div className={styles.container}>
+            <div className={styles.ctaBand} data-animate data-animate-repeat>
+              <div>
+                <h2 id="home-cta-title">The job you want is still open.</h2>
+                <p>Someone will get the interview. It might as well be you. Free to start, no card, nothing sent without your yes.</p>
+              </div>
+              <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
+                <a className={styles.primaryAction} href={liveSignup}>
+                  Create free account
+                  <Icon name="arrow-right" width={18} height={18} />
+                </a>
+                <a className={styles.secondaryAction} href={liveTools}>
+                  Try the free tools
+                </a>
+              </div>
             </div>
           </div>
         </section>
