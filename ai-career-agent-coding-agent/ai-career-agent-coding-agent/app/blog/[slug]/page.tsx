@@ -217,18 +217,23 @@ function StaticArticle({ post }: { post: BlogPost }) {
 export default async function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const post = getBlogPost(slug);
-  const db = post ? null : await getDbArticle(slug);
+  // DB is the source of truth; the static list is a fallback for missing rows.
+  const db = await getDbArticle(slug);
   if (!post && !db) notFound();
 
-  const title = post?.title ?? db!.title;
-  const description = post?.description ?? db!.meta_description;
+  const title = db?.title ?? post!.title;
+  const description = db?.meta_description ?? post!.description;
   const category = post?.category ?? db!.search_intent ?? 'SEO guide';
-  const readingTime = post?.readingTime ?? '5 min';
-  const url = post ? `${SITE_URL}/blog/${post.slug}` : db!.url;
-  const keywords = post ? [post.primaryKeyword, ...post.secondaryKeywords] : [db!.target_keyword ?? '', ...(db!.secondary_keywords ?? [])].filter(Boolean);
-  const image = post ? `${SITE_URL}/images/og-card.jpg` : db!.featured_image_url || `${SITE_URL}/images/og-card.jpg`;
-  const jsonLd = articleJsonLd({ title, description, publishedAt: post?.publishedAt ?? db!.published_at, updatedAt: post?.publishedAt ?? db!.last_updated, url, keywords, image });
-  const faqLd = post ? null : faqJsonLd(db!.faq);
+  const readingTime = db
+    ? `${Math.max(1, Math.round(db.content_markdown.split(/\s+/).length / 220))} min`
+    : post!.readingTime;
+  const url = db?.url ?? `${SITE_URL}/blog/${post!.slug}`;
+  const keywords = db
+    ? [db.target_keyword ?? '', ...(db.secondary_keywords ?? [])].filter(Boolean)
+    : [post!.primaryKeyword, ...post!.secondaryKeywords];
+  const image = db?.featured_image_url || `${SITE_URL}/images/og-card.jpg`;
+  const jsonLd = articleJsonLd({ title, description, publishedAt: db?.published_at ?? post?.publishedAt, updatedAt: db?.last_updated ?? post?.publishedAt, url, keywords, image });
+  const faqLd = faqJsonLd(db?.faq);
 
   return (
     <div className="jl-page">
@@ -242,7 +247,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
               <h1>{title}</h1>
               {description && <p>{description}</p>}
             </header>
-            {!post && (
+            {db && (
               <figure className="blog-featured-image" aria-label={db!.featured_image_alt ?? `${title} featured image`}>
                 <span>{db!.content_cluster ?? 'Jobiest guide'}</span>
                 <strong>{db!.target_keyword ?? title}</strong>
