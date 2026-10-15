@@ -39,7 +39,19 @@ const schema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().default(''),
   GOOGLE_REDIRECT_URI: z.string().url().or(z.literal('')).default(''),
 });
-export const env = schema.parse({
+/**
+ * `env` validates lazily: the Zod parse runs on first property access, not at
+ * import time. `next build` imports every route module during page-data
+ * collection, and builds in environments without runtime secrets (Vercel
+ * preview deployments with Production-only env vars) used to crash with a
+ * ZodError before a single page rendered. With the lazy parse, such builds
+ * succeed and any request that actually needs a missing variable still fails
+ * loudly at runtime with the original error.
+ */
+let envCache: z.infer<typeof schema> | null = null;
+
+function parseEnv(): z.infer<typeof schema> {
+  if (!envCache) envCache = schema.parse({
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -66,4 +78,12 @@ export const env = schema.parse({
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
   GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
+});
+  return envCache;
+}
+
+export const env: z.infer<typeof schema> = new Proxy({} as z.infer<typeof schema>, {
+  get(_target, prop) {
+    return parseEnv()[prop as keyof z.infer<typeof schema>];
+  },
 });
