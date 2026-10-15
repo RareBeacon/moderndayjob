@@ -1,80 +1,163 @@
-import Link from 'next/link';
-import type { Metadata } from 'next';
-import { JobletNavbar } from '@/components/site/joblet/Navbar';
-import { JobletFooter } from '@/components/site/joblet/Footer';
-import { SITE_URL } from '@/lib/site';
-import { breadcrumbJsonLd, jsonLdTag } from '@/lib/seo';
+import type { Metadata } from "next";
+import Link from "next/link";
+import { Icon, type IconName } from "@/components/icons/icons";
+import { MarketingShell } from "@/components/marketing/marketing-shell";
+import { getUser } from "@/lib/auth";
+import { breadcrumbJsonLd, jsonLdTag } from "@/lib/seo";
+import { marketingMetadata } from "@/components/marketing/metadata";
+import { AgentTimeline } from "@/components/product/product-components";
+import styles from "../marketing.module.css";
 
-export const metadata: Metadata = {
-  title: 'How the Jobiest Agent Works in 3 Steps',
-  description: 'Three steps between you and a working job agent: build your profile, bring the jobs you want, then approve and track every send.',
-  alternates: { canonical: `${SITE_URL}/how-it-works` },
+export const metadata: Metadata = marketingMetadata({
+  title: "How the Jobiest Agent Works in 3 Steps",
+  description:
+    "Three steps between you and a working job agent: build your profile, bring the jobs you want, then approve and track every send.",
+  path: "/how-it-works",
+});
+
+type Step = {
+  number: string;
+  title: string;
+  body: string;
+  sample: string;
+  icon: IconName;
 };
 
-const STEPS = [
+const steps: Step[] = [
   {
-    title: 'Build your profile',
-    sub: 'Tell us the truth about you, and nothing else.',
-    body: [
-      'A guided flow captures your experience, your skills, your target roles, and your location preferences. Every field you complete becomes a verified fact that Jobiest draws from when writing your applications.',
-      'We never add what you did not tell us. If information is missing, we flag it rather than fill it in.',
-      'This is not a 40-field form. It is five focused screens. Most people can complete the foundation in under 10 minutes.',
-    ],
+    number: "1",
+    title: "Build a truthful profile",
+    body: "Tell Jobiest about your experience, skills, target roles, and location preferences. Every field becomes a fact the agent can draw from. Missing information is flagged, not filled in.",
+    sample: "Your verified facts become the source of every document.",
+    icon: "user",
   },
   {
-    title: 'Let the agent work',
-    sub: 'You bring the job. Preparation runs in the background.',
-    body: [
-      'Jobiest does not post jobs and does not run a listings board. When you find a role you want, you bring it: paste the job link, and optionally the job description.',
-      'Your agent studies the role against your profile: required skills, responsibilities, and how your verified experience lines up. Honest gaps are flagged, never papered over.',
-      'The agent then prepares a tailored CV and a role-specific cover letter built entirely from your verified facts. No filler. No invented credentials.',
-    ],
+    number: "2",
+    title: "Bring the job",
+    body: "Paste the job link and, when useful, the job description. The agent studies the requirements against your profile, then prepares a tailored CV and role-specific cover letter from your verified experience.",
+    sample: "Gaps stay visible. No filler. No invented credentials.",
+    icon: "briefcase",
   },
   {
-    title: 'Approve and track',
-    sub: 'You are always the one who decides what gets sent.',
-    body: [
-      'Every prepared application arrives in your dashboard with a preview. You read the CV, the cover letter, and the job details you brought. If it looks right, you approve it. If something feels off, you skip it or edit first.',
-      'After submission, your dashboard tracks every application so you always know where you stand.',
-    ],
+    number: "3",
+    title: "Approve and track",
+    body: "Every prepared application arrives with a preview. Read the documents and job details, edit if needed, then approve or ask for changes. Your dashboard keeps the application status visible.",
+    sample: "You are always the person who decides what gets sent.",
+    icon: "shield",
   },
 ];
 
-export default function HowItWorksPage() {
+const activityEvents = [
+  {
+    verb: "Compared the role requirements",
+    detail: "Checked responsibilities and skills against your saved experience.",
+    timeLabel: "Example preparation step",
+    state: "complete" as const,
+  },
+  {
+    verb: "Kept unsupported claims out",
+    detail: "Left a gap visible instead of inventing a credential.",
+    timeLabel: "Example truthfulness check",
+    state: "complete" as const,
+  },
+  {
+    verb: "Prepared documents for review",
+    detail: "Tailored a CV and cover letter from verified facts.",
+    timeLabel: "Example status",
+    state: "current" as const,
+  },
+];
+
+export default async function HowItWorksPage() {
+  const user = await getUser();
   return (
-    <div className="jl-page">
-      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(breadcrumbJsonLd([{ name: 'Home', path: '/' }, { name: 'How it works', path: '/how-it-works' }]))} />
-      <JobletNavbar />
-      <main id="main">
-        <section className="jl-sec blog-hero">
-          <div className="jl-shell">
-            <span className="jl-kicker">How it works</span>
+    <MarketingShell activePath="/how-it-works" authenticated={!!user}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd([{ name: 'Home', path: '/' }, { name: 'How it works', path: '/how-it-works' }])) }} />
+      <main className={styles.page}>
+        <header className={styles.pageHero}>
+          <div className={styles.container}>
+            <p className={styles.eyebrow}>How it works</p>
             <h1>Three steps between you and a working job agent.</h1>
-            <p>Build a truthful profile once. Let the agent handle the repetitive work. Approve every application before it sends.</p>
+            <p className={styles.pageLead}>
+              Build a truthful profile once. Let the agent handle the repetitive preparation. Approve every application before it sends.
+            </p>
+          </div>
+        </header>
+
+        <section data-animate className={styles.section} aria-labelledby="flow-title">
+          <div className={styles.container}>
+            <div className={styles.sectionHead}>
+              <p className={styles.eyebrow}>The flow</p>
+              <h2 id="flow-title">The agent works from what you can prove.</h2>
+              <p>You set the criteria and add jobs you want to pursue. The agent prepares the next useful step, with your approval ahead of any send.</p>
+            </div>
+            <div className={styles.stepsGrid}>
+              {steps.map((step) => (
+                <article className={styles.stepCard} key={step.number}>
+                  <div className={styles.stepTop}>
+                    <span className={styles.stepNumber}>{step.number}</span>
+                    <Icon name={step.icon} width={22} height={22} />
+                  </div>
+                  <h3>{step.title}</h3>
+                  <p>{step.body}</p>
+                  <div className={styles.stepSample}>
+                    <strong>What this means</strong>
+                    <span>{step.sample}</span>
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
         </section>
-        <section className="jl-sec tint">
-          <div className="jl-shell pastor-steps">
-            {STEPS.map((step, i) => (
-              <article className="pastor-step-card" key={step.title}>
-                <span className="jl-n">{i + 1}</span>
-                <h2>{step.title}</h2>
-                <h3>{step.sub}</h3>
-                {step.body.map((p) => <p key={p}>{p}</p>)}
+
+        <section data-animate className={`${styles.section} ${styles.sectionSoft}`} aria-labelledby="activity-title">
+          <div className={styles.container}>
+            <div className={styles.proofGrid}>
+              <article className={styles.proofCard}>
+                <p className={styles.eyebrow}>Inside the preparation</p>
+                <h2 id="activity-title" className={styles.proofTitle}>You can see what the agent did.</h2>
+                <p>The activity trail makes the work legible before you make a decision.</p>
+                <AgentTimeline label="Example agent activity" events={activityEvents} />
               </article>
-            ))}
+
+              <article className={styles.proofCard}>
+                <p className={styles.eyebrow}>The approval moment</p>
+                <h2 className={styles.proofTitle}>Powerful because it is clear.</h2>
+                <div className={styles.approvalPreview}>
+                  <div className={styles.approvalPreviewHeader}>
+                    <span className={styles.panelBadge}>Example screen</span>
+                    <strong>Waiting for your review</strong>
+                  </div>
+                  <p>Job you added</p>
+                  <div className={styles.approvalPreviewDoc}>
+                    <Icon name="file" width={20} height={20} />
+                    <span><strong>Tailored CV</strong><small>Prepared from your verified facts</small></span>
+                  </div>
+                  <div className={styles.approvalPreviewDoc}>
+                    <Icon name="file" width={20} height={20} />
+                    <span><strong>Cover letter</strong><small>Matched to the job you chose</small></span>
+                  </div>
+                  <p className={styles.approvalPreviewNote}>Illustrative layout only. No real application or result is shown.</p>
+                </div>
+              </article>
+            </div>
           </div>
         </section>
-        <section className="jl-sec">
-          <div className="jl-shell pastor-response">
-            <span className="jl-kicker">See it in action</span>
-            <h2>Start free and complete your profile today.</h2>
-            <p>Your applications and tools become useful as soon as the platform knows your verified facts.</p>
-            <Link className="jl-btn-solid" href="/signup">Get Started Free</Link>
+
+        <section data-animate className={styles.section} aria-labelledby="how-cta-title">
+          <div className={styles.container}>
+            <div className={styles.ctaBand}>
+              <div>
+                <h2 id="how-cta-title">Start with the facts you already have.</h2>
+                <p>Try the public tools or create a free account when you are ready to build your profile.</p>
+              </div>
+              <Link className={styles.primaryAction} href="/tools">
+                Try the free tools <Icon name="arrow-right" width={18} height={18} />
+              </Link>
+            </div>
           </div>
         </section>
       </main>
-      <JobletFooter />
-    </div>
+    </MarketingShell>
   );
 }

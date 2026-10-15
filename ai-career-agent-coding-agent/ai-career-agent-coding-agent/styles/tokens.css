@@ -1,0 +1,70 @@
+:root {
+  color-scheme: light;
+
+  --color-primary-navy: #111d35;
+  --color-deep-navy: #070d1c;
+  --color-light-navy: #1b2540;
+  --color-lime: #d7f94b;
+  --color-lime-soft: #e9f98b;
+  --color-ink: #17223b;
+  --color-muted: #5d6b85;
+  --color-line: #e2e6ed;
+  --color-background: #ffffff;
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+  --color-info: #3b72bc;
+  --color-surface-soft: #f7f9fc;
+  --color-surface-tint: #eef2f7;
+  --color-disabled: #aab3c1;
+  --color-focus: #3b72bc;
+
+  --contrast-lime-on-navy: 14.02;
+  --contrast-soft-lime-on-navy: 14.7;
+  --contrast-ink-on-white: 15.81;
+  --contrast-muted-on-white: 5.37;
+  --contrast-info-on-white: 4.86;
+  --contrast-danger-on-white: 4.83;
+
+  --font-body: var(--font-dm-sans);
+  --font-display: var(--font-space-grotesk);
+  --text-13: 0.8125rem;
+  --text-14: 0.875rem;
+  --text-15: 0.9375rem;
+  --text-17: 1.0625rem;
+  --text-20: 1.25rem;
+  --text-24: 1.5rem;
+  --text-32: 2rem;
+  --text-44: 2.75rem;
+  --text-60: 3.75rem;
+  --line-body: 1.6;
+  --line-display: 1.15;
+  --measure-body: 68ch;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+
+  --radius-standard: 10px;
+  --radius-card: 16px;
+  --radius-pill: 999px;
+  --shadow-1: 0 1px 3px rgb(17 29 53 / 8%);
+  --shadow-2: 0 18px 52px rgb(7 13 28 / 16%);
+  --motion-micro: 150ms;
+  --motion-transition: 250ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-micro: 0ms;
+    --motion-transition: 0ms;
+  }
+}

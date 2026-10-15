@@ -1,4 +1,7 @@
 import './globals.css';
+import '@/styles/tokens.css';
+import '@/styles/motion.css';
+import { PageTransition } from '@/components/site/PageTransition';
 import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
 import { SITE_URL } from '@/lib/site';
@@ -78,7 +81,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <noscript>
           <style>{'[data-animate]{opacity:1!important;transform:none!important;transition:none!important}'}</style>
         </noscript>
-        {children}
+        <PageTransition>{children}</PageTransition>
         <ChatWidget />
         <ScrollReveal />
         <ServiceWorkerRegistrar />

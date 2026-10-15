@@ -1,19 +1,15 @@
 import type { Metadata } from 'next';
-import { SITE_URL } from '@/lib/site';
+import { getUser } from '@/lib/auth';
+import { MarketingShell } from '@/components/marketing/marketing-shell';
 import { SupportForm } from '@/components/support/SupportForm';
-import { JobletNavbar } from '@/components/site/joblet/Navbar';
-import { JobletFooter } from '@/components/site/joblet/Footer';
+import { marketingMetadata } from '@/components/marketing/metadata';
+import styles from '../marketing.module.css';
 
-/**
- * Central support destination: pick a category, describe the issue, and the
- * message goes to the Jobiest support inbox (reply-to preserved). Public:
- * works logged-out too, because login trouble is a support category.
- */
-export const metadata: Metadata = {
-  title: 'Contact Support',
+export const metadata: Metadata = marketingMetadata({
+  title: 'Contact Support - Jobiest',
   description: 'How can we help? Account and login, jobs, CV and resume, applications, AI agent, payments and subscriptions.',
-  alternates: { canonical: `${SITE_URL}/support` },
-};
+  path: '/support',
+});
 
 const CATEGORIES = [
   'Account & Login',
@@ -26,24 +22,35 @@ const CATEGORIES = [
   'Other',
 ];
 
-export default function SupportPage() {
+/**
+ * Central support destination: pick a category, describe the issue, and the
+ * message goes to the Jobiest support inbox (reply-to preserved). Public:
+ * works logged-out too, because login trouble is a support category.
+ */
+export default async function SupportPage() {
+  const user = await getUser();
   return (
-    <>
-      <JobletNavbar />
-      <main className="jl-page">
-        <div style={{ maxWidth: 640, margin: '0 auto', padding: '48px 20px 72px' }}>
-          <p className="jl-eyebrow">SUPPORT</p>
-          <h1 style={{ fontSize: 'clamp(28px, 4.5vw, 38px)', letterSpacing: '-0.03em', margin: '8px 0 10px' }}>
-            How can we help?
-          </h1>
-          <p className="muted" style={{ fontSize: 16.5, maxWidth: '52ch' }}>
-            Pick what your message is about, tell us what happened, and a real person replies to your email. You can
-            also write to <a href="mailto:support@jobiest.com">support@jobiest.com</a> directly.
-          </p>
-          <SupportForm categories={CATEGORIES} />
-        </div>
+    <MarketingShell activePath="/support" authenticated={!!user}>
+      <main className={styles.page} id="main">
+        <header className={styles.pageHero} data-animate>
+          <div className={styles.container}>
+            <p className={styles.eyebrow}>Support</p>
+            <h1>How can we help?</h1>
+            <p className={styles.pageLead}>
+              Pick what your message is about, tell us what happened, and a real person replies to your email. You can
+              also write to support@jobiest.com directly.
+            </p>
+          </div>
+        </header>
+        <section className={styles.section} data-animate>
+          <div className={styles.container} style={{ maxWidth: 720 }}>
+            <SupportForm categories={CATEGORIES} />
+            <p className={styles.helperNote} style={{ marginTop: 16, fontSize: 14, color: 'var(--color-muted, #5D6B85)' }}>
+              Prefer email? Write to <a href="mailto:support@jobiest.com">support@jobiest.com</a> and the same person will answer.
+            </p>
+          </div>
+        </section>
       </main>
-      <JobletFooter />
-    </>
+    </MarketingShell>
   );
 }
