@@ -12,16 +12,6 @@ const LINKS = [
   { label: 'About', href: '/about' },
 ];
 
-/** Jobiest wordmark + yellow ascent mark (the same mark geometry as Logo.tsx). */
-function BrandMark() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M4 16 L9 9 L13 13 L20 5" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="20" cy="5" r="2.3" fill="currentColor" />
-    </svg>
-  );
-}
-
 /**
  * Marketing navbar. `authenticated` is set server-side (never by the browser):
  * signed-in visitors get one clear home; the dashboard; instead of
@@ -37,10 +27,8 @@ export function JobletNavbar({ authenticated = false }: { authenticated?: boolea
     <nav className="jl-nav" aria-label="Primary">
       <div className="jl-shell jl-nav-inner">
         <a className="jl-brand" href={homeHref}>
-          <span className="jl-brand-mark">
-            <BrandMark />
-          </span>
-          Jobiest
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/images/logo-wordmark-dark.png" alt="Jobiest" width={124} height={34} style={{ display: 'block' }} />
         </a>
 
         <div className="jl-nav-links">

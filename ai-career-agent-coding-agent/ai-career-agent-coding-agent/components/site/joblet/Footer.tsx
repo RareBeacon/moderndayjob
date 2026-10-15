@@ -6,13 +6,8 @@ export function JobletFooter() {
         <div className="jl-footer-top">
           <div className="jl-footer-brand">
             <a className="jl-brand" href="/">
-              <span className="jl-brand-mark">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M4 16 L9 9 L13 13 L20 5" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-                  <circle cx="20" cy="5" r="2.3" fill="currentColor" />
-                </svg>
-              </span>
-              Jobiest
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/images/logo-wordmark-dark.png" alt="Jobiest" width={124} height={34} style={{ display: 'block' }} />
             </a>
             <p>The AI career agent that finds roles, prepares truthful applications, and keeps you in control.</p>
           </div>
