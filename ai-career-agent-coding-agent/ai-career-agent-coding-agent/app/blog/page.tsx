@@ -1,11 +1,11 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { JobletNavbar } from '@/components/site/joblet/Navbar';
-import { JobletFooter } from '@/components/site/joblet/Footer';
+import { MarketingShell } from '@/components/marketing/marketing-shell';
 import { BLOG_POSTS } from '@/lib/seo/blog';
 import { SITE_URL } from '@/lib/site';
 import { breadcrumbJsonLd, jsonLdTag } from '@/lib/seo';
 import { supabaseAdmin } from '@/lib/supabase';
+import styles from '../marketing.module.css';
 
 export const metadata: Metadata = {
   title: 'Job Search Blog',
@@ -48,41 +48,39 @@ export default async function BlogIndexPage() {
     itemListElement: posts.map((post, index) => ({ '@type': 'ListItem', position: index + 1, url: `${SITE_URL}/blog/${post.slug}`, name: post.title })),
   };
   return (
-    <div className="jl-page">
+    <MarketingShell activePath="/blog">
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(breadcrumbJsonLd([{ name: 'Home', path: '/' }, { name: 'Blog', path: '/blog' }]))} />
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(itemListJsonLd)} />
-      <JobletNavbar />
-      <main id="main">
-        <section className="jl-sec blog-hero">
-          <div className="jl-shell">
-            <span className="jl-kicker">Jobiest Blog</span>
+      <main className={styles.page} id="main">
+        <header className={styles.pageHero} data-animate>
+          <div className={styles.container}>
+            <p className={styles.eyebrow}>Jobiest Blog</p>
             <h1>Job search strategy for people who are tired of guessing.</h1>
-            <p>
+            <p className={styles.pageLead}>
               Practical guides on ATS scans, tailored CVs, application volume, automation, and the process behind getting more interviews.
             </p>
           </div>
-        </section>
-        <section className="jl-sec tint">
-          <div className="jl-shell blog-grid">
+        </header>
+        <section className={`${styles.section} ${styles.sectionSoft}`} data-animate>
+          <div className={`${styles.container} ${styles.postGrid}`}>
             {posts.map((post) => (
-              <article className="blog-card" key={post.slug}>
-                <div className="blog-card-meta">
+              <article className={styles.postCard} key={post.slug}>
+                <div className={styles.postMeta}>
                   <span>{post.category}</span>
                   <span>{post.readingTime}</span>
                 </div>
                 <h2><Link href={`/blog/${post.slug}`}>{post.title}</Link></h2>
                 <p>{post.description}</p>
-                <div className="blog-keywords">
+                <div className={styles.postTags}>
                   {post.primaryKeyword && <span>{post.primaryKeyword}</span>}
                   {post.secondaryKeywords.slice(0, 2).map((k) => <span key={k}>{k}</span>)}
                 </div>
-                <Link className="blog-read" href={`/blog/${post.slug}`}>Read article</Link>
+                <Link className={styles.postRead} href={`/blog/${post.slug}`}>Read article</Link>
               </article>
             ))}
           </div>
         </section>
       </main>
-      <JobletFooter />
-    </div>
+    </MarketingShell>
   );
 }

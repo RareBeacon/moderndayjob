@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { JobletNavbar } from '@/components/site/joblet/Navbar';
-import { JobletFooter } from '@/components/site/joblet/Footer';
+import { MarketingShell } from '@/components/marketing/marketing-shell';
+import styles from '../../marketing.module.css';
 import { BLOG_POSTS, getBlogPost, type BlogPost } from '@/lib/seo/blog';
 import { SITE_URL } from '@/lib/site';
 import { supabaseAdmin } from '@/lib/supabase';
@@ -179,7 +179,7 @@ function MarkdownArticle({ markdown, faq, internalLinks }: { markdown: string; f
       <section className="blog-cta-box">
         <h2>Ready to change how your search works?</h2>
         <p>Create a free Jobiest profile and start improving your next application with verified facts.</p>
-        <Link className="jl-btn-solid" href="/signup">Get Started Free</Link>
+        <Link className={styles.primaryAction} href="/signup">Get Started Free</Link>
       </section>
     </div>
   );
@@ -208,7 +208,7 @@ function StaticArticle({ post }: { post: BlogPost }) {
       <section className="blog-cta-box">
         <h2>Ready to change how your search works?</h2>
         <p>{post.cta}</p>
-        <Link className="jl-btn-solid" href="/signup">Get Started Free</Link>
+        <Link className={styles.primaryAction} href="/signup">Get Started Free</Link>
       </section>
     </div>
   );
@@ -236,11 +236,10 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   const faqLd = faqJsonLd(db?.faq);
 
   return (
-    <div className="jl-page">
-      <JobletNavbar />
-      <main id="main">
-        <article className="jl-sec blog-article">
-          <div className="jl-shell blog-article-shell">
+    <MarketingShell activePath="/blog">
+      <main className={styles.page} id="main">
+        <article className={styles.section}>
+          <div className={`${styles.container} blog-article-shell`} style={{ maxWidth: 860 }}>
             <Link className="blog-back" href="/blog">Back to blog</Link>
             <header className="blog-article-head">
               <div className="blog-card-meta"><span>{category}</span><span>{readingTime}</span></div>
@@ -259,7 +258,6 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           {faqLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />}
         </article>
       </main>
-      <JobletFooter />
-    </div>
+    </MarketingShell>
   );
 }

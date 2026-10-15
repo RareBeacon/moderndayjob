@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { JobletNavbar } from '@/components/site/joblet/Navbar';
-import { JobletFooter } from '@/components/site/joblet/Footer';
+import { MarketingShell } from '@/components/marketing/marketing-shell';
+import { getUser } from '@/lib/auth';
 import { SITE_URL } from '@/lib/site';
 import { breadcrumbJsonLd, jsonLdTag } from '@/lib/seo';
+import styles from '../marketing.module.css';
 
 export const metadata: Metadata = {
   title: 'Help and Support',
@@ -63,31 +64,31 @@ const TOPICS: { title: string; items: { q: string; a: string }[] }[] = [
   },
 ];
 
-export default function HelpPage() {
+export default async function HelpPage() {
+  const user = await getUser();
   return (
-    <div className="jl-page">
+    <MarketingShell activePath="/help" authenticated={!!user}>
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(breadcrumbJsonLd([{ name: 'Home', path: '/' }, { name: 'Help', path: '/help' }]))} />
-      <JobletNavbar />
-      <main id="main">
-        <section className="jl-sec blog-hero">
-          <div className="jl-shell">
-            <span className="jl-kicker">Help</span>
+      <main className={styles.page} id="main">
+        <header className={styles.pageHero} data-animate>
+          <div className={styles.container}>
+            <p className={styles.eyebrow}>Help</p>
             <h1>Short answers to real questions.</h1>
-            <p>How the tools work, what approval mode means, and where your money goes.</p>
+            <p className={styles.pageLead}>How the tools work, what approval mode means, and where your money goes.</p>
           </div>
-        </section>
+        </header>
 
         {TOPICS.map((topic) => (
-          <section className="jl-sec" key={topic.title}>
-            <div className="jl-shell jl-faq-wrap">
-              <div className="jl-sec-head">
+          <section className={styles.section} key={topic.title} data-animate>
+            <div className={styles.container}>
+              <div className={styles.sectionHead}>
                 <h2>{topic.title}</h2>
               </div>
-              <div className="faq">
+              <div className={styles.faqList}>
                 {topic.items.map((item) => (
-                  <details className="faq-item" key={item.q}>
-                    <summary className="faq-q">{item.q}</summary>
-                    <div className="faq-a open"><div><p>{item.a}</p></div></div>
+                  <details key={item.q}>
+                    <summary>{item.q}</summary>
+                    <p>{item.a}</p>
                   </details>
                 ))}
               </div>
@@ -95,19 +96,24 @@ export default function HelpPage() {
           </section>
         ))}
 
-        <section className="jl-sec tint">
-          <div className="jl-shell pastor-response">
-            <span className="jl-kicker">Still stuck?</span>
-            <h2>Email us. A human replies.</h2>
-            <p>Write to <a href="mailto:support@jobiest.com">support@jobiest.com</a> and describe what happened. A real person reads and answers every message.</p>
-            <div className="ft2-actions left" style={{ display: 'flex', gap: 12, marginTop: 18 }}>
-              <a className="jl-btn-solid" href="mailto:support@jobiest.com">Email support</a>
-              <Link className="jl-btn-outline" href="/refund">Refund policy</Link>
+        <section className={styles.section} data-animate>
+          <div className={styles.container}>
+            <div className={styles.ctaBand}>
+              <div>
+                <p style={{ margin: '0 0 0.4rem', fontSize: 'var(--text-13)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgb(255 255 255 / 75%)' }}>Still stuck?</p>
+                <h2>Email us. A human replies.</h2>
+                <p style={{ margin: '0.6rem 0 0' }}>
+                  Write to <a href="mailto:support@jobiest.com" style={{ color: 'var(--color-lime)' }}>support@jobiest.com</a> and describe what happened. A real person reads and answers every message.
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                <a className={styles.primaryAction} href="mailto:support@jobiest.com">Email support</a>
+                <Link className={styles.secondaryAction} href="/refund">Refund policy</Link>
+              </div>
             </div>
           </div>
         </section>
       </main>
-      <JobletFooter />
-    </div>
+    </MarketingShell>
   );
 }

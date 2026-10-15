@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
-import { JobletNavbar } from '@/components/site/joblet/Navbar';
-import { JobletFooter } from '@/components/site/joblet/Footer';
+import { MarketingShell } from '@/components/marketing/marketing-shell';
+import { getUser } from '@/lib/auth';
 import { TemplateGallery } from '@/components/resume/TemplateGallery';
 import { RESUME_TEMPLATES } from '@/lib/resume-studio/templates';
 import { SITE_URL } from '@/lib/site';
+import styles from '../marketing.module.css';
 
 export const metadata: Metadata = {
   title: 'Resume Templates: 70 Free Professional Designs',
@@ -11,29 +12,30 @@ export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/templates` },
 };
 
-export default function TemplatesPage() {
+export default async function TemplatesPage() {
+  const user = await getUser();
   return (
-    <div className="jl-page">
-      <JobletNavbar />
-      <main id="main">
-        <section className="jl-sec blog-hero">
-          <div className="jl-shell">
-            <span className="jl-kicker">Template gallery</span>
+    <MarketingShell activePath="/templates" authenticated={!!user}>
+      <main className={styles.page} id="main">
+        <header className={styles.pageHero} data-animate>
+          <div className={styles.container}>
+            <p className={styles.eyebrow}>Template gallery</p>
             <h1>70 professional resume templates, one verified you.</h1>
-            <p>
+            <p className={styles.pageLead}>
               Every template is a real layout you can use in the Resume Studio with your own verified information.
               Filter by what matters for your target role: ATS parsing, photo support, or column style.
             </p>
           </div>
-        </section>
-        <section className="jl-sec tint">
-          <div className="jl-shell">
-            <h2 style={{ fontSize: 24, marginBottom: 18 }}>Browse all 70 templates</h2>
+        </header>
+        <section className={`${styles.section} ${styles.sectionSoft}`} data-animate>
+          <div className={styles.container}>
+            <div className={styles.sectionHead}>
+              <h2>Browse all 70 templates</h2>
+            </div>
             <TemplateGallery templates={RESUME_TEMPLATES} />
           </div>
         </section>
       </main>
-      <JobletFooter />
-    </div>
+    </MarketingShell>
   );
 }

@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { JobletNavbar } from '@/components/site/joblet/Navbar';
-import { JobletFooter } from '@/components/site/joblet/Footer';
+import { MarketingShell } from '@/components/marketing/marketing-shell';
+import { getUser } from '@/lib/auth';
+import styles from '../../marketing.module.css';
 
 /**
  * Public onboarding guide (no login required). Linked from the welcome
@@ -111,20 +112,22 @@ const STEPS: Array<{
   },
 ];
 
-export default function GettingStartedPage() {
+export default async function GettingStartedPage() {
+  const user = await getUser();
   return (
-    <>
-      <JobletNavbar />
-      <main className="jl-page">
-        <div style={{ maxWidth: 780, margin: '0 auto', padding: '48px 20px 72px' }}>
-          <p className="jl-eyebrow">GUIDE</p>
-          <h1 style={{ fontSize: 'clamp(30px, 5vw, 40px)', letterSpacing: '-0.03em', margin: '8px 0 10px' }}>
-            Getting started with Jobiest
-          </h1>
-          <p className="muted" style={{ fontSize: 17, maxWidth: '56ch' }}>
-            Set up your profile once and get more value from Jobiest. Seven short steps, about fifteen minutes.
-          </p>
-
+    <MarketingShell activePath="/help" authenticated={!!user}>
+      <main className={styles.page} id="main">
+        <header className={styles.pageHero}>
+          <div className={styles.container} style={{ maxWidth: 780 }}>
+            <p className={styles.eyebrow}>Guide</p>
+            <h1>Getting started with Jobiest</h1>
+            <p className={styles.pageLead}>
+              Set up your profile once and get more value from Jobiest. Seven short steps, about fifteen minutes.
+            </p>
+          </div>
+        </header>
+        <section className={styles.section}>
+          <div className={styles.container} style={{ maxWidth: 780 }}>
           <ol className="guide-steps">
             {STEPS.map((step) => (
               <li key={step.n} className="guide-step">
@@ -134,7 +137,7 @@ export default function GettingStartedPage() {
                   {step.body}
                   {step.cta ? (
                     <p>
-                      <Link className="jl-btn-solid" href={step.cta.href}>
+                      <Link className={styles.primaryAction} href={step.cta.href}>
                         {step.cta.label}
                       </Link>
                     </p>
@@ -150,13 +153,13 @@ export default function GettingStartedPage() {
               Questions at any point? Write to <a href="mailto:support@jobiest.com">support@jobiest.com</a> or use the{' '}
               <Link href="/support">support page</Link>.
             </p>
-            <Link className="jl-btn-solid" href="/signup">
+            <Link className={styles.primaryAction} href="/signup">
               Create my free account
             </Link>
           </div>
-        </div>
+          </div>
+        </section>
       </main>
-      <JobletFooter />
-    </>
+    </MarketingShell>
   );
 }
