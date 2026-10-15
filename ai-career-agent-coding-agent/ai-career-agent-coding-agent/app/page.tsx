@@ -68,7 +68,7 @@ export default async function HomePage() {
     <MarketingShell activePath="/" authenticated={!!user}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd()) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd()) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd(faqs)) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd(faqs.map((f) => ({ q: f.question, a: f.answer })))) }} />
       <main className={styles.page}>
         <section data-animate className={styles.hero} aria-labelledby="home-title">
           <div className={styles.heroInner}>
