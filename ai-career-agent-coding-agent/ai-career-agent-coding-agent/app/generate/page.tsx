@@ -716,7 +716,10 @@ function OptimizeStep({ draft, jobs, patchDraft, patchCareer, writeSummary, opti
 }
 
 function TemplatesStep({ draft, recommended, selectedCategory, setSelectedCategory, patchDraft, prevStep, nextStep }: StepContentProps) {
-  const visible = CURATED_TEMPLATES.filter((t) => t.category === selectedCategory);
+  const allVisible = CURATED_TEMPLATES.filter((t) => t.category === selectedCategory);
+  const [showCount, setShowCount] = useState(6);
+  useEffect(() => { setShowCount(6); }, [selectedCategory]);
+  const visible = allVisible.slice(0, showCount);
   const selectedTemplate = getResumeTemplate(draft.selectedTemplate);
   const photoCapable = templatePhotoSupport(selectedTemplate) !== 'none';
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -760,6 +763,16 @@ function TemplatesStep({ draft, recommended, selectedCategory, setSelectedCatego
       <div className="resume2-template-grid">
         {visible.map((template) => <TemplateCard key={template.id} template={template} selected={draft.selectedTemplate === template.id} onSelect={() => patchDraft({ selectedTemplate: template.id })} />)}
       </div>
+      {allVisible.length > visible.length && (
+        <div style={{ display: 'grid', placeItems: 'center', marginTop: 16 }}>
+          <button className="btn secondary" onClick={() => setShowCount((c) => Math.min(c + 6, allVisible.length))}>Show 6 more ({allVisible.length - visible.length} remaining)</button>
+        </div>
+      )}
+      {allVisible.length > 6 && visible.length === allVisible.length && (
+        <div style={{ display: 'grid', placeItems: 'center', marginTop: 16 }}>
+          <button className="btn secondary" onClick={() => setShowCount(6)}>Show less</button>
+        </div>
+      )}
       {photoCapable && (
         <div className="resume2-photo-row">
           <strong>{templatePhotoSupport(selectedTemplate) === 'required' ? 'Photo required for this template' : 'Photo optional for this template'}</strong>

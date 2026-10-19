@@ -35,10 +35,12 @@ describe('real template previews', () => {
 
   it('exposes all designs in the public gallery with a full-size action and matching selection link', () => {
     const html = renderToStaticMarkup(<TemplateGallery templates={RESUME_TEMPLATES} />);
-    expect(html.match(/data-preview-size="mini"/g)).toHaveLength(30);
-    expect(html.match(/Preview full size/g)).toHaveLength(30);
-    expect(html.match(/Use this template/g)).toHaveLength(30);
-    for (const template of RESUME_TEMPLATES) {
+    // Gallery now paginates spacious cards: 8 initially, rest via Show More
+    expect(html.match(/data-preview-size="mini"/g)).toHaveLength(8);
+    expect(html.match(/Preview full size/g)).toHaveLength(8);
+    expect(html.match(/Use this template/g)).toHaveLength(8);
+    expect(html).toContain('Show 8 more');
+    for (const template of RESUME_TEMPLATES.slice(0, 8)) {
       expect(html).toContain(`/generate?template=${template.id}`);
     }
   });

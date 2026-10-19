@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +21,8 @@ function isKeepEmail(email: string | null | undefined): boolean {
 }
 
 export async function POST(req: NextRequest) {
+  const rl = await enforceRateLimit(`admin:purge:${requestIp(req)}`, 10, '1 h', requestIp(req));
+  if (!rl.allowed) return NextResponse.json({ error: 'RATE_LIMITED' }, { status: 429 });
   let user;
   try {
     user = await requireUser({ req });

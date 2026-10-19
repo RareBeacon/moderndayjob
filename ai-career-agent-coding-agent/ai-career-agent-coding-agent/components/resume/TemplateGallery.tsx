@@ -46,7 +46,10 @@ export function TemplateGallery({ templates }: { templates: ResumeTemplate[] }) 
   const [previewId, setPreviewId] = useState<string | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
-  const visible = useMemo(() => templates.filter((template) => matches(template, filter)), [templates, filter]);
+  const allVisible = useMemo(() => templates.filter((template) => matches(template, filter)), [templates, filter]);
+  const [showCount, setShowCount] = useState(8);
+  useEffect(() => { setShowCount(8); }, [filter]);
+  const visible = useMemo(() => allVisible.slice(0, showCount), [allVisible, showCount]);
   const counts = useMemo(() => ({
     ats: templates.filter((t) => templateAtsFriendly(t)).length,
     photo: templates.filter((t) => templatePhotoSupport(t) !== 'none').length,
@@ -94,7 +97,8 @@ export function TemplateGallery({ templates }: { templates: ResumeTemplate[] }) 
         ))}
       </div>
 
-      {visible.length === 0 && <p className={styles.empty}>No templates match this filter yet. Try another filter.</p>}
+      {allVisible.length === 0 && <p className={styles.empty}>No templates match this filter yet. Try another filter.</p>}
+      <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: '0 0 12px' }}>Showing {visible.length} of {allVisible.length} templates with spacious preview cards</p>
 
       <div className={styles.grid}>
         {visible.map((template) => (
@@ -121,6 +125,16 @@ export function TemplateGallery({ templates }: { templates: ResumeTemplate[] }) 
           </article>
         ))}
       </div>
+      {allVisible.length > visible.length && (
+        <div style={{ display: 'grid', placeItems: 'center', marginTop: 20 }}>
+          <button className={styles.useBtn} style={{ padding: '10px 18px' } as React.CSSProperties} onClick={() => setShowCount((c) => Math.min(c + 8, allVisible.length))}>Show 8 more ({allVisible.length - visible.length} remaining)</button>
+        </div>
+      )}
+      {allVisible.length > 8 && visible.length === allVisible.length && (
+        <div style={{ display: 'grid', placeItems: 'center', marginTop: 20 }}>
+          <button className={styles.previewBtn} onClick={() => setShowCount(8)}>Show less</button>
+        </div>
+      )}
       <p className={styles.note}>
         All sample CVs show the same fictional Alex Morgan profile. Sample details never become part of your draft.
       </p>
