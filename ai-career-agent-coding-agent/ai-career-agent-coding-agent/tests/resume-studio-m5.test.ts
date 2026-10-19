@@ -79,8 +79,8 @@ describe('no-watermark guarantee across the template library', () => {
     }
   });
 
-  it('the library is the full 70 templates (the check covers everything shipped)', () => {
-    expect(RESUME_TEMPLATES.length).toBe(70);
+  it('the library is the 30 curated templates', () => {
+    expect(RESUME_TEMPLATES.length).toBe(30);
   });
 });
 

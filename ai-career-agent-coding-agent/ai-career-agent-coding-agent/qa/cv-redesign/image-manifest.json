@@ -1,0 +1,462 @@
+[
+  {
+    "number": 1,
+    "variant": "detail-1",
+    "url": "https://cdn.dribbble.com/userupload/6064667/file/original-f0e7e2b9e1d7c92fd495e8d0731b3a31.jpg",
+    "path": "references/01-detail-1.jpg",
+    "width": 1370,
+    "height": 913,
+    "bytes": 185083,
+    "sha256": "8cb649530d0597370f5c9ee97ab49c19e5da754099348b052f329774263ecc28"
+  },
+  {
+    "number": 1,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/6064666/file/original-b484fd39794f40d07e3219f62890feb9.jpg",
+    "path": "references/01-primary.jpg",
+    "width": 1370,
+    "height": 913,
+    "bytes": 178466,
+    "sha256": "f714c347b726a7e3faddbe15126bdddeebfe4ba258b1ee6b4a6b0cc2ded8d04a"
+  },
+  {
+    "number": 2,
+    "variant": "detail-1",
+    "url": "https://cdn.dribbble.com/userupload/6108746/file/original-94392de3c568d0de9d7f22bf65c2ca5d.jpg",
+    "path": "references/02-detail-1.jpg",
+    "width": 1370,
+    "height": 913,
+    "bytes": 177741,
+    "sha256": "ea1be425b1b044c63979f4df61814e469a42998756ef55e3a10411b6e4104470"
+  },
+  {
+    "number": 2,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/6108745/file/original-b0f90da4d07d622b3cfb4fcc3ec0a3d0.jpg",
+    "path": "references/02-primary.jpg",
+    "width": 1370,
+    "height": 913,
+    "bytes": 188647,
+    "sha256": "1b774f991352d8694031755730f1d51b8405d4533684aaab886987df0fcfd6de"
+  },
+  {
+    "number": 3,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/22080606/file/original-8b72239cf1a13cfbef636dd9ecf7824b.png",
+    "path": "references/03-primary.png",
+    "width": 800,
+    "height": 600,
+    "bytes": 543603,
+    "sha256": "4a0a2f295152570c7b63b7e64cd5cf7666274f65f6a34597c6c5e27e02b5e93c"
+  },
+  {
+    "number": 4,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/43054390/file/original-f4f4f29bcc1cb6e82ca4a7fbc2d6637d.png",
+    "path": "references/04-primary.png",
+    "width": 1550,
+    "height": 1358,
+    "bytes": 1696417,
+    "sha256": "7a60e73f77e2fdf911a5a4c734c28816b4de71067d8d8bdd17e7a3eeaa48c771"
+  },
+  {
+    "number": 5,
+    "variant": "detail-1",
+    "url": "https://cdn.dribbble.com/userupload/46920549/file/d18866a5c3b83ce5015c77dcc3fae6f8.png",
+    "path": "references/05-detail-1.png",
+    "width": 1800,
+    "height": 1200,
+    "bytes": 1433287,
+    "sha256": "d0147612d11925a4f2d9c3d19258183a23265748f9b17cb7ca53e4f5293b8f7f"
+  },
+  {
+    "number": 5,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/46920546/file/f515b8386fd9540f18ef849f8d77061c.png",
+    "path": "references/05-primary.png",
+    "width": 1800,
+    "height": 1200,
+    "bytes": 1611105,
+    "sha256": "ff600da4d83acadb770b55c2db1351bba9d3d5ec1f4dcc87a3a6ddcb00d1ac08"
+  },
+  {
+    "number": 6,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/49302164/file/5d56187e7117c7d18e2f079f39cf41d7.jpg",
+    "path": "references/06-primary.jpg",
+    "width": 5004,
+    "height": 11105,
+    "bytes": 2916378,
+    "sha256": "0f9e5ffc6e5d4a367e506b0f982dd821de5c3f58d8c471276b5b95b143b6fe47"
+  },
+  {
+    "number": 7,
+    "variant": "detail-1",
+    "url": "https://cdn.dribbble.com/userupload/6291406/file/original-62a2a0ce90b61b2985b837f5cb7975a8.jpg",
+    "path": "references/07-detail-1.jpg",
+    "width": 1170,
+    "height": 772,
+    "bytes": 135663,
+    "sha256": "27719f12c5cef7b2f50d32f3278266b5693ba02a605a0d4c95e7b979e69e20ef"
+  },
+  {
+    "number": 7,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/6291405/file/original-8a26f7ee30dade0dc8c0e8db3d4726e9.jpg",
+    "path": "references/07-primary.jpg",
+    "width": 1370,
+    "height": 913,
+    "bytes": 283401,
+    "sha256": "8c4a9c6b341f30feeabe2e009f46f221ae2631f4b0083ff7279a7e5958d38d3d"
+  },
+  {
+    "number": 8,
+    "variant": "detail-1",
+    "url": "https://cdn.dribbble.com/userupload/48001756/file/540e5a4b14a2a7635ae302e8ed4ca5ff.jpg",
+    "path": "references/08-detail-1.jpg",
+    "width": 2048,
+    "height": 1424,
+    "bytes": 631930,
+    "sha256": "0bfe241d49b9334c8fa6fb443f8c5523e6ed745cfbff20725a629482daed2254"
+  },
+  {
+    "number": 8,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/48001685/file/7656ced37850ae0aa2e73d3eacbedf73.jpg",
+    "path": "references/08-primary.jpg",
+    "width": 2048,
+    "height": 1424,
+    "bytes": 357681,
+    "sha256": "a47d7cac63036d4516e35e4d53c394f07796be133f927dfaa0a660c4eb57e860"
+  },
+  {
+    "number": 9,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/43714214/file/original-5b980564f5835dbfd12fdf4a5eb36e87.jpg",
+    "path": "references/09-primary.jpg",
+    "width": 4500,
+    "height": 3000,
+    "bytes": 3425404,
+    "sha256": "cbc074afff98e8c3cbc175bd51388a990f72759af552c6e394af21aaabbd55b0"
+  },
+  {
+    "number": 10,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/42824935/file/original-98750d399728ebb70a09a792c5f5d25b.png",
+    "path": "references/10-primary.png",
+    "width": 1600,
+    "height": 1358,
+    "bytes": 1604791,
+    "sha256": "ade49a96e2281a0cfeedb0c5ff6601e7fa7ab5e4aabdee8fdd4528479228c22e"
+  },
+  {
+    "number": 11,
+    "variant": "detail-1",
+    "url": "https://cdn.dribbble.com/userupload/45967071/file/91d98db195550b32993950220144342e.jpg",
+    "path": "references/11-detail-1.jpg",
+    "width": 1820,
+    "height": 1214,
+    "bytes": 284095,
+    "sha256": "e23750fa557d8b37826c763bedf9335dbc0f98a187592587553083f72d6f994a"
+  },
+  {
+    "number": 11,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/45967065/file/f6e0404ea5f88697aff3281413062208.jpg",
+    "path": "references/11-primary.jpg",
+    "width": 1820,
+    "height": 1214,
+    "bytes": 425321,
+    "sha256": "4907ae8a0e1662f5e2445d42aebeb7fc099d7dc972270a8b8cd7bb5b093382f7"
+  },
+  {
+    "number": 12,
+    "variant": "detail-1",
+    "url": "https://cdn.dribbble.com/userupload/45001195/file/7e53751c8b63dbaf80175a975bc971dc.jpg",
+    "path": "references/12-detail-1.jpg",
+    "width": 1820,
+    "height": 1214,
+    "bytes": 428034,
+    "sha256": "8ba2a6e0613ede61f823d8c2eb415b8d930359a760891695b95727a33abe6c02"
+  },
+  {
+    "number": 12,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/45001190/file/5bf7092030dbaf6450b636198801e02b.jpg",
+    "path": "references/12-primary.jpg",
+    "width": 1820,
+    "height": 1214,
+    "bytes": 580102,
+    "sha256": "815fe8fca66bbd0335d6f386bc6254ec4f170c1cbd23af83fcbb337598f5a4ba"
+  },
+  {
+    "number": 13,
+    "variant": "detail-1",
+    "url": "https://cdn.dribbble.com/userupload/32709544/file/original-488fbf20a5521e18abb0dae1be6e4e81.jpg",
+    "path": "references/13-detail-1.jpg",
+    "width": 3500,
+    "height": 2800,
+    "bytes": 1328300,
+    "sha256": "989cecb4533db85ea1af1f15f09f3800a4aba19e61b93bd80d9b6980d3a9298d"
+  },
+  {
+    "number": 13,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/32709540/file/original-b13c0ac77a5e827b522daf014ab964b1.jpg",
+    "path": "references/13-primary.jpg",
+    "width": 2000,
+    "height": 2000,
+    "bytes": 354380,
+    "sha256": "e768bb0a7b2504155383fa1a5f9fda2c5b50cca7e8c022eec9fdebf6d3d787b5"
+  },
+  {
+    "number": 14,
+    "variant": "detail-1",
+    "url": "https://cdn.dribbble.com/userupload/48048417/file/078a39f2df8699e302cb5b0de4254982.jpg",
+    "path": "references/14-detail-1.jpg",
+    "width": 3000,
+    "height": 2400,
+    "bytes": 859811,
+    "sha256": "c94ceb21b959605dafd4fd7fea76d948bfca20b3bde6ebcdb878153f3e7da4c5"
+  },
+  {
+    "number": 14,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/48048413/file/b9fc30b567a697d662d05cd152d3409b.jpeg",
+    "path": "references/14-primary.jpeg",
+    "width": 3000,
+    "height": 2400,
+    "bytes": 1131882,
+    "sha256": "62ebbf2386245e1ea1d5a0bd74a96186f685b6f0574c83592f3f728f895ac513"
+  },
+  {
+    "number": 15,
+    "variant": "detail-1",
+    "url": "https://cdn.dribbble.com/userupload/49108700/file/d715164b62f5b0fc0b86c86f24420646.jpg",
+    "path": "references/15-detail-1.jpg",
+    "width": 2048,
+    "height": 1424,
+    "bytes": 1053176,
+    "sha256": "1eeb31d479a69c3636af46a02d4c9f42c21fa7f9cd6184e8d18072474023f528"
+  },
+  {
+    "number": 15,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/49108697/file/2a516029d0380bcdb00354b60163a34d.jpg",
+    "path": "references/15-primary.jpg",
+    "width": 2048,
+    "height": 1424,
+    "bytes": 1011545,
+    "sha256": "69b4fb7c86479f9917367675375a36dd29e237ecd3a58141c9414caedfe0fe9e"
+  },
+  {
+    "number": 16,
+    "variant": "detail-1",
+    "url": "https://cdn.dribbble.com/userupload/49096983/file/57fa7460693b07e9bcda490984f25b65.jpg",
+    "path": "references/16-detail-1.jpg",
+    "width": 2048,
+    "height": 1424,
+    "bytes": 590384,
+    "sha256": "ac7261a3bed26d4fafe03a158711226b6add9e4ae0da394c46abd72d9baa7880"
+  },
+  {
+    "number": 16,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/49096979/file/7584c581733b9595ab5739d3a6492355.jpg",
+    "path": "references/16-primary.jpg",
+    "width": 2048,
+    "height": 1424,
+    "bytes": 400456,
+    "sha256": "eaa3461ac812f62abe6c7abb52f8098cb7b4111aada9e4dd16bcab0b8877daf3"
+  },
+  {
+    "number": 17,
+    "variant": "detail-1",
+    "url": "https://cdn.dribbble.com/userupload/6108729/file/original-ea39f9a6d21de23ad9dd6b6a3d0ed30e.jpg",
+    "path": "references/17-detail-1.jpg",
+    "width": 1370,
+    "height": 913,
+    "bytes": 195965,
+    "sha256": "bf7b1aa07c400eb2f6e30620725cc1ee56b06851870f17c9b367f26e9424c795"
+  },
+  {
+    "number": 17,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/6108728/file/original-50e66671d623db1f5042ec8bd72ee741.jpg",
+    "path": "references/17-primary.jpg",
+    "width": 1370,
+    "height": 913,
+    "bytes": 212036,
+    "sha256": "713716de250d38a81d3a70841937593aa7acb1c1a0e333ec6949b6fe5c099f2f"
+  },
+  {
+    "number": 18,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/37728100/file/original-d0358b71f4549a497b7756ca57e28903.jpg",
+    "path": "references/18-primary.jpg",
+    "width": 1170,
+    "height": 1170,
+    "bytes": 170008,
+    "sha256": "6ec12bf9e453b8e45e17d9ddaf9d1662962aebc69eb50d233a68dee9647af2c2"
+  },
+  {
+    "number": 19,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/33391794/file/original-f9f1a9157e0d80cc4c972a24d91aa97a.jpg",
+    "path": "references/19-primary.jpg",
+    "width": 1500,
+    "height": 1000,
+    "bytes": 203185,
+    "sha256": "d961c7ba9aaa1d75ed25815e2761c97fccf9e7c7efefc8ee868d5d697fe80cb4"
+  },
+  {
+    "number": 20,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/47301655/file/d608183e7fc588b674b3c0e1b57a27d6.jpg",
+    "path": "references/20-primary.jpg",
+    "width": 1785,
+    "height": 6216,
+    "bytes": 1609406,
+    "sha256": "7a42f49ee4c8874840c8b2adc7efe15442ba6a7e29dbd854aa6dc8a2cbc3cc51"
+  },
+  {
+    "number": 21,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/46754023/file/51d3ecb55e8014f9beb6597a666298ab.png",
+    "path": "references/21-primary.png",
+    "width": 3000,
+    "height": 2000,
+    "bytes": 359027,
+    "sha256": "05f42a991ca086845eef87ef21d3709a0b65128e353bb9ab608931b0ca2388d6"
+  },
+  {
+    "number": 22,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/48104204/file/f39c161cccaddab946451e417864fd7e.jpg",
+    "path": "references/22-primary.jpg",
+    "width": 4500,
+    "height": 3000,
+    "bytes": 1349667,
+    "sha256": "cf6e82779343fad41bbf349bd5fb8169081e5dfba63a0162c0328e3f5c7ae8cd"
+  },
+  {
+    "number": 23,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/42458749/file/original-ddb27e72fa245659456c14bacaf38815.png",
+    "path": "references/23-primary.png",
+    "width": 1600,
+    "height": 1200,
+    "bytes": 270081,
+    "sha256": "4f3c156243ef8d2f4e5b5328260f44e3e15b4ab1ab6f575456cb85a879cdaff1"
+  },
+  {
+    "number": 24,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/45405674/file/b90866c09c65fa5d1c104dd676b46b8b.jpg",
+    "path": "references/24-primary.jpg",
+    "width": 2480,
+    "height": 3508,
+    "bytes": 1218749,
+    "sha256": "45b864effdae47274d3c9468508acd11c8818ff334ad6d465d0ed81aee9edd18"
+  },
+  {
+    "number": 25,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/4689293/file/original-9dde46b7d6ecffe69613ba52b70d6347.png",
+    "path": "references/25-primary.png",
+    "width": 1440,
+    "height": 4747,
+    "bytes": 718793,
+    "sha256": "d2f5d0fae4f04561ceb11ba49f7ae3c759007d7c4af163bf5315d064c6a51482"
+  },
+  {
+    "number": 26,
+    "variant": "detail-1",
+    "url": "https://cdn.dribbble.com/userupload/5302955/file/original-77104ca71cf9b244964acc7578f611a2.jpg",
+    "path": "references/26-detail-1.jpg",
+    "width": 1170,
+    "height": 780,
+    "bytes": 236603,
+    "sha256": "9c05a719e7da6d91eb48edb52bbf189e332cb354da65ae782a0a7c6b5393c416"
+  },
+  {
+    "number": 26,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/5302954/file/original-94cc50976acdd25840fd64c28b2e84ca.jpg",
+    "path": "references/26-primary.jpg",
+    "width": 1370,
+    "height": 913,
+    "bytes": 271895,
+    "sha256": "76ccdaa1c082ef8a6dc2948e65081c78c40e0ad426fef351b92db5fda7c87938"
+  },
+  {
+    "number": 27,
+    "variant": "detail-1",
+    "url": "https://cdn.dribbble.com/userupload/48001776/file/1d84d9b5b822cc2460b926f7468acab5.jpg",
+    "path": "references/27-detail-1.jpg",
+    "width": 2048,
+    "height": 1424,
+    "bytes": 650227,
+    "sha256": "2982731db4ea20cc78ffad65709013b4100dd646f8e2a795424c377d62671c5b"
+  },
+  {
+    "number": 27,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/48001718/file/3bee23533f7eecef35f9c157262f660f.jpg",
+    "path": "references/27-primary.jpg",
+    "width": 2340,
+    "height": 1560,
+    "bytes": 310336,
+    "sha256": "b7ff71483b724c39ede16437757db6ef46d3ce222d769fb805d2949c287fbc39"
+  },
+  {
+    "number": 28,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/43005811/file/original-c5690d7cbd0cdb81bd592c58f257a2bd.png",
+    "path": "references/28-primary.png",
+    "width": 1550,
+    "height": 1358,
+    "bytes": 1607186,
+    "sha256": "c518e88f21e2133ead699dd10f85d6f3b7683743641b0ad15385e9c7dd7eb606"
+  },
+  {
+    "number": 29,
+    "variant": "detail-1",
+    "url": "https://cdn.dribbble.com/userupload/5094367/file/original-aefa85e84b176598e7047b5640e3bf89.jpg",
+    "path": "references/29-detail-1.jpg",
+    "width": 1370,
+    "height": 913,
+    "bytes": 234287,
+    "sha256": "8477063e67dee3de2924eff730248ebc1d0b27011cf6d7203f55460532e2b5d3"
+  },
+  {
+    "number": 29,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/5094366/file/original-6490528fc221fb9219109f76b0e81c6c.jpg",
+    "path": "references/29-primary.jpg",
+    "width": 1370,
+    "height": 913,
+    "bytes": 262903,
+    "sha256": "af25d7a1fc7e7aee42a2c1e5595439a72bd1a77338b36a43517f1f246712b9c3"
+  },
+  {
+    "number": 30,
+    "variant": "detail-1",
+    "url": "https://cdn.dribbble.com/userupload/45771652/file/eff4d299828ca7149cc7badd095a40f8.jpg",
+    "path": "references/30-detail-1.jpg",
+    "width": 1820,
+    "height": 1214,
+    "bytes": 264247,
+    "sha256": "b07a3703b423a93d8cd9797deb6b309c91f2efda49605944d013529d1e7ea2ab"
+  },
+  {
+    "number": 30,
+    "variant": "primary",
+    "url": "https://cdn.dribbble.com/userupload/45771651/file/3933f0dde5e18fa6b66bde8984b1d4c9.jpg",
+    "path": "references/30-primary.jpg",
+    "width": 1820,
+    "height": 1214,
+    "bytes": 252739,
+    "sha256": "a4b093990978d8d6b11cbd31f392646cbe76f805557f824ce193260cbef268e6"
+  }
+]

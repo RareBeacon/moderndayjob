@@ -2,13 +2,13 @@ import type { Metadata } from 'next';
 import { MarketingShell } from '@/components/marketing/marketing-shell';
 import { getUser } from '@/lib/auth';
 import { TemplateGallery } from '@/components/resume/TemplateGallery';
-import { RESUME_TEMPLATES } from '@/lib/resume-studio/templates';
+import { CURATED_TEMPLATES } from '@/lib/resume-studio/templates';
 import { SITE_URL } from '@/lib/site';
 import styles from '../marketing.module.css';
 
 export const metadata: Metadata = {
-  title: 'Resume Templates: 70 Free Professional Designs',
-  description: 'Browse 70 resume and CV templates: ATS-friendly, one-page, two-column, and photo layouts with live previews. Pick one and build in the Resume Studio.',
+  title: 'Resume Templates: 30 Professional CV Designs',
+  description: 'Browse 30 curated resume and CV templates inspired by verified Dribbble references - ATS-friendly, one-page, two-column and photo layouts with live previews.',
   alternates: { canonical: `${SITE_URL}/templates` },
 };
 
@@ -20,19 +20,18 @@ export default async function TemplatesPage() {
         <header className={styles.pageHero} data-animate>
           <div className={styles.container}>
             <p className={styles.eyebrow}>Template gallery</p>
-            <h1>70 professional resume templates, one place to start.</h1>
+            <h1>30 professional resume templates, curated from real designs.</h1>
             <p className={styles.pageLead}>
-              Every template is a real layout you can use in the Resume Studio with your own information.
-              Filter by what matters for your target role: ATS parsing, photo support, or column style.
+              Every template is a distinct, editable layout rebuilt from a verified Dribbble reference. Filter by what matters for your target role: ATS parsing, photo support, or column style.
             </p>
           </div>
         </header>
         <section className={`${styles.section} ${styles.sectionSoft}`} data-animate>
           <div className={styles.container}>
             <div className={styles.sectionHead}>
-              <h2>Browse all 70 templates</h2>
+              <h2>Browse all 30 templates</h2>
             </div>
-            <TemplateGallery templates={RESUME_TEMPLATES} />
+            <TemplateGallery templates={CURATED_TEMPLATES} />
           </div>
         </section>
       </main>

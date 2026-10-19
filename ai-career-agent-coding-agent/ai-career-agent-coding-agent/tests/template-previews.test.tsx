@@ -11,8 +11,8 @@ import { RESUME_TEMPLATES, templatePhotoSupport } from '@/lib/resume-studio/temp
 const base = RESUME_TEMPLATES[0];
 
 describe('real template previews', () => {
-  it('renders actual fictional CV sections for every one of the 70 designs in mini and full size', () => {
-    expect(RESUME_TEMPLATES).toHaveLength(70);
+  it('renders actual fictional CV sections for every one of the 30 designs in mini and full size', () => {
+    expect(RESUME_TEMPLATES).toHaveLength(30);
     for (const template of RESUME_TEMPLATES) {
       const mini = renderToStaticMarkup(<ResumeDocumentPreview template={template} draft={SAMPLE_PREVIEW_DRAFT} size="mini" demo />);
       const full = renderToStaticMarkup(<ResumeDocumentPreview template={template} draft={SAMPLE_PREVIEW_DRAFT} demo />);
@@ -35,9 +35,9 @@ describe('real template previews', () => {
 
   it('exposes all designs in the public gallery with a full-size action and matching selection link', () => {
     const html = renderToStaticMarkup(<TemplateGallery templates={RESUME_TEMPLATES} />);
-    expect(html.match(/data-preview-size="mini"/g)).toHaveLength(70);
-    expect(html.match(/Preview full size/g)).toHaveLength(70);
-    expect(html.match(/Use this template/g)).toHaveLength(70);
+    expect(html.match(/data-preview-size="mini"/g)).toHaveLength(30);
+    expect(html.match(/Preview full size/g)).toHaveLength(30);
+    expect(html.match(/Use this template/g)).toHaveLength(30);
     for (const template of RESUME_TEMPLATES) {
       expect(html).toContain(`/generate?template=${template.id}`);
     }

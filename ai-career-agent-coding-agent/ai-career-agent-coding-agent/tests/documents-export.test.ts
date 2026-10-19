@@ -61,13 +61,13 @@ describe('renderPdf / renderDocx', () => {
 describe('selected-template export propagation', () => {
   it('rejects unknown template IDs while retaining known CV selections', () => {
     const original = JSON.parse(cv);
-    const known = parseDocumentContent('CV', JSON.stringify({ ...original, templateId: 'modern-tech' }));
+    const known = parseDocumentContent('CV', JSON.stringify({ ...original, templateId: 'dribbble-01-clean-navy' }));
     const unknown = parseDocumentContent('CV', JSON.stringify({ ...original, templateId: '__untrusted__' }));
-    expect(known.templateId).toBe('modern-tech');
+    expect(known.templateId).toBe('dribbble-01-clean-navy');
     expect(unknown.templateId).toBeUndefined();
   });
 
-  it('exports all 70 saved designs to styled PDF and DOCX without sample data', async () => {
+  it('exports all 30 saved designs to styled PDF and DOCX without sample data', async () => {
     const raw = JSON.parse(cv);
     const usedIds: string[] = [];
     for (const template of RESUME_TEMPLATES) {
@@ -86,6 +86,6 @@ describe('selected-template export propagation', () => {
       expect(xml?.includes('<w:tbl>'), template.id).toBe(twoColumn);
       usedIds.push(template.id);
     }
-    expect(usedIds).toHaveLength(70);
+    expect(usedIds).toHaveLength(30);
   });
 });

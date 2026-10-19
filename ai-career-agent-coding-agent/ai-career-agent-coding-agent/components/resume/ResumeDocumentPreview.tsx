@@ -1,6 +1,8 @@
 import React, { type CSSProperties, type ReactNode } from 'react';
 import type { StudioDraft } from '@/lib/resume-studio/draft';
+import { DRIBBBLE_IDS } from '@/lib/resume-studio/dribbble30';
 import { templateColumns, templatePhotoSupport, type ResumeTemplate } from '@/lib/resume-studio/templates';
+import { DribbbleResume } from './DribbbleResume';
 import styles from './ResumeDocumentPreview.module.css';
 
 type Section = 'summary' | 'experience' | 'projects' | 'education' | 'skills' | 'certifications';
@@ -124,6 +126,10 @@ export function ResumeDocumentPreview({ template, draft, size = 'full', demo = f
   size?: 'mini' | 'full';
   demo?: boolean;
 }) {
+  if ((DRIBBBLE_IDS as Set<string>).has(template.id)) {
+    // Delegate to the high-fidelity Dribbble renderer - preserves legacy behaviour for older IDs.
+    return <DribbbleResume template={template as unknown as import('@/lib/resume-studio/dribbble30').DribbbleTemplate} draft={draft} size={size} demo={demo} />;
+  }
   const hasRail = templateColumns(template) === 2;
   const order = sectionOrder(template);
   const primary = hasRail ? order.filter((section) => section !== 'skills' && section !== 'certifications' && section !== 'education') : order;

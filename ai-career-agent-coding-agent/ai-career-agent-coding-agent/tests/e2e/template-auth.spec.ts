@@ -2,13 +2,13 @@ import { expect, test } from '@playwright/test';
 
 /** Public, non-mutating browser checks. Auth responses are deliberately mocked:
  * these prove client routing and CSP hydration, not provider/inbox delivery. */
-test('the 70 catalog designs show real miniature CVs and open a full document', async ({ page }) => {
+test('the 30 catalog designs show real miniature CVs and open a full document', async ({ page }) => {
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
   const response = await page.goto('/templates');
   expect(response?.status()).toBe(200);
   const miniatures = page.locator('[data-preview-size="mini"] article[data-template-id][data-demo="true"]');
-  await expect(miniatures).toHaveCount(70);
+  await expect(miniatures).toHaveCount(30);
   expect(await miniatures.first().locator('section[data-section]').count()).toBeGreaterThan(4);
   await page.getByRole('button', { name: /^Preview .+ full size$/ }).first().click();
   const dialog = page.getByRole('dialog');

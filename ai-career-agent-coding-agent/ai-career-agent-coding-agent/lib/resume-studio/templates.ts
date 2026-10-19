@@ -115,7 +115,10 @@ const masterCatalog: ResumeTemplate[] = [
   { id: 'tpl-professional-photo-resume', catalogId: 'TPL-20', name: 'Professional Photo Resume', category: 'creative', description: 'Photo-integrated layout for markets where photos are standard.', layout: 'two-column', density: 'balanced', bestFor: ['photo', 'international', 'modeling'], accent: '#0f172a', heading: 'sans', skillStyle: 'chips', personality: 'formal', photoSupport: 'required', atsFriendly: false, columns: 2 },
 ];
 
-export const RESUME_TEMPLATES: ResumeTemplate[] = [...minimal, ...modern, ...professional, ...creative, ...executive, ...masterCatalog];
+export const LEGACY_TEMPLATES: ResumeTemplate[] = [...minimal, ...modern, ...professional, ...creative, ...executive, ...masterCatalog];
+
+/** Hard-delete: legacy 70 are no longer visible. Only 30 Dribbble templates remain. */
+export const RESUME_TEMPLATES: ResumeTemplate[] = DRIBBBLE_30 as unknown as ResumeTemplate[];
 
 export const MASTER_CATALOG_TEMPLATES: ResumeTemplate[] = masterCatalog;
 
@@ -133,8 +136,14 @@ export function templateColumns(t: ResumeTemplate): 1 | 2 {
 }
 export const TEMPLATE_CATEGORIES: ResumeTemplateCategory[] = ['minimal', 'modern', 'professional', 'creative', 'executive'];
 
+import { DRIBBBLE_30 } from './dribbble30';
+
+export const CURATED_TEMPLATES: ResumeTemplate[] = DRIBBBLE_30 as unknown as ResumeTemplate[];
+/** Hidden legacy: existing CVs still resolve, but gallery shows only 30 */
+export const ALL_TEMPLATES: ResumeTemplate[] = [...CURATED_TEMPLATES, ...LEGACY_TEMPLATES];
+
 export function getResumeTemplate(id?: string | null): ResumeTemplate {
-  return RESUME_TEMPLATES.find((t) => t.id === id) ?? RESUME_TEMPLATES.find((t) => t.id === 'modern-tech') ?? RESUME_TEMPLATES[0];
+  return ALL_TEMPLATES.find((t) => t.id === id) ?? CURATED_TEMPLATES[0];
 }
 
 export function recommendResumeTemplates(input: { role?: string | null; yearsExperience?: number | null; industry?: string | null; skills?: string[] | null }) {

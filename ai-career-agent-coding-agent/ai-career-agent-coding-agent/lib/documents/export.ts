@@ -1,7 +1,7 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { AlignmentType, Document, HeadingLevel, ImageRun, Packer, Paragraph, TextRun } from 'docx';
 import { parsePhotoDataUrl, type PhotoMime } from '@/lib/resume-studio/photo';
-import { RESUME_TEMPLATES } from '@/lib/resume-studio/templates';
+import { ALL_TEMPLATES } from '@/lib/resume-studio/templates';
 import { renderTemplateDocx, renderTemplatePdf } from './template-export';
 
 /**
@@ -132,7 +132,7 @@ export function parseDocumentContent(kind: string, content: string): ParsedDocum
     if (json.additional) sections.push({ heading: 'Additional information', lines: [json.additional] });
     if (json.references) sections.push({ heading: 'References', lines: [json.references] });
     const templateId = typeof json.templateId === 'string'
-      ? RESUME_TEMPLATES.find((template) => template.id === json.templateId)?.id
+      ? ALL_TEMPLATES.find((template) => template.id === json.templateId)?.id
       : undefined;
     return { title: h ?? headline ?? 'Resume', sections, photo, templateId };
   }
@@ -207,7 +207,7 @@ const PHOTO_W = 92;
 const PHOTO_H = 112;
 
 export async function renderPdf(title: string, sections: ExportSection[], photo?: ParsedDocument['photo'], templateId?: string): Promise<Buffer> {
-  const template = RESUME_TEMPLATES.find((item) => item.id === templateId);
+  const template = ALL_TEMPLATES.find((item) => item.id === templateId);
   if (template) return renderTemplatePdf(title, sections, photo, template);
   const doc = await PDFDocument.create();
   const regular = await doc.embedFont(StandardFonts.Helvetica);
@@ -269,7 +269,7 @@ export async function renderPdf(title: string, sections: ExportSection[], photo?
 /* ---------- DOCX ---------- */
 
 export async function renderDocx(title: string, sections: ExportSection[], photo?: ParsedDocument['photo'], templateId?: string): Promise<Buffer> {
-  const template = RESUME_TEMPLATES.find((item) => item.id === templateId);
+  const template = ALL_TEMPLATES.find((item) => item.id === templateId);
   if (template) return renderTemplateDocx(title, sections, photo, template);
   const children: Paragraph[] = [
     new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: title, bold: true })] }),

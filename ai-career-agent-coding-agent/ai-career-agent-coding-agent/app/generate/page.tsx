@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from '@/components/site/AppShell';
 import { normalizeStudioDraft, scoreResumeDraft, type ResumeScore, type StudioDraft, type StudioEducation, type StudioExperience, type StudioProject } from '@/lib/resume-studio/draft';
 import { draftFromMemory, freshDraft, firstIncompleteStep } from '@/lib/resume-studio/prefill';
-import { RESUME_TEMPLATES, TEMPLATE_CATEGORIES, getResumeTemplate, recommendResumeTemplates, templatePhotoSupport, type ResumeTemplate, type ResumeTemplateCategory } from '@/lib/resume-studio/templates';
+import { CURATED_TEMPLATES, TEMPLATE_CATEGORIES, getResumeTemplate, recommendResumeTemplates, templatePhotoSupport, type ResumeTemplate, type ResumeTemplateCategory } from '@/lib/resume-studio/templates';
 import { requestedTemplateId, withRequestedTemplate } from '@/lib/resume-studio/selection';
 import { SAMPLE_PREVIEW_DRAFT } from '@/lib/resume-studio/sample';
 import { ResumeDocumentPreview } from '@/components/resume/ResumeDocumentPreview';
@@ -410,7 +410,7 @@ export default function GeneratePage() {
         </div>
         <div className="resume2-headline-features" aria-label="Headline Resume Studio features">
           <FeatureCard title="AI Experience Builder" body="Tell me what you actually did. The assistant asks better follow-up questions and turns your facts into stronger bullets." />
-          <FeatureCard title="70-template library" body="Browse Minimal, Modern, Professional, Creative and Executive systems. Switching templates keeps your content intact." />
+          <FeatureCard title="30-template library" body="Browse 30 Dribbble-inspired designs, each with its own layout, palette and typography." />
           <FeatureCard title="Live preview" body="Watch your resume update while you build. Desktop gets side-by-side preview. Mobile gets a focused preview button." />
         </div>
       </div>
@@ -512,7 +512,7 @@ function AssistantBubble({ step, draft }: { step: StepId; draft: StudioDraft }) 
     skills: 'Select skills you actually have. Suggestions are not claims until you choose them.',
     education: 'Add education, projects, certifications and achievements only where they strengthen your story.',
     optimize: 'Now we polish. I can write a summary, check ATS basics, and compare your resume to a target job description.',
-    templates: 'Based on your profile, I recommend a few templates, but you can browse all 70.',
+    templates: 'Based on your profile, I recommend a few templates, but you can browse all 30.',
     review: 'Final check. If anything important is missing, we fix it before generating the document.',
   };
   return <div className="resume2-assistant"><span>AI assistant</span><p>{copy[step]}</p></div>;
@@ -716,7 +716,7 @@ function OptimizeStep({ draft, jobs, patchDraft, patchCareer, writeSummary, opti
 }
 
 function TemplatesStep({ draft, recommended, selectedCategory, setSelectedCategory, patchDraft, prevStep, nextStep }: StepContentProps) {
-  const visible = RESUME_TEMPLATES.filter((t) => t.category === selectedCategory);
+  const visible = CURATED_TEMPLATES.filter((t) => t.category === selectedCategory);
   const selectedTemplate = getResumeTemplate(draft.selectedTemplate);
   const photoCapable = templatePhotoSupport(selectedTemplate) !== 'none';
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -750,13 +750,13 @@ function TemplatesStep({ draft, recommended, selectedCategory, setSelectedCatego
   return (
     <div className="resume2-step">
       <p className="eyebrow">Template library</p>
-      <h2>Choose from 70 professional templates.</h2>
-      <p className="resume2-copy">These five design families vary in layout, density, hierarchy and skills. Card previews use fictional Alex Morgan details only; the live preview shows your own draft.</p>
+      <h2>Choose from 30 professional templates.</h2>
+      <p className="resume2-copy">30 curated designs, each with its own palette and layout - card previews use fictional Alex Morgan details only; the live preview shows your own draft.</p>
       <div className="resume2-subhead"><strong>Recommended for you</strong></div>
       <div className="resume2-template-grid recommended">
         {recommended.map((template) => <TemplateCard key={template.id} template={template} selected={draft.selectedTemplate === template.id} onSelect={() => patchDraft({ selectedTemplate: template.id })} />)}
       </div>
-      <div className="resume2-category-row">{TEMPLATE_CATEGORIES.map((cat) => <button key={cat} className={selectedCategory === cat ? 'active' : ''} onClick={() => setSelectedCategory(cat)}>{cat} <span>{RESUME_TEMPLATES.filter((t) => t.category === cat).length}</span></button>)}</div>
+      <div className="resume2-category-row">{TEMPLATE_CATEGORIES.map((cat) => <button key={cat} className={selectedCategory === cat ? 'active' : ''} onClick={() => setSelectedCategory(cat)}>{cat} <span>{CURATED_TEMPLATES.filter((t) => t.category === cat).length}</span></button>)}</div>
       <div className="resume2-template-grid">
         {visible.map((template) => <TemplateCard key={template.id} template={template} selected={draft.selectedTemplate === template.id} onSelect={() => patchDraft({ selectedTemplate: template.id })} />)}
       </div>

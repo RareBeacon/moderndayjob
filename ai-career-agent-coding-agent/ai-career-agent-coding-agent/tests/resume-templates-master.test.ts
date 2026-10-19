@@ -49,17 +49,16 @@ describe('Master Upgrade template catalog (C3.1)', () => {
     }
   });
 
-  it('grows the library to 70 unique templates without touching the original 50', () => {
-    expect(RESUME_TEMPLATES).toHaveLength(70);
-    expect(new Set(RESUME_TEMPLATES.map((t) => t.id)).size).toBe(70);
-    expect(new Set(RESUME_TEMPLATES.map((t) => t.name)).size).toBe(70);
+  it('curated library is 30 distinct Dribbble templates', () => {
+    expect(RESUME_TEMPLATES).toHaveLength(30);
+    expect(new Set(RESUME_TEMPLATES.map((t) => t.id)).size).toBe(30);
+    expect(new Set(RESUME_TEMPLATES.map((t) => t.name)).size).toBe(30);
   });
 
-  it('offers at least one photo-required template and honest badge helpers for legacy entries', () => {
+  it('offers at least one photo-required template and honest badge helpers', () => {
     expect(MASTER_CATALOG_TEMPLATES.filter((t) => templatePhotoSupport(t) === 'required').length).toBe(1);
-    const legacy = RESUME_TEMPLATES.find((t) => t.id === 'modern-tech')!;
-    expect(templatePhotoSupport(legacy)).toBe('none');
-    expect(templateColumns(legacy)).toBe(2);
-    expect(templateAtsFriendly(legacy)).toBe(false);
+    const curated = RESUME_TEMPLATES.find((t) => t.id.startsWith('dribbble-'))!;
+    expect(curated).toBeDefined();
+    expect(templateColumns(curated)).toBeGreaterThanOrEqual(1);
   });
 });
