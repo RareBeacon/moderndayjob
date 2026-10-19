@@ -92,6 +92,15 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user) {
+    // Defense in depth: even an unexpectedly active password session cannot
+    // open a protected page before Supabase has confirmed its email.
+    if (!isSocialProvider(user) && !user.email_confirmed_at && pathname !== '/verify-email') {
+      const redirect = request.nextUrl.clone();
+      redirect.pathname = '/verify-email';
+      redirect.search = '';
+      if (user.email) redirect.searchParams.set('email', user.email);
+      return NextResponse.redirect(redirect);
+    }
     const { needsVerification, needsCompletion } = await socialGates(supabase, user);
     if (needsVerification && pathname !== '/verify-email') {
       const redirect = request.nextUrl.clone();

@@ -8,8 +8,9 @@ import { sendEmailVerificationCode, sendSignupVerificationEmail } from './email/
  *
  * Requirement (2026-09-16): accounts created via "Continue with Google" must
  * verify their email address with a 6-digit code before using the product.
- * Password accounts keep the existing instant-access policy; the gate is
- * keyed on the session's google provider claim, never on a client input.
+ * Password accounts are created unconfirmed and use this same code issuer
+ * before an authenticated session exists. The social-session gates remain
+ * keyed on the verified provider claim, never on a client input.
  *
  * Codes are 6 digits from crypto randomness, HMAC-SHA256 hashed at rest with
  * the encryption master key (never stored in clear), expire after 10
@@ -80,10 +81,12 @@ export async function issueEmailVerificationCode(
   }
 
   const code = generateVerificationCode();
+  const codeHash = hashCode(code);
+  const expiresAt = new Date(Date.now() + CODE_TTL_MS).toISOString();
   const { error } = await supabaseAdmin.from('email_verification_codes').insert({
     user_id: user.id,
-    code_hash: hashCode(code),
-    expires_at: new Date(Date.now() + CODE_TTL_MS).toISOString(),
+    code_hash: codeHash,
+    expires_at: expiresAt,
   });
   if (error) return { sent: false, cooldown: false, error: 'CODE_STORE_FAILED' };
 
@@ -96,7 +99,17 @@ export async function issueEmailVerificationCode(
           user.fullName ?? undefined,
         )
       : await sendEmailVerificationCode(user.email ?? '', code, user.fullName ?? undefined);
-  if (!mail.ok) return { sent: false, cooldown: false, error: mail.error ?? 'EMAIL_FAILED' };
+  if (!mail.ok) {
+    // This code was not accepted by the provider. Consume only the row we
+    // just inserted so a rejected send cannot trigger the resend cooldown.
+    await supabaseAdmin.from('email_verification_codes')
+      .update({ consumed_at: new Date().toISOString() })
+      .eq('user_id', user.id)
+      .eq('code_hash', codeHash)
+      .eq('expires_at', expiresAt)
+      .is('consumed_at', null);
+    return { sent: false, cooldown: false, error: mail.error ?? 'EMAIL_FAILED' };
+  }
   return { sent: true, cooldown: false };
 }
 
@@ -106,6 +119,7 @@ export type ConfirmOutcome = 'VERIFIED' | 'NOT_FOUND' | 'EXPIRED' | 'TOO_MANY_AT
 export async function confirmEmailVerificationCode(
   user: { id: string },
   submitted: string,
+  opts: { markProfileVerified?: boolean } = {},
 ): Promise<ConfirmOutcome> {
   const { data: row } = await supabaseAdmin
     .from('email_verification_codes')
@@ -127,22 +141,38 @@ export async function confirmEmailVerificationCode(
     expected.length === given.length && crypto.timingSafeEqual(expected, given);
 
   if (!matches) {
-    await supabaseAdmin
+    const { error } = await supabaseAdmin
       .from('email_verification_codes')
       .update({ attempts: record.attempts + 1 })
-      .eq('id', record.id);
-    return 'INVALID';
+      .eq('id', record.id)
+      .eq('attempts', record.attempts)
+      .is('consumed_at', null);
+    return error ? 'STORE_FAILED' : 'INVALID';
   }
 
-  await supabaseAdmin
+  // Claim this code exactly once. A concurrent request or a changed attempt
+  // count cannot pass simply because the code matched a stale read.
+  const { data: consumed, error: consumeError } = await supabaseAdmin
     .from('email_verification_codes')
     .update({ consumed_at: new Date().toISOString(), attempts: record.attempts + 1 })
-    .eq('id', record.id);
-  const { error } = await supabaseAdmin
-    .from('profiles')
-    .update({ email_verified_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-    .eq('user_id', user.id);
-  if (error) return 'STORE_FAILED';
+    .eq('id', record.id)
+    .eq('attempts', record.attempts)
+    .is('consumed_at', null)
+    .gt('expires_at', new Date().toISOString())
+    .select('id')
+    .maybeSingle();
+  if (consumeError) return 'STORE_FAILED';
+  if (!consumed) return 'INVALID';
+
+  // Password signups must confirm auth.users first; otherwise a failed auth
+  // update would leave profiles marked verified with an unconfirmed login.
+  if (opts.markProfileVerified !== false) {
+    const { error } = await supabaseAdmin
+      .from('profiles')
+      .update({ email_verified_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('user_id', user.id);
+    if (error) return 'STORE_FAILED';
+  }
   return 'VERIFIED';
 }
 

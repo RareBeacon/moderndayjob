@@ -1,10 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from '@/components/site/AppShell';
-import { EMPTY_STUDIO_DRAFT, normalizeStudioDraft, scoreResumeDraft, type ResumeScore, type StudioDraft, type StudioEducation, type StudioExperience, type StudioProject } from '@/lib/resume-studio/draft';
+import { normalizeStudioDraft, scoreResumeDraft, type ResumeScore, type StudioDraft, type StudioEducation, type StudioExperience, type StudioProject } from '@/lib/resume-studio/draft';
 import { draftFromMemory, freshDraft, firstIncompleteStep } from '@/lib/resume-studio/prefill';
 import { RESUME_TEMPLATES, TEMPLATE_CATEGORIES, getResumeTemplate, recommendResumeTemplates, templatePhotoSupport, type ResumeTemplate, type ResumeTemplateCategory } from '@/lib/resume-studio/templates';
+import { requestedTemplateId, withRequestedTemplate } from '@/lib/resume-studio/selection';
+import { SAMPLE_PREVIEW_DRAFT } from '@/lib/resume-studio/sample';
+import { ResumeDocumentPreview } from '@/components/resume/ResumeDocumentPreview';
 
 type Kind = 'CV' | 'COVER_LETTER' | 'ANSWERS';
 type StudioMode = 'builder' | 'classic';
@@ -130,13 +133,15 @@ export default function GeneratePage() {
       })
       .catch(() => {});
     loadRecent();
-    const local = typeof window !== 'undefined' ? window.localStorage.getItem('jobiest.resumeStudio.draft') : null;
+    const requestedTemplate = requestedTemplateId(window.location.search);
+    if (requestedTemplate) setSelectedCategory(getResumeTemplate(requestedTemplate).category);
+    const local = window.localStorage.getItem('jobiest.resumeStudio.draft');
     const hasLocalDraft = Boolean(local);
     if (local) {
       try {
         const parsed = normalizeStudioDraft(JSON.parse(local));
-        setDraft(parsed);
-        setActiveStep((parsed.currentStep as StepId) || 'welcome');
+        setDraft(withRequestedTemplate(parsed, requestedTemplate));
+        setActiveStep(requestedTemplate ? 'templates' : (parsed.currentStep as StepId) || 'welcome');
       } catch {}
     }
     fetch('/api/resume-studio/draft')
@@ -147,21 +152,21 @@ export default function GeneratePage() {
       .then((data) => {
         if (data.draft?.content) {
           const loaded = normalizeStudioDraft({ ...data.draft.content, selectedTemplate: data.draft.selectedTemplate, currentStep: data.draft.currentStep, targetJobDescription: data.draft.targetJobDescription });
-          setDraft(loaded);
+          setDraft(withRequestedTemplate(loaded, requestedTemplate));
           setDraftId(data.draft.id);
-          setActiveStep((loaded.currentStep as StepId) || 'welcome');
+          setActiveStep(requestedTemplate ? 'templates' : (loaded.currentStep as StepId) || 'welcome');
         } else {
           const remembered = draftFromMemory(data.memory);
           // M5: the wizard starts at the first section the profile has NOT
           // already filled. A complete profile skips straight to polish;
           // an empty one starts at the beginning as before.
           if (!hasLocalDraft) {
-            setDraft(remembered);
-            setActiveStep(firstIncompleteStep(remembered));
+            setDraft(withRequestedTemplate(remembered, requestedTemplate));
+            setActiveStep(requestedTemplate ? 'templates' : firstIncompleteStep(remembered));
           }
           setDraft((current) => {
-            if (!hasLocalDraft) return remembered;
-            return normalizeStudioDraft({
+            if (!hasLocalDraft) return withRequestedTemplate(remembered, requestedTemplate);
+            return withRequestedTemplate(normalizeStudioDraft({
               ...current,
               personal: {
                 name: current.personal.name || remembered.personal.name,
@@ -182,7 +187,7 @@ export default function GeneratePage() {
               experiences: current.experiences.length ? current.experiences : remembered.experiences,
               education: current.education.length ? current.education : remembered.education,
               projects: current.projects.length ? current.projects : remembered.projects,
-            });
+            }), requestedTemplate);
           });
         }
       })
@@ -463,7 +468,7 @@ export default function GeneratePage() {
                 </div>
                 <button className="btn secondary" onClick={() => goStep('templates')}>Change template</button>
               </div>
-              <ResumePreview draft={draft} template={template} score={score.total} />
+              <ResumeDocumentPreview draft={draft} template={template} />
             </div>
           </aside>
         </div>
@@ -507,7 +512,7 @@ function AssistantBubble({ step, draft }: { step: StepId; draft: StudioDraft }) 
     skills: 'Select skills you actually have. Suggestions are not claims until you choose them.',
     education: 'Add education, projects, certifications and achievements only where they strengthen your story.',
     optimize: 'Now we polish. I can write a summary, check ATS basics, and compare your resume to a target job description.',
-    templates: 'Based on your profile, I recommend a few templates, but you can browse all 50.',
+    templates: 'Based on your profile, I recommend a few templates, but you can browse all 70.',
     review: 'Final check. If anything important is missing, we fix it before generating the document.',
   };
   return <div className="resume2-assistant"><span>AI assistant</span><p>{copy[step]}</p></div>;
@@ -746,7 +751,7 @@ function TemplatesStep({ draft, recommended, selectedCategory, setSelectedCatego
     <div className="resume2-step">
       <p className="eyebrow">Template library</p>
       <h2>Choose from 70 professional templates.</h2>
-      <p className="resume2-copy">These are five distinct design families with different layouts, density, hierarchy and skill treatments.</p>
+      <p className="resume2-copy">These five design families vary in layout, density, hierarchy and skills. Card previews use fictional Alex Morgan details only; the live preview shows your own draft.</p>
       <div className="resume2-subhead"><strong>Recommended for you</strong></div>
       <div className="resume2-template-grid recommended">
         {recommended.map((template) => <TemplateCard key={template.id} template={template} selected={draft.selectedTemplate === template.id} onSelect={() => patchDraft({ selectedTemplate: template.id })} />)}
@@ -820,42 +825,16 @@ function ScoreLine({ label, value }: { label: string; value: number }) {
 
 function TemplateCard({ template, selected, onSelect }: { template: ResumeTemplate; selected: boolean; onSelect: () => void }) {
   return (
-    <button className={`resume2-template-card ${selected ? 'selected' : ''}`} onClick={onSelect} style={{ '--accent': template.accent } as CSSProperties}>
-      <MiniTemplate template={template} />
+    <div className={`resume2-template-card ${selected ? 'selected' : ''}`}>
+      <div aria-hidden="true">
+        <ResumeDocumentPreview template={template} draft={SAMPLE_PREVIEW_DRAFT} size="mini" demo />
+      </div>
       <strong>{template.name}</strong>
       <span>{template.category} | {template.layout} | {template.density}</span>
       <p>{template.description}</p>
-      <b>{selected ? 'Selected' : 'Use this template'}</b>
-    </button>
-  );
-}
-
-function MiniTemplate({ template }: { template: ResumeTemplate }) {
-  return <div className={`resume2-mini mini-${template.layout}`}><span /><span /><span /><span /><span /></div>;
-}
-
-function ResumePreview({ draft, template, score }: { draft: StudioDraft; template: ResumeTemplate; score: number }) {
-  const summary = draft.career.summary || 'Your professional summary will appear here. Use Write with AI when your facts are ready.';
-  const showPhoto = templatePhotoSupport(template) !== 'none' && Boolean(draft.personal.photoDataUrl);
-  return (
-    <div className={`resume2-preview template-${template.layout} density-${template.density}`} style={{ '--accent': template.accent } as CSSProperties}>
-      <header className={showPhoto ? 'with-photo' : ''}>
-        {showPhoto && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={draft.personal.photoDataUrl} alt="Your resume photo" className="resume2-photo" />
-        )}
-        <div>
-          <h2>{draft.personal.name || 'Your Name'}</h2>
-          <p>{[draft.personal.email, draft.personal.phone, draft.personal.location].filter(Boolean).join(' | ') || 'email | phone | location'}</p>
-          <strong>{draft.career.headline || draft.career.targetRole || 'Target Role'}</strong>
-        </div>
-      </header>
-      <section><h3>Professional Summary</h3><p>{summary}</p></section>
-      <section><h3>Experience</h3>{draft.experiences.length ? draft.experiences.slice(0, 4).map((e) => <div key={e.id} className="resume2-preview-role"><b>{e.role || 'Role'} {e.company ? `| ${e.company}` : ''}</b><ul>{(e.bullets.length ? e.bullets : [e.roughNotes || 'Experience details will appear here.']).slice(0, 4).map((b, i) => <li key={i}>{b}</li>)}</ul></div>) : <p>Add experience, internships, freelance work or projects.</p>}</section>
-      {draft.projects.length > 0 && <section><h3>Projects</h3>{draft.projects.slice(0, 3).map((p) => <p key={p.id}><b>{p.name}</b>: {p.description}</p>)}</section>}
-      <section><h3>Skills</h3><p>{draft.skills.map((s) => s.name).slice(0, 18).join(', ') || 'Add skills to improve ATS matching.'}</p></section>
-      {draft.education.length > 0 && <section><h3>Education</h3>{draft.education.slice(0, 3).map((e) => <p key={e.id}>{[e.degree, e.field, e.institution].filter(Boolean).join(' | ')}</p>)}</section>}
-      <footer>Strength {score}/100 | {template.name}</footer>
+      <button type="button" className="resume2-template-select" onClick={onSelect} aria-pressed={selected}>
+        {selected ? 'Selected' : `Use ${template.name}`}
+      </button>
     </div>
   );
 }

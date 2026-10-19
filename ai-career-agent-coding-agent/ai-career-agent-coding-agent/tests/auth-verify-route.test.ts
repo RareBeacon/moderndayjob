@@ -7,7 +7,9 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
  * exactly once; failures are generic; both actions rate-limited.
  */
 
-const { listUsers, updateUserById } = vi.hoisted(() => ({ listUsers: vi.fn(), updateUserById: vi.fn() }));
+const { listUsers, updateUserById, profileUpdate } = vi.hoisted(() => ({
+  listUsers: vi.fn(), updateUserById: vi.fn(), profileUpdate: vi.fn(),
+}));
 const { issueEmailVerificationCode, confirmEmailVerificationCode } = vi.hoisted(() => ({
   issueEmailVerificationCode: vi.fn(),
   confirmEmailVerificationCode: vi.fn(),
@@ -16,7 +18,13 @@ const { sendWelcomeEmailOnce } = vi.hoisted(() => ({ sendWelcomeEmailOnce: vi.fn
 const { enforceRateLimit } = vi.hoisted(() => ({ enforceRateLimit: vi.fn() }));
 
 vi.mock('@/lib/supabase', () => ({
-  supabaseAdmin: { auth: { admin: { listUsers, updateUserById } } },
+  supabaseAdmin: {
+    auth: { admin: { listUsers, updateUserById } },
+    from: (table: string) => {
+      if (table !== 'profiles') throw new Error('Unexpected table');
+      return { update: profileUpdate };
+    },
+  },
 }));
 vi.mock('@/lib/auth-oauth', () => ({ issueEmailVerificationCode, confirmEmailVerificationCode }));
 vi.mock('@/lib/email/welcome', () => ({ sendWelcomeEmailOnce }));
@@ -44,6 +52,7 @@ beforeEach(() => {
   enforceRateLimit.mockResolvedValue({ allowed: true });
   listUsers.mockResolvedValue({ data: { users: [UNCONFIRMED, CONFIRMED] }, error: null });
   updateUserById.mockResolvedValue({ data: {}, error: null });
+  profileUpdate.mockReturnValue({ eq: async () => ({ error: null }) });
   issueEmailVerificationCode.mockResolvedValue({ sent: true, cooldown: false });
   confirmEmailVerificationCode.mockResolvedValue('VERIFIED');
   sendWelcomeEmailOnce.mockResolvedValue(undefined);
@@ -70,6 +79,13 @@ describe('POST /api/auth/verify (send)', () => {
     expect(issueEmailVerificationCode).not.toHaveBeenCalled();
   });
 
+  it('surfaces provider rejection so the user can retry instead of claiming delivery', async () => {
+    issueEmailVerificationCode.mockResolvedValue({ sent: false, cooldown: false, error: 'REJECTED' });
+    const res = await POST(req({ action: 'send', email: 'ada@example.com' }));
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ ok: false, message: expect.stringMatching(/could not send/i) });
+  });
+
   it('reports cooldown without leaking account state', async () => {
     issueEmailVerificationCode.mockResolvedValue({ sent: false, cooldown: true });
     const res = await POST(req({ action: 'send', email: 'ada@example.com' }));
@@ -83,8 +99,9 @@ describe('POST /api/auth/verify (confirm)', () => {
     const res = await POST(req({ action: 'confirm', email: 'ada@example.com', code: '123456' }));
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ ok: true });
-    expect(confirmEmailVerificationCode).toHaveBeenCalledWith({ id: 'u1' }, '123456');
+    expect(confirmEmailVerificationCode).toHaveBeenCalledWith({ id: 'u1' }, '123456', { markProfileVerified: false });
     expect(updateUserById).toHaveBeenCalledWith('u1', { email_confirm: true });
+    expect(profileUpdate).toHaveBeenCalledWith(expect.objectContaining({ email_verified_at: expect.any(String) }));
     expect(sendWelcomeEmailOnce).toHaveBeenCalledWith('u1', 'ada@example.com');
   });
 
@@ -93,6 +110,30 @@ describe('POST /api/auth/verify (confirm)', () => {
     expect(res.status).toBe(200);
     expect(confirmEmailVerificationCode).not.toHaveBeenCalled();
     expect(sendWelcomeEmailOnce).not.toHaveBeenCalled();
+  });
+
+  it('never marks the profile when Supabase authentication confirmation fails', async () => {
+    updateUserById.mockResolvedValue({ data: null, error: { message: 'auth database down' } });
+    const res = await POST(req({ action: 'confirm', email: 'ada@example.com', code: '123456' }));
+    expect(res.status).toBe(500);
+    expect(profileUpdate).not.toHaveBeenCalled();
+    expect(JSON.stringify(await res.json())).not.toContain('auth database down');
+  });
+
+  it('does not claim complete verification if the profile write fails', async () => {
+    profileUpdate.mockReturnValue({ eq: async () => ({ error: { message: 'profile database down' } }) });
+    const res = await POST(req({ action: 'confirm', email: 'ada@example.com', code: '123456' }));
+    expect(res.status).toBe(500);
+    expect(JSON.stringify(await res.json())).not.toContain('profile database down');
+    expect(sendWelcomeEmailOnce).not.toHaveBeenCalled();
+  });
+
+  it('rejects an expired code without confirming Supabase', async () => {
+    confirmEmailVerificationCode.mockResolvedValue('EXPIRED');
+    const res = await POST(req({ action: 'confirm', email: 'ada@example.com', code: '123456' }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).message).toMatch(/expired/i);
+    expect(updateUserById).not.toHaveBeenCalled();
   });
 
   it('rejects an invalid code with a generic message', async () => {

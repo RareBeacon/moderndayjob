@@ -165,6 +165,12 @@ export async function getAuthContext(req?: Request): Promise<AuthContext> {
 export async function requireUser(opts: { allowIncompleteMfa?: boolean; req?: Request } = {}) {
   const { user, needsMfa } = await getAuthContext(opts.req);
   if (!user) throw new Error('UNAUTHENTICATED');
+  // Password signups must not use authenticated API routes until Supabase
+  // itself has recorded confirmation. Social accounts have a separate
+  // profile-backed email gate and are allowed into their verification APIs.
+  const providers = user.app_metadata?.providers ?? [];
+  const social = providers.some((provider: string) => ['google', 'linkedin_oidc', 'linkedin'].includes(provider));
+  if (!social && !user.email_confirmed_at) throw new Error('UNAUTHENTICATED');
   if (needsMfa && !opts.allowIncompleteMfa) throw new Error('MFA_REQUIRED');
   try {
     const { data } = await supabaseAdmin

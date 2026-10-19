@@ -6,10 +6,13 @@
  * Desktop 3-4 columns, mobile 1-2 with horizontal-scroll category filter.
  * All interactive targets are 44px+; badges carry text (no color-only state).
  */
-import { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import type { ResumeTemplate, ResumeTemplateCategory } from '@/lib/resume-studio/templates';
 import { templatePhotoSupport, templateAtsFriendly, templateColumns } from '@/lib/resume-studio/templates';
+import { SAMPLE_PREVIEW_DRAFT } from '@/lib/resume-studio/sample';
+import { ResumeDocumentPreview } from './ResumeDocumentPreview';
 import styles from './TemplateGallery.module.css';
 
 type Filter = 'all' | 'ats' | 'photo' | 'onepage' | 'twocolumn' | ResumeTemplateCategory;
@@ -38,21 +41,41 @@ function matches(template: ResumeTemplate, filter: Filter): boolean {
   }
 }
 
-/** Fictional sample data shown on every card (C3: "Alex Morgan"). */
-const SAMPLE = {
-  name: 'Alex Morgan',
-  headline: 'Operations Analyst',
-  summary: 'Process improvement and reporting',
-  sections: ['Experience', 'Education', 'Skills'],
-};
-
 export function TemplateGallery({ templates }: { templates: ResumeTemplate[] }) {
   const [filter, setFilter] = useState<Filter>('all');
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLElement>(null);
   const visible = useMemo(() => templates.filter((template) => matches(template, filter)), [templates, filter]);
   const counts = useMemo(() => ({
     ats: templates.filter((t) => templateAtsFriendly(t)).length,
     photo: templates.filter((t) => templatePhotoSupport(t) !== 'none').length,
   }), [templates]);
+  const previewTemplate = templates.find((template) => template.id === previewId);
+
+  useEffect(() => {
+    if (!previewId) return;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    closeRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPreviewId(null);
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+      const targets = Array.from(dialogRef.current.querySelectorAll<HTMLElement>('button:not([disabled]), a[href]'));
+      const first = targets[0];
+      const last = targets[targets.length - 1];
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', onKeyDown);
+      previousFocus?.focus();
+    };
+  }, [previewId]);
 
   return (
     <div>
@@ -76,17 +99,8 @@ export function TemplateGallery({ templates }: { templates: ResumeTemplate[] }) 
       <div className={styles.grid}>
         {visible.map((template) => (
           <article key={template.id} className={styles.card} style={{ '--accent': template.accent } as React.CSSProperties}>
-            <div className={styles.mini} data-layout={template.layout} aria-hidden="true">
-              {templatePhotoSupport(template) !== 'none' && <span className={styles.miniPhoto} />}
-              <div className={styles.miniDoc}>
-                <span className={styles.miniName}>{SAMPLE.name}</span>
-                <span className={styles.miniHeadline}>{SAMPLE.headline}</span>
-                <span className={styles.miniLine} />
-                <span className={styles.miniLine} />
-                <span className={styles.miniLineShort} />
-                <span className={styles.miniLine} />
-                <span className={styles.miniLineShort} />
-              </div>
+            <div className={styles.mini} aria-hidden="true">
+              <ResumeDocumentPreview template={template} draft={SAMPLE_PREVIEW_DRAFT} size="mini" demo />
             </div>
             <div className={styles.cardBody}>
               <h3 className={styles.cardTitle}>{template.name}</h3>
@@ -99,14 +113,35 @@ export function TemplateGallery({ templates }: { templates: ResumeTemplate[] }) 
                 </span>
                 {templateAtsFriendly(template) && <span className={styles.badgeAts}>ATS-Friendly</span>}
               </div>
-              <Link className={styles.useBtn} href={`/generate?template=${template.id}`}>Use this template</Link>
+              <div className={styles.actions}>
+                <button type="button" className={styles.previewBtn} onClick={() => setPreviewId(template.id)} aria-label={`Preview ${template.name} full size`}>Preview full size</button>
+                <Link className={styles.useBtn} href={`/generate?template=${encodeURIComponent(template.id)}`}>Use this template</Link>
+              </div>
             </div>
           </article>
         ))}
       </div>
       <p className={styles.note}>
-        Previews use fictional sample data (Alex Morgan). Your own resume uses your real, verified information in the Resume Studio.
+        All sample CVs show the same fictional Alex Morgan profile. Sample details never become part of your draft.
       </p>
+      {previewTemplate && typeof document !== 'undefined' && createPortal(
+        <div className={styles.overlay} onMouseDown={(event) => { if (event.target === event.currentTarget) setPreviewId(null); }}>
+          <section className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="template-preview-title" ref={dialogRef}>
+            <header className={styles.dialogHeader}>
+              <div><p>Fictional sample CV</p><h2 id="template-preview-title">{previewTemplate.name}</h2></div>
+              <button type="button" ref={closeRef} className={styles.closeBtn} onClick={() => setPreviewId(null)} aria-label="Close template preview">Close</button>
+            </header>
+            <p className={styles.dialogIntro}>{previewTemplate.description} This preview uses fictional Alex Morgan details. Your information stays in your own draft.</p>
+            <div className={styles.dialogCanvas}>
+              <ResumeDocumentPreview template={previewTemplate} draft={SAMPLE_PREVIEW_DRAFT} demo />
+            </div>
+            <div className={styles.dialogFooter}>
+              <Link className={styles.useBtn} href={`/generate?template=${encodeURIComponent(previewTemplate.id)}`}>Use {previewTemplate.name}</Link>
+            </div>
+          </section>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

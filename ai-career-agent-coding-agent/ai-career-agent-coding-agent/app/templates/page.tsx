@@ -20,9 +20,9 @@ export default async function TemplatesPage() {
         <header className={styles.pageHero} data-animate>
           <div className={styles.container}>
             <p className={styles.eyebrow}>Template gallery</p>
-            <h1>70 professional resume templates, one verified you.</h1>
+            <h1>70 professional resume templates, one place to start.</h1>
             <p className={styles.pageLead}>
-              Every template is a real layout you can use in the Resume Studio with your own verified information.
+              Every template is a real layout you can use in the Resume Studio with your own information.
               Filter by what matters for your target role: ATS parsing, photo support, or column style.
             </p>
           </div>

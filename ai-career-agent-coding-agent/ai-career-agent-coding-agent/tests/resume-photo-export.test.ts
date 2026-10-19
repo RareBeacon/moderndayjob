@@ -8,7 +8,7 @@ import {
   photoDataUrl,
   validatePhotoBytes,
 } from '@/lib/resume-studio/photo';
-import { MASTER_CATALOG_TEMPLATES, templatePhotoSupport } from '@/lib/resume-studio/templates';
+import { MASTER_CATALOG_TEMPLATES, templateColumns, templatePhotoSupport } from '@/lib/resume-studio/templates';
 import { normalizeStudioDraft } from '@/lib/resume-studio/draft';
 import { parseDocumentContent, renderDocx, renderPdf } from '@/lib/documents/export';
 
@@ -190,8 +190,8 @@ describe('parseDocumentContent re validation', () => {
 
 describe('PDF and DOCX rendering with a photo', () => {
   it('embeds the photo in PDF page 1 and keeps text selectable', async () => {
-    const parsed = parseDocumentContent('CV', alexMorganCv('modern-tech', photoDataUrl(makePng(), 'image/png')));
-    const pdf = await renderPdf(parsed.title, parsed.sections, parsed.photo);
+    const parsed = parseDocumentContent('CV', alexMorganCv('tpl-modern-professional', photoDataUrl(makePng(), 'image/png')));
+    const pdf = await renderPdf(parsed.title, parsed.sections, parsed.photo, parsed.templateId);
     expect(pdf.subarray(0, 4).toString('ascii')).toBe('%PDF');
     expect((await pdfImageCount(pdf)) >= 1).toBe(true);
     const doc = await PDFDocument.load(new Uint8Array(pdf));
@@ -205,8 +205,8 @@ describe('PDF and DOCX rendering with a photo', () => {
   });
 
   it('embeds the photo in DOCX and preserves the zip container', async () => {
-    const parsed = parseDocumentContent('CV', alexMorganCv('modern-tech', photoDataUrl(makeJpeg(), 'image/jpeg')));
-    const docx = await renderDocx(parsed.title, parsed.sections, parsed.photo);
+    const parsed = parseDocumentContent('CV', alexMorganCv('tpl-modern-professional', photoDataUrl(makeJpeg(), 'image/jpeg')));
+    const docx = await renderDocx(parsed.title, parsed.sections, parsed.photo, parsed.templateId);
     expect(docx.subarray(0, 2).toString('ascii')).toBe('PK');
     // zip local file headers store entry names uncompressed, so media is detectable
     expect(docx.includes('word/media/')).toBe(true);
@@ -219,20 +219,20 @@ describe('PDF and DOCX rendering with a photo', () => {
 
   it('flows long content across multiple pages with and without a photo', async () => {
     for (const withPhoto of [false, true]) {
-      const parsed = parseDocumentContent('CV', longCv('modern-tech', withPhoto ? photoDataUrl(makePng(), 'image/png') : undefined));
-      const pdf = await renderPdf(parsed.title, parsed.sections, parsed.photo);
+      const parsed = parseDocumentContent('CV', longCv('tpl-modern-professional', withPhoto ? photoDataUrl(makePng(), 'image/png') : undefined));
+      const pdf = await renderPdf(parsed.title, parsed.sections, parsed.photo, parsed.templateId);
       const doc = await PDFDocument.load(new Uint8Array(pdf));
       expect(doc.getPageCount()).toBeGreaterThan(1);
     }
   });
 
   it('renders optional sections present and absent', async () => {
-    const base = JSON.parse(alexMorganCv('modern-tech', photoDataUrl(makePng(), 'image/png')));
+    const base = JSON.parse(alexMorganCv('tpl-modern-professional', photoDataUrl(makePng(), 'image/png')));
     const minimal = { ...base, certifications: undefined, achievements: undefined, references: undefined, education: [] };
     for (const content of [JSON.stringify(base), JSON.stringify(minimal)]) {
       const parsed = parseDocumentContent('CV', content);
-      const pdf = await renderPdf(parsed.title, parsed.sections, parsed.photo);
-      const docx = await renderDocx(parsed.title, parsed.sections, parsed.photo);
+      const pdf = await renderPdf(parsed.title, parsed.sections, parsed.photo, parsed.templateId);
+      const docx = await renderDocx(parsed.title, parsed.sections, parsed.photo, parsed.templateId);
       expect(pdf.subarray(0, 4).toString('ascii')).toBe('%PDF');
       expect(docx.subarray(0, 2).toString('ascii')).toBe('PK');
     }
@@ -240,6 +240,30 @@ describe('PDF and DOCX rendering with a photo', () => {
 });
 
 describe('per template export checklist (all 20 master catalog templates)', () => {
+  it('omits stored photos from photo-free designs, even if a previous design permitted one', async () => {
+    const template = MASTER_CATALOG_TEMPLATES.find((candidate) => templatePhotoSupport(candidate) === 'none');
+    expect(template).toBeDefined();
+    const parsed = parseDocumentContent('CV', alexMorganCv(template!.id, photoDataUrl(makePng(), 'image/png')));
+    expect(parsed.photo).toBeDefined();
+    const pdf = await renderPdf(parsed.title, parsed.sections, parsed.photo, parsed.templateId);
+    const docx = await renderDocx(parsed.title, parsed.sections, parsed.photo, parsed.templateId);
+    expect(await pdfImageCount(pdf)).toBe(0);
+    expect(docx.includes('word/media/')).toBe(false);
+  });
+
+  it('shares continuation pages between the main column and skills rail', async () => {
+    const template = MASTER_CATALOG_TEMPLATES.find((candidate) => templateColumns(candidate) === 2);
+    expect(template).toBeDefined();
+    const main = { heading: 'Experience', lines: Array.from({ length: 90 }, (_, i) => `Experience achievement ${i}: coordinated a cross-functional launch safely`) };
+    const rail = { heading: 'Skills', lines: Array.from({ length: 110 }, (_, i) => `Skill ${i + 1}: product research and delivery`) };
+    const count = async (sections: typeof main[]) => (await PDFDocument.load(new Uint8Array(await renderPdf('Sam Applicant', sections, undefined, template!.id)))).getPageCount();
+    const mainPages = await count([main]);
+    const railPages = await count([rail]);
+    expect(mainPages).toBeGreaterThan(1);
+    expect(railPages).toBeGreaterThan(1);
+    expect(await count([main, rail])).toBe(Math.max(mainPages, railPages));
+  });
+
   it('exports every template to valid PDF and DOCX with photo support honored', async () => {
     expect(MASTER_CATALOG_TEMPLATES).toHaveLength(20);
     const photoUrl = photoDataUrl(makePng(), 'image/png');
@@ -249,11 +273,11 @@ describe('per template export checklist (all 20 master catalog templates)', () =
       const content = alexMorganCv(template.id, wantsPhoto ? photoUrl : undefined);
       const parsed = parseDocumentContent('CV', content);
 
-      const pdf = await renderPdf(parsed.title, parsed.sections, parsed.photo);
+      const pdf = await renderPdf(parsed.title, parsed.sections, parsed.photo, parsed.templateId);
       expect(pdf.subarray(0, 4).toString('ascii'), `${template.id} PDF magic`).toBe('%PDF');
       expect(await pdfContainsText(pdf, 'Alex Morgan'), `${template.id} PDF selectable name text`).toBe(true);
 
-      const docx = await renderDocx(parsed.title, parsed.sections, parsed.photo);
+      const docx = await renderDocx(parsed.title, parsed.sections, parsed.photo, parsed.templateId);
       expect(docx.subarray(0, 2).toString('ascii'), `${template.id} DOCX magic`).toBe('PK');
 
       if (wantsPhoto) {
@@ -266,7 +290,7 @@ describe('per template export checklist (all 20 master catalog templates)', () =
 
       // long variant must paginate for every template
       const longParsed = parseDocumentContent('CV', longCv(template.id, wantsPhoto ? photoUrl : undefined));
-      const longPdf = await renderPdf(longParsed.title, longParsed.sections, longParsed.photo);
+      const longPdf = await renderPdf(longParsed.title, longParsed.sections, longParsed.photo, longParsed.templateId);
       const longDoc = await PDFDocument.load(new Uint8Array(longPdf));
       expect(longDoc.getPageCount(), `${template.id} multipage`).toBeGreaterThan(1);
     }

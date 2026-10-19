@@ -52,56 +52,8 @@
 }
 
 .mini {
-  height: 190px;
   padding: 16px;
   background: var(--color-surface-alt);
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-}
-
-.miniPhoto {
-  width: 44px;
-  height: 54px;
-  border-radius: 6px;
-  background: var(--color-line-strong);
-  flex: none;
-}
-
-.miniDoc {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  background: var(--color-bg);
-  border: 1px solid var(--color-line);
-  border-radius: 6px;
-  padding: 12px;
-}
-
-.miniName {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-primary);
-}
-
-.miniHeadline {
-  font-size: 10px;
-  color: var(--accent);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-}
-
-.miniLine,
-.miniLineShort {
-  height: 5px;
-  border-radius: 3px;
-  background: var(--color-line);
-}
-
-.miniLineShort {
-  width: 60%;
 }
 
 .cardBody {
@@ -154,8 +106,33 @@
   border-color: var(--color-accent);
 }
 
-.useBtn {
+.actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
   margin-top: auto;
+}
+
+.previewBtn,
+.useBtn {
+  min-width: 0;
+  padding: 8px;
+  line-height: 1.25;
+  text-align: center;
+  cursor: pointer;
+}
+
+.previewBtn {
+  min-height: 44px;
+  border: 1px solid var(--color-primary);
+  border-radius: 10px;
+  background: var(--color-bg);
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.useBtn {
   min-height: 44px;
   display: flex;
   align-items: center;
@@ -169,6 +146,7 @@
   border: 1px solid var(--color-accent);
 }
 
+.previewBtn:focus-visible,
 .useBtn:focus-visible {
   outline: 3px solid var(--color-focus);
   outline-offset: 1px;
@@ -188,11 +166,77 @@
 
 @media (max-width: 640px) {
   .grid {
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
     gap: 14px;
   }
 
   .filterBar {
     top: 56px;
   }
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(9, 21, 41, .78);
+}
+
+.dialog {
+  width: min(900px, 100%);
+  max-height: min(96vh, 1100px);
+  overflow: auto;
+  background: #f3f6fa;
+  color: #17223b;
+  border-radius: 12px;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, .35);
+}
+
+.dialogHeader,
+.dialogFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px clamp(16px, 4vw, 30px);
+  background: #fff;
+}
+.dialogHeader {
+  border-bottom: 1px solid #dbe2ec;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.dialogHeader p { margin: 0 0 3px; color: #52647a; font-size: 12px; }
+.dialogHeader h2 { margin: 0; font-size: clamp(19px, 3vw, 24px); line-height: 1.2; }
+.closeBtn {
+  min-width: 64px;
+  min-height: 44px;
+  flex: none;
+  cursor: pointer;
+  border-radius: 8px;
+  border: 1px solid #bbc7d5;
+  background: #fff;
+  color: #18273f;
+  font-weight: 700;
+}
+.closeBtn:focus-visible { outline: 3px solid var(--color-focus); }
+.dialogIntro { margin: 16px clamp(16px, 4vw, 30px) 0; color: #40516a; font-size: 14px; line-height: 1.5; }
+.dialogCanvas { padding: 20px clamp(12px, 4vw, 36px); }
+.dialogFooter {
+  position: sticky;
+  bottom: 0;
+  border-top: 1px solid #dbe2ec;
+  justify-content: flex-end;
+}
+.dialogFooter .useBtn { width: auto; padding: 10px 16px; }
+
+@media (max-width: 640px) {
+  .dialog { max-height: 96vh; }
+  .dialogHeader,
+  .dialogFooter { padding: 12px 14px; }
+  .dialogCanvas { padding: 14px 10px; }
 }

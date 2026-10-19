@@ -42,7 +42,7 @@ function b64(json: Record<string, unknown>): string {
 const TOKEN_NO_CLAIM = `header.${b64({ sub: 'u1', exp: 9999999999 })}.sig`;
 const TOKEN_AAL1 = `header.${b64({ sub: 'u1', exp: 9999999999, aal: 'aal1' })}.sig`;
 const TOKEN_AAL2 = `header.${b64({ sub: 'u1', exp: 9999999999, aal: 'aal2' })}.sig`;
-const USER = { id: 'u1', email: 'ada@example.com' };
+const USER = { id: 'u1', email: 'ada@example.com', email_confirmed_at: '2026-09-17T00:00:00Z' };
 
 function reqWith(token: string | null): Request {
   return new Request('http://localhost/api/x', {
@@ -90,6 +90,11 @@ describe('Bearer path (API clients)', () => {
     adminGetUser.mockResolvedValue({ data: { user: null }, error: { message: 'bad jwt' } });
     const user = await getUser(reqWith(TOKEN_AAL1));
     expect(user).toBeNull();
+  });
+
+  it('does not admit an unconfirmed password account, even with a valid Bearer token', async () => {
+    adminGetUser.mockResolvedValue({ data: { user: { ...USER, email_confirmed_at: undefined } }, error: null });
+    await expect(requireUser({ req: reqWith(TOKEN_AAL1) })).rejects.toThrow('UNAUTHENTICATED');
   });
 
   it('REGRESSION (2026-09-20 fix): aal1 password session, no enrolled factors -> NOT MFA-gated', async () => {

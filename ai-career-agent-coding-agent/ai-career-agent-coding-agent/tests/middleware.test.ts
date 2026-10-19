@@ -41,15 +41,23 @@ describe('auth middleware', () => {
   });
 
   it('redirects signed-in users away from /login to /dashboard', async () => {
-    getUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    getUser.mockResolvedValue({ data: { user: { id: 'u1', email_confirmed_at: '2026-09-17T00:00:00Z' } } });
     const res = await middleware(req('/login'));
     expect(new URL(res.headers.get('location')!).pathname).toBe('/dashboard');
   });
 
   it('lets a signed-in user through a protected page', async () => {
-    getUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    getUser.mockResolvedValue({ data: { user: { id: 'u1', email_confirmed_at: '2026-09-17T00:00:00Z' } } });
     const res = await middleware(req('/applications'));
     expect(res.headers.get('location')).toBeNull();
+  });
+
+  it('keeps an unexpectedly active unconfirmed password session at verification', async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'u1', email: 'ada@example.com', email_confirmed_at: null } } });
+    const res = await middleware(req('/dashboard'));
+    const loc = new URL(res.headers.get('location')!);
+    expect(loc.pathname).toBe('/verify-email');
+    expect(loc.searchParams.get('email')).toBe('ada@example.com');
   });
 
   it('lets visitors browse the public tools page', async () => {

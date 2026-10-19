@@ -187,6 +187,7 @@ describe('header guard (B-005/F-002/F-003/F-008)', () => {
     for (const path of [
       "'/login'",
       "'/signup'",
+      "'/verify-email'",
       "'/reset-password'",
       "'/dashboard/:path*'",
       "'/billing/:path*'",

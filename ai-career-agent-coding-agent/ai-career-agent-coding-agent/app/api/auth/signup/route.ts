@@ -176,26 +176,55 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'We could not create your account just now. Please try again.' }, { status: 500 });
   }
 
+  if (!data.user?.id || !data.user.email) {
+    return NextResponse.json({ error: 'We could not complete your account setup. Please contact support.' }, { status: 502 });
+  }
+
   void auditEvent({
     action: 'USER_SIGNUP',
     resource: 'auth',
-    userId: data.user?.id ?? null,
+    userId: data.user.id,
     ipHash,
     outcome: 'allow',
     meta: { email_confirmed: false, risk, abuseSignals: emailRisk.signals, sourceArticle: attribution.sourceArticle, sourceTool: attribution.sourceTool },
   });
-  void recordSignupAttribution({ userId: data.user?.id ?? null, attribution });
-  // Verification email (6-digit code + one-click link) from
-  // no-reply@jobiest.com, best-effort: a failed send never blocks signup -
-  // the user can request a new code from /verify-email or the login page.
-  if (data.user?.id && data.user.email) {
-    void issueEmailVerificationCode(
+  void recordSignupAttribution({ userId: data.user.id, attribution });
+
+  // A serverless function can terminate when its response is sent. Await the
+  // code write and Resend acceptance so signup never reports a queued email
+  // when the send was skipped or rejected. Acceptance is not inbox delivery.
+  let emailAccepted = false;
+  let failureStage = 'provider';
+  try {
+    const issued = await issueEmailVerificationCode(
       { id: data.user.id, email: data.user.email, fullName },
       { kind: 'signup' },
     );
+    emailAccepted = issued.sent;
+    if (issued.cooldown) failureStage = 'cooldown';
+    else if (issued.error === 'CODE_STORE_FAILED') failureStage = 'code_store';
+  } catch {
+    failureStage = 'unavailable';
   }
+  await auditEvent({
+    action: emailAccepted ? 'SIGNUP_VERIFICATION_ACCEPTED' : 'SIGNUP_VERIFICATION_FAILED',
+    resource: 'auth',
+    userId: data.user.id,
+    ipHash,
+    outcome: emailAccepted ? 'allow' : 'error',
+    meta: { stage: emailAccepted ? 'provider_accepted' : failureStage },
+  });
 
-  const res = NextResponse.json({ ok: true, user: { id: data.user?.id ?? null }, mustVerify: true });
+  const res = NextResponse.json(
+    {
+      ok: true,
+      user: { id: data.user.id },
+      mustVerify: true,
+      verificationEmailAccepted: emailAccepted,
+      ...(!emailAccepted ? { message: 'Your account was created, but we could not send a verification code right now. Request a new code on the verification page.' } : {}),
+    },
+    { status: emailAccepted ? 200 : 202 },
+  );
   res.cookies.set(DEVICE_COOKIE, deviceId, {
     httpOnly: true,
     sameSite: 'lax',

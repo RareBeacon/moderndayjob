@@ -39,6 +39,7 @@ const VALID = {
 
 beforeEach(() => {
   createUser.mockReset();
+  issueEmailVerificationCode.mockReset();
   generateLink.mockReset();
   sendVerificationEmail.mockReset();
   createUser.mockResolvedValue({ data: { user: { id: 'u1', email: 'ada@example.com' } }, error: null });
@@ -63,7 +64,9 @@ describe('POST /api/auth/signup', () => {
     );
     expect(generateLink).not.toHaveBeenCalled();
     expect(sendVerificationEmail).not.toHaveBeenCalled();
-    await expect(res.json()).resolves.toEqual({ ok: true, user: { id: 'u1' }, mustVerify: true });
+    await expect(res.json()).resolves.toEqual({
+      ok: true, user: { id: 'u1' }, mustVerify: true, verificationEmailAccepted: true,
+    });
   });
 
   it('normalizes phone spacing/dashes to canonical E.164', async () => {
@@ -74,12 +77,45 @@ describe('POST /api/auth/signup', () => {
     );
   });
 
-  it('never leaves the signup blocked on a failed email send (resend exists)', async () => {
+  it('creates a recoverable account but does not claim the provider accepted a failed send', async () => {
     issueEmailVerificationCode.mockResolvedValue({ sent: false, cooldown: false, error: 'EMAIL_FAILED' });
     const res = await POST(req({ ...VALID, email: 'a@b.co' }));
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(202);
     expect(generateLink).not.toHaveBeenCalled();
-    await expect(res.json()).resolves.toEqual({ ok: true, user: { id: 'u1' }, mustVerify: true });
+    const out = await res.json();
+    expect(out).toMatchObject({ ok: true, user: { id: 'u1' }, mustVerify: true, verificationEmailAccepted: false });
+    expect(out.message).toMatch(/request a new code/i);
+    expect(JSON.stringify(out)).not.toContain('EMAIL_FAILED');
+  });
+
+  it('waits for the verification-code issuer before responding', async () => {
+    let resolveIssue!: (value: { sent: boolean; cooldown: boolean }) => void;
+    issueEmailVerificationCode.mockReturnValue(new Promise((resolve) => { resolveIssue = resolve; }));
+    let responded = false;
+    const pending = POST(req(VALID)).then((response) => { responded = true; return response; });
+    // Let the admin API and request-body microtasks finish. The response must
+    // still be pending until the code write and provider acceptance complete.
+    for (let i = 0; i < 15; i++) await Promise.resolve();
+    expect(responded).toBe(false);
+    resolveIssue({ sent: true, cooldown: false });
+    expect((await pending).status).toBe(200);
+    expect(issueEmailVerificationCode).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports a rejected issuer as a recoverable failure without exposing secrets', async () => {
+    issueEmailVerificationCode.mockRejectedValue(new Error('provider-secret-do-not-print'));
+    const res = await POST(req(VALID));
+    expect(res.status).toBe(202);
+    const out = await res.json();
+    expect(out.verificationEmailAccepted).toBe(false);
+    expect(JSON.stringify(out)).not.toContain('provider-secret-do-not-print');
+  });
+
+  it('does not report success when auth returns no user identity', async () => {
+    createUser.mockResolvedValue({ data: { user: null }, error: null });
+    const res = await POST(req(VALID));
+    expect(res.status).toBe(502);
+    expect(issueEmailVerificationCode).not.toHaveBeenCalled();
   });
 
   it('rejects an invalid email before touching the admin API', async () => {
@@ -139,6 +175,7 @@ describe('POST /api/auth/signup', () => {
     const res = await POST(req({ ...VALID, email: 'a@b.co' }));
     expect(res.status).toBe(409);
     expect((await res.json()).error).toMatch(/already exists/i);
+    expect(issueEmailVerificationCode).not.toHaveBeenCalled();
   });
 
   it('maps rate limits to a 429 with a human message', async () => {

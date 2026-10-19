@@ -67,9 +67,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, message: 'A code was sent recently. Please wait a minute before requesting another.' });
     }
     if (!result.sent) {
-      return NextResponse.json({ ok: true, message: 'We could not send a code right now. Please try again shortly.' });
+      return NextResponse.json({ ok: false, message: 'We could not send a code right now. Please try again shortly.' }, { status: 503 });
     }
-    return NextResponse.json({ ok: true, message: 'We sent a 6-digit code to your email. It expires in 10 minutes.' });
+    return NextResponse.json({ ok: true, message: 'A 6-digit code was accepted for delivery. Check your inbox; it expires in 10 minutes.' });
   }
 
   // action === 'confirm'
@@ -81,7 +81,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  const outcome = await confirmEmailVerificationCode({ id: user.id }, parsed.data.code);
+  const outcome = await confirmEmailVerificationCode(
+    { id: user.id },
+    parsed.data.code,
+    { markProfileVerified: false },
+  );
   if (outcome !== 'VERIFIED') {
     void auditEvent({ action: 'EMAIL_VERIFY_FAILED', resource: 'auth', userId: user.id, outcome: 'deny', meta: { outcome } });
     const message =
@@ -95,7 +99,13 @@ export async function POST(req: Request) {
 
   const { error: confirmError } = await supabaseAdmin.auth.admin.updateUserById(user.id, { email_confirm: true });
   if (confirmError) {
-    return NextResponse.json({ ok: false, message: 'We could not complete verification just now. Please try again.' }, { status: 500 });
+    return NextResponse.json({ ok: false, message: 'We could not complete verification just now. Request a new code and try again.' }, { status: 500 });
+  }
+  const { error: profileError } = await supabaseAdmin.from('profiles')
+    .update({ email_verified_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq('user_id', user.id);
+  if (profileError) {
+    return NextResponse.json({ ok: false, message: 'Your email is confirmed, but we could not finish account setup. Please contact support.' }, { status: 500 });
   }
 
   void auditEvent({ action: 'EMAIL_VERIFIED', resource: 'auth', userId: user.id, outcome: 'allow' });

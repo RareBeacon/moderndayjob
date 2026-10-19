@@ -42,6 +42,7 @@ const noStore = { key: 'Cache-Control', value: 'no-store, max-age=0' };
 const noStoreSources = [
   '/login',
   '/signup',
+  '/verify-email',
   '/reset-password',
   '/dashboard/:path*',
   '/onboarding/:path*',

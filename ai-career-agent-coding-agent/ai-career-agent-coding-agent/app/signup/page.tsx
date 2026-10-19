@@ -2,11 +2,9 @@
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { supabaseBrowser } from '@/lib/supabase-browser';
 import { AuthShell } from '@/components/site/AuthShell';
 import { GoogleButton } from '@/components/site/GoogleButton';
 import { LinkedInButton } from '@/components/site/LinkedInButton';
-import { humanizeAuthError } from '@/lib/auth-messages';
 
 const COUNTRY_CODES = [
   { code: '+234', label: '🇳🇬 +234' },
@@ -27,7 +25,6 @@ export default function SignupPage() {
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
 
   const hasLength = password.length >= 8;
   const hasNumber = /\d/.test(password);
@@ -36,7 +33,6 @@ export default function SignupPage() {
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError('');
-    setNotice('');
 
     const name = fullName.trim().replace(/\s+/g, ' ');
     const digits = localPhone.replace(/\D/g, '');
@@ -84,51 +80,25 @@ export default function SignupPage() {
     }
 
     if (!res || !res.ok) {
-      // Fallback: classic client-side signup (covers the unlikely case
-      // of the server route being unavailable). The server-side field
-      // checks above already ran, so only provider errors remain.
-      const { data, error: fallbackError } = await supabaseBrowser().auth.signUp({
-        email,
-        password,
-      });
-      if (fallbackError) {
-        setError(humanizeAuthError(fallbackError.message));
-        setBusy(false);
-        return;
-      }
-      if (data.session) {
-        router.push('/dashboard');
-        router.refresh();
-        return;
-      }
-      setNotice('Account created. Check your email to confirm, then sign in.');
+      // Never bypass the server's unconfirmed-user, rate-limit, and email
+      // verification policy with a second client-side signup path.
+      const out = res ? (await res.json().catch(() => ({}))) as { error?: string } : {};
+      setError(out.error || 'We could not create your account just now. Please try again.');
       setBusy(false);
       return;
     }
 
-    // 2. The account was created unconfirmed: go straight to the code
-    //    screen (the code is already in the inbox). Signing in now would
-    //    fail with "email not confirmed" - that was the old bug.
-    const out = (await res.json().catch(() => ({}))) as { mustVerify?: boolean };
-    if (out.mustVerify) {
-      router.replace(`/verify-email?email=${encodeURIComponent(email.trim().toLowerCase())}`);
-      return;
-    }
-
-    // 3. Defensive: if a confirmed account ever comes back, sign in; an
-    //    unconfirmed one still routes to the code screen.
-    const { error: signInError } = await supabaseBrowser().auth.signInWithPassword({ email, password });
-    if (signInError) {
-      if (signInError.code === 'email_not_confirmed' || /email not confirmed/i.test(signInError.message)) {
-        router.replace(`/verify-email?email=${encodeURIComponent(email.trim().toLowerCase())}`);
-        return;
-      }
-      setError(humanizeAuthError(signInError.message));
+    // The account exists even if the email provider rejected the message.
+    // Route to a recoverable resend page without claiming inbox delivery.
+    const out = (await res.json().catch(() => ({}))) as { mustVerify?: boolean; verificationEmailAccepted?: boolean };
+    if (out.mustVerify !== true) {
+      setError('We could not confirm your account status. Please try signing in or contact support.');
       setBusy(false);
       return;
     }
-    router.push('/dashboard');
-    router.refresh();
+    const normalizedEmail = email.trim().toLowerCase();
+    const delivery = out.verificationEmailAccepted === false ? '&delivery=failed' : '';
+    router.replace(`/verify-email?email=${encodeURIComponent(normalizedEmail)}${delivery}`);
   }
 
   return (
@@ -140,11 +110,6 @@ export default function SignupPage() {
       <div className="auth-divider" style={{ margin: '18px 0' }}><span>or with email</span></div>
       <form onSubmit={submit} className="auth-form" noValidate>
         {error ? <div className="auth-error" role="alert">{error}</div> : null}
-        {notice ? (
-          <div className="auth-success" role="status">
-            {notice}
-          </div>
-        ) : null}
         <label>
           Full name
           <input

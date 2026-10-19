@@ -42,7 +42,15 @@ function makeChain(): { chain: Chain; state: Record<string, unknown> } {
   });
   chain.update = vi.fn((row: unknown) => {
     (state.updates as unknown[]).push(row);
-    const tail = { eq: vi.fn(async () => ({ error: null })) };
+    const tail = {
+      eq: vi.fn(() => tail),
+      is: vi.fn(() => tail),
+      gt: vi.fn(() => tail),
+      select: vi.fn(() => tail),
+      maybeSingle: vi.fn(async () => ({ data: { id: 'c1' }, error: null })),
+      then: (resolve: (value: { error: null }) => unknown, reject: (reason: unknown) => unknown) =>
+        Promise.resolve({ error: null }).then(resolve, reject),
+    };
     return tail;
   });
   return { chain, state };

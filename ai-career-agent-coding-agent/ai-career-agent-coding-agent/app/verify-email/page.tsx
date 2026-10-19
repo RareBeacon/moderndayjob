@@ -28,6 +28,7 @@ export default function VerifyEmailPage() {
   const [passwordMode, setPasswordMode] = useState(false);
   const [autoSubmitted, setAutoSubmitted] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const linkCode = useRef<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -41,10 +42,13 @@ export default function VerifyEmailPage() {
         setPasswordMode(true);
         setChecked(true);
         if (qCode && /^\d{6}$/.test(qCode)) {
+          linkCode.current = qCode;
           setCode(qCode);
           setNotice('Verifying the code from your link…');
+        } else if (params.get('delivery') === 'failed') {
+          setError('Your account was created, but we could not send the code yet. Choose Send a new code below.');
         } else {
-          setNotice('Enter the 6-digit code we emailed you. It expires in 10 minutes.');
+          setNotice('If your verification email has arrived, enter its 6-digit code. It expires in 10 minutes.');
         }
         return;
       }
@@ -78,7 +82,7 @@ export default function VerifyEmailPage() {
             return;
           }
           setEmail(state.email ?? 'your email');
-          setNotice('We sent a 6-digit code to your email. It expires in 10 minutes.');
+          setNotice('A verification code was requested. If it arrives, it expires in 10 minutes.');
           setCooldown(60);
         }
       } catch {
@@ -145,10 +149,10 @@ export default function VerifyEmailPage() {
     }
   }, [busy, code, router, email, passwordMode]);
 
-  // One-click verification: when the emailed link carried a valid code, submit
-  // it automatically once (password mode only).
+  // Only a code supplied by an emailed link submits itself. Manually typed
+  // codes wait for the button so a single attempt is never counted twice.
   useEffect(() => {
-    if (passwordMode && checked && /^\d{6}$/.test(code) && !autoSubmitted) {
+    if (passwordMode && checked && linkCode.current === code && /^\d{6}$/.test(code) && !autoSubmitted) {
       setAutoSubmitted(true);
       void confirm();
     }
@@ -177,7 +181,7 @@ export default function VerifyEmailPage() {
           });
       const out = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string };
       if (res.ok && out.ok) {
-        setNotice(out.message ?? 'New code sent. It expires in 10 minutes.');
+        setNotice(out.message ?? 'If this account needs verification, check your inbox for a code. It expires in 10 minutes.');
         setCode('');
         setCooldown(60);
       } else {

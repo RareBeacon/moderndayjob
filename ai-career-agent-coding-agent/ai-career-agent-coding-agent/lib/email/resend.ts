@@ -58,7 +58,10 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       }),
     });
     const json = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
-    return res.ok ? { ok: true, id: json.id } : { ok: false, error: json.message ?? `RESEND_${res.status}` };
+    if (res.ok && typeof json.id === 'string' && json.id.length > 0) {
+      return { ok: true, id: json.id }; // provider acceptance, not inbox delivery
+    }
+    return { ok: false, error: res.ok ? 'RESEND_MISSING_ID' : json.message ?? `RESEND_${res.status}` };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'RESEND_ERROR' };
   }

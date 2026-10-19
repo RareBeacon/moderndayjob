@@ -1,3 +1,6 @@
+import JSZip from 'jszip';
+import { PDFDocument } from 'pdf-lib';
+import { RESUME_TEMPLATES } from '@/lib/resume-studio/templates';
 import { describe, expect, it } from 'vitest';
 import { parseDocumentContent, renderDocx, renderPdf } from '@/lib/documents/export';
 
@@ -51,5 +54,38 @@ describe('renderPdf / renderDocx', () => {
     expect(Buffer.isBuffer(buf)).toBe(true);
     expect(buf.length).toBeGreaterThan(500);
     expect(buf.subarray(0, 2).toString()).toBe('PK'); // zip magic
+  });
+});
+
+
+describe('selected-template export propagation', () => {
+  it('rejects unknown template IDs while retaining known CV selections', () => {
+    const original = JSON.parse(cv);
+    const known = parseDocumentContent('CV', JSON.stringify({ ...original, templateId: 'modern-tech' }));
+    const unknown = parseDocumentContent('CV', JSON.stringify({ ...original, templateId: '__untrusted__' }));
+    expect(known.templateId).toBe('modern-tech');
+    expect(unknown.templateId).toBeUndefined();
+  });
+
+  it('exports all 70 saved designs to styled PDF and DOCX without sample data', async () => {
+    const raw = JSON.parse(cv);
+    const usedIds: string[] = [];
+    for (const template of RESUME_TEMPLATES) {
+      const parsed = parseDocumentContent('CV', JSON.stringify({ ...raw, templateId: template.id, contact: { name: 'Real User', email: 'real@example.com' } }));
+      expect(parsed.templateId, template.id).toBe(template.id);
+      const pdf = await renderPdf(parsed.title, parsed.sections, parsed.photo, parsed.templateId);
+      const docx = await renderDocx(parsed.title, parsed.sections, parsed.photo, parsed.templateId);
+      expect(pdf.subarray(0, 4).toString(), template.id).toBe('%PDF');
+      expect((await PDFDocument.load(new Uint8Array(pdf))).getPageCount(), template.id).toBeGreaterThan(0);
+      expect(docx.subarray(0, 2).toString(), template.id).toBe('PK');
+      const xml = await (await JSZip.loadAsync(docx)).file('word/document.xml')?.async('string');
+      expect(xml, template.id).toContain('Real User');
+      expect(xml, template.id).toContain(template.accent.slice(1).toUpperCase());
+      expect(xml, template.id).not.toContain('Northstar Labs');
+      const twoColumn = template.columns === 2 || ['two-column', 'sidebar', 'modular-grid'].includes(template.layout);
+      expect(xml?.includes('<w:tbl>'), template.id).toBe(twoColumn);
+      usedIds.push(template.id);
+    }
+    expect(usedIds).toHaveLength(70);
   });
 });

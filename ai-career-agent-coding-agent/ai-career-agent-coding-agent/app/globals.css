@@ -1705,12 +1705,15 @@ select { cursor: pointer; }
 .resume2-category-row span { opacity: .7; font-weight: 700; }
 .resume2-template-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .resume2-template-grid.recommended { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.resume2-template-card { text-align: left; border: 1px solid var(--line); background: #fff; color: var(--ink); padding: 12px; display: grid; gap: 7px; cursor: pointer; }
+.resume2-template-card { text-align: left; border: 1px solid var(--line); background: #fff; color: var(--ink); padding: 12px; display: grid; gap: 7px; align-content: start; min-width: 0; }
 .resume2-template-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
 .resume2-template-card strong { color: var(--brand-ink); }
 .resume2-template-card span { color: var(--muted); font-size: 11px; text-transform: capitalize; }
 .resume2-template-card p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .resume2-template-card b { color: var(--accent); font-size: 12px; }
+.resume2-template-select { min-height: 44px; width: 100%; padding: 8px 10px; border: 1px solid var(--brand-ink); background: #fff; color: var(--brand-ink); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; overflow-wrap: anywhere; }
+.resume2-template-select[aria-pressed='true'] { background: var(--brand-ink); color: #fff; }
+.resume2-template-select:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
 .resume2-mini { height: 94px; border: 1px solid var(--line); background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 10%, #fff), #fff); padding: 9px; display: grid; gap: 5px; }
 .resume2-mini span { background: color-mix(in srgb, var(--accent) 70%, #fff); height: 7px; display: block; }
 .resume2-mini span:first-child { height: 13px; width: 60%; }
