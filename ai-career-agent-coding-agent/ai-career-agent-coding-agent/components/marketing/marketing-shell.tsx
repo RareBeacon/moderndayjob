@@ -88,7 +88,7 @@ export function MarketingShell({
             <Link href="/" aria-label="Jobiest home">
               <Image src="/images/logo-wordmark-dark.png" alt="Jobiest" width={550} height={265} loading="lazy" sizes="144px" />
             </Link>
-            <p>Truthful job applications, prepared from your experience. You review every send.</p>
+            <p>Truthful job applications, prepared from your experience. Approval is the default; Auto requires your opt-in.</p>
           </div>
 
           <div className={styles.footerLinks}>
@@ -110,7 +110,7 @@ export function MarketingShell({
         </div>
         <div className={styles.footerInner}>
           <p className={styles.copyright}>
-            © 2026 Jobiest. Nothing is sent without your approval.{" "}
+            © 2026 Jobiest. Approval is the default; Auto requires your opt-in.{" "}
             <Link href="/terms">Terms</Link> · <Link href="/privacy">Privacy</Link> · <Link href="/refund">Refunds</Link>
           </p>
         </div>

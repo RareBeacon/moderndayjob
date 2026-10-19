@@ -9,7 +9,7 @@ import { expect, test } from '@playwright/test';
 test('homepage renders and primary CTA is readable', async ({ page }) => {
   await page.goto('/');
   await expect(page).toHaveTitle(/Jobiest/);
-  const cta = page.getByRole('link', { name: /Start my next chapter|Start for free/ }).first();
+  const cta = page.getByRole('link', { name: 'Create free account' }).first();
   await expect(cta).toBeVisible();
   // contrast regression: button text must differ enough from its background
   const ratio = await cta.evaluate((el) => {

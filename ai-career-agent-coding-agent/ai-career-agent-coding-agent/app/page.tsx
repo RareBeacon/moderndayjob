@@ -28,7 +28,7 @@ const frustrations = [
 ];
 
 const dream = [
-  "You wake up to new matching jobs, already found.",
+  "On Premium or Max, your agent looks for matching roles each day.",
   "Your CV and cover letter are written for each one.",
   "You review for fifteen minutes and approve.",
   "You apply to more jobs in a week than you used to in a month.",
@@ -46,14 +46,14 @@ const steps: { number: string; title: string; body: string; sample: string; icon
   {
     number: "2",
     title: "Jobiest does the work",
-    body: "It finds real, matching jobs on employer boards and writes your CV and cover letter for each one. Every document is tailored. Every fact is checked.",
+    body: "Paste a job link on any plan. On Premium or Max, the agent also looks for matching roles on public employer boards. It prepares a CV and cover letter from your own facts.",
     sample: "Everything waits for your review.",
     icon: "briefcase",
   },
   {
     number: "3",
     title: "You approve, it sends",
-    body: "Look it over. Change anything you like. Click approve. On supported job boards, Jobiest submits the application for you.",
+    body: "Review the prepared application and approve it. On supported job boards, Jobiest submits after your approval unless you explicitly opt in to Auto mode.",
     sample: "You always know what went out, and when.",
     icon: "shield",
   },
@@ -66,7 +66,7 @@ export default async function HomePage() {
     <MarketingShell activePath="/" authenticated={!!user}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd()) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd()) }} />
-      <main className={styles.page}>
+      <main id="main" className={styles.page}>
         <section data-animate data-animate-repeat className={styles.hero} aria-labelledby="home-title">
           <div className={styles.heroInner}>
             <div className={styles.heroCopy} data-animate data-animate-repeat>
@@ -75,12 +75,12 @@ export default async function HomePage() {
                 AI career agent
               </p>
               <h1 id="home-title">
-                More interviews. Less job hunting. <span>You approve every send.</span>
+                More interviews. Less job hunting. <span>You choose what gets sent.</span>
               </h1>
               <p className={styles.heroLead}>
-                Jobiest is your AI career agent. Tell it the jobs you want once. From there, it finds matching
-                openings, writes your CV and cover letter for each one, and applies for you. Nothing is sent until
-                you say yes.
+                Jobiest is your AI career agent. Paste any job link, and it prepares a truthful CV and cover
+                letter from your experience. Premium and Max add daily discovery on public employer boards.
+                Approval is the default. Auto submission requires your explicit opt-in on an eligible plan.
               </p>
               <div className={styles.heroActions}>
                 <a className={styles.primaryAction} href={liveSignup}>
@@ -93,11 +93,11 @@ export default async function HomePage() {
               </div>
               <p className={styles.heroTrust}>
                 <Icon name="shield" width={19} height={19} />
-                Nothing is sent until you say yes.
+                Approval is the default. Auto submission requires your opt-in.
               </p>
               <span className={styles.heroFreeFact}>
                 <Icon name="check-circle" width={16} height={16} />
-                Free plan: 3 CV or cover letter generations and 10 tool uses a day
+                Free plan: 3 AI document generations total, plus 10 tool uses a day
               </span>
             </div>
 
@@ -224,10 +224,11 @@ export default async function HomePage() {
               </article>
               <article className={styles.proofCard}>
                 <p className={styles.eyebrow}>Rule two</p>
-                <h3>You say yes. Or it doesn&apos;t send.</h3>
+                <h3>You decide what gets sent.</h3>
                 <p>
-                  Every document and every application waits for your approval. One look, one click. And you can
-                  always see exactly what was sent, to whom, and when.
+                  By default, every application waits for your approval. Review the prepared documents before
+                  anything goes out. If you explicitly choose Auto on an eligible paid plan, the agent can send
+                  within your chosen limits on supported boards.
                 </p>
               </article>
             </div>
@@ -283,9 +284,9 @@ export default async function HomePage() {
               <p className={styles.eyebrow}>Pricing</p>
               <h2 id="pricing-title">Start free. Upgrade if it works for you.</h2>
               <p>
-                Free means free. No card. No trial clock. The free plan gives you 3 CV or cover letter generations
-                and 10 tool uses a day, for as long as you want. When you are ready for more, paid plans add daily
-                generations and the job-finding agent, from ₦5,000 a month.
+                Free means free. No card. No trial clock. The free plan gives you 3 AI document generations
+                in total and 10 tool uses a day. Paid plans add daily document credits and limited or daily
+                agent mode, from ₦5,000 a month. Check each plan for its exact allowance.
               </p>
             </div>
             <div className={styles.planGrid} data-stagger data-animate-repeat>
@@ -328,7 +329,7 @@ export default async function HomePage() {
             <div className={styles.ctaBand} data-animate data-animate-repeat>
               <div>
                 <h2 id="home-cta-title">The job you want is still open.</h2>
-                <p>Someone will get the interview. It might as well be you. Free to start, no card, nothing sent without your yes.</p>
+                <p>Someone will get the interview. It might as well be you. Free to start, no card. Approval is the default; Auto requires opt-in.</p>
               </div>
               <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
                 <a className={styles.primaryAction} href={liveSignup}>
