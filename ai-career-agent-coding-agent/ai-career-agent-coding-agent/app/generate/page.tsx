@@ -846,12 +846,14 @@ function ScoreLine({ label, value }: { label: string; value: number }) {
 function TemplateCard({ template, selected, onSelect }: { template: ResumeTemplate; selected: boolean; onSelect: () => void }) {
   return (
     <div className={`resume2-template-card ${selected ? 'selected' : ''}`}>
-      <div aria-hidden="true">
+      <div className="resume2-template-preview" aria-hidden="true">
         <ResumeDocumentPreview template={template} draft={SAMPLE_PREVIEW_DRAFT} size="mini" demo />
       </div>
-      <strong>{template.name}</strong>
-      <span>{template.category} | {template.layout} | {template.density}</span>
-      <p>{template.description}</p>
+      <div className="resume2-template-body">
+        <strong className="resume2-template-title">{template.name}</strong>
+        <span className="resume2-template-meta">{template.category} | {template.layout} | {template.density}</span>
+        <p className="resume2-template-desc">{template.description}</p>
+      </div>
       <button type="button" className="resume2-template-select" onClick={onSelect} aria-pressed={selected}>
         {selected ? 'Selected' : `Use ${template.name}`}
       </button>
