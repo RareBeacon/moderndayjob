@@ -1755,6 +1755,69 @@ select { cursor: pointer; }
 .density-compact { font-size: 12px; line-height: 1.42; padding: 22px; }
 .density-airy { line-height: 1.75; padding: 38px; }
 @media (prefers-reduced-motion: reduce) { .resume2-progress-bar span { transition: none; } }
+
+/* Master UX Audit: Responsive Design System for Resume Builder */
+@media (max-width: 1440px) {
+  .resume2-shell { max-width: 1200px; }
+}
+
+@media (max-width: 1024px) {
+  .resume2-shell { grid-template-columns: minmax(320px, 600px) minmax(300px, 1fr); gap: 24px; }
+  .resume2-template-grid, .resume2-template-grid.recommended { gap: 16px; }
+}
+
+@media (max-width: 768px) {
+  .resume2-shell { grid-template-columns: 1fr; gap: 24px; }
+  .resume2-template-grid, .resume2-template-grid.recommended { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .resume2-left { gap: 16px; }
+}
+
+@media (max-width: 480px) {
+  .resume2-template-grid, .resume2-template-grid.recommended { grid-template-columns: 1fr; gap: 16px; }
+  .resume2-panel { padding: 16px; }
+  .resume2-category-row { gap: 8px; margin: 16px 0; }
+  .resume2-category-row button { padding: 8px 12px; font-size: 12px; min-height: 44px; }
+}
+
+@media (max-width: 390px) {
+  .resume2-shell { padding: 0 16px; }
+  .resume2-hero h1 { font-size: 28px; }
+  .resume2-template-card { padding: 12px; }
+}
+
+@media (max-width: 320px) {
+  .resume2-template-grid, .resume2-template-grid.recommended { grid-template-columns: 1fr; }
+  .resume2-shell { padding: 0 12px; }
+}
+
+/* A4 Preview Container - consistent proportions */
+.resume2-mini {
+  aspect-ratio: 210 / 297;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: white;
+  border-radius: 8px;
+  position: relative;
+}
+
+.resume2-mini > div {
+  width: 100%;
+  height: 100%;
+  transform-origin: top left;
+}
+
+/* Focus states per accessibility */
+.resume2-template-card:focus-within {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.resume2-category-row button:focus-visible,
+.resume2-template-select:focus-visible {
+  outline: 3px solid #3b72bc;
+  outline-offset: 1px;
+}
+
 @media (max-width: 1120px) { .resume2-hero, .resume2-shell { grid-template-columns: minmax(0, 1fr); } .resume2-shell > *, .resume2-hero > *, .resume2-left > * { min-width: 0; } .resume2-progress-card, .resume2-panel, .resume2-assistant { min-width: 0; max-width: 100%; } .resume2-preview-sticky { position: static; } .resume2-preview { min-height: 520px; } }
 @media (max-width: 760px) { .resume2-form-grid, .resume2-template-grid, .resume2-template-grid.recommended, .resume2-add-row { grid-template-columns: 1fr; } .resume2-hero h1 { font-size: 38px; } .resume2-step-tabs { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; } .resume2-step-tabs button { white-space: nowrap; } .resume2-preview { max-height: 70vh; overflow: auto; } .template-sidebar, .template-two-column, .template-modular-grid, .template-split-header header { display: block; } }
 

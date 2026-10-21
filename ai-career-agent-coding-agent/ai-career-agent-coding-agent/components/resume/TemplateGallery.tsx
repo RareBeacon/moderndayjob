@@ -47,8 +47,21 @@ export function TemplateGallery({ templates }: { templates: ResumeTemplate[] }) 
   const closeRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
   const allVisible = useMemo(() => templates.filter((template) => matches(template, filter)), [templates, filter]);
+  const getInitialCount = () => (typeof window !== 'undefined' && window.innerWidth <= 768 ? 6 : 8);
   const [showCount, setShowCount] = useState(8);
-  useEffect(() => { setShowCount(8); }, [filter]);
+  const [pageSize, setPageSize] = useState(8);
+  useEffect(() => {
+    const updateSize = () => {
+      const size = window.innerWidth <= 768 ? 6 : 8;
+      setPageSize(size);
+      setShowCount(size);
+    };
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, [filter]);
+  // Legacy effect for filter changes is now handled above, but keep for SSR
+  useEffect(() => { setShowCount(pageSize); }, [filter, pageSize]);
   const visible = useMemo(() => allVisible.slice(0, showCount), [allVisible, showCount]);
   const counts = useMemo(() => ({
     ats: templates.filter((t) => templateAtsFriendly(t)).length,
@@ -127,12 +140,12 @@ export function TemplateGallery({ templates }: { templates: ResumeTemplate[] }) 
       </div>
       {allVisible.length > visible.length && (
         <div style={{ display: 'grid', placeItems: 'center', marginTop: 20 }}>
-          <button className={styles.useBtn} style={{ padding: '10px 18px' } as React.CSSProperties} onClick={() => setShowCount((c) => Math.min(c + 8, allVisible.length))}>Show 8 more ({allVisible.length - visible.length} remaining)</button>
+          <button className={styles.useBtn} style={{ padding: '10px 18px' } as React.CSSProperties} onClick={() => setShowCount((c) => Math.min(c + pageSize, allVisible.length))}>Show {pageSize} more ({allVisible.length - visible.length} remaining)</button>
         </div>
       )}
-      {allVisible.length > 8 && visible.length === allVisible.length && (
+      {allVisible.length > pageSize && visible.length === allVisible.length && (
         <div style={{ display: 'grid', placeItems: 'center', marginTop: 20 }}>
-          <button className={styles.previewBtn} onClick={() => setShowCount(8)}>Show less</button>
+          <button className={styles.previewBtn} onClick={() => setShowCount(pageSize)}>Show less</button>
         </div>
       )}
       <p className={styles.note}>

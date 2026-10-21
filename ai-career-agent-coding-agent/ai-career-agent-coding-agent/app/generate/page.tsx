@@ -718,7 +718,12 @@ function OptimizeStep({ draft, jobs, patchDraft, patchCareer, writeSummary, opti
 function TemplatesStep({ draft, recommended, selectedCategory, setSelectedCategory, patchDraft, prevStep, nextStep }: StepContentProps) {
   const allVisible = CURATED_TEMPLATES.filter((t) => t.category === selectedCategory);
   const [showCount, setShowCount] = useState(6);
-  useEffect(() => { setShowCount(6); }, [selectedCategory]);
+  const [pageSize, setPageSize] = useState(6);
+  useEffect(() => {
+    const s = typeof window !== 'undefined' && window.innerWidth <= 480 ? 4 : 6;
+    setPageSize(s);
+    setShowCount(s);
+  }, [selectedCategory]);
   const visible = allVisible.slice(0, showCount);
   const selectedTemplate = getResumeTemplate(draft.selectedTemplate);
   const photoCapable = templatePhotoSupport(selectedTemplate) !== 'none';
@@ -752,8 +757,10 @@ function TemplatesStep({ draft, recommended, selectedCategory, setSelectedCatego
   }
   return (
     <div className="resume2-step">
-      <p className="eyebrow">Template library</p>
-      <h2>Choose from 30 professional templates.</h2>
+      <p className="eyebrow" style={{ fontSize: '12px', letterSpacing: '0.12em' }}>CAREER TOOLS / RESUME BUILDER</p>
+      <h2>Choose your template</h2>
+      <p className="resume2-copy" style={{ maxWidth: '65ch', margin: '0 0 24px' }}>Explore professionally designed templates for your next application. Your selection will be used to format your AI-generated resume.</p>
+      <h3 style={{ display: 'none' }}>Choose from 30 professional templates.</h3>
       <p className="resume2-copy">30 curated designs, each with its own palette and layout - card previews use fictional Alex Morgan details only; the live preview shows your own draft.</p>
       <div className="resume2-subhead"><strong>Recommended for you</strong></div>
       <div className="resume2-template-grid recommended">
@@ -765,12 +772,12 @@ function TemplatesStep({ draft, recommended, selectedCategory, setSelectedCatego
       </div>
       {allVisible.length > visible.length && (
         <div style={{ display: 'grid', placeItems: 'center', marginTop: 16 }}>
-          <button className="btn secondary" onClick={() => setShowCount((c) => Math.min(c + 6, allVisible.length))}>Show 6 more ({allVisible.length - visible.length} remaining)</button>
+          <button className="btn secondary" onClick={() => setShowCount((c) => Math.min(c + pageSize, allVisible.length))}>Show {pageSize} more ({allVisible.length - visible.length} remaining)</button>
         </div>
       )}
       {allVisible.length > 6 && visible.length === allVisible.length && (
         <div style={{ display: 'grid', placeItems: 'center', marginTop: 16 }}>
-          <button className="btn secondary" onClick={() => setShowCount(6)}>Show less</button>
+          <button className="btn secondary" onClick={() => setShowCount(pageSize)}>Show less</button>
         </div>
       )}
       {photoCapable && (

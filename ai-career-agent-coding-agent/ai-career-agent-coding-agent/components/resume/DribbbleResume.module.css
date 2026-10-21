@@ -15,6 +15,8 @@
   --hl: #fef08a;
   width: 100%;
   min-height: 100%;
+  max-width: 794px;
+  margin: 0 auto;
   background: var(--bg);
   color: var(--ink);
   padding: clamp(22px, 4vw, 36px);
@@ -24,6 +26,8 @@
   line-height: 1.6;
   border: 1px solid #dbe1ea;
   print-color-adjust: exact;
+  /* A4 proportions for document */
+  aspect-ratio: auto;
 }
 
 .page * { box-sizing: border-box; }
@@ -97,4 +101,87 @@
 @media (max-width: 640px) {
   .twoCol, .sidebarLeft, .sidebarRight { grid-template-columns: 1fr; }
   .header { padding: 14px; }
+}
+
+
+/* A4 document proportions 210:297 = 0.707 - used for consistent preview containers */
+.a4Wrapper {
+  aspect-ratio: 210 / 297;
+  width: 100%;
+  max-width: 794px; /* A4 width at 96dpi approx */
+  max-height: 90vh;
+  overflow: auto;
+  margin: 0 auto;
+  background: var(--bg);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  border-radius: 4px;
+}
+
+.a4Wrapper.mini {
+  aspect-ratio: 210 / 297;
+  max-height: none;
+  overflow: hidden;
+  box-shadow: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* Ensure mini scaled content preserves proportions */
+.miniContent {
+  transform-origin: top left;
+  width: 100%;
+  height: 100%;
+}
+
+/* Fix content grid for better hierarchy */
+.pageHero {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 4vw, 32px);
+}
+
+.breadcrumb {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.pageTitle {
+  font-size: clamp(32px, 4vw, 52px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  max-width: 20ch;
+  margin: 0 0 12px;
+}
+
+.pageLead {
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 65ch;
+  margin: 0 0 32px;
+}
+
+.sectionGap {
+  margin-top: 48px;
+  margin-bottom: 48px;
+}
+
+@media (max-width: 768px) {
+  .sectionGap {
+    margin-top: 32px;
+    margin-bottom: 32px;
+  }
+}
+
+@media (max-width: 390px) {
+  .page {
+    padding: 16px;
+  }
+  .pageTitle {
+    font-size: 28px;
+  }
 }
