@@ -11,8 +11,13 @@
   --color-line: #e2e6ed;
   --color-background: #ffffff;
   --color-success: #16a34a;
+  --color-success-bg: #f0fdf4;
+  --color-success-line: #bbf7d0;
   --color-warning: #d97706;
+  --color-warning-bg: #fffbeb;
   --color-danger: #dc2626;
+  --color-danger-bg: #fef2f2;
+  --color-danger-line: #fecaca;
   --color-info: #3b72bc;
   --color-surface-soft: #f7f9fc;
   --color-surface-tint: #eef2f7;
