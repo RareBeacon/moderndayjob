@@ -13,9 +13,9 @@
 
 ## Calculation
 
-- **Current cash:** ₦10k domain one-time + $0 hosting/email/AI = ₦10k total verified.
+- **Current cash:** ₦10k domain one-time + $0 hosting/email/AI (all Free tiers confirmed) = **₦10k total verified**.
 - **Covered by credits:** Vercel ~$20, Supabase $25, Resend $20, OCI ~$30 = $95/mo economic value not paid (if all free).
-- **Commercial after credits:** Vercel Pro $20, Supabase Pro $25, Resend Free→Pro at 3k/mo $20, OCI $0-30 → **$65-95/mo** ($780-1,140/yr) before AI usage.
+- **Commercial if Free lost:** Vercel Pro $20, Supabase Pro $25, Resend Pro $20, OCI $30 → **$65-95/mo** but **current cash $0 + ₦10k** while Free holds ($780-1,140/yr) before AI usage.
 - **Date credits run out:** Domain 2027-10; others permanent but quota-enforced; OCI reclaim if idle >7d.
 - **Consequence if expire:** Vercel cap → 503; Resend 100/day → no verify emails; Supabase pause → DB unreachable; AI fallback to PAYG $0.15-0.60 per 1M tokens.
 
