@@ -30,9 +30,9 @@ const checks = [
 ];
 
 const plans = [
-  { name: "Basic", price: "£5,000", detail: "monthly", features: ["Up to 10 applications per month", "AI-tailored CV & cover letter", "Job tracking & notifications"] },
-  { name: "Premium", price: "£10,000", detail: "monthly", popular: true, features: ["Up to 30 applications per month", "Advanced AI tailoring", "Priority support", "Full application tracking"] },
-  { name: "Max", price: "£20,000", detail: "monthly", features: ["Unlimited applications", "Premium AI assistance", "Dedicated support", "Advanced application tracking"] },
+  { name: "Basic", price: "₦5,000", detail: "monthly", features: ["Up to 10 applications per month", "AI-tailored CV & cover letter", "Job tracking & notifications"] },
+  { name: "Premium", price: "₦10,000", detail: "monthly", popular: true, features: ["Up to 30 applications per month", "Advanced AI tailoring", "Priority support", "Full application tracking"] },
+  { name: "Max", price: "₦20,000", detail: "monthly", features: ["Unlimited applications", "Premium AI assistance", "Dedicated support", "Advanced application tracking"] },
 ];
 
 function Logo() {
@@ -72,7 +72,7 @@ export default function Home({ authenticated }: { authenticated?: boolean } = {}
 
     <main>
       <section className="hero" style={{ backgroundImage: `linear-gradient(90deg, rgba(3,17,28,.96) 0%, rgba(3,17,28,.82) 36%, rgba(3,17,28,.16) 74%), url(${heroImage})` }}>
-        <div className="container hero-content"><div className="hero-copy"><h1>More interviews.<br /><span>Less job hunting.</span><br /><span>You choose what gets sent.</span></h1><p>Jobiest is your AI career agent. Paste a job link and get a truthful CV and cover letter tailored to your experience. Find relevant roles, prepare the forms, and review every detail. You stay in control—with your explicit approval before anything is submitted.</p><div className="hero-actions"><Button>Start for free</Button><a href="#how-it-works" className="button button-ghost"><CirclePlay size={16} /> See how it works</a></div><div className="hero-note"><ShieldCheck size={14} /> You approve every application before it goes anywhere.</div></div><ApprovalCard /></div><div className="hero-dots">•••••</div></section>
+        <div className="container hero-content"><div className="hero-copy"><h1>Land more<br />interviews.<br /><span>Skip the busywork.</span><br /><span>Get closer to work you love.</span></h1><p>Paste a job link and get a truthful, tailored application in minutes — so you spend less time rewriting CVs and more time meeting the teams you want to join. Review everything, stay in control, and move closer to your next great role.</p><div className="hero-actions"><Button>Start for free</Button><a href="#how-it-works" className="button button-ghost"><CirclePlay size={16} /> See how it works</a></div><div className="hero-note"><ShieldCheck size={14} /> You approve every application before it goes anywhere.</div></div><ApprovalCard /></div><div className="hero-dots">•••••</div></section>
 
       <section className="story-section reality"><div className="container split-layout"><div className="story-copy"><span className="kicker">The reality</span><h2>Job hunting is a full-time job.<br />Without the pay.</h2><p>You’re already showing up for work, family, bills, and everything else life asks of you. Then, somewhere between dinner and bed, the job search begins: one more listing, one more CV edit, one more form. It can start to feel like you need a second job just to find a better first one.</p><ul className="check-list">{checks.map((item) => <li key={item}><span><Check size={12} /></span>{item}</li>)}</ul><p className="muted">A slow reply doesn’t mean you’re not capable. A difficult application process doesn’t define your worth. Jobiest takes on the repetitive searching and preparation, so you can keep your energy for the conversations—and the life—you’re working toward.</p></div><div className="story-visual" style={{ backgroundImage: `url(${realityImage})` }}><div className="scribble">Let Jobiest handle<br />the busy work... <ArrowRight size={23} /></div><div className="task-stack"><div>Find relevant roles</div><div>Tailor your CV</div><div>Write your letter</div><div>Complete the form</div><div>Prepare to submit</div></div></div></div></section>
 
