@@ -36,15 +36,15 @@ const plans = [
 ];
 
 function Logo() {
-  return <a href="#top" className="brand" aria-label="Jobiest home"><span className="brand-mark"><span /></span><span>jobiest</span></a>;
+  return <a href="#top" className="brand" aria-label="Jobiest home"><img src="/logo-wordmark-light.png" alt="Jobiest" className="header-logo-image" width={108} height={36} /></a>;
 }
 
 function FooterLogo() {
-  return <a href="#top" className="brand footer-wordmark" aria-label="Jobiest home"><span className="brand-mark"><span /></span><span>jobiest</span></a>;
+  return <a href="#top" className="brand footer-wordmark" aria-label="Jobiest home"><img src="/logo-wordmark-light.png" alt="Jobiest" className="footer-logo-image" width={142} height={54} /></a>;
 }
 
-function Button({ children, secondary = false }: { children: React.ReactNode; secondary?: boolean }) {
-  return <a className={secondary ? "button button-secondary" : "button"} href="#pricing">{children}<ArrowRight size={15} strokeWidth={2.5} /></a>;
+function Button({ children, secondary = false, href = "/signup" }: { children: React.ReactNode; secondary?: boolean; href?: string }) {
+  return <a className={secondary ? "button button-secondary" : "button"} href={href}>{children}<ArrowRight size={15} strokeWidth={2.5} /></a>;
 }
 
 function ApprovalCard() {
@@ -67,7 +67,7 @@ export default function Home({ authenticated }: { authenticated?: boolean } = {}
   const [menuOpen, setMenuOpen] = useState(false);
   return <div className="site-shell" id="top">
     <header className="site-header">
-      <div className="nav-wrap"><Logo /><nav className={menuOpen ? "nav-links open" : "nav-links"}><a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a><a href="#steps" onClick={() => setMenuOpen(false)}>Free tools</a><a href="#pricing" onClick={() => setMenuOpen(false)}>Pricing</a><a href="#footer" onClick={() => setMenuOpen(false)}>Blog</a><a href="#footer" onClick={() => setMenuOpen(false)}>About</a></nav><div className="nav-actions"><a className="login-link" href="#footer">Log in</a><Button>Get started free</Button></div><button className="menu-toggle" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu">{menuOpen ? <X size={22} /> : <Menu size={22} />}</button></div>
+      <div className="nav-wrap"><Logo /><nav className={menuOpen ? "nav-links open" : "nav-links"}><a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a><a href="#steps" onClick={() => setMenuOpen(false)}>Free tools</a><a href="#pricing" onClick={() => setMenuOpen(false)}>Pricing</a><a href="#footer" onClick={() => setMenuOpen(false)}>Blog</a><a href="#footer" onClick={() => setMenuOpen(false)}>About</a></nav><div className="nav-actions"><a className="login-link" href="/login">Log in</a><a className="button" href="/signup">Get started free<ArrowRight size={15} strokeWidth={2.5} /></a></div><button className="menu-toggle" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu">{menuOpen ? <X size={22} /> : <Menu size={22} />}</button></div>
     </header>
 
     <main>
@@ -82,7 +82,7 @@ export default function Home({ authenticated }: { authenticated?: boolean } = {}
 
       <section className="steps-section" id="steps"><div className="container"><div className="section-intro"><span className="kicker">Three simple steps</span><h2>Three steps. Fifteen minutes to set up.</h2><p>Tell Jobiest what matters to you. Let it handle the repetitive parts. Keep the decision yours.</p></div><div className="steps-grid"><StepCard number="1" icon={<BriefcaseBusiness size={20} />} title="Tell us what you want next">Tell us what you’ve done, what you’re good at, and what you want your next chapter to look like.</StepCard><StepCard number="2" icon={<Sparkles size={20} />} title="Tailor and prepare" tag="Takes ~15 minutes">Jobiest finds roles that fit and prepares a truthful, tailored application. You can check every document and answer before it’s ready to send.</StepCard><StepCard number="3" icon={<Search size={20} />} title="Approve and move forward">Approve only the applications you feel good about. Follow their progress, and use the time you saved to prepare for what comes next.</StepCard></div></div></section>
 
-      <section className="pricing-section" id="pricing"><div className="container pricing-wrap"><div className="pricing-copy"><span className="kicker">Pricing</span><h2>Start free. Upgrade if it works for you.</h2><p>Choose the support that fits your search. Cancel anytime — your next move should still feel like yours.</p><div className="pricing-grid">{plans.map((plan) => <div className={plan.popular ? "price-card popular" : "price-card"} key={plan.name}>{plan.popular && <span className="popular-tag">Most popular</span>}<div className="plan-name">{plan.name}</div><div className="price">{plan.price}<small> / month</small></div><div className="price-rule" />{plan.features.map((feature) => <div className="plan-feature" key={feature}><Check size={13} />{feature}</div>)}<a href="#footer" className="plan-button">Get started <ArrowRight size={14} /></a></div>)}</div></div><div className="pricing-image" style={{ backgroundImage: `url(${pricingImage})` }}><div className="image-note">Invest in<br />your future <span>♡</span></div></div></div></section>
+      <section className="pricing-section" id="pricing"><div className="container pricing-wrap"><div className="pricing-copy"><span className="kicker">Pricing</span><h2>Start free. Upgrade if it works for you.</h2><p>Choose the support that fits your search. Cancel anytime — your next move should still feel like yours.</p><div className="pricing-grid">{plans.map((plan) => <div className={plan.popular ? "price-card popular" : "price-card"} key={plan.name}>{plan.popular && <span className="popular-tag">Most popular</span>}<div className="plan-name">{plan.name}</div><div className="price">{plan.price}<small> / month</small></div><div className="price-rule" />{plan.features.map((feature) => <div className="plan-feature" key={feature}><Check size={13} />{feature}</div>)}<a href="/signup" className="plan-button">Get started <ArrowRight size={14} /></a></div>)}</div></div><div className="pricing-image" style={{ backgroundImage: `url(${pricingImage})` }}><div className="image-note">Invest in<br />your future <span>♡</span></div></div></div></section>
 
       <section className="bottom-cta"><div className="container cta-inner"><div className="cta-thumb" style={{ backgroundImage: `url(${heroImage})` }} /><div><span className="kicker kicker-light">Ready for your next opportunity?</span><h2>The job you want is still open.</h2><p>You keep showing up for your goals. Let Jobiest handle the busywork—with your approval at every step.</p></div><Button>Create free account</Button><a className="button button-ghost" href="#steps">See how it works</a></div></section>
     </main>
