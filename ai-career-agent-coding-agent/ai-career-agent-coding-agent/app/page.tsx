@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Icon, type IconName } from "@/components/icons/icons";
+import Image from "next/image";
+import { Icon } from "@/components/icons/icons";
 import { MarketingShell } from "@/components/marketing/marketing-shell";
 import { getUser } from "@/lib/auth";
 import { websiteJsonLd, organizationJsonLd } from "@/lib/seo";
@@ -9,25 +10,17 @@ import styles from "./marketing.module.css";
 
 export const metadata: Metadata = marketingMetadata({
   title: "Jobiest — Your AI Agent for the Job Search",
-  description: "Your personal AI job-search agent. Stop chasing jobs — let jobs come to you. Find opportunities, tailor CVs and cover letters, and track applications in one place. Start free.",
+  description: "Your personal AI job-search agent. Stop chasing jobs — let jobs come to you. More interviews. Less job hunting. You choose what gets sent. Start free.",
   path: "/",
 });
 
-const features = [
-  { title: "Find jobs that fit your goals.", body: "Stop spending hours searching through opportunities that aren't right for you. On paid plans, Jobiest can discover matching roles based on your preferences.", icon: "search" as IconName },
-  { title: "Give every application a personal touch.", body: "Your CV shouldn't look identical for every role. Jobiest helps highlight the skills and experience that matter for each opportunity.", icon: "file" as IconName },
-  { title: "Say goodbye to starting from a blank page.", body: "Get help preparing cover letters and application answers that connect your experience to what an employer needs.", icon: "spark" as IconName },
-  { title: "Spend less time filling out forms.", body: "Jobiest can fill supported application forms, reducing repetitive work and helping you move through the process more efficiently.", icon: "clock" as IconName },
-  { title: "Stay in control.", body: "Review and approve applications before they're sent, or choose the automatic submission policy available on paid plans.", icon: "shield" as IconName },
-  { title: "Know where you stand.", body: "Keep your applications organised and track their progress instead of wondering what happened to the jobs you applied for.", icon: "eye" as IconName },
-];
-
-const tools = [
-  { name: "Resume Scanner", desc: "Check your CV for common issues." },
-  { name: "Job Description Analyzer", desc: "Understand what an employer is looking for." },
-  { name: "Cover Letter Writer", desc: "Get a starting point for your next cover letter." },
-  { name: "Resume Summary Generator", desc: "Describe your experience more clearly." },
-  { name: "LinkedIn Headline Builder", desc: "Make your professional profile more focused." },
+const whatWeDo = [
+  { title: "Find jobs that fit your goals.", desc: "Stop spending hours searching through opportunities that aren't right for you. On paid plans, Jobiest can discover matching roles based on your preferences." },
+  { title: "Give every application a personal touch.", desc: "Your CV shouldn't look identical for every role. Jobiest helps highlight the skills and experience that matter for each opportunity." },
+  { title: "Say goodbye to starting from a blank page.", desc: "Get help preparing cover letters and application answers that connect your experience to what an employer needs." },
+  { title: "Spend less time filling out forms.", desc: "Jobiest can fill supported application forms, reducing repetitive work and helping you move through the process more efficiently." },
+  { title: "Stay in control.", desc: "Review and approve applications before they're sent, or choose the automatic submission policy available on paid plans." },
+  { title: "Know where you stand.", desc: "Keep your applications organised and track their progress instead of wondering what happened to the jobs you applied for." },
 ];
 
 const faqs = [
@@ -50,185 +43,185 @@ export default async function HomePage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd()) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd()) }} />
       <main id="main" className={styles.page}>
-        {/* 1. HERO */}
-        <section className={styles.hero} data-animate data-animate-repeat aria-labelledby="home-title">
-          <div className={styles.heroInner}>
-            <div className={styles.heroCopy} data-animate data-animate-repeat>
-              <p className={styles.eyebrow}><Icon name="spark" width={16} height={16} /> Your personal AI job-search agent</p>
-              <h1 id="home-title">Stop chasing jobs. <span>Let jobs come to you.</span></h1>
-              <p className={styles.heroLead}>Finding a job shouldn&apos;t feel like another full-time job. Jobiest helps you find opportunities, tailor your CV, write cover letters, and handle repetitive application tasks — so you can spend less time applying and more time preparing for your next big opportunity.</p>
-              <div className={styles.heroActions}>
-                <a className={styles.primaryAction} href="/signup">Get Started Free <Icon name="arrow-right" width={18} height={18} /></a>
-                <a className={styles.secondaryAction} href="#how">See How It Works</a>
+        {/* HERO 1 — Stop chasing jobs */}
+        <section className={styles.hero} style={{ background: "linear-gradient(180deg, #0f1e3a 0%, #162a52 100%)" }} data-animate data-animate-repeat aria-labelledby="hero1-title">
+          <div className={styles.heroInner} style={{ gap: "2rem" }}>
+            <div className={styles.heroCopy}>
+              <p className={styles.eyebrow} style={{ color: "#d7f94b" }}>✦ Your personal AI job-search agent</p>
+              <h1 id="hero1-title" style={{ fontSize: "clamp(2.6rem,5vw,3.6rem)", lineHeight: 1.05 }}>Stop chasing jobs.<br /><span style={{ color: "#d7f94b" }}>Let jobs come to you.</span></h1>
+              <p className={styles.heroLead} style={{ color: "#cbd5e1", maxWidth: 560 }}>Finding a job shouldn&apos;t feel like another full-time job. Jobiest helps you find opportunities, tailor your CV, write cover letters, and handle repetitive application tasks — so you can spend less time applying and more time preparing for your next big opportunity.</p>
+              <div className={styles.heroActions} style={{ marginTop: 20 }}>
+                <a className={styles.primaryAction} href="/signup">Get Started Free <Icon name="arrow-right" width={16} height={16} /></a>
+                <a className={styles.secondaryAction} href="#how" style={{ background: "rgba(255,255,255,0.1)", borderColor: "rgba(255,255,255,0.3)", color: "#fff" }}>See How It Works</a>
               </div>
-              <p className={styles.heroTrust}><Icon name="check-circle" width={16} height={16} /> No credit card required. Start free.</p>
-              <p style={{ marginTop: 12, color: "#cbd5e1", fontSize: 13, fontStyle: "italic" }}>Your job search. Your rules. Less work on your shoulders.</p>
+              <p style={{ marginTop: 14, fontSize: 12, color: "rgba(255,255,255,0.7)" }}>No credit card required. Start free.</p>
+              <p style={{ marginTop: 10, fontSize: 12, color: "#d7f94b", fontStyle: "italic" }}>Your job search. Your rules. Less work on your shoulders.</p>
             </div>
-            <aside className={styles.heroPanel} data-parallax="0.05" aria-label="Good morning preview">
-              <div style={{ padding: 14, border: "1px solid var(--color-line)", borderRadius: 16, background: "#fff" }}>
-                <strong style={{ fontSize: 14 }}>Good morning, Ada</strong>
-                <p style={{ fontSize: 12, color: "var(--color-muted)", marginTop: 6 }}>Your agent is working for you</p>
-                <ul style={{ marginTop: 10, fontSize: 12, lineHeight: 1.8, paddingLeft: 16 }}>
+            <div style={{ position: "relative", borderRadius: 20, overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.3)", background: "#fff" }}>
+              <Image src="/images/hero-person.jpg" alt="Woman smiling while working on laptop" width={520} height={420} style={{ width: "100%", height: "auto", display: "block" }} priority />
+              <div style={{ position: "absolute", top: 14, right: 14, background: "#fff", borderRadius: 14, padding: "12px 14px", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", maxWidth: 220 }}>
+                <strong style={{ fontSize: 12, color: "#111d35" }}>Good morning, Ada</strong>
+                <p style={{ fontSize: 11, color: "#6b7280", marginTop: 4 }}>Your agent is working for you</p>
+                <ul style={{ fontSize: 11, marginTop: 8, paddingLeft: 16, lineHeight: 1.7, color: "#374151" }}>
                   <li>Found 12 matching jobs</li>
                   <li>Tailored your CV & cover letter</li>
                   <li>Prepared application</li>
                   <li>Ready for your review</li>
                 </ul>
-                <Link href="/dashboard" className={styles.inlineCta}>View applications →</Link>
+                <span style={{ display: "inline-flex", marginTop: 8, fontSize: 11, fontWeight: 700, color: "#3b72bc" }}>View applications →</span>
               </div>
-            </aside>
-          </div>
-        </section>
-
-        {/* 2. PROBLEM */}
-        <section className={`${styles.section} ${styles.sectionSoft}`} aria-labelledby="problem-title">
-          <div className={styles.container}>
-            <div className={styles.sectionHead} data-animate data-animate-repeat>
-              <p className={styles.eyebrow}>The reality</p>
-              <h2 id="problem-title">You know what you want. Getting there shouldn&apos;t be this hard.</h2>
-            </div>
-            <div style={{ maxWidth: 680, color: "var(--color-muted)", fontSize: "var(--text-15)", lineHeight: 1.7 }} data-animate>
-              <p>You find a job you&apos;re excited about.</p>
-              <p style={{ marginTop: 10 }}>Then comes the work.</p>
-              <p style={{ marginTop: 10 }}>Update your CV. Write a cover letter. Fill out the same details you&apos;ve entered a dozen times. Answer the same questions. Submit. Start all over again.</p>
-              <p style={{ marginTop: 10 }}>One application becomes five hours of work. Five applications become an exhausting week.</p>
-              <p style={{ marginTop: 10 }}>And after all that effort? Sometimes, silence.</p>
-              <p style={{ marginTop: 10 }}>It&apos;s frustrating. It&apos;s tiring. And it takes time away from the very things that could help you move forward.</p>
-              <p style={{ marginTop: 16, fontWeight: 700, color: "var(--color-ink)" }}>You don&apos;t need another job just to get a job.</p>
-              <p>You need a better way to find opportunities and apply for them.</p>
             </div>
           </div>
         </section>
 
-        {/* 3. SOLUTION */}
-        <section className={styles.section} aria-labelledby="solution-title">
-          <div className={styles.container}>
-            <div className={styles.sectionHead} data-animate>
+        {/* PROBLEM — You know what you want */}
+        <section className={styles.section} style={{ background: "#fff" }} aria-labelledby="problem-title">
+          <div className={styles.container} style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: "2.5rem", alignItems: "center" }}>
+            <div data-animate>
+              <p className={styles.eyebrow} style={{ color: "#3b72bc" }}>The reality</p>
+              <h2 id="problem-title" style={{ fontSize: "clamp(1.8rem,3.5vw,2.4rem)", marginTop: 8 }}>You know what you want. Getting there shouldn&apos;t be this hard.</h2>
+              <div style={{ marginTop: 14, fontSize: 14, lineHeight: 1.7, color: "#475569" }}>
+                <p>You find a job you&apos;re excited about.</p>
+                <p style={{ marginTop: 8 }}>Then comes the work. Update your CV. Write a cover letter. Fill out the same details you&apos;ve entered a dozen times. Answer the same questions. Submit. Start all over again.</p>
+                <p style={{ marginTop: 8 }}>One application becomes five hours of work. Five applications become an exhausting week. And after all that effort? Sometimes, silence.</p>
+                <p style={{ marginTop: 8 }}>It&apos;s frustrating. It&apos;s tiring. And it takes time away from the very things that could help you move forward.</p>
+                <div style={{ marginTop: 14, display: "inline-flex", alignItems: "center", gap: 8, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 600, color: "#166534" }}><Icon name="check-circle" width={14} height={14} /> You don&apos;t need another job just to get a job.</div>
+              </div>
+            </div>
+            <div style={{ position: "relative" }} data-animate>
+              <Image src="/images/life-cafe.jpg" alt="Man looking thoughtfully at laptop" width={480} height={360} style={{ width: "100%", height: "auto", borderRadius: 16, display: "block" }} />
+              <div style={{ position: "absolute", top: -14, right: -10, background: "#fef9c3", borderRadius: 12, padding: 14, width: 180, transform: "rotate(2deg)", boxShadow: "0 8px 20px rgba(0,0,0,0.1)", fontSize: 11, lineHeight: 1.6 }}>
+                <strong style={{ display: "block", marginBottom: 6 }}>The same cycle...</strong>
+                <div>☐ Search for jobs</div><div>☐ Rewrite your CV</div><div>☐ Write cover letters</div><div>☐ Fill out forms</div><div>☐ Submit</div><div>☐ Repeat...</div>
+                <em style={{ display: "block", marginTop: 8, color: "#a16207" }}>You deserve a smarter way.</em>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SOLUTION — Meet the agent */}
+        <section className={`${styles.section} ${styles.sectionSoft}`} style={{ background: "#f8fafc" }} aria-labelledby="solution-title">
+          <div className={styles.container} style={{ display: "grid", gridTemplateColumns: "0.9fr 1.1fr", gap: "2.5rem", alignItems: "center" }}>
+            <div style={{ borderRadius: 20, overflow: "hidden", background: "#fff", border: "1px solid #e2e8f0", padding: 12 }} data-animate>
+              <Image src="/images/case-1-criteria.jpg" alt="Jobiest dashboard" width={480} height={320} style={{ width: "100%", height: "auto", borderRadius: 12 }} />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
+                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: 10, fontSize: 11 }}><strong>Tailored CV</strong><br /><span style={{ color: "#64748b" }}>For Product Designer</span></div>
+                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: 10, fontSize: 11 }}><strong>Cover Letter</strong><br /><span style={{ color: "#64748b" }}>Personalised</span></div>
+              </div>
+            </div>
+            <div data-animate>
               <p className={styles.eyebrow}>The solution</p>
               <h2 id="solution-title">Meet the agent that takes the busywork out of your job search.</h2>
-              <p>Imagine having someone who helps you find suitable jobs, prepares your applications, and keeps everything organised — without you having to start from scratch every time.</p>
-              <p>That&apos;s Jobiest.</p>
-              <p>Tell Jobiest what you&apos;re looking for. Your AI agent helps you discover matching opportunities, prepares a CV and cover letter tailored to each role, and handles supported application steps.</p>
-              <p>You review the work and decide what happens next.</p>
-              <p style={{ fontWeight: 700, color: "var(--color-ink)" }}>Less time filling out forms. More time moving your career forward.</p>
-              <div style={{ marginTop: 14 }}>
-                <a className={styles.primaryAction} href="/signup">Let Jobiest Do the Busywork <Icon name="arrow-right" width={16} height={16} /></a>
-              </div>
+              <p style={{ marginTop: 10, color: "#475569", fontSize: 14, lineHeight: 1.6 }}>Imagine having someone who helps you find suitable jobs, prepares your applications, and keeps everything organised — without you having to start from scratch every time.</p>
+              <p style={{ marginTop: 8, color: "#475569", fontSize: 14 }}>That&apos;s Jobiest.</p>
+              <p style={{ marginTop: 8, color: "#475569", fontSize: 14 }}>Tell Jobiest what you&apos;re looking for. Your AI agent helps you discover matching opportunities, prepares a CV and cover letter tailored to each role, and handles supported application steps.</p>
+              <p style={{ marginTop: 8, color: "#475569", fontSize: 14 }}>You review the work and decide what happens next.</p>
+              <p style={{ marginTop: 10, fontWeight: 700, fontSize: 13, color: "#111d35" }}>Less time filling out forms. More time moving your career forward.</p>
+              <a className={styles.primaryAction} href="/signup" style={{ marginTop: 14 }}>Let Jobiest Do the Busywork <Icon name="arrow-right" width={14} height={14} /></a>
             </div>
           </div>
         </section>
 
-        {/* 4. WHAT JOBIEST DOES */}
-        <section className={`${styles.section} ${styles.sectionSoft}`} aria-labelledby="features-title">
+        {/* WHAT JOBIEST DOES */}
+        <section className={styles.section} aria-labelledby="features-title">
           <div className={styles.container}>
-            <div className={styles.sectionHead} data-animate>
-              <h2 id="features-title">Everything you need to make job hunting less exhausting.</h2>
-            </div>
-            <div className={styles.stepsGrid} data-stagger data-animate-repeat>
-              {features.map((f) => (
-                <article key={f.title} className={styles.stepCard}>
-                  <div className={styles.stepTop}><Icon name={f.icon} width={20} height={20} /></div>
-                  <h3>{f.title}</h3>
-                  <p>{f.body}</p>
+            <h2 id="features-title" style={{ textAlign: "center", maxWidth: 640, margin: "0 auto" }}>Everything you need to make job hunting less exhausting.</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 14, marginTop: 28 }} data-stagger data-animate-repeat>
+              {whatWeDo.map((f) => (
+                <article key={f.title} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 16, padding: 18 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 700 }}>{f.title}</h3>
+                  <p style={{ marginTop: 6, fontSize: 13, color: "#64748b", lineHeight: 1.5 }}>{f.desc}</p>
                 </article>
               ))}
             </div>
           </div>
         </section>
 
-        {/* 5. HOW IT WORKS */}
-        <section id="how" className={styles.section} aria-labelledby="steps-title">
+        {/* HOW IT WORKS */}
+        <section id="how" className={styles.section} style={{ background: "#f8fafc" }} aria-labelledby="how-title">
           <div className={styles.container}>
-            <div className={styles.sectionHead} data-animate>
-              <p className={styles.eyebrow}>How it works</p>
-              <h2 id="steps-title">Three steps to a less stressful job search.</h2>
+            <p className={styles.eyebrow}>That works</p>
+            <h2 id="how-title">Three steps to a less stressful job search.</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 16, marginTop: 22 }} data-stagger>
+              <article style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, padding: 20 }}><span style={{ display: "inline-flex", width: 28, height: 28, borderRadius: 999, background: "#111d35", color: "#d7f94b", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800 }}>01</span><h3 style={{ marginTop: 12, fontSize: 15 }}>Tell us what you&apos;re looking for.</h3><p style={{ marginTop: 6, fontSize: 13, color: "#64748b" }}>Set up your profile, share your experience, and tell Jobiest about the jobs you want.</p><a href="/signup" style={{ marginTop: 10, display: "inline-flex", fontSize: 12, fontWeight: 700, color: "#3b72bc" }}>Create Your Free Account →</a></article>
+              <article style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, padding: 20 }}><span style={{ display: "inline-flex", width: 28, height: 28, borderRadius: 999, background: "#111d35", color: "#d7f94b", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800 }}>02</span><h3 style={{ marginTop: 12, fontSize: 15 }}>Let your agent get to work.</h3><p style={{ marginTop: 6, fontSize: 13, color: "#64748b" }}>Jobiest helps find matching opportunities on supported job boards, tailors your application documents, and fills supported forms.</p></article>
+              <article style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, padding: 20 }}><span style={{ display: "inline-flex", width: 28, height: 28, borderRadius: 999, background: "#111d35", color: "#d7f94b", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800 }}>03</span><h3 style={{ marginTop: 12, fontSize: 15 }}>Review, approve, and move forward.</h3><p style={{ marginTop: 6, fontSize: 13, color: "#64748b" }}>Check your applications, make changes if needed, and decide when they&apos;re ready to be sent. You can also choose Auto send on paid plans.</p></article>
             </div>
-            <div className={styles.stepsGrid} data-stagger>
-              <article className={styles.stepCard}><span className={styles.stepNumber}>01</span><h3>Tell us what you&apos;re looking for.</h3><p>Set up your profile, share your experience, and tell Jobiest about the jobs you want.</p></article>
-              <article className={styles.stepCard}><span className={styles.stepNumber}>02</span><h3>Let your agent get to work.</h3><p>Jobiest helps find matching opportunities on supported job boards, tailors your application documents, and fills supported forms.</p></article>
-              <article className={styles.stepCard}><span className={styles.stepNumber}>03</span><h3>Review, approve, and move forward.</h3><p>Check your applications, make changes if needed, and decide when they&apos;re ready to be sent. You can also choose Auto send on paid plans.</p></article>
-            </div>
-            <p style={{ marginTop: 12, color: "var(--color-muted)", fontSize: 13 }}>That&apos;s it. Less repetitive work, fewer things to keep track of, and more time for your next move.</p>
-            <div style={{ marginTop: 16 }}><a className={styles.primaryAction} href="/signup">Create Your Free Account <Icon name="arrow-right" width={16} height={16} /></a></div>
+            <p style={{ marginTop: 12, fontSize: 12, color: "#64748b" }}>That&apos;s it. Less repetitive work, fewer things to keep track of, and more time for your next move.</p>
           </div>
         </section>
 
-        {/* 6. TRUST */}
-        <section className={`${styles.section} ${styles.sectionSoft}`} aria-labelledby="trust-title">
-          <div className={styles.container}>
-            <div className={styles.sectionHead} data-animate>
-              <h2 id="trust-title">AI should help you get ahead, not make decisions behind your back.</h2>
-              <p>Your career matters. Your reputation matters. And the information in your CV matters. That&apos;s why Jobiest is built around your experience, your preferences, and your rules.</p>
+        {/* TRUST */}
+        <section className={styles.section} style={{ position: "relative", overflow: "hidden" }} aria-labelledby="trust-title">
+          <Image src="/images/life-sofa.jpg" alt="" fill style={{ objectFit: "cover", opacity: 0.08 }} />
+          <div className={styles.container} style={{ position: "relative" }}>
+            <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }} data-animate>
+              <h2 id="trust-title" style={{ fontSize: "clamp(1.6rem,3vw,2.2rem)" }}>AI should help you get ahead, not make decisions behind your back.</h2>
+              <p style={{ marginTop: 10, fontSize: 14, color: "#475569" }}>Your career matters. Your reputation matters. And the information in your CV matters. That&apos;s why Jobiest is built around your experience, your preferences, and your rules.</p>
             </div>
-            <div className={styles.proofGrid} data-stagger>
-              <article className={styles.proofCard}><h3>Real experience. Not made-up achievements.</h3><p>Your applications should reflect what you&apos;ve actually done and what you can genuinely offer.</p></article>
-              <article className={styles.proofCard}><h3>Your approval. Your choice.</h3><p>Review applications before submission by default, or configure Auto send on paid plans.</p></article>
-              <article className={styles.proofCard}><h3>Clear boundaries. No pretending.</h3><p>Jobiest submits applications through supported workflows. If a job site requires a step your agent can&apos;t complete, you can finish it yourself.</p></article>
-              <article className={styles.proofCard}><h3>Your career stays in your hands.</h3><p>Jobiest helps you do the work. You remain in charge of your decisions.</p></article>
-            </div>
-          </div>
-        </section>
-
-        {/* 7. FREE TOOLS */}
-        <section className={styles.section} aria-labelledby="tools-title">
-          <div className={styles.container}>
-            <div className={styles.sectionHead} data-animate>
-              <p className={styles.eyebrow}>Free career tools</p>
-              <h2 id="tools-title">Not ready for an AI agent? Start with one useful tool.</h2>
-              <p>Small improvements can make your next application easier. Explore Jobiest&apos;s free career tools to help you prepare your CV, understand job descriptions, and present yourself more clearly.</p>
-            </div>
-            <div className={styles.toolGrid} data-stagger>
-              {tools.map((t) => (
-                <a key={t.name} href="/tools" className={styles.toolLink}>{t.name} <Icon name="arrow-right" width={14} height={14} /></a>
-              ))}
-            </div>
-            <p style={{ marginTop: 12, color: "var(--color-muted)", fontSize: 13 }}>And that&apos;s just the beginning.</p>
-            <div style={{ marginTop: 16 }}><a className={styles.primaryAction} href="/tools">Explore Free Career Tools <Icon name="arrow-right" width={16} height={16} /></a></div>
-            <p style={{ marginTop: 10, color: "var(--color-muted)", fontSize: 13 }}>Start with the tools. Upgrade to an AI agent when you&apos;re ready.</p>
-          </div>
-        </section>
-
-        {/* 8. PRICING */}
-        <section className={`${styles.section} ${styles.sectionSoft}`} aria-labelledby="pricing-title">
-          <div className={styles.container}>
-            <div className={styles.sectionHead} data-animate>
-              <h2 id="pricing-title">Start free. Get more help when you need it.</h2>
-              <p>No need to commit before you know what works for you. Try Jobiest for free, explore the tools, and choose a paid plan when you want more help managing your job search.</p>
-            </div>
-            <div className={styles.planGrid} data-stagger style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 16 }}>
-              <article className={styles.proofCard}><p className={styles.eyebrow}>Free — ₦0 forever</p><h3>Get to know Jobiest.</h3><ul className={styles.proofList}><li><Icon name="check-circle" width={14} height={14} />3 AI generations in total</li><li><Icon name="check-circle" width={14} height={14} />10 career-tool uses per day</li><li><Icon name="check-circle" width={14} height={14} />Job-link analysis</li><li><Icon name="check-circle" width={14} height={14} />Application tracking</li></ul><a className={styles.inlineCta} href="/signup">Start Free →</a></article>
-              <article className={styles.proofCard}><p className={styles.eyebrow}>Basic — ₦5,000/month</p><h3>For a more organised job search.</h3><ul className={styles.proofList}><li><Icon name="check-circle" width={14} height={14} />Everything in Free</li><li><Icon name="check-circle" width={14} height={14} />3 AI generations per day</li><li><Icon name="check-circle" width={14} height={14} />50 career-tool uses per day</li><li><Icon name="check-circle" width={14} height={14} />2 agent runs in total</li></ul><a className={styles.inlineCta} href="/pricing">Choose Basic →</a></article>
-              <article className={styles.proofCard} style={{ borderColor: "var(--color-lime)", background: "#fffef0" }}><p className={styles.eyebrow}>Premium — ₦10,000/month <span style={{ background: "var(--color-lime)", padding: "2px 6px", borderRadius: 999, fontSize: 10, marginLeft: 6 }}>MOST POPULAR</span></p><h3>For people actively looking.</h3><ul className={styles.proofList}><li><Icon name="check-circle" width={14} height={14} />Everything in Basic</li><li><Icon name="check-circle" width={14} height={14} />10 AI generations per day</li><li><Icon name="check-circle" width={14} height={14} />Daily matching-job discovery</li><li><Icon name="check-circle" width={14} height={14} />10 agent applications per day</li></ul><a className={styles.primaryAction} href="/pricing" style={{ marginTop: 12 }}>Choose Premium →</a></article>
-              <article className={styles.proofCard}><p className={styles.eyebrow}>Max — ₦20,000/month</p><h3>For a job search that needs more capacity.</h3><ul className={styles.proofList}><li><Icon name="check-circle" width={14} height={14} />Everything in Premium</li><li><Icon name="check-circle" width={14} height={14} />20 AI generations per day</li><li><Icon name="check-circle" width={14} height={14} />Daily matching-job discovery</li><li><Icon name="check-circle" width={14} height={14} />20 agent applications per day</li></ul><a className={styles.inlineCta} href="/pricing">Choose Max →</a></article>
-            </div>
-            <p style={{ marginTop: 14, color: "var(--color-muted)", fontSize: 12 }}><em>Choose the plan that fits your needs. Review the limits and subscription terms before upgrading.</em></p>
-          </div>
-        </section>
-
-        {/* 9. FAQ */}
-        <section className={styles.section} aria-labelledby="faq-title">
-          <div className={styles.container}>
-            <div className={styles.sectionHead} data-animate><h2 id="faq-title">Got questions? We&apos;ve got answers.</h2></div>
-            <div className={styles.faqList} data-stagger>
-              {faqs.map((f) => (
-                <details key={f.q}><summary>{f.q}</summary><p>{f.a}</p></details>
-              ))}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 12, marginTop: 22 }} data-stagger>
+              <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16, textAlign: "center" }}><div style={{ width: 36, height: 36, borderRadius: 999, background: "#f0fdf4", display: "grid", placeItems: "center", margin: "0 auto" }}><Icon name="check-circle" width={18} height={18} /></div><strong style={{ display: "block", marginTop: 8, fontSize: 13 }}>Real experience.</strong><span style={{ fontSize: 12, color: "#64748b" }}>Not made-up achievements.</span></div>
+              <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16, textAlign: "center" }}><div style={{ width: 36, height: 36, borderRadius: 999, background: "#eff6ff", display: "grid", placeItems: "center", margin: "0 auto" }}><Icon name="shield" width={18} height={18} /></div><strong style={{ display: "block", marginTop: 8, fontSize: 13 }}>Your approval.</strong><span style={{ fontSize: 12, color: "#64748b" }}>Your choice.</span></div>
+              <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16, textAlign: "center" }}><div style={{ width: 36, height: 36, borderRadius: 999, background: "#fff7ed", display: "grid", placeItems: "center", margin: "0 auto" }}><Icon name="eye" width={18} height={18} /></div><strong style={{ display: "block", marginTop: 8, fontSize: 13 }}>Clear boundaries.</strong><span style={{ fontSize: 12, color: "#64748b" }}>No pretending.</span></div>
+              <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16, textAlign: "center" }}><div style={{ width: 36, height: 36, borderRadius: 999, background: "#fefce8", display: "grid", placeItems: "center", margin: "0 auto" }}><Icon name="user" width={18} height={18} /></div><strong style={{ display: "block", marginTop: 8, fontSize: 13 }}>Your career stays in your hands.</strong><span style={{ fontSize: 12, color: "#64748b" }}>You remain in charge.</span></div>
             </div>
           </div>
         </section>
 
-        {/* 10. FINAL CTA */}
-        <section className={styles.section} aria-labelledby="cta-title">
+        {/* FREE TOOLS */}
+        <section className={`${styles.section} ${styles.sectionSoft}`} aria-labelledby="tools-title">
           <div className={styles.container}>
-            <div className={styles.ctaBand} data-animate>
-              <div>
-                <h2 id="cta-title">Your next opportunity is worth the effort.</h2>
-                <p>Your job search doesn&apos;t have to take over your life. You&apos;ve worked hard to build your skills. Now it&apos;s time to make the process easier.</p>
-                <p style={{ marginTop: 8, fontWeight: 700, color: "#fff" }}>You bring the ambition. We&apos;ll help with the busywork.</p>
+            <h2 id="tools-title">Not ready for an AI agent? Start with one useful tool.</h2>
+            <p style={{ marginTop: 6, color: "#64748b", fontSize: 14 }}>Explore Jobiest&apos;s free career tools to help you prepare your CV, understand job descriptions, and present yourself more clearly.</p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0,1fr))", gap: 10, marginTop: 18 }} data-stagger>
+              <a href="/tools" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, fontSize: 12, fontWeight: 700 }}>Resume Scanner<br /><span style={{ fontWeight: 400, color: "#64748b" }}>Check your CV</span></a>
+              <a href="/tools" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, fontSize: 12, fontWeight: 700 }}>Job Description Analyzer<br /><span style={{ fontWeight: 400, color: "#64748b" }}>Understand role</span></a>
+              <a href="/tools" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, fontSize: 12, fontWeight: 700 }}>Cover Letter Writer<br /><span style={{ fontWeight: 400, color: "#64748b" }}>Get a starting point</span></a>
+              <a href="/tools" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, fontSize: 12, fontWeight: 700 }}>Resume Summary<br /><span style={{ fontWeight: 400, color: "#64748b" }}>Describe clearly</span></a>
+              <a href="/tools" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, fontSize: 12, fontWeight: 700 }}>LinkedIn Headline<br /><span style={{ fontWeight: 400, color: "#64748b" }}>More focused</span></a>
+            </div>
+            <a className={styles.primaryAction} href="/tools" style={{ marginTop: 16 }}>Explore Free Career Tools →</a>
+          </div>
+        </section>
+
+        {/* PRICING */}
+        <section className={styles.section} aria-labelledby="pricing-title">
+          <div className={styles.container}>
+            <p className={styles.eyebrow}>Pricing</p>
+            <h2 id="pricing-title">Start free. Get more help when you need it.</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 14, marginTop: 18 }} data-stagger>
+              <article style={{ border: "1px solid #e2e8f0", borderRadius: 16, padding: 16, background: "#fff" }}><strong style={{ fontSize: 12 }}>FREE — ₦0 forever</strong><h3 style={{ fontSize: 14, marginTop: 6 }}>Get to know Jobiest.</h3><ul style={{ fontSize: 12, marginTop: 8, paddingLeft: 16, lineHeight: 1.8 }}><li>3 AI generations total</li><li>10 tool uses/day</li><li>Job-link analysis</li><li>Application tracking</li></ul><a href="/signup" style={{ marginTop: 10, display: "inline-flex", fontSize: 12, fontWeight: 700, color: "#3b72bc" }}>Start Free →</a></article>
+              <article style={{ border: "1px solid #e2e8f0", borderRadius: 16, padding: 16, background: "#fff" }}><strong style={{ fontSize: 12 }}>BASIC — ₦5,000/month</strong><h3 style={{ fontSize: 14, marginTop: 6 }}>For a more organised search.</h3><ul style={{ fontSize: 12, marginTop: 8, paddingLeft: 16, lineHeight: 1.8 }}><li>Everything in Free</li><li>3 AI generations/day</li><li>50 tool uses/day</li><li>2 agent runs total</li></ul><a href="/pricing" style={{ marginTop: 10, display: "inline-flex", fontSize: 12, fontWeight: 700, color: "#3b72bc" }}>Choose Basic →</a></article>
+              <article style={{ border: "2px solid #d7f94b", borderRadius: 16, padding: 16, background: "#fffef0" }}><strong style={{ fontSize: 12 }}>PREMIUM — ₦10,000/month <span style={{ background: "#d7f94b", padding: "2px 6px", borderRadius: 999, fontSize: 10 }}>MOST POPULAR</span></strong><h3 style={{ fontSize: 14, marginTop: 6 }}>For people actively looking.</h3><ul style={{ fontSize: 12, marginTop: 8, paddingLeft: 16, lineHeight: 1.8 }}><li>Everything in Basic</li><li>10 AI generations/day</li><li>Daily discovery</li><li>10 apps/day</li></ul><a href="/pricing" style={{ marginTop: 10, display: "inline-flex", background: "#d7f94b", color: "#111d35", padding: "8px 14px", borderRadius: 999, fontSize: 12, fontWeight: 700 }}>Choose Premium →</a></article>
+              <article style={{ border: "1px solid #e2e8f0", borderRadius: 16, padding: 16, background: "#fff" }}><strong style={{ fontSize: 12 }}>MAX — ₦20,000/month</strong><h3 style={{ fontSize: 14, marginTop: 6 }}>For more capacity.</h3><ul style={{ fontSize: 12, marginTop: 8, paddingLeft: 16, lineHeight: 1.8 }}><li>Everything in Premium</li><li>20 AI generations/day</li><li>Daily discovery</li><li>20 apps/day</li></ul><a href="/pricing" style={{ marginTop: 10, display: "inline-flex", fontSize: 12, fontWeight: 700, color: "#3b72bc" }}>Choose Max →</a></article>
+            </div>
+          </div>
+        </section>
+
+        {/* FAQ */}
+        <section className={`${styles.section} ${styles.sectionSoft}`} aria-labelledby="faq-title">
+          <div className={styles.container}>
+            <h2 id="faq-title">Got questions? We&apos;ve got answers.</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 24px", marginTop: 18 }} className={styles.faqList}>
+              {faqs.slice(0, 5).map((f) => (<details key={f.q} style={{ borderBottom: "1px solid #e2e8f0", padding: "12px 0" }}><summary style={{ fontSize: 13, fontWeight: 700, cursor: "pointer" }}>{f.q}</summary><p style={{ marginTop: 6, fontSize: 13, color: "#64748b" }}>{f.a}</p></details>))}
+              {faqs.slice(5).map((f) => (<details key={f.q} style={{ borderBottom: "1px solid #e2e8f0", padding: "12px 0" }}><summary style={{ fontSize: 13, fontWeight: 700, cursor: "pointer" }}>{f.q}</summary><p style={{ marginTop: 6, fontSize: 13, color: "#64748b" }}>{f.a}</p></details>))}
+            </div>
+          </div>
+        </section>
+
+        {/* FINAL CTA */}
+        <section className={styles.section} style={{ background: "linear-gradient(180deg, #0f1e3a 0%, #162a52 100%)", color: "#fff" }} aria-labelledby="cta-title">
+          <div className={styles.container} style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 24, alignItems: "center" }}>
+            <div>
+              <p style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "#d7f94b", fontWeight: 700 }}>Your next opportunity is worth the effort</p>
+              <h2 id="cta-title" style={{ marginTop: 8, fontSize: "clamp(1.6rem,3vw,2.2rem)", color: "#fff" }}>Your job search doesn&apos;t have to take over your life.</h2>
+              <p style={{ marginTop: 10, fontSize: 14, color: "#cbd5e1" }}>You bring the ambition. We&apos;ll help with the busywork.</p>
+              <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+                <a href="/signup" style={{ background: "#d7f94b", color: "#111d35", padding: "10px 18px", borderRadius: 999, fontWeight: 700, fontSize: 13 }}>Get Started Free →</a>
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", alignSelf: "center" }}>No credit card required.</span>
               </div>
-              <a className={styles.primaryAction} href="/signup">Get Started Free <Icon name="arrow-right" width={16} height={16} /></a>
             </div>
-            <p style={{ marginTop: 10, color: "var(--color-muted)", fontSize: 12, textAlign: "center" }}>No credit card required. Your next step starts here.</p>
+            <div style={{ borderRadius: 16, overflow: "hidden" }}><Image src="/images/life-sofa.jpg" alt="Person relaxing after job search" width={480} height={320} style={{ width: "100%", height: "auto", display: "block" }} /></div>
           </div>
         </section>
       </main>
