@@ -3,19 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabaseBrowser } from '@/lib/supabase-browser';
-import { AuthShell } from '@/components/site/AuthShell';
+import Link from 'next/link';
 
-/**
- * Email verification page. Two modes:
- *  - Password signups (no session yet): arrive with ?email=… (and, when the
- *    emailed link was used, ?code=…). Verifies through POST /api/auth/verify
- *    pre-session, then routes to /login to sign in.
- *  - Social sign-ins (session exists): the server routes unverified google
- *    and linkedin sessions here; verifies through the provider-matching
- *    /api/auth/{google,linkedin}/verify.
- * The page collects a 6-digit code, sends new codes on request, and lets the
- * user switch accounts.
- */
 export default function VerifyEmailPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -29,14 +18,13 @@ export default function VerifyEmailPage() {
   const [autoSubmitted, setAutoSubmitted] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const linkCode = useRef<string | null>(null);
+  const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
     (async () => {
       const params = new URLSearchParams(window.location.search);
       const qEmail = params.get('email');
       const qCode = params.get('code');
-
-      // Password-signup mode: pre-session, verify via /api/auth/verify.
       if (qEmail && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(qEmail)) {
         setEmail(qEmail);
         setPasswordMode(true);
@@ -48,21 +36,16 @@ export default function VerifyEmailPage() {
         } else if (params.get('delivery') === 'failed') {
           setError('Your account was created, but we could not send the code yet. Choose Send a new code below.');
         } else {
-          setNotice('If your verification email has arrived, enter its 6-digit code. It expires in 10 minutes.');
+          setNotice('');
         }
         return;
       }
-
-      // Social-session mode (google or linkedin): pick the gate endpoint
-      // from the session's provider.
       try {
         let providers: string[] = [];
         try {
           const { data: sessionData } = await supabaseBrowser().auth.getSession();
           providers = sessionData?.session?.user?.app_metadata?.providers ?? [];
-        } catch {
-          /* default to the google gate */
-        }
+        } catch {}
         window.sessionStorage.setItem(
           'jobiest.oauthGate',
           providers.includes('linkedin_oidc') || providers.includes('linkedin') ? 'linkedin' : 'google',
@@ -82,7 +65,6 @@ export default function VerifyEmailPage() {
             return;
           }
           setEmail(state.email ?? 'your email');
-          setNotice('A verification code was requested. If it arrives, it expires in 10 minutes.');
           setCooldown(60);
         }
       } catch {
@@ -94,26 +76,22 @@ export default function VerifyEmailPage() {
   }, [router]);
 
   useEffect(() => {
-    timer.current = setInterval(() => {
-      setCooldown((c) => (c > 0 ? c - 1 : 0));
-    }, 1000);
+    timer.current = setInterval(() => setCooldown((c) => (c > 0 ? c - 1 : 0)), 1000);
     return () => {
       if (timer.current) clearInterval(timer.current);
     };
   }, []);
 
-
   const confirm = useCallback(async () => {
     if (busy || !/^\d{6}$/.test(code)) {
-      if (!/^\d{6}$/.test(code)) setError('Enter the 6-digit code from your email.');
+      if (!/^\d{6}$/.test(code)) setError("That code didn't match. Try again or resend.");
       return;
     }
     setBusy(true);
     setError('');
     try {
       const gate =
-        !passwordMode &&
-        window.sessionStorage.getItem('jobiest.oauthGate') === 'linkedin'
+        !passwordMode && window.sessionStorage.getItem('jobiest.oauthGate') === 'linkedin'
           ? '/api/auth/linkedin/verify'
           : '/api/auth/google/verify';
       const res = passwordMode
@@ -133,7 +111,6 @@ export default function VerifyEmailPage() {
           setNotice('Your email is verified. Taking you to sign in…');
           router.replace(`/login?email=${encodeURIComponent(email)}&verified=1`);
         } else if (out.needsAccountCompletion) {
-          // Google/LinkedIn accounts: set a password + phone next.
           router.replace('/complete-account');
         } else {
           router.replace('/dashboard');
@@ -141,7 +118,7 @@ export default function VerifyEmailPage() {
         }
         return;
       }
-      setError(out.message ?? 'That code did not work. Try again or send a new one.');
+      setError(out.message ?? "That code didn't match. Try again or resend.");
     } catch {
       setError('Network error. Please try again.');
     } finally {
@@ -149,8 +126,6 @@ export default function VerifyEmailPage() {
     }
   }, [busy, code, router, email, passwordMode]);
 
-  // Only a code supplied by an emailed link submits itself. Manually typed
-  // codes wait for the button so a single attempt is never counted twice.
   useEffect(() => {
     if (passwordMode && checked && linkCode.current === code && /^\d{6}$/.test(code) && !autoSubmitted) {
       setAutoSubmitted(true);
@@ -164,8 +139,7 @@ export default function VerifyEmailPage() {
     setError('');
     try {
       const gate =
-        !passwordMode &&
-        window.sessionStorage.getItem('jobiest.oauthGate') === 'linkedin'
+        !passwordMode && window.sessionStorage.getItem('jobiest.oauthGate') === 'linkedin'
           ? '/api/auth/linkedin/verify'
           : '/api/auth/google/verify';
       const res = passwordMode
@@ -181,9 +155,11 @@ export default function VerifyEmailPage() {
           });
       const out = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string };
       if (res.ok && out.ok) {
-        setNotice(out.message ?? 'If this account needs verification, check your inbox for a code. It expires in 10 minutes.');
+        setNotice(out.message ?? 'Check your inbox for a new code. It expires in 10 minutes.');
         setCode('');
+        setError('');
         setCooldown(60);
+        inputsRef.current[0]?.focus();
       } else {
         setError(out.message ?? 'Could not send a new code. Try again shortly.');
       }
@@ -199,53 +175,224 @@ export default function VerifyEmailPage() {
     router.replace('/login');
   }, [router, passwordMode]);
 
+  const handleBoxChange = (index: number, val: string) => {
+    const digit = val.replace(/\D/g, '').slice(-1);
+    const next = code.split('');
+    while (next.length < 6) next.push('');
+    if (digit) {
+      next[index] = digit;
+      setCode(next.join('').slice(0, 6));
+      setError('');
+      if (index < 5) inputsRef.current[index + 1]?.focus();
+    } else {
+      next[index] = '';
+      setCode(next.join('').slice(0, 6));
+      setError('');
+    }
+  };
+
+  const handleBoxKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !code[index] && index > 0) {
+      const next = code.split('');
+      while (next.length < 6) next.push('');
+      next[index - 1] = '';
+      setCode(next.join('').slice(0, 6));
+      inputsRef.current[index - 1]?.focus();
+    }
+    if (e.key === 'ArrowLeft' && index > 0) inputsRef.current[index - 1]?.focus();
+    if (e.key === 'ArrowRight' && index < 5) inputsRef.current[index + 1]?.focus();
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (pasted.length > 0) {
+      e.preventDefault();
+      setCode(pasted);
+      setError('');
+      const focusIndex = Math.min(pasted.length, 5);
+      inputsRef.current[focusIndex]?.focus();
+    }
+  };
+
   return (
-    <AuthShell title="Verify your email" subtitle="One more step to finish setting up your Jobiest account.">
-      {notice ? (
-        <div className="auth-success" role="status">
-          {notice}
+    <main
+      style={{
+        minHeight: '100vh',
+        display: 'grid',
+        placeItems: 'center',
+        padding: '40px 20px',
+        backgroundColor: '#f9fafb',
+        backgroundImage:
+          'repeating-linear-gradient(115deg, transparent 0 18px, rgba(15,23,42,0.04) 18px 19px)',
+      }}
+    >
+      <div style={{ width: '100%', maxWidth: 480, textAlign: 'center' }}>
+        {/* Logo */}
+        <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 10, marginBottom: 36 }}>
+          <span
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 6,
+              background: '#0f172a',
+              display: 'grid',
+              placeItems: 'center',
+              color: '#fff',
+              fontWeight: 800,
+              fontSize: 14,
+              letterSpacing: '-0.02em',
+            }}
+          >
+            J
+          </span>
+          <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: '0.14em', color: '#0f172a' }}>JOBIEST</span>
+        </Link>
+
+        <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em', color: '#111827', margin: '0 0 10px' }}>
+          Check your email
+        </h1>
+        <p style={{ fontSize: 14, color: '#6b7280', lineHeight: 1.6, margin: '0 0 28px', maxWidth: 360, marginLeft: 'auto', marginRight: 'auto' }}>
+          We sent a 6-digit code to <strong style={{ color: '#111827', fontWeight: 600 }}>{email || 'your email'}</strong>. It expires in 10 minutes.
+        </p>
+
+        {notice && !error ? (
+          <div
+            role="status"
+            style={{
+              background: '#f0fdf4',
+              border: '1px solid #bbf7d0',
+              color: '#166534',
+              padding: '10px 14px',
+              borderRadius: 10,
+              fontSize: 13,
+              marginBottom: 16,
+              textAlign: 'center',
+            }}
+          >
+            {notice}
+          </div>
+        ) : null}
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void confirm();
+          }}
+          noValidate
+          style={{ display: 'grid', gap: 14 }}
+        >
+          {/* 6-box OTP */}
+          <div
+            onPaste={handlePaste}
+            style={{
+              display: 'flex',
+              gap: 8,
+              justifyContent: 'center',
+              marginBottom: 4,
+            }}
+          >
+            {Array.from({ length: 6 }).map((_, i) => (
+              <input
+                key={i}
+                ref={(el) => {
+                  inputsRef.current[i] = el;
+                }}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={1}
+                value={code[i] ?? ''}
+                onChange={(e) => handleBoxChange(i, e.target.value)}
+                onKeyDown={(e) => handleBoxKeyDown(i, e)}
+                onFocus={(e) => e.target.select()}
+                disabled={!checked || busy}
+                style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: 10,
+                  border: error ? '1.5px solid #ef4444' : '1.5px solid #d1d5db',
+                  background: '#fff',
+                  textAlign: 'center',
+                  fontSize: 20,
+                  fontWeight: 700,
+                  color: '#111827',
+                  outline: 'none',
+                  transition: 'border-color 0.15s',
+                }}
+              />
+            ))}
+          </div>
+
+          {error ? (
+            <p role="alert" style={{ color: '#ef4444', fontSize: 13, margin: 0 }}>
+              {error}
+            </p>
+          ) : (
+            <p style={{ height: 18, margin: 0 }} />
+          )}
+
+          <button
+            type="submit"
+            disabled={busy || !checked || code.length !== 6}
+            style={{
+              width: '100%',
+              height: 46,
+              borderRadius: 10,
+              border: 0,
+              background: busy || code.length !== 6 ? '#a5b4fc' : '#4f46e5',
+              color: '#fff',
+              fontWeight: 600,
+              fontSize: 14.5,
+              cursor: busy || code.length !== 6 ? 'not-allowed' : 'pointer',
+              transition: 'background 0.15s',
+            }}
+          >
+            {busy ? 'Checking…' : 'Verify and continue'}
+          </button>
+        </form>
+
+        <button
+          type="button"
+          onClick={switchAccount}
+          disabled={busy}
+          style={{
+            background: 'transparent',
+            border: 0,
+            color: '#6b7280',
+            fontSize: 13,
+            fontWeight: 500,
+            cursor: 'pointer',
+            marginTop: 14,
+            textDecoration: 'underline',
+            textUnderlineOffset: 3,
+          }}
+        >
+          Wrong email? Use a different address
+        </button>
+
+        <div style={{ marginTop: 22 }}>
+          <button
+            type="button"
+            onClick={resend}
+            disabled={busy || cooldown > 0}
+            style={{
+              background: '#fff',
+              border: '1px solid #e5e7eb',
+              borderRadius: 999,
+              padding: '9px 18px',
+              fontSize: 13,
+              fontWeight: 500,
+              color: cooldown > 0 ? '#9ca3af' : '#374151',
+              cursor: cooldown > 0 ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {cooldown > 0 ? `Resend in ${cooldown}s` : "Didn't get it? Resend code"}
+          </button>
         </div>
-      ) : null}
-      {error ? (
-        <div className="auth-error" role="alert">
-          {error}
-        </div>
-      ) : null}
-      <form
-        className="auth-form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void confirm();
-        }}
-        noValidate
-      >
-        <label>
-          Code sent to {email || 'your email'}
-          <input
-            className="verify-code-input"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            pattern="[0-9]*"
-            maxLength={6}
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            placeholder="000000"
-            disabled={!checked}
-            autoFocus
-          />
-        </label>
-        <button type="submit" className="btn btn-block" disabled={busy || !checked}>
-          {busy ? 'Checking…' : 'Verify and continue'}
-        </button>
-      </form>
-      <div style={{ display: 'grid', gap: 10, marginTop: 18 }}>
-        <button type="button" className="btn-ghost btn-block" onClick={resend} disabled={busy || cooldown > 0}>
-          {cooldown > 0 ? `Send a new code in ${cooldown}s` : 'Send a new code'}
-        </button>
-        <button type="button" className="btn-ghost btn-block" onClick={switchAccount} disabled={busy}>
-          Use a different account
-        </button>
+
+        <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 28 }}>
+          Code expires in 10 minutes • Check spam folder
+        </p>
       </div>
-    </AuthShell>
+    </main>
   );
 }
