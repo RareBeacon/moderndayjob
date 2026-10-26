@@ -8,7 +8,7 @@
 | Supabase **Free** (founder confirmed) | project/mo | $0 (Free 500MB/5GB/50k MAU) | 1 project | $0 | fixed | Verified |
 | Resend Free→Pro | emails | Free 3k then Pro $20/50k $0.90/1k | 400 emails | $0 (within Free) | var | Verified |
 | Domain renewal | yr | ₦15k/yr | 1/12 | ₦1,250 | fixed | Calculated |
-| OCI Ampere A1 | VM/mo | $0 Always Free | 1 | $0 | fixed | Verified |
+| OCI `jobiest-ai` E5.Flex 2OCPU/12GB | VM/mo | **€0 verified Oct 08-26 (was €1.86/day trial)** | 1 | **€0** | fixed | **Verified 2026-10-26** |
 | OpenRouter AI | tokens | GPT-4o $2.50/$10 per 1M | 5M in + 1M out | $22.50 (₦35,700) | var | Calculated — see 05 |
 | Job boards | boards | $0 public | — | $0 | fixed | Verified |
 | Backups 7d | included | $0 | — | $0 | fixed | Verified |

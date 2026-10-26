@@ -27,3 +27,6 @@ Actual provider identified from `package.json`, `lib/env.ts`, `lib/supabase.ts`,
 
 **Financial risk summary:** Largest risk is AI fallback costs after OCI free VM reclaimed and Free email 100/day cap during launch spike. Hosting on Hobby for commercial use violates Vercel ToS — must budget Pro $20-40.
 
+
+
+**Verified billing 2026-10-26:** Cost Analysis EUR — Cost To Date €13.36 (Sep 30-Oct 07 trial Compute €1.86×7 days) then €0.00 every day Oct 08-26 (19 days) — Block Storage/Telemetry/VCN all €0.00. Screenshot evidence on file.
