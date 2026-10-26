@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import type { PLANS as PlansType } from "@/lib/billing/pricing";
 
 type Props = {
@@ -25,9 +26,8 @@ export default function HomeClient({ authenticated, plans }: Props) {
     <>
       <header>
         <div className="container nav" id="nav" style={{ position: "relative" }}>
-          <Link className="logo" href={authenticated ? "/dashboard" : "/"} aria-label="Jobiest home">
-            <span className="logo-mark" aria-hidden />
-            Jobiest
+          <Link className="logo" href={authenticated ? "/dashboard" : "/"} aria-label="Jobiest home" style={{ display: "flex", alignItems: "center" }}>
+            <Image src="/images/logo-wordmark-light.png" alt="Jobiest" width={544} height={262} priority sizes="156px" style={{ height: 26, width: "auto" }} />
           </Link>
           <nav className="navlinks" aria-label="Main navigation" style={mobileOpen ? { display: "flex", position: "absolute", left: 0, right: 0, top: 54, background: "white", padding: 18, border: "1px solid var(--line)", borderRadius: 15, boxShadow: "var(--shadow)", flexDirection: "column", alignItems: "flex-start", gap: 17 } as any : undefined}>
             <Link href="/how-it-works" onClick={() => setMobileOpen(false)}>How it works</Link>
@@ -182,7 +182,7 @@ export default function HomeClient({ authenticated, plans }: Props) {
       </main>
 
       <footer id="footer"><div className="container"><div className="footer-top">
-        <div className="footer-brand"><Link className="logo" href={authenticated ? "/dashboard" : "/"} style={{ color: "white" }}><span className="logo-mark" />Jobiest</Link><p>A smarter way to search for your next job. Less repetitive work, better-organised applications, and more time for your future.</p></div>
+        <div className="footer-brand"><Link href={authenticated ? "/dashboard" : "/"} aria-label="Jobiest home" style={{ display: "inline-flex" }}><Image src="/images/logo-wordmark-dark.png" alt="Jobiest" width={550} height={265} loading="lazy" sizes="144px" style={{ height: 24, width: "auto" }} /></Link><p>A smarter way to search for your next job. Less repetitive work, better-organised applications, and more time for your future.</p></div>
         <div className="footer-col"><strong>Explore</strong><Link href="/how-it-works">How it works</Link><Link href="/tools">Free tools</Link><Link href="/pricing">Pricing</Link><Link href="#faq">FAQs</Link></div>
         <div className="footer-col"><strong>Support</strong><Link href="/help">Help centre</Link><a href="mailto:support@jobiest.com">Contact</a><Link href="#faq">FAQs</Link></div>
         <div className="footer-col"><strong>Legal</strong><Link href="/privacy">Privacy policy</Link><Link href="/terms">Terms of service</Link><Link href="/refund">Refund policy</Link></div>
