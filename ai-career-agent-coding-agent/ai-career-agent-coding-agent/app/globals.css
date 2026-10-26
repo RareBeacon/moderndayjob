@@ -110,8 +110,6 @@ p { margin: 0; }
 a { color: var(--brand); text-decoration: none; }
 ul { margin: 0; }
 :focus-visible { outline: 3px solid var(--color-focus, #3b72bc); outline-offset: 2px; border-radius: 6px; }
-/* Interactive base: 150ms restrained transitions */
-a, button, input, select, textarea, [role="button"] { transition: background 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease; }
 @media (prefers-reduced-motion: reduce) {* { animation: none !important; transition: none !important; scroll-behavior: auto !important; }}
 .skip-link {
   position: absolute;
