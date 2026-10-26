@@ -56,27 +56,40 @@ export default function HomeClient({ authenticated, plans }: Props) {
         <section className="hero">
           <div className="container hero-grid">
             <div>
-              <div className="eyebrow"><span className="dot" /> Your personal AI job-search agent</div>
-              <h1>Stop chasing jobs.<br /><em>Let jobs come to you.</em></h1>
-              <p className="hero-copy">Finding a job shouldn&apos;t feel like another full-time job. Jobiest helps you find opportunities, tailor your CV, write cover letters, and handle repetitive application tasks — so you can spend less time applying and more time preparing for your next big opportunity.</p>
+              <div className="eyebrow"><span className="dot" /> AI career agent</div>
+              <h1>More interviews.<br />Less job hunting.<br /><em>You choose what gets sent.</em></h1>
+              <p className="hero-copy">Jobiest is your AI career agent. Paste any job link, and it prepares a truthful CV and cover letter from your experience. Personalise and Max-apply, and you stay in control — with your explicit approval.</p>
               <div className="hero-buttons">
-                <Link className="btn btn-lime" href={authenticated ? "/dashboard" : "/signup"}>Get Started Free <span>→</span></Link>
-                <Link className="btn btn-dark" href="#how-it-works">▷ &nbsp; See How It Works</Link>
+                <Link className="btn btn-lime" href={authenticated ? "/dashboard" : "/signup"}>Create free account <span>→</span></Link>
+                <Link className="btn btn-dark" href="#how-it-works">See how it works</Link>
               </div>
-              <div className="microtrust"><span>✓</span> No credit card required. Start free.</div>
+              <div className="microtrust"><span className="check" style={{ background: "var(--line)", color: "var(--navy)" }}>✓</span> Approval is the default. Auto-submission requires your explicit opt-in.</div>
             </div>
             <div className="hero-visual">
-              <div className="photo hero-photo" role="img" aria-label="Professional working on a laptop" />
-              <div className="agent-card">
-                <div className="card-top"><strong>Good morning, Ada 👋</strong><span className="status">Agent active</span></div>
-                <div style={{ fontSize: 12, color: "#72839a", marginBottom: 9 }}>Your AI agent is working for you.</div>
-                <div className="jobrow"><span className="check">✓</span><div><strong>Matching jobs found</strong><small>Based on your preferences</small></div></div>
-                <div className="jobrow"><span className="check">✓</span><div><strong>CV and cover letter tailored</strong><small>Prepared for your review</small></div></div>
-                <div className="jobrow"><span className="check">✓</span><div><strong>Application ready</strong><small>You decide what happens next</small></div></div>
-                <div className="progress"><span /></div>
-                <Link className="btn btn-lime" style={{ width: "100%", fontSize: 12, padding: 11 }} href={authenticated ? "/applications" : "/signup"}>View applications →</Link>
+              <div className="photo hero-photo" role="img" aria-label="Professional working on laptop" style={{ backgroundImage: "linear-gradient(90deg, rgba(17,29,53,.4), rgba(17,29,53,.05)), url('https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1100&q=85')" }} />
+              <div className="agent-card" style={{ width: 340 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                  <strong style={{ fontSize: 13 }}>Job Application Review</strong>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: "#a16207", background: "#fef9c3", padding: "5px 8px", borderRadius: 999 }}>Needs your approval</span>
+                </div>
+                <div style={{ fontSize: 11, padding: "8px 10px", border: "1px solid var(--line)", borderRadius: 10, background: "#fff" }}>
+                  <strong style={{ fontSize: 12 }}>Senior Frontend Developer</strong><br /><small style={{ color: "var(--muted)" }}>TechFusion • Remote • Full-time</small>
+                  <span style={{ float: "right", color: "var(--blue)", fontWeight: 700, fontSize: 10 }}>View job description ↗</span>
+                </div>
+                <div style={{ marginTop: 8, fontSize: 11, padding: "8px 10px", border: "1px solid #bbf7d0", borderRadius: 10, background: "#f0fdf4", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>✓ Verified experience<br /><small style={{ color: "var(--muted)" }}>Matched required skills from your profile</small></span>
+                  <span style={{ background: "#fff", border: "1px solid #bbf7d0", padding: "4px 8px", borderRadius: 999, fontSize: 10, fontWeight: 800, color: "#15803d" }}>Verified</span>
+                </div>
+                <div style={{ marginTop: 8, fontSize: 11, padding: "8px 10px", border: "1px solid #fed7aa", borderRadius: 10, background: "#fff7ed", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>⚠ Flagged unsupported claim<br /><small style={{ color: "var(--muted)" }}>5 years at TechCorp — not in your records</small></span>
+                  <span style={{ background: "#fff", border: "1px solid #fed7aa", padding: "4px 8px", borderRadius: 999, fontSize: 10, fontWeight: 800 }}>Review</span>
+                </div>
+                <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  <div style={{ padding: 8, border: "1px solid var(--line)", borderRadius: 10, fontSize: 11 }}><strong>CV</strong><br /><small>Ready →</small></div>
+                  <div style={{ padding: 8, border: "1px solid var(--line)", borderRadius: 10, fontSize: 11 }}><strong>Cover letter</strong><br /><small>Ready →</small></div>
+                </div>
+                <Link className="btn btn-lime" style={{ width: "100%", marginTop: 10, fontSize: 12, padding: 10 }} href={authenticated ? "/applications" : "/signup"}>Review & Approve →</Link>
               </div>
-              <div className="float-tag">✦ Your job search, with less busywork.</div>
             </div>
           </div>
         </section>
