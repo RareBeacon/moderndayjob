@@ -1,195 +1,92 @@
 "use client";
 import { useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import type { PLANS as PlansType } from "@/lib/billing/pricing";
+import {
+  ArrowRight,
+  ArrowUpRight,
+  BriefcaseBusiness,
+  Check,
+  ChevronRight,
+  CirclePlay,
+  FileText,
 
-type Props = { authenticated: boolean; plans: typeof PlansType };
+  Menu,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  X,
+} from "lucide-react";
 
-export default function HomeClient({ authenticated, plans }: Props) {
-  const [mobileOpen, setMobileOpen] = useState(false);
+const heroImage = "/images/jobiest-hero.jpg";
+const realityImage = "/images/jobiest-reality.jpg";
+const howImage = "/images/jobiest-how.jpg";
+const pricingImage = "/images/jobiest-future.jpg";
 
-  return (
-    <>
-      <header style={{ background: "#070d1c", borderBottom: "1px solid #1c304b" }}>
-        <div className="container nav" style={{ position: "relative", height: 68 }}>
-          <Link href={authenticated ? "/dashboard" : "/"} aria-label="Jobiest home" style={{ display: "flex", alignItems: "center" }}>
-            <Image src="/images/logo-wordmark-dark.png" alt="Jobiest" width={550} height={265} priority sizes="140px" style={{ height: 22, width: "auto" }} />
-          </Link>
-          <nav className="navlinks" aria-label="Main navigation" style={{ color: "#cbd5e1", ...(mobileOpen ? { display: "flex", position: "absolute", left: 0, right: 0, top: 62, background: "#0a1830", padding: 18, border: "1px solid #1c304b", borderRadius: 14, flexDirection: "column", alignItems: "flex-start", gap: 16, zIndex: 30 } as any : undefined) }}>
-            <Link href="#how-it-works" onClick={() => setMobileOpen(false)}>How it works</Link>
-            <Link href="/tools" onClick={() => setMobileOpen(false)}>Free tools</Link>
-            <Link href="#pricing" onClick={() => setMobileOpen(false)}>Pricing</Link>
-            <Link href="/blog" onClick={() => setMobileOpen(false)}>Blog</Link>
-            <Link href="/about" onClick={() => setMobileOpen(false)}>About</Link>
-          </nav>
-          <div className="nav-actions">
-            <Link className="login" href={authenticated ? "/dashboard" : "/login"} style={{ color: "#cbd5e1" }}>{authenticated ? "Dashboard" : "Log in"}</Link>
-            <Link className="btn btn-lime btn-small" href={authenticated ? "/dashboard" : "/signup"} style={{ background: "#d7f94b", color: "#111d35" }}>{authenticated ? "Go to Dashboard" : "Get started free"} <span aria-hidden>→</span></Link>
-            <button className="mobile-toggle" aria-label={mobileOpen ? "Close menu" : "Open menu"} aria-expanded={mobileOpen} onClick={() => setMobileOpen(v => !v)} style={{ color: "#fff" }}>{mobileOpen ? "×" : "☰"}</button>
-          </div>
-        </div>
-      </header>
+const checks = [
+  "You bookmark a promising role during lunch, telling yourself you’ll apply tonight. Then the day runs long, and the tab stays open for another week.",
+  "You reshape the same CV for the fifth time, trying to sound like the person you know you can be.",
+  "You type your work history into one more form, field by field, hoping this application will finally lead somewhere.",
+  "You search on the commute, after dinner, and in the quiet moments that were supposed to be yours.",
+  "And when the silence or rejection comes, starting the next application takes a little more out of you.",
+];
 
-      <main id="top">
-        {/* HERO */}
-        <section className="hero" style={{ background: "#070d1c", minHeight: 520 }}>
-          <div className="container hero-grid" style={{ paddingTop: 48, paddingBottom: 48, gap: 40 }}>
-            <div>
-              <h1 style={{ fontSize: "clamp(36px,4.8vw,56px)", lineHeight: 1.05, letterSpacing: "-1.8px", margin: 0, color: "#fff" }}>
-                Land more<br />interviews.<br /><span style={{ color: "#d7f94b" }}>Skip the busywork.</span><br /><span style={{ color: "#fff" }}>Get closer to work you love.</span>
-              </h1>
-              <p style={{ color: "#cbd5e1", marginTop: 14, fontSize: 14, lineHeight: 1.6, maxWidth: 520 }}>
-                Paste a job link and get a truthful, tailored application in minutes — so you spend less time rewriting CVs and more time meeting the teams you want to join. Review everything, stay in control, and move closer to your next great role.
-              </p>
-              <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
-                <Link className="btn btn-lime" href="#pricing" style={{ background: "#d7f94b", color: "#111d35" }}>Start for free <span aria-hidden>→</span></Link>
-                <Link className="btn btn-dark" href="#how-it-works" style={{ borderColor: "rgba(255,255,255,.4)", color: "#fff" }}>See how it works</Link>
-              </div>
-              <p style={{ color: "#9fb0c6", fontSize: 11, marginTop: 10 }}>◎ You approve every application before it goes anywhere.</p>
-            </div>
-            <div className="hero-visual" style={{ minHeight: 380 }}>
-              <Image src="/images/hero-person.jpg" alt="Smiling professional with laptop" width={560} height={420} priority style={{ position: "absolute", inset: "0 0 0 15px", objectFit: "cover", borderRadius: 22, width: "calc(100% - 15px)", height: "100%" }} />
-              <div className="agent-card" style={{ width: 320, padding: 14 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><strong style={{ fontSize: 11 }}>Job Application Review</strong><span style={{ fontSize: 8, fontWeight: 800, background: "#fef9c3", color: "#92400e", padding: "4px 6px", borderRadius: 999 }}>Needs your approval</span></div>
-                <div style={{ marginTop: 8, padding: "8px 10px", border: "1px solid #e2e6ed", borderRadius: 10, fontSize: 10, display: "flex", justifyContent: "space-between" }}><span><strong>Senior Frontend Developer</strong><br /><small style={{ color: "#64748b" }}>TechFusion • Remote</small></span><span style={{ color: "#3b72bc", fontWeight: 700 }}>View</span></div>
-                <div style={{ marginTop: 6, padding: "7px 10px", border: "1px solid #bbf7d0", background: "#f0fdf4", borderRadius: 10, fontSize: 10, display: "flex", justifyContent: "space-between" }}><span>✓ CV tailored to this role</span><span style={{ background: "#fff", border: "1px solid #bbf7d0", padding: "2px 6px", borderRadius: 999, fontWeight: 800, color: "#15803d" }}>Verified</span></div>
-                <div style={{ marginTop: 6, padding: "7px 10px", border: "1px solid #bbf7d0", background: "#fff", borderRadius: 10, fontSize: 10, display: "flex", justifyContent: "space-between" }}><span>• Matches 4/5 required skills</span><span style={{ background: "#f0fdf4", padding: "2px 6px", borderRadius: 999, color: "#15803d", fontWeight: 800 }}>Verified</span></div>
-                <div style={{ marginTop: 6, padding: "7px 10px", border: "1px solid #fed7aa", background: "#fff7ed", borderRadius: 10, fontSize: 10, display: "flex", justifyContent: "space-between" }}><span>⚠ Flagged unsupported claim</span><span style={{ background: "#fff", padding: "2px 6px", borderRadius: 999, fontWeight: 800, border: "1px solid #fed7aa" }}>Review</span></div>
-                <div style={{ marginTop: 6, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-                  <div style={{ padding: 7, border: "1px solid #e2e6ed", borderRadius: 10, fontSize: 10 }}><strong>CV</strong><br />Ready →</div>
-                  <div style={{ padding: 7, border: "1px solid #e2e6ed", borderRadius: 10, fontSize: 10 }}><strong>Cover letter</strong><br />Ready →</div>
-                </div>
-                <Link className="btn btn-lime" href="/signup" style={{ width: "100%", marginTop: 10, background: "#d7f94b", color: "#111d35", fontSize: 11 }}>Review & approve →</Link>
-              </div>
-            </div>
-          </div>
-        </section>
+const plans = [
+  { name: "Basic", price: "£5,000", detail: "monthly", features: ["Up to 10 applications per month", "AI-tailored CV & cover letter", "Job tracking & notifications"] },
+  { name: "Premium", price: "£10,000", detail: "monthly", popular: true, features: ["Up to 30 applications per month", "Advanced AI tailoring", "Priority support", "Full application tracking"] },
+  { name: "Max", price: "£20,000", detail: "monthly", features: ["Unlimited applications", "Premium AI assistance", "Dedicated support", "Advanced application tracking"] },
+];
 
-        {/* THE REALITY */}
-        <section className="section" style={{ padding: "64px 0", background: "#fff" }}>
-          <div className="container problem-grid" style={{ gap: 40 }}>
-            <div>
-              <p style={{ fontSize: 10, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 800, color: "#64748b" }}>The reality</p>
-              <h2 style={{ fontSize: "clamp(22px,2.6vw,32px)", lineHeight: 1.15, marginTop: 8, color: "#111d35" }}>Job hunting is a full-time job.<br />Without the pay.</h2>
-              <p style={{ color: "#475569", marginTop: 10, fontSize: 13 }}>If you are job hunting right now, you already know the routine.</p>
-              <ul style={{ listStyle: "none", padding: 0, marginTop: 12, display: "grid", gap: 6, fontSize: 12 }}>
-                <li>✓ You rewrite your CV for every single job.</li>
-                <li>✓ You write cover letters late at night.</li>
-                <li>✓ You fill in the same forms, again and again.</li>
-                <li>✓ You scroll job boards on the bus, at lunch, at midnight.</li>
-                <li>✓ And most applications are met with silence.</li>
-              </ul>
-              <p style={{ color: "#94a3b8", fontSize: 11, marginTop: 12 }}>Week of this. Months, even. It drains the energy you should be spending on the interviews that matter.</p>
-            </div>
-            <div style={{ position: "relative" }}>
-              <Image src="/images/life-cafe.jpg" alt="Woman focused on laptop" width={560} height={380} style={{ width: "100%", height: 320, objectFit: "cover", borderRadius: 18, boxShadow: "0 18px 50px rgba(0,0,0,.1)" }} />
-              <div style={{ position: "absolute", right: -10, top: 10, background: "#fff", border: "1px solid #e2e6ed", borderRadius: 12, padding: 12, fontSize: 11, boxShadow: "0 12px 30px rgba(0,0,0,.1)", transform: "rotate(1.5deg)" }}>
-                <strong>Jobiest handle<br />the busy work…</strong><br /><span style={{ color: "#64748b" }}>Research<br />Tailor CV<br />Write cover letter<br />Fill form<br />Follow up</span>
-              </div>
-            </div>
-          </div>
-        </section>
+function Logo() {
+  return <a href="#top" className="brand" aria-label="Jobiest home"><span className="brand-mark"><span /></span><span>jobiest</span></a>;
+}
 
-        {/* HARD TRUTH */}
-        <section className="section" style={{ background: "#f0f7ff", padding: "64px 0" }}>
-          <div className="container problem-grid">
-            <div>
-              <p style={{ fontSize: 10, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 800, color: "#64748b" }}>The hard truth</p>
-              <h2 style={{ fontSize: "clamp(22px,2.6vw,32px)", marginTop: 8, color: "#111d35" }}>It’s not you. It’s the numbers.</h2>
-              <p style={{ color: "#475569", fontSize: 12, marginTop: 8 }}>Even if you’re qualified, a lot depends on how you present yourself. Recruiters spend seconds scanning. Small gaps, wrong keywords, or missing details can get you overlooked.</p>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginTop: 18, borderTop: "1px solid #e2e6ed", borderBottom: "1px solid #e2e6ed", padding: "14px 0" }}>
-                <div><div style={{ fontWeight: 900, fontSize: 18 }}>6s</div><div style={{ fontSize: 10, color: "#64748b" }}>Average time a recruiter spends on a CV</div></div>
-                <div style={{ borderLeft: "1px solid #e2e6ed", paddingLeft: 16 }}><div style={{ fontWeight: 900, fontSize: 18 }}>74%</div><div style={{ fontSize: 10, color: "#64748b" }}>of applications are never read</div></div>
-                <div style={{ borderLeft: "1px solid #e2e6ed", paddingLeft: 16 }}><div style={{ fontWeight: 900, fontSize: 18 }}>2x</div><div style={{ fontSize: 10, color: "#64748b" }}>More callbacks with ATS-optimised CVs</div></div>
-              </div>
-              <Link href="#how-it-works" style={{ fontSize: 12, fontWeight: 800, color: "#3b72bc", marginTop: 10, display: "inline-block" }}>Get the numbers on your side →</Link>
-            </div>
-            <div style={{ position: "relative" }}>
-              <Image src="/images/case-2-jobs.jpg" alt="ATS preview" width={560} height={360} style={{ width: "100%", height: "auto", borderRadius: 18, border: "1px solid #e2e6ed" }} />
-              <div style={{ position: "absolute", right: 12, top: 40, background: "#fff", border: "1px solid #e2e6ed", borderRadius: 12, padding: 12, fontSize: 11, boxShadow: "0 12px 30px rgba(0,0,0,.12)" }}>
-                <strong>✓ ATS Optimised</strong><br /><span style={{ color: "#64748b" }}>Keywords matched<br />Skills aligned<br />Formatting ready</span>
-              </div>
-            </div>
-          </div>
-        </section>
+function FooterLogo() {
+  return <a href="#top" className="brand footer-wordmark" aria-label="Jobiest home"><span className="brand-mark"><span /></span><span>jobiest</span></a>;
+}
 
-        {/* HOW IT WORKS */}
-        <section className="section" id="how-it-works" style={{ background: "#f0fdf4", padding: "64px 0" }}>
-          <div className="container problem-grid">
-            <div>
-              <p style={{ fontSize: 10, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 800, color: "#64748b" }}>How it works</p>
-              <h2 style={{ fontSize: "clamp(22px,2.6vw,32px)", color: "#111d35" }}>Your job search, handled.</h2>
-              <p style={{ color: "#475569", fontSize: 12, marginTop: 8 }}>Jobiest researches, writes and applies — with your approval.</p>
-              <ul style={{ listStyle: "none", padding: 0, marginTop: 12, display: "grid", gap: 6, fontSize: 12 }}>
-                <li>✓ On-demand or max-apply — your choice.</li>
-                <li>✓ AI writes a truthful, tailored CV and cover letter.</li>
-                <li>✓ You review, edit and approve before it gets sent.</li>
-                <li>✓ You track progress, get updates and land interviews.</li>
-              </ul>
-              <Link className="btn btn-lime" href="#pricing" style={{ marginTop: 14, background: "#d7f94b", color: "#111d35", padding: "8px 14px", fontSize: 12 }}>Start free trial →</Link>
-            </div>
-            <div style={{ position: "relative" }}>
-              <Image src="/images/hero-glow.jpg" alt="Person on phone" width={560} height={380} style={{ width: "100%", height: 320, objectFit: "cover", borderRadius: 18 }} />
-              <div style={{ position: "absolute", right: 10, top: 20, background: "#fff", borderRadius: 12, padding: 10, fontSize: 11, boxShadow: "0 12px 30px rgba(0,0,0,.12)", border: "1px solid #e2e6ed" }}>
-                ✓ Application submitted!<br /><span style={{ color: "#64748b" }}>Senior Frontend Developer</span>
-              </div>
-              <div style={{ position: "absolute", right: 10, bottom: 20, background: "#fff", borderRadius: 999, padding: "8px 12px", fontSize: 11, boxShadow: "0 8px 20px rgba(0,0,0,.1)" }}>● New interview opportunity!</div>
-            </div>
-          </div>
-        </section>
+function Button({ children, secondary = false }: { children: React.ReactNode; secondary?: boolean }) {
+  return <a className={secondary ? "button button-secondary" : "button"} href="#pricing">{children}<ArrowRight size={15} strokeWidth={2.5} /></a>;
+}
 
-        {/* THREE STEPS */}
-        <section className="section" style={{ padding: "64px 0", background: "#fff" }}>
-          <div className="container">
-            <p style={{ fontSize: 10, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 800, color: "#64748b" }}>Three simple steps</p>
-            <h2 style={{ fontSize: "clamp(22px,2.6vw,28px)", color: "#111d35" }}>Three steps. Fifteen minutes to set up.</h2>
-            <p style={{ color: "#64748b", fontSize: 12, marginTop: 6 }}>No more guesswork. No more wasted hours. Just progress.</p>
-            <div className="steps" style={{ marginTop: 18 }}>
-              <article className="step" style={{ background: "#fff" }}><div className="step-number" style={{ background: "#d7f94b", color: "#111d35" }}>1</div><h3>Add your details once</h3><p>Tell us about your experience, skills and goals. Your profile powers every application.</p></article>
-              <article className="step" style={{ background: "#fff" }}><div className="step-number" style={{ background: "#d7f94b", color: "#111d35" }}>2</div><h3>Tailor and apply</h3><p>Paste a job link or choose a role, Jobiest writes your CV and cover letter, then applies with your approval.</p></article>
-              <article className="step" style={{ background: "#fff" }}><div className="step-number" style={{ background: "#d7f94b", color: "#111d35" }}>3</div><h3>Track and get interviews</h3><p>See real-time updates, review applications, and land more interviews — faster.</p></article>
-            </div>
-          </div>
-        </section>
+function ApprovalCard() {
+  return <div className="approval-card">
+    <div className="approval-head"><div><span className="eyebrow">Job Application Review</span><strong>Senior Frontend Developer</strong></div><span className="status status-lime">Needs your approval</span></div>
+    <div className="approval-rule"><Check size={13} /><span>CV tailored to this role</span><b>View</b></div>
+    <div className="approval-rule"><Check size={13} /><span>Matches 4/5 required skills</span><b>Verified</b></div>
+    <div className="approval-rule warn"><Sparkles size={13} /><span>Flagged unsupported claim</span><b>Review</b></div>
+    <div className="approval-rule"><FileText size={13} /><span>CV <small>Tailored for this role</small></span><b>Ready</b></div>
+    <div className="approval-rule"><FileText size={13} /><span>Cover letter <small>AI generated and personalised</small></span><b>Ready</b></div>
+    <button className="approval-action">Review & approve <ArrowRight size={14} /></button>
+  </div>;
+}
 
-        {/* PRICING */}
-        <section className="section" id="pricing" style={{ background: "#f0f7ff", padding: "64px 0" }}>
-          <div className="container">
-            <p style={{ fontSize: 10, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 800, color: "#64748b" }}>Pricing</p>
-            <h2 style={{ fontSize: "clamp(22px,2.6vw,28px)", color: "#111d35" }}>Start free. Upgrade if it works for you.</h2>
-            <p style={{ color: "#64748b", fontSize: 12, marginTop: 6 }}>Choose the plan that fits your goals. Cancel anytime.</p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginTop: 18, alignItems: "stretch" }}>
-              <article className="price-card"><div className="plan">Basic</div><div className="price">₦{plans.BASIC.monthlyNgn.toLocaleString()} <span>/ month</span></div><ul><li>Up to 10 applications per month</li><li>Basic AI CV & cover letter</li><li>Job tracking & notifications</li></ul><Link className="btn btn-white" href={plans.BASIC.ctaHref} style={{ width: "100%" }}>Get started →</Link></article>
-              <article className="price-card popular" style={{ borderColor: "#d7f94b" }}><span className="popular-label" style={{ background: "#d7f94b", color: "#111d35" }}>Most popular</span><div className="plan">Premium</div><div className="price">₦{plans.PREMIUM.monthlyNgn.toLocaleString()} <span>/ month</span></div><ul><li>Up to 30 applications per month</li><li>Advanced AI tailoring</li><li>Priority support</li><li>Full application tracking</li></ul><Link className="btn btn-lime" href={plans.PREMIUM.ctaHref} style={{ width: "100%", background: "#d7f94b", color: "#111d35" }}>Get started →</Link></article>
-              <article className="price-card"><div className="plan">Max</div><div className="price">₦{plans.MAX.monthlyNgn.toLocaleString()} <span>/ month</span></div><ul><li>Unlimited applications</li><li>Premium AI automation</li><li>Dedicated account</li><li>Advanced analytics</li></ul><Link className="btn btn-white" href={plans.MAX.ctaHref} style={{ width: "100%" }}>Get started →</Link></article>
-            </div>
-          </div>
-        </section>
+function StepCard({ number, icon, title, children, tag }: { number: string; icon: React.ReactNode; title: string; children: React.ReactNode; tag?: string }) {
+  return <div className="step-card"><div className="step-number">{number}</div><div className="step-icon">{icon}</div><h3>{title}</h3><p>{children}</p>{tag && <span className="mini-tag">{tag}</span>}</div>;
+}
 
-        {/* CLOSING CTA */}
-        <section style={{ background: "#070d1c", padding: "28px 0" }}>
-          <div className="container" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
-            <div style={{ color: "#fff" }}><p style={{ fontSize: 10, letterSpacing: ".12em", textTransform: "uppercase", color: "#d7f94b", fontWeight: 800 }}>Ready for your next opportunity?</p><h2 style={{ fontSize: 20, marginTop: 6, color: "#fff" }}>The job you want is still open.</h2><p style={{ color: "#9fb0c6", fontSize: 12, marginTop: 6 }}>Get more interviews, less job hunting, and stay in control.</p></div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <Link className="btn btn-lime" href="/signup" style={{ background: "#d7f94b", color: "#111d35" }}>Create free account →</Link>
-              <Link className="btn btn-dark" href="/tools" style={{ borderColor: "rgba(255,255,255,.5)", color: "#fff" }}>Try the free tools</Link>
-            </div>
-          </div>
-        </section>
-      </main>
+export default function Home({ authenticated }: { authenticated?: boolean } = {}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  return <div className="site-shell" id="top">
+    <header className="site-header">
+      <div className="nav-wrap"><Logo /><nav className={menuOpen ? "nav-links open" : "nav-links"}><a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a><a href="#steps" onClick={() => setMenuOpen(false)}>Free tools</a><a href="#pricing" onClick={() => setMenuOpen(false)}>Pricing</a><a href="#footer" onClick={() => setMenuOpen(false)}>Blog</a><a href="#footer" onClick={() => setMenuOpen(false)}>About</a></nav><div className="nav-actions"><a className="login-link" href="#footer">Log in</a><Button>Get started free</Button></div><button className="menu-toggle" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu">{menuOpen ? <X size={22} /> : <Menu size={22} />}</button></div>
+    </header>
 
-      <footer style={{ background: "#070d1c", padding: "36px 0 18px" }}>
-        <div className="container">
-          <div className="footer-top">
-            <div className="footer-brand"><Link href="/" style={{ display: "inline-flex" }}><Image src="/images/logo-wordmark-dark.png" alt="Jobiest" width={550} height={265} style={{ height: 22, width: "auto" }} /></Link><p style={{ color: "#9fb0c6", fontSize: 12, marginTop: 8 }}>Your AI career agent. On-demand, truthful CVs. Approval required.</p></div>
-            <div className="footer-col"><strong>Explore</strong><Link href="#how-it-works">How it works</Link><Link href="/tools">Free tools</Link><Link href="#pricing">Pricing</Link></div>
-            <div className="footer-col"><strong>Help</strong><Link href="/help">Help centre</Link><a href="mailto:support@jobiest.com">Email support</a></div>
-            <div className="footer-col"><strong>Legal</strong><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link></div>
-          </div>
-          <div className="footer-bottom"><span>© 2026 Jobiest. Approval is required; Auto is opt-in only.</span><span>Built in Lagos.</span></div>
-        </div>
-      </footer>
-    </>
-  );
+    <main>
+      <section className="hero" style={{ backgroundImage: `linear-gradient(90deg, rgba(3,17,28,.96) 0%, rgba(3,17,28,.82) 36%, rgba(3,17,28,.16) 74%), url(${heroImage})` }}>
+        <div className="container hero-content"><div className="hero-copy"><h1>More interviews.<br /><span>Less job hunting.</span><br /><span>You choose what gets sent.</span></h1><p>Jobiest is your AI career agent. Paste a job link and get a truthful CV and cover letter tailored to your experience. Find relevant roles, prepare the forms, and review every detail. You stay in control—with your explicit approval before anything is submitted.</p><div className="hero-actions"><Button>Start for free</Button><a href="#how-it-works" className="button button-ghost"><CirclePlay size={16} /> See how it works</a></div><div className="hero-note"><ShieldCheck size={14} /> You approve every application before it goes anywhere.</div></div><ApprovalCard /></div><div className="hero-dots">•••••</div></section>
+
+      <section className="story-section reality"><div className="container split-layout"><div className="story-copy"><span className="kicker">The reality</span><h2>Job hunting is a full-time job.<br />Without the pay.</h2><p>You’re already showing up for work, family, bills, and everything else life asks of you. Then, somewhere between dinner and bed, the job search begins: one more listing, one more CV edit, one more form. It can start to feel like you need a second job just to find a better first one.</p><ul className="check-list">{checks.map((item) => <li key={item}><span><Check size={12} /></span>{item}</li>)}</ul><p className="muted">A slow reply doesn’t mean you’re not capable. A difficult application process doesn’t define your worth. Jobiest takes on the repetitive searching and preparation, so you can keep your energy for the conversations—and the life—you’re working toward.</p></div><div className="story-visual" style={{ backgroundImage: `url(${realityImage})` }}><div className="scribble">Let Jobiest handle<br />the busy work... <ArrowRight size={23} /></div><div className="task-stack"><div>Find relevant roles</div><div>Tailor your CV</div><div>Write your letter</div><div>Complete the form</div><div>Prepare to submit</div></div></div></div></section>
+
+      <section className="story-section truth"><div className="container split-layout reverse"><div className="story-copy"><span className="kicker">The hard truth</span><h2>It’s not you. It’s the process.</h2><p>You know what you can do. But between crowded listings, rushed applications, and forms that ask you to repeat your story, it’s easy to feel like you’re falling behind before anyone has even read your CV.</p><p className="muted">Your experience deserves a fair shot. Jobiest helps put it into words for each role—without inventing credentials or taking the decision out of your hands.</p><a className="text-link" href="#how-it-works">Put your experience in the right places <ArrowRight size={15} /></a></div><div className="laptop-visual"><div className="laptop"><div className="screen"><div className="screen-bar" /><div className="screen-lines"><i /><i /><i /><i /><i /></div></div><div className="laptop-base" /></div><div className="ats-card"><span className="check-bubble"><Check size={14} /></span><strong>ATS Optimised</strong><p><Check size={12} /> Keywords matched</p><p><Check size={12} /> Skills aligned</p><p><Check size={12} /> Formatting ready</p></div></div></div></section>
+
+      <section className="story-section how" id="how-it-works"><div className="container split-layout"><div className="story-copy"><span className="kicker">How it works</span><h2>Your job search, handled.</h2><p>You set the direction. Jobiest helps with the searching and preparation. You review every detail and decide what gets sent.</p><ul className="check-list compact"><li><span><Check size={12} /></span>Find relevant opportunities that fit your experience and goals.</li><li><span><Check size={12} /></span>Build a truthful CV and cover letter tailored to each role.</li><li><span><Check size={12} /></span>Review, edit, and approve before anything is submitted.</li><li><span><Check size={12} /></span>Track every application and spend your time preparing for interviews.</li></ul><Button>Start for free</Button></div><div className="story-visual how-visual" style={{ backgroundImage: `url(${howImage})` }}><div className="scribble dark-scribble">Less effort.<br />More opportunities.<ArrowRight size={23} /></div><div className="floating-notification"><span className="check-bubble"><Check size={13} /></span><div><strong>Application submitted!</strong><small>Only after your approval</small></div><ChevronRight size={16} /></div></div></div></section>
+
+      <section className="steps-section" id="steps"><div className="container"><div className="section-intro"><span className="kicker">Three simple steps</span><h2>Three steps. Fifteen minutes to set up.</h2><p>Tell Jobiest what matters to you. Let it handle the repetitive parts. Keep the decision yours.</p></div><div className="steps-grid"><StepCard number="1" icon={<BriefcaseBusiness size={20} />} title="Tell us what you want next">Tell us what you’ve done, what you’re good at, and what you want your next chapter to look like.</StepCard><StepCard number="2" icon={<Sparkles size={20} />} title="Tailor and prepare" tag="Takes ~15 minutes">Jobiest finds roles that fit and prepares a truthful, tailored application. You can check every document and answer before it’s ready to send.</StepCard><StepCard number="3" icon={<Search size={20} />} title="Approve and move forward">Approve only the applications you feel good about. Follow their progress, and use the time you saved to prepare for what comes next.</StepCard></div></div></section>
+
+      <section className="pricing-section" id="pricing"><div className="container pricing-wrap"><div className="pricing-copy"><span className="kicker">Pricing</span><h2>Start free. Upgrade if it works for you.</h2><p>Choose the support that fits your search. Cancel anytime — your next move should still feel like yours.</p><div className="pricing-grid">{plans.map((plan) => <div className={plan.popular ? "price-card popular" : "price-card"} key={plan.name}>{plan.popular && <span className="popular-tag">Most popular</span>}<div className="plan-name">{plan.name}</div><div className="price">{plan.price}<small> / month</small></div><div className="price-rule" />{plan.features.map((feature) => <div className="plan-feature" key={feature}><Check size={13} />{feature}</div>)}<a href="#footer" className="plan-button">Get started <ArrowRight size={14} /></a></div>)}</div></div><div className="pricing-image" style={{ backgroundImage: `url(${pricingImage})` }}><div className="image-note">Invest in<br />your future <span>♡</span></div></div></div></section>
+
+      <section className="bottom-cta"><div className="container cta-inner"><div className="cta-thumb" style={{ backgroundImage: `url(${heroImage})` }} /><div><span className="kicker kicker-light">Ready for your next opportunity?</span><h2>The job you want is still open.</h2><p>You keep showing up for your goals. Let Jobiest handle the busywork—with your approval at every step.</p></div><Button>Create free account</Button><a className="button button-ghost" href="#steps">See how it works</a></div></section>
+    </main>
+
+    <footer id="footer"><div className="container footer-top"><div className="footer-brand"><FooterLogo /><p>Your AI career agent. Truthful. On-demand. Yours.</p><span>You're in control.</span></div><div className="footer-links"><div><strong>Explore</strong><a href="#how-it-works">How it works</a><a href="#steps">Free tools</a><a href="#pricing">Pricing</a><a href="#footer">Blog</a></div><div><strong>Help</strong><a href="#footer">Support</a><a href="#footer">Email support</a><a href="#footer">Terms & privacy</a></div></div><div className="socials"><a href="#footer" aria-label="Twitter"><span>X</span></a><a href="#footer" aria-label="LinkedIn"><span>in</span></a><a href="#footer" aria-label="Instagram"><span>IG</span></a></div></div><div className="container footer-bottom"><span>© 2025 Jobiest. Nothing is submitted without your approval.</span><span>Better jobs.<br /><em>Brighter futures.</em> <Sparkles size={14} /></span></div></footer>
+  </div>;
 }
