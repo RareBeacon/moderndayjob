@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'crypto';
+import { createHash } from 'crypto';
 import { supabaseAdmin } from './supabase';
 
 export const APP_SESSION_COOKIE = 'jobiest_app_session';
@@ -17,7 +17,19 @@ export type AppSessionRow = {
 };
 
 export function generateSessionToken(): string {
-  return randomBytes(32).toString('base64url');
+  // Edge-compatible: Web Crypto (middleware runs on Edge Runtime)
+  const bytes = new Uint8Array(32);
+  if (typeof crypto !== 'undefined' && (crypto as any).getRandomValues) {
+    (crypto as any).getRandomValues(bytes);
+  } else {
+    // Fallback for Node build - dynamic import to avoid Edge bundling
+    const { randomBytes } = require('crypto');
+    return randomBytes(32).toString('base64url');
+  }
+  let binary = '';
+  bytes.forEach((b) => (binary += String.fromCharCode(b)));
+  const base64 = typeof btoa !== 'undefined' ? btoa(binary) : Buffer.from(binary, 'binary').toString('base64');
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 export function hashToken(token: string): string {

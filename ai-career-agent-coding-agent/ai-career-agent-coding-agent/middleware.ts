@@ -77,7 +77,7 @@ export async function middleware(request: NextRequest) {
 
   // App-session validation (skip for /verify-email which is pre-session for password signups)
   let appSessionValid = false;
-  let appSessionRow: Awaited<ReturnType<typeof validateAppSession>> extends { valid: true; row: infer R } ? R : never = null as any;
+  let appSessionRow: { id: string; user_id: string; token_hash: string; created_at: string; last_active_at: string; expires_at: string; revoked_at: string | null } | null = null;
   if (user && pathname !== '/verify-email') {
     const appToken = request.cookies.get(APP_SESSION_COOKIE)?.value;
     if (appToken) {
