@@ -336,15 +336,16 @@ export default function VerifyEmailPage() {
             disabled={busy || !checked || code.length !== 6}
             style={{
               width: '100%',
-              height: 46,
-              borderRadius: 10,
+              height: 44,
+              borderRadius: 14,
               border: 0,
-              background: busy || code.length !== 6 ? '#a5b4fc' : '#4f46e5',
-              color: '#fff',
-              fontWeight: 600,
-              fontSize: 14.5,
+              background: busy || code.length !== 6 ? '#aab3c1' : '#d7f94b',
+              color: busy || code.length !== 6 ? '#fff' : '#111d35',
+              fontWeight: 650,
+              fontSize: 15,
               cursor: busy || code.length !== 6 ? 'not-allowed' : 'pointer',
-              transition: 'background 0.15s',
+              transition: 'background 150ms ease',
+              boxShadow: '0 1px 2px rgb(17 29 53 / 8%)',
             }}
           >
             {busy ? 'Checking…' : 'Verify and continue'}

@@ -101,7 +101,6 @@ export async function middleware(request: NextRequest) {
     const redirect = request.nextUrl.clone();
     redirect.pathname = '/login';
     redirect.searchParams.set('next', pathname);
-    redirect.searchParams.set('expired', '1');
     const res = NextResponse.redirect(redirect);
     res.cookies.set(APP_SESSION_COOKIE, '', { ...appSessionCookieOptions(), maxAge: 0 } as CookieOptions & { maxAge: number });
     return res;
