@@ -113,6 +113,7 @@ export default function VerifyEmailPage() {
         } else if (out.needsAccountCompletion) {
           router.replace('/complete-account');
         } else {
+          try { await fetch('/api/auth/session', { method: 'POST' }); } catch {}
           router.replace('/dashboard');
           router.refresh();
         }

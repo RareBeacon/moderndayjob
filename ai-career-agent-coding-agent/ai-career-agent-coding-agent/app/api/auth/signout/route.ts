@@ -16,6 +16,15 @@ export async function POST(req: Request) {
 
   const jar = await cookies();
   const response = NextResponse.redirect(new URL('/', req.url), 303);
+  // Revoke app session (30m/7d registry) before Supabase signOut
+  try {
+    const appToken = jar.get('jobiest_app_session')?.value;
+    if (appToken) {
+      const { revokeAppSessionByToken, appSessionCookieOptions } = await import('@/lib/session');
+      await revokeAppSessionByToken(appToken).catch(() => {});
+      response.cookies.set('jobiest_app_session', '', { ...appSessionCookieOptions(), maxAge: 0 } as CookieOptions & { maxAge: number });
+    }
+  } catch {}
   const client = createServerClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
     cookies: {
       getAll: () => jar.getAll(),

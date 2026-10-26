@@ -22,6 +22,7 @@ function LoginInner() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const verified = params.get('verified') === '1';
+  const expired = params.get('expired') === '1';
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -56,6 +57,10 @@ function LoginInner() {
     } catch {
       // fall through to the dashboard; middleware re-checks
     }
+    // Create app session (30m idle / 7d absolute, session-only cookie) — required for protected pages
+    try {
+      await fetch('/api/auth/session', { method: 'POST' });
+    } catch {}
     const next = new URLSearchParams(window.location.search).get('next') || '/dashboard';
     router.push(next);
     router.refresh();
@@ -63,6 +68,11 @@ function LoginInner() {
 
   return (
     <AuthShell title="Welcome back" subtitle="Sign in to your Jobiest workspace.">
+      {expired ? (
+        <div className="auth-error" role="alert" style={{ marginTop: 16 }}>
+          Your session expired (30 min idle or 7 days max). Please sign in again.
+        </div>
+      ) : null}
       {verified ? (
         <div className="auth-success" role="status" style={{ marginTop: 16 }}>
           Your email is verified. Enter your password to continue.

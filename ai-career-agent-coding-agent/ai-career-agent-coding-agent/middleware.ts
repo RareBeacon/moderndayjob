@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { APP_SESSION_COOKIE, validateAppSession, touchAppSession, appSessionCookieOptions } from './lib/session';
 
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
@@ -9,19 +10,13 @@ type CookieToSet = { name: string; value: string; options: CookieOptions };
  *  sent those users into a login redirect loop (fixed 2026-09-21). The page
  *  itself sends anonymous visitors without an ?email= context to /login. */
 const PROTECTED = ['/dashboard', '/onboarding', '/profile', '/settings', '/documents', '/applications', '/billing', '/generate', '/mfa-verify', '/complete-account'];
-/** Auth pages an already-signed-in user should not see. */
+/** Auth pages an already-signed-in user should not see (only when app session valid). */
 const AUTH_PAGES = ['/login', '/signup'];
 
 function isProtected(pathname: string): boolean {
   return PROTECTED.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
-/** Social sign-up email gate + account-completion gate: social sessions
- *  (google / linkedin) must verify their email (profiles.email_verified_at)
- *  and then set a password + phone (owner brief 2026-09-21) before the app
- *  opens. Only social sessions pay the profile read; password accounts
- *  complete at registration. RLS profile_self allows the user-scoped client
- *  to read only their own row. */
 function isSocialProvider(user: { app_metadata?: { providers?: string[]; [key: string]: unknown } | null }): boolean {
   const providers = user.app_metadata?.providers ?? [];
   return providers.includes('google') || providers.includes('linkedin_oidc') || providers.includes('linkedin');
@@ -41,11 +36,14 @@ async function socialGates(
   const verified = Boolean(row?.email_verified_at);
   return {
     needsVerification: !verified,
-    // Honest completeness signal: phone + password_set_at. (Reading
-    // app_metadata for 'email' was wrong - it does not update when a
-    // password is set for a social account.)
     needsCompletion: verified && (!row?.phone || !row?.password_set_at),
   };
+}
+
+function sessionCookieOptionsWithoutPersistence(opts: CookieOptions): CookieOptions {
+  // Force session-only: remove maxAge/expires so cookie dies with browser session
+  const { maxAge, expires, ...rest } = opts as CookieOptions & { maxAge?: number; expires?: Date };
+  return rest;
 }
 
 export async function middleware(request: NextRequest) {
@@ -54,14 +52,6 @@ export async function middleware(request: NextRequest) {
   if (!url || !key) return NextResponse.next();
   const { pathname } = request.nextUrl;
 
-  // The homepage '/' is fully public and is NOT in the matcher: middleware
-  // never runs on it (2026-09-24 fix). The previous fast-path redirected any
-  // visitor with a mere session-cookie PRESENCE to /dashboard without
-  // validating the session, so every browser holding an expired/stale cookie
-  // experienced  /  ->  /dashboard  ->  /login?next=%2Fdashboard. The
-  // homepage must never inherit a protected route's destination; requested
-  // URL determines destination.
-
   let response = NextResponse.next({ request });
   const supabase = createServerClient(url, key, {
     cookies: {
@@ -69,19 +59,52 @@ export async function middleware(request: NextRequest) {
       setAll: (items: CookieToSet[]) => {
         items.forEach(({ name, value }) => request.cookies.set(name, value));
         response = NextResponse.next({ request });
-        items.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+        items.forEach(({ name, value, options }) => {
+          // Session-only enforcement: strip persistence from Supabase cookies
+          const sessionOpts = sessionCookieOptionsWithoutPersistence(options);
+          response.cookies.set(name, value, sessionOpts);
+        });
       },
     },
   });
 
-  // Fail soft (2026-09-24 iOS incident): a throwing auth call (hiccup or
-  // revoked mid-rotation session) reads as anonymous; the protected-path
-  // redirect below handles it instead of a middleware 500.
   let user: Awaited<ReturnType<typeof supabase.auth.getUser>>['data']['user'] = null;
   try {
     ({ data: { user } } = await supabase.auth.getUser());
   } catch {
     user = null;
+  }
+
+  // App-session validation (skip for /verify-email which is pre-session for password signups)
+  let appSessionValid = false;
+  let appSessionRow: Awaited<ReturnType<typeof validateAppSession>> extends { valid: true; row: infer R } ? R : never = null as any;
+  if (user && pathname !== '/verify-email') {
+    const appToken = request.cookies.get(APP_SESSION_COOKIE)?.value;
+    if (appToken) {
+      try {
+        const v = await validateAppSession({ token: appToken, userId: user.id });
+        if (v.valid) {
+          appSessionValid = true;
+          appSessionRow = v.row as any;
+        } else {
+          // Expired/revoked — will clear cookie and redirect
+          appSessionValid = false;
+        }
+      } catch {
+        appSessionValid = false;
+      }
+    }
+  }
+
+  // Protected pages require BOTH Supabase identity AND valid app session (except verify-email)
+  if (isProtected(pathname) && user && !appSessionValid) {
+    const redirect = request.nextUrl.clone();
+    redirect.pathname = '/login';
+    redirect.searchParams.set('next', pathname);
+    redirect.searchParams.set('expired', '1');
+    const res = NextResponse.redirect(redirect);
+    res.cookies.set(APP_SESSION_COOKIE, '', { ...appSessionCookieOptions(), maxAge: 0 } as CookieOptions & { maxAge: number });
+    return res;
   }
 
   if (isProtected(pathname) && !user) {
@@ -91,42 +114,50 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirect);
   }
 
-  if (user) {
-    // Defense in depth: even an unexpectedly active password session cannot
-    // open a protected page before Supabase has confirmed its email.
+  // Touch last_active throttled on authenticated protected requests (qualifying activity)
+  if (user && appSessionValid && appSessionRow) {
+    // Only count genuine page navigations as qualifying activity, not background polls
+    // For now every protected page visit counts; API polling excluded via middleware matcher
+    await touchAppSession(appSessionRow as any).catch(() => {});
+  }
+
+  if (user && pathname !== '/verify-email') {
+    // Defense in depth: password sessions with unconfirmed email go to verify-email
+    // (social has separate profile gate)
     if (!isSocialProvider(user) && !user.email_confirmed_at && pathname !== '/verify-email') {
       const redirect = request.nextUrl.clone();
       redirect.pathname = '/verify-email';
       redirect.search = '';
       if (user.email) redirect.searchParams.set('email', user.email);
-      return NextResponse.redirect(redirect);
+      const res = NextResponse.redirect(redirect);
+      // Keep app session touch if valid
+      return res;
     }
-    const { needsVerification, needsCompletion } = await socialGates(supabase, user);
-    if (needsVerification && pathname !== '/verify-email') {
-      const redirect = request.nextUrl.clone();
-      redirect.pathname = '/verify-email';
-      redirect.search = '';
-      return NextResponse.redirect(redirect);
-    }
-    // Verified social accounts without a password + phone complete them
-    // first (email/MFA screens stay reachable so no loop forms).
-    if (
-      needsCompletion &&
-      pathname !== '/complete-account' &&
-      pathname !== '/verify-email' &&
-      pathname !== '/mfa-verify'
-    ) {
-      const redirect = request.nextUrl.clone();
-      redirect.pathname = '/complete-account';
-      redirect.search = '';
-      return NextResponse.redirect(redirect);
+    // Social gates only when app session valid — otherwise user must re-login anyway
+    if (appSessionValid) {
+      const { needsVerification, needsCompletion } = await socialGates(supabase, user);
+      if (needsVerification && pathname !== '/verify-email') {
+        const redirect = request.nextUrl.clone();
+        redirect.pathname = '/verify-email';
+        redirect.search = '';
+        return NextResponse.redirect(redirect);
+      }
+      if (
+        needsCompletion &&
+        pathname !== '/complete-account' &&
+        pathname !== '/verify-email' &&
+        pathname !== '/mfa-verify'
+      ) {
+        const redirect = request.nextUrl.clone();
+        redirect.pathname = '/complete-account';
+        redirect.search = '';
+        return NextResponse.redirect(redirect);
+      }
     }
   }
 
-  // MFA gate: sessions with an enrolled factor that has not been completed
-  // (aal1) go to /mfa-verify before any protected page opens. Supabase's
-  // assurance level is decoded from the session; no extra DB read.
-  if (user && pathname !== '/mfa-verify' && pathname !== '/verify-email') {
+  // MFA gate (only when app session valid)
+  if (user && appSessionValid && pathname !== '/mfa-verify' && pathname !== '/verify-email') {
     try {
       const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2') {
@@ -135,12 +166,11 @@ export async function middleware(request: NextRequest) {
         redirect.search = '';
         return NextResponse.redirect(redirect);
       }
-    } catch {
-      // fail open; requireUser re-checks on data access
-    }
+    } catch {}
   }
 
-  if (user && AUTH_PAGES.includes(pathname)) {
+  // Auth pages redirect only when app session valid (prevents loop for expired app session)
+  if (user && appSessionValid && AUTH_PAGES.includes(pathname)) {
     const redirect = request.nextUrl.clone();
     redirect.pathname = '/dashboard';
     return NextResponse.redirect(redirect);

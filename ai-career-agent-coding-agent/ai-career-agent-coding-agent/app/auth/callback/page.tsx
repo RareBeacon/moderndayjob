@@ -89,6 +89,8 @@ function CallbackInner() {
         // State check is best-effort; the middleware re-checks anyway.
       }
 
+      // Create app session for OAuth login (30m/7d, session-only)
+      try { await fetch('/api/auth/session', { method: 'POST' }); } catch {}
       const safe = next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard';
       router.replace(safe);
       router.refresh();

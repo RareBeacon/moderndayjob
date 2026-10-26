@@ -40,6 +40,24 @@ function bearerToken(header: string | null): string | null {
   return token.length > 0 ? token : null;
 }
 
+async function validateBrowserAppSession(userId: string, bearerPresent: boolean): Promise<{ valid: true } | { valid: false; reason: string }> {
+  // Bearer clients (mobile) are exempt — they have their own JWT lifecycle
+  if (bearerPresent) return { valid: true };
+  try {
+    const cookieStore = await cookies();
+    const appToken = cookieStore.get('jobiest_app_session')?.value;
+    if (!appToken) return { valid: false, reason: 'NO_APP_SESSION' };
+    const { validateAppSession, touchAppSession } = await import('./session');
+    const v = await validateAppSession({ token: appToken, userId });
+    if (!v.valid) return { valid: false, reason: v.reason };
+    // Qualifying activity = authenticated page/API request — touch throttled
+    await touchAppSession(v.row).catch(() => {});
+    return { valid: true };
+  } catch {
+    return { valid: false, reason: 'APP_SESSION_ERROR' };
+  }
+}
+
 function aalFromJwt(token: string): 'aal1' | 'aal2' {
   // The access token always carries an `aal` claim for authenticated
   // sessions (aal1 for password-only, aal2 once MFA is completed).
@@ -165,6 +183,11 @@ export async function getAuthContext(req?: Request): Promise<AuthContext> {
 export async function requireUser(opts: { allowIncompleteMfa?: boolean; req?: Request } = {}) {
   const { user, needsMfa } = await getAuthContext(opts.req);
   if (!user) throw new Error('UNAUTHENTICATED');
+  // Enforce app-managed session (30m idle / 7d absolute) for browser clients
+  // Bearer token clients (mobile) are exempt — see validateBrowserAppSession
+  const bearerPresent = Boolean(opts.req?.headers.get('authorization')?.startsWith('Bearer '));
+  const appCheck = await validateBrowserAppSession(user.id, bearerPresent);
+  if (!appCheck.valid) throw new Error(appCheck.reason === 'NO_APP_SESSION' ? 'SESSION_EXPIRED' : appCheck.reason === 'IDLE_EXPIRED' ? 'SESSION_IDLE_EXPIRED' : appCheck.reason === 'ABSOLUTE_EXPIRED' ? 'SESSION_ABSOLUTE_EXPIRED' : 'SESSION_EXPIRED');
   // Password signups must not use authenticated API routes until Supabase
   // itself has recorded confirmation. Social accounts have a separate
   // profile-backed email gate and are allowed into their verification APIs.
