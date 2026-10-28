@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { motion, useInView, useReducedMotion } from "framer-motion";
 import {
   ArrowRight,
   BriefcaseBusiness,
@@ -7,501 +8,139 @@ import {
   ChevronRight,
   CirclePlay,
   FileText,
-  Layers,
   Menu,
   Search,
   ShieldCheck,
   Sparkles,
   X,
-  FileCheck,
-  PenLine,
-  Send,
 } from "lucide-react";
 
-const heroImage = "/images/jobiest-hero.jpg";
-const realityImage = "/images/jobiest-reality.jpg";
-const howImage = "/images/jobiest-how.jpg";
-const pricingImage = "/images/jobiest-future.jpg";
+const heroImage = "/assets/images/hero-job-search.webp";
+const realityImage = "/assets/images/reality-woman-laptop.webp";
+const howImage = "/assets/images/how-it-works-man-phone.webp";
+const pricingImage = "/assets/images/pricing-woman-laptop.webp";
 
-// ---------- Reusable animation primitives ----------
-function useReducedMotion() {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    const m = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduced(m.matches);
-    const h = () => setReduced(m.matches);
-    m.addEventListener?.("change", h);
-    return () => m.removeEventListener?.("change", h);
-  }, []);
-  return reduced;
+const plans = [
+  { name: "Basic", price: "₦5,000", features: ["Up to 10 applications per month", "AI-tailored CV & cover letter", "Job tracking & notifications"] },
+  { name: "Premium", price: "₦10,000", popular: true, features: ["Up to 30 applications per month", "Advanced AI tailoring", "Priority support", "Full application tracking"] },
+  { name: "Max", price: "₦20,000", features: ["Unlimited applications", "Premium AI assistance", "Dedicated support", "Advanced application tracking"] },
+];
+
+const problemChecks = [
+  "You wake up in the morning.",
+  "You spend hours looking for relevant job opportunities.",
+  "You create different tailored resumes for each job.",
+  "You fill out different forms over and over again.",
+  "You keep relying on hope.",
+];
+
+const workflowSteps = [
+  { title: "Find relevant roles", icon: <Search size={17} />, detail: "Relevant opportunities, not random noise." },
+  { title: "Tailor your CV", icon: <FileText size={17} />, detail: "Truthful language built from your real work." },
+  { title: "Write your letter", icon: <Sparkles size={17} />, detail: "A clear reason you fit this role." },
+  { title: "Complete the form", icon: <BriefcaseBusiness size={17} />, detail: "Less retyping. Fewer repeated fields." },
+  { title: "Prepare to submit", icon: <ShieldCheck size={17} />, detail: "Nothing goes anywhere without your yes." },
+];
+
+const howSteps = [
+  ["Find the right doors", "Find roles that actually fit your experience and goals, not random noise."],
+  ["Position yourself right", "Prepare a truthful, tailored CV and cover letter for each role, built from your real work."],
+  ["You approve or edit", "Nothing is submitted until you say yes. Flagged claims are surfaced for review."],
+  ["Track and follow through", "Spend your saved hours preparing to win the interview, not refilling forms."],
+];
+
+function Logo() {
+  return <a href="#top" className="brand" aria-label="Jobiest home"><img className="header-logo-image" src="/assets/logos/jobiest-header-logo.png" alt="Jobiest" /></a>;
 }
 
-function TypingHurray({ onDone }: { onDone?: () => void }) {
-  const reduced = useReducedMotion();
-  const full = "Hurray...";
-  const steps = ["H", "Hu", "Hur", "Hurr", "Hurra", "Hurray", "Hurray.", "Hurray..", "Hurray..."];
-  const [idx, setIdx] = useState(reduced ? steps.length - 1 : 0);
-  const [showCursor, setShowCursor] = useState(true);
-
-  useEffect(() => {
-    if (reduced) {
-      onDone?.();
-      return;
-    }
-    // check session to not replay every visit
-    try {
-      if (sessionStorage.getItem("jobiest-hero-played") === "1") {
-        setIdx(steps.length - 1);
-        setShowCursor(false);
-        onDone?.();
-        return;
-      }
-    } catch {}
-    let i = 0;
-    const timers: number[] = [];
-    const tick = () => {
-      if (i < steps.length - 1) {
-        i += 1;
-        setIdx(i);
-        const delay = i === steps.length - 1 ? 320 : i >= 6 ? 160 : 130;
-        timers.push(window.setTimeout(tick, delay));
-      } else {
-        // hold then remove cursor
-        timers.push(window.setTimeout(() => setShowCursor(false), 380));
-        timers.push(window.setTimeout(() => {
-          try { sessionStorage.setItem("jobiest-hero-played", "1"); } catch {}
-          onDone?.();
-        }, 420));
-      }
-    };
-    timers.push(window.setTimeout(tick, 260));
-    return () => timers.forEach(clearTimeout);
-  }, [reduced, onDone]);
-
-  return (
-    <span aria-label="Hurray" aria-live="polite" className="hurray-typing">
-      {steps[idx]}
-      {showCursor && !reduced && <span className="typing-cursor" aria-hidden="true">|</span>}
-    </span>
-  );
-}
-
-function useScrollReveal() {
-  useEffect(() => {
-    const els = document.querySelectorAll<HTMLElement>("[data-reveal]");
-    if (!els.length) return;
-    // if reduced motion, show immediately
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduced) {
-      els.forEach((el) => el.classList.add("is-in"));
-      return;
-    }
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            e.target.classList.add("is-in");
-            io.unobserve(e.target);
-          }
-        });
-      },
-      { threshold: 0.14, rootMargin: "0px 0px -8% 0px" }
-    );
-    els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, []);
-}
-
-// ---------- Logos ----------
-function Logo({ variant = "light" }: { variant?: "light" | "dark" }) {
-  const src = variant === "dark" ? "/logo-wordmark-dark.svg" : "/logo-wordmark-light.svg";
-  return (
-    <a href="#top" className="brand" aria-label="Jobiest home">
-      <img src={src} alt="Jobiest" className="header-logo-image" width={128} height={42} />
-    </a>
-  );
-}
 function FooterLogo() {
-  return (
-    <a href="#top" className="brand footer-wordmark" aria-label="Jobiest home">
-      <img src="/logo-wordmark-light.svg" alt="Jobiest" className="footer-logo-image" width={160} height={58} />
-    </a>
-  );
-}
-function Button({ children, href = "/signup", variant = "primary" }: { children: React.ReactNode; href?: string; variant?: "primary" | "ghost" }) {
-  const cls = variant === "ghost" ? "button button-ghost" : "button";
-  return (
-    <a className={cls} href={href}>
-      {children} <ArrowRight size={15} strokeWidth={2.5} />
-    </a>
-  );
+  return <a href="#top" className="footer-logo-image" aria-label="Jobiest home"><img src="/assets/logos/jobiest-footer-logo.png" alt="Jobiest" /></a>;
 }
 
-// ---------- Product visuals ----------
+function Button({ children, href = "#pricing", secondary = false }: { children: React.ReactNode; href?: string; secondary?: boolean }) {
+  return <a className={secondary ? "button button-secondary" : "button"} href={href}>{children}<ArrowRight size={15} strokeWidth={2.5} /></a>;
+}
+
+function Reveal({ children, className = "", delay = 0, direction = "up" }: { children: React.ReactNode; className?: string; delay?: number; direction?: "up" | "left" | "right" }) {
+  const elementRef = useRef<HTMLDivElement>(null);
+  const inView = useInView(elementRef, { once: true, amount: 0.18 });
+  const reduce = useReducedMotion();
+  const initial = reduce ? { opacity: 1 } : direction === "left" ? { opacity: 0, x: -28 } : direction === "right" ? { opacity: 0, x: 28 } : { opacity: 0, y: 28 };
+  const animate = reduce ? { opacity: 1 } : { opacity: 1, x: 0, y: 0 };
+  return <motion.div ref={elementRef} className={className} initial={initial} animate={inView ? animate : initial} transition={{ duration: reduce ? 0 : 0.68, delay: reduce ? 0 : delay, ease: [0.22, 1, 0.36, 1] }}>{children}</motion.div>;
+}
+
 function ApprovalCard() {
-  return (
-    <div className="approval-card">
-      <div className="approval-head">
-        <div>
-          <span className="eyebrow">Job Application Review</span>
-          <strong>Senior Frontend Developer</strong>
-        </div>
-        <span className="status status-lime">Needs your approval</span>
-      </div>
-      <div className="approval-rule"><Check size={13} /><span>CV tailored to this role</span><b>View</b></div>
-      <div className="approval-rule"><Check size={13} /><span>Matches 4/5 required skills</span><b>Verified</b></div>
-      <div className="approval-rule warn"><Sparkles size={13} /><span>Flagged unsupported claim</span><b>Review</b></div>
-      <div className="approval-rule"><FileText size={13} /><span>CV <small>Tailored for this role</small></span><b>Ready</b></div>
-      <div className="approval-rule"><FileText size={13} /><span>Cover letter <small>AI generated and personalised</small></span><b>Ready</b></div>
-      <button className="approval-action">Review & approve <ArrowRight size={14} /></button>
-    </div>
-  );
-}
-function JobOpportunityCard() {
-  return (
-    <div className="mini-card">
-      <div className="mini-card-head">
-        <span className="mini-dot" /> Product Designer • Lagos • Full-time
-      </div>
-      <strong>Senior Product Designer — Fintech</strong>
-      <p>Build clear, human application experiences. Work with a team that values truthful, tailored applications.</p>
-      <div className="mini-tags"><span>ATS friendly</span><span>3+ yrs</span><span>Remote</span></div>
-    </div>
-  );
-}
-function CVPreview() {
-  return (
-    <div className="cv-preview">
-      <div className="cv-head"><span /><span /><span /></div>
-      <div className="cv-name">Alex Morgan — Product Designer</div>
-      <div className="cv-line w-80" /><div className="cv-line w-60" />
-      <div className="cv-section">Experience</div>
-      <div className="cv-line w-90" /><div className="cv-line w-75" /><div className="cv-line w-85" />
-      <div className="cv-highlight">Relevant experience highlighted for this role</div>
-    </div>
-  );
+  const reduce = useReducedMotion();
+  return <motion.div className="approval-card" initial={reduce ? { opacity: 1 } : { opacity: 0, y: 24, scale: .97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay: reduce ? 0 : 2.1, duration: reduce ? 0 : .72, ease: [0.22, 1, 0.36, 1] }}>
+    <div className="approval-head"><div><span className="eyebrow">Job Application Review</span><strong>Senior Frontend Developer</strong></div><span className="status status-lime">Needs your approval</span></div>
+    <div className="approval-rule"><Check size={13} /><span>CV tailored to this role</span><b>View</b></div>
+    <div className="approval-rule"><Check size={13} /><span>Matches required skills</span><b>Verified</b></div>
+    <div className="approval-rule warn"><Sparkles size={13} /><span>Flagged unsupported claim</span><b>Review</b></div>
+    <div className="approval-rule"><FileText size={13} /><span>CV <small>Tailored for this role</small></span><b>Ready</b></div>
+    <div className="approval-rule"><FileText size={13} /><span>Cover letter <small>AI generated and personalised</small></span><b>Ready</b></div>
+    <button className="approval-action">Review & approve <ArrowRight size={14} /></button>
+  </motion.div>;
 }
 
-export default function Home({ authenticated }: { authenticated?: boolean } = {}) {
+function WorkflowDemo() {
+  const reduce = useReducedMotion();
+  return <div className="workflow-panel" aria-label="Jobiest application preparation workflow">
+    <div className="workflow-topline"><span>Jobiest workspace</span><span className="status status-lime">Draft ready for review</span></div>
+    <div className="workflow-steps">{workflowSteps.map((step, index) => <motion.div className="workflow-step" key={step.title} initial={reduce ? { opacity: 1 } : { opacity: 0, x: 24 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: .4 }} transition={{ delay: reduce ? 0 : index * .1, duration: .45 }}><span className="workflow-icon">{step.icon}</span><div><strong>{step.title}</strong><small>{step.detail}</small></div>{index < workflowSteps.length - 1 && <ChevronRight size={15} className="workflow-arrow" />}</motion.div>)}</div>
+    <div className="workflow-footer"><span><Check size={14} /> You choose what gets sent.</span><span className="mini-tag">Review first</span></div>
+  </div>;
+}
+
+function StepCard({ number, icon, title, children, tag }: { number: string; icon: React.ReactNode; title: string; children: React.ReactNode; tag?: string }) {
+  return <div className="step-card"><div className="step-number">{number}</div><div className="step-icon">{icon}</div><h3>{title}</h3><p>{children}</p>{tag && <span className="mini-tag">{tag}</span>}</div>;
+}
+
+function Hero() {
+  const reduce = useReducedMotion();
+  const [typed, setTyped] = useState(reduce ? "Hurray..." : "");
+  const [ready, setReady] = useState(reduce);
+  useEffect(() => {
+    if (reduce) return;
+    const word = "Hurray...";
+    const timers = Array.from({ length: word.length }, (_, index) => window.setTimeout(() => setTyped(word.slice(0, index + 1)), 90 * (index + 1)));
+    const done = window.setTimeout(() => setReady(true), 1050);
+    return () => { timers.forEach(window.clearTimeout); window.clearTimeout(done); };
+  }, [reduce]);
+  return <section className="hero" style={{ backgroundImage: `linear-gradient(90deg, rgba(3,17,28,.96) 0%, rgba(3,17,28,.82) 36%, rgba(3,17,28,.16) 74%), url(${heroImage})` }}>
+    <div className="container hero-content"><div className="hero-copy">
+      <div className="typing-label" aria-live="polite"><span aria-hidden="true">{typed || "Hurray..."}</span><span className="sr-only">Hurray...</span></div>
+      <motion.h1 initial={reduce ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }} animate={ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }} transition={{ duration: .65 }}>{"You can now search and apply for jobs without spending hours searching the internet, creating tailored CVs, and filling out the same forms over and over again."}</motion.h1>
+      <motion.p initial={reduce ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 }} animate={ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 }} transition={{ delay: .18, duration: .6 }}>Jobiest is designed to take the busywork off your shoulders, so you can focus on landing the job you deserve.</motion.p>
+      <motion.div className="hero-actions" initial={reduce ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }} animate={ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }} transition={{ delay: .32, duration: .55 }}><Button>Start for free</Button><a href="#how-it-works" className="button button-ghost"><CirclePlay size={16} /> See how it works</a></motion.div>
+      <div className="hero-note"><ShieldCheck size={14} /> You approve every application before it goes anywhere.</div>
+    </div><ApprovalCard /></div><div className="hero-dots">•••••</div>
+  </section>;
+}
+
+export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-  const [heroStage, setHeroStage] = useState(0); // 0 typing, 1 headline, 2 copy, 3 cta, 4 visual
-  const heroRef = useRef<HTMLElement>(null);
+  return <div className="site-shell" id="top">
+    <header className="site-header"><div className="nav-wrap"><Logo /><nav className={menuOpen ? "nav-links open" : "nav-links"}><a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a><a href="#steps" onClick={() => setMenuOpen(false)}>Free tools</a><a href="#pricing" onClick={() => setMenuOpen(false)}>Pricing</a><a href="#footer" onClick={() => setMenuOpen(false)}>Blog</a><a href="#footer" onClick={() => setMenuOpen(false)}>About</a></nav><div className="nav-actions"><a className="login-link" href="#footer">Log in</a><Button href="#pricing">Get started free</Button></div><button className="menu-toggle" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu" aria-expanded={menuOpen}>{menuOpen ? <X size={22} /> : <Menu size={22} />}</button></div></header>
+    <main>
+      <Hero />
 
-  useScrollReveal();
+      <section className="story-section reality"><div className="container split-layout"><Reveal className="story-copy" direction="left"><span className="kicker">The problem</span><h2>We all know how time-demanding job hunting can be...</h2><p>We all know how exhausting these activities can be.</p><ul className="check-list">{problemChecks.map((item, index) => <motion.li key={item} initial={{ opacity: 0, x: -12 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: index * .08 }}><span><Check size={12} /></span>{item}</motion.li>)}</ul><p className="muted">That's why Jobiest is designed to relieve you of the stress. Jobiest is here to help you apply for more jobs by working less and getting more interviews.</p></Reveal><Reveal className="story-visual" direction="right"><div style={{ backgroundImage: `url(${realityImage})`, position: "absolute", inset: 0, backgroundSize: "cover", backgroundPosition: "center" }} /><div className="scribble">Let Jobiest handle<br />the busy work... <ArrowRight size={23} /></div><div className="task-stack"><div>Job tabs open</div><div>Tailor your CV</div><div>Repeat the form</div><div>Try again</div></div></Reveal></div></section>
 
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 10);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+      <section className="story-section reality-editorial"><div className="container editorial-grid"><Reveal className="editorial-copy" direction="left"><span className="kicker">The reality — listen up</span><h2>You are not lazy.<br /><span>You are maxed out.</span></h2><p>You give 100% at work. You show up for family. You pay the bills. Then, in the cracks between dinner and sleep, you are supposed to launch a second full-time job called job hunting. Of course you are exhausted. That is not a you problem. That is a system problem.</p><p>You saved that perfect role at lunch. You swore you'd apply tonight. Life happened. The tab is still open 6 days later.</p><p>You've rewritten the same CV 5 times to sound like the person you already are. It shouldn't be this hard.</p></Reveal><Reveal className="editorial-visual" direction="right"><div className="editorial-quote">That is<br /><strong>a system<br />problem.</strong></div><div className="editorial-photo" style={{ backgroundImage: `url(${realityImage})` }} /></Reveal></div><div className="container editorial-bottom"><p>You retype your entire work history into another form, field by field, praying this one lands. You job hunt on the bus, after dinner, in the stolen minutes that were meant for you. And when silence hits, starting the next one costs you a little more. That's not weakness. That's a broken process.</p><p><strong>Here is what winners understand:</strong> a slow reply does not mean you are not good enough. It means your value was not positioned right. Jobiest handles the repetitive positioning work so you can save your energy for the conversations that actually move your life forward.</p></div></section>
 
-  // hero sequencing: typing done -> headline -> copy -> ctas -> visual
-  const handleTypingDone = () => {
-    setHeroStage(1);
-    // stagger rest quickly 2-4s total
-    window.setTimeout(() => setHeroStage(2), 260);
-    window.setTimeout(() => setHeroStage(3), 560);
-    window.setTimeout(() => setHeroStage(4), 860);
-  };
+      <section className="story-section solution" id="solution"><div className="container split-layout"><Reveal className="story-copy" direction="left"><span className="kicker">The solution</span><h2>Let Jobiest handle the busywork...</h2><p>From finding a relevant role to preparing an application for your review, each step leads naturally into the next.</p><Button href="#how-it-works">See the workflow</Button></Reveal><Reveal className="workflow-demo" direction="right"><WorkflowDemo /></Reveal></div></section>
 
-  // if reduced motion, skip typing staging
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setHeroStage(4);
-    }
-  }, []);
+      <section className="story-section truth"><div className="container split-layout reverse"><Reveal className="story-copy" direction="left"><span className="kicker">The hard truth</span><h2>It is not a talent problem. It is a translation problem.</h2><p>You know what you can do. But hiring platforms are crowded, forms make you repeat your story 10 times, and rushed applications bury your best work. High performers do not lose because they lack skill. They lose because their experience does not get translated for each role.</p><p>Your experience deserves a fair shot. Jobiest puts it into words for each job — without inventing credentials, without taking the decision from you. Truthful. Specific. Yours.</p><a className="text-link" href="#how-it-works">Put your experience in the right places <ArrowRight size={15} /></a></Reveal><Reveal className="laptop-visual" direction="right"><div className="laptop"><div className="screen"><div className="screen-bar" /><div className="screen-lines"><i /><i /><i /><i /><i /></div></div><div className="laptop-base" /></div><div className="ats-card"><span className="check-bubble"><Check size={14} /></span><strong>ATS Optimised</strong><p><Check size={12} /> Keywords matched</p><p><Check size={12} /> Skills aligned</p><p><Check size={12} /> Formatting ready</p></div></Reveal></div></section>
 
-  const plans = [
-    { name: "Basic", price: "₦5,000", popular: false, features: ["Up to 10 applications per month", "AI-tailored CV & cover letter", "Job tracking & notifications"] },
-    { name: "Premium", price: "₦10,000", popular: true, features: ["Up to 30 applications per month", "Advanced AI tailoring", "Priority support", "Full application tracking"] },
-    { name: "Max", price: "₦20,000", popular: false, features: ["Unlimited applications", "Premium AI assistance", "Dedicated support", "Advanced application tracking"] },
-  ];
+      <section className="story-section how" id="how-it-works"><div className="container split-layout"><Reveal className="story-copy" direction="left"><span className="kicker">How it works</span><h2>Your job search, handled. You stay in control.</h2><p>You set the direction. Jobiest does the heavy lifting. You make the final call on everything that gets sent. That is how pros play this game.</p><div className="process-timeline">{howSteps.map(([title, body], index) => <motion.div className="process-item" key={title} initial={{ opacity: 0, x: -16 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: index * .08 }}><span>{index + 1}</span><div><strong>{title}</strong><p>{body}</p></div></motion.div>)}</div><Button>Start for free</Button></Reveal><Reveal className="story-visual how-visual" direction="right"><div style={{ position: "absolute", inset: 0, backgroundImage: `url(${howImage})`, backgroundSize: "cover", backgroundPosition: "center" }} /><div className="scribble dark-scribble">Less effort.<br />More opportunities.<ArrowRight size={23} /></div><div className="floating-notification"><span className="check-bubble"><Check size={13} /></span><div><strong>Application ready for review</strong><small>Only after your approval</small></div><ChevronRight size={16} /></div></Reveal></div></section>
 
-  return (
-    <div className="site-shell" id="top">
-      <header className={`site-header ${scrolled ? "scrolled" : ""}`}>
-        <div className="nav-wrap">
-          <Logo variant="dark" />
-          <nav className={menuOpen ? "nav-links open" : "nav-links"}>
-            <a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a>
-            <a href="#steps" onClick={() => setMenuOpen(false)}>Free tools</a>
-            <a href="#pricing" onClick={() => setMenuOpen(false)}>Pricing</a>
-            <a href="#footer" onClick={() => setMenuOpen(false)}>Blog</a>
-            <a href="#footer" onClick={() => setMenuOpen(false)}>About</a>
-          </nav>
-          <div className="nav-actions">
-            <a className="login-link" href="/login">Log in</a>
-            <a className="button" href="/signup">Get started free <ArrowRight size={15} strokeWidth={2.5} /></a>
-          </div>
-          <button className="menu-toggle" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu">
-            {menuOpen ? <X size={22} /> : <Menu size={22} />}
-          </button>
-        </div>
-      </header>
+      <section className="steps-section" id="steps"><div className="container"><Reveal className="section-intro"><span className="kicker">Three simple steps</span><h2>Three steps. Fifteen minutes. Then it runs for you.</h2><p>Amateurs make job hunting complicated. Pros make it systematic. Tell us what you want. We handle the repetitive parts. You keep the decision.</p></Reveal><div className="steps-grid"><Reveal delay={.05}><StepCard number="1" icon={<BriefcaseBusiness size={20} />} title="Declare your next move">Tell us what you have done, what you are great at, and what your next chapter looks like. Clarity first.</StepCard></Reveal><Reveal delay={.12}><StepCard number="2" icon={<Sparkles size={20} />} title="We position you" tag="Takes ~15 minutes">Jobiest finds fitting roles and builds a truthful, tailored application for each. You inspect every word before it is ready.</StepCard></Reveal><Reveal delay={.19}><StepCard number="3" icon={<Search size={20} />} title="You call the shots">Approve only what feels right. Track every submission. Use the hours you saved to prepare like a closer.</StepCard></Reveal></div></div></section>
 
-      <main id="main">
-        {/* HERO — signature animation */}
-        <section className="hero hero-premium" ref={heroRef} data-reveal>
-          <div className="container hero-grid">
-            <div className="hero-copy-col">
-              <div className="hero-eyebrow" aria-hidden={heroStage < 1 ? "true" : "false"}>
-                <TypingHurray onDone={handleTypingDone} />
-              </div>
+      <section className="pricing-section" id="pricing"><div className="container pricing-wrap"><Reveal className="pricing-copy" direction="left"><span className="kicker">Pricing — invest, do not expense</span><h2>Start free. Upgrade when you feel the lift.</h2><p>This is not a cost. It is leverage. Choose the level that matches your ambition. Cancel anytime — your next move stays yours.</p><div className="pricing-grid">{plans.map((plan, index) => <Reveal key={plan.name} delay={index * .08}><div className={plan.popular ? "price-card popular" : "price-card"}>{plan.popular && <span className="popular-tag">Most popular</span>}<div className="plan-name">{plan.name}</div><div className="price">{plan.price}<small> / month</small></div><div className="price-rule" />{plan.features.map((feature) => <div className="plan-feature" key={feature}><Check size={13} />{feature}</div>)}<a href="#footer" className="plan-button">Get started <ArrowRight size={14} /></a></div></Reveal>)}</div></Reveal><Reveal className="pricing-image" direction="right"><div style={{ position: "absolute", inset: 0, backgroundImage: `url(${pricingImage})`, backgroundSize: "cover", backgroundPosition: "center", borderRadius: "inherit" }} /><div className="image-note">Invest in<br />your future <span>♡</span></div></Reveal></div></section>
 
-              <h1 className={`hero-headline ${heroStage >= 1 ? "is-in" : ""}`}>
-                <span className="hl-line">You can now search and apply</span>
-                <span className="hl-line">for jobs without spending hours</span>
-                <span className="hl-line">searching the internet, creating</span>
-                <span className="hl-line">tailored CVs, and filling out the</span>
-                <span className="hl-line">same forms over and over again.</span>
-              </h1>
-
-              <p className={`hero-support ${heroStage >= 2 ? "is-in" : ""}`}>
-                Jobiest is designed to take the busywork off your shoulders, so you can focus on landing the job you deserve.
-              </p>
-
-              <div className={`hero-ctas ${heroStage >= 3 ? "is-in" : ""}`}>
-                <Button href="/signup">Start for free</Button>
-                <a href="#how-it-works" className="button button-ghost"><CirclePlay size={16} /> See how it works</a>
-              </div>
-
-              <div className="hero-note">
-                <ShieldCheck size={14} /> You approve every application before it goes anywhere.
-              </div>
-            </div>
-
-            <div className={`hero-visual-col ${heroStage >= 4 ? "is-in" : ""}`} aria-hidden={heroStage < 4 ? "true" : "false"}>
-              <div className="hero-visual-stack">
-                <div className="hv-card hv-job" data-reveal><JobOpportunityCard /></div>
-                <div className="hv-card hv-approval" data-reveal><ApprovalCard /></div>
-              </div>
-            </div>
-          </div>
-          <div className="scroll-indicator" aria-hidden="true"><span /></div>
-        </section>
-
-        {/* SECTION 2 — The problem */}
-        <section className="story-section problem light" data-reveal>
-          <div className="container">
-            <div className="section-intro center" data-reveal>
-              <h2>We all know how time-demanding job hunting can be...</h2>
-            </div>
-            <div className="split-layout">
-              <div className="story-copy" data-reveal>
-                <ul className="check-list editorial">
-                  <li data-reveal><span><Check size={12} /></span>You wake up in the morning.</li>
-                  <li data-reveal><span><Check size={12} /></span>You spend hours looking for relevant job opportunities.</li>
-                  <li data-reveal><span><Check size={12} /></span>You create different tailored resumes for each job.</li>
-                  <li data-reveal><span><Check size={12} /></span>You fill out different forms over and over again.</li>
-                  <li data-reveal><span><Check size={12} /></span>You keep relying on hope.</li>
-                </ul>
-                <p className="muted" data-reveal>We all know how exhausting these activities can be.</p>
-                <p className="closing-strong" data-reveal>
-                  That's why Jobiest is designed to relieve you of the stress. Jobiest is here to help you apply for more jobs by working less and getting more interviews.
-                </p>
-              </div>
-              <div className="problem-visual" data-reveal>
-                <div className="browser-mock">
-                  <div className="browser-bar"><span /><span /><span /></div>
-                  <div className="tab-stack">
-                    <div className="tab">Product Designer – Lagos</div>
-                    <div className="tab">Frontend Dev – Remote</div>
-                    <div className="tab">UX Writer – Fintech</div>
-                    <div className="tab muted">+ 12 more tabs</div>
-                  </div>
-                  <div className="form-stack">
-                    <div className="form-row"><span /> <i /></div>
-                    <div className="form-row"><span /> <i /></div>
-                    <div className="form-row"><span /> <i /></div>
-                  </div>
-                </div>
-                <div className="cv-stack">
-                  <div className="cv-doc">CV — TechCo</div>
-                  <div className="cv-doc">CV — HealthCo</div>
-                  <div className="cv-doc">CV — EduCo</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* SECTION 3 — The reality */}
-        <section className="story-section reality" data-reveal>
-          <div className="container split-layout">
-            <div className="story-copy editorial-copy" data-reveal>
-              <span className="kicker">The reality — listen up</span>
-              <h2><span className="emphasis">You are not lazy.</span><br />You are maxed out.</h2>
-              <p>
-                You give 100% at work. You show up for family. You pay the bills. Then, in the cracks between dinner and sleep, you are supposed to launch a second full-time job called job hunting. Of course you are exhausted. That is not a you problem. <strong>That is a system problem.</strong>
-              </p>
-              <p className="muted">You saved that perfect role at lunch. You swore you'd apply tonight. Life happened. The tab is still open 6 days later.</p>
-              <p>You've rewritten the same CV 5 times to sound like the person you already are. It shouldn't be this hard.</p>
-              <p>You retype your entire work history into another form, field by field, praying this one lands.</p>
-              <p>You job hunt on the bus, after dinner, in the stolen minutes that were meant for you.</p>
-              <p>And when silence hits, starting the next one costs you a little more. That's not weakness. That's a broken process.</p>
-              <p className="closing-strong">Here is what winners understand: a slow reply does not mean you are not good enough. It means your value was not positioned right. Jobiest handles the repetitive positioning work so you can save your energy for the conversations that actually move your life forward.</p>
-            </div>
-            <div className="story-visual" style={{ backgroundImage: `url(${realityImage})` }} data-reveal>
-              <div className="scribble">Let Jobiest handle<br />the busy work… <ArrowRight size={23} /></div>
-              <div className="task-stack">
-                <div>Find relevant roles</div><div>Tailor your CV</div><div>Write your letter</div><div>Complete the form</div><div>Prepare to submit</div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* SECTION 4 — The solution workflow */}
-        <section className="story-section solution light" data-reveal>
-          <div className="container">
-            <div className="section-intro" data-reveal>
-              <h2>Let Jobiest handle the busywork...</h2>
-            </div>
-            <div className="workflow">
-              <div className="wf-step" data-reveal><span className="wf-icon"><Search size={18} /></span><strong>Find relevant roles</strong><small>Matched to your experience</small></div>
-              <div className="wf-connector" aria-hidden="true" />
-              <div className="wf-step" data-reveal><span className="wf-icon"><FileCheck size={18} /></span><strong>Tailor your CV</strong><small>Truthful, role-specific</small></div>
-              <div className="wf-connector" aria-hidden="true" />
-              <div className="wf-step" data-reveal><span className="wf-icon"><PenLine size={18} /></span><strong>Write your letter</strong><small>Clear and personal</small></div>
-              <div className="wf-connector" aria-hidden="true" />
-              <div className="wf-step" data-reveal><span className="wf-icon"><Layers size={18} /></span><strong>Complete the form</strong><small>Fields prepared</small></div>
-              <div className="wf-connector" aria-hidden="true" />
-              <div className="wf-step" data-reveal><span className="wf-icon"><Send size={18} /></span><strong>Prepare to submit</strong><small>Review then approve</small></div>
-            </div>
-            <div className="solution-visuals" data-reveal>
-              <JobOpportunityCard />
-              <CVPreview />
-              <div className="letter-preview"><strong>Cover letter</strong><p>Tailored to this role from your real experience — no invented credentials.</p><span>Ready for review</span></div>
-            </div>
-            <p className="muted center" data-reveal>Every step stays truthful. You review everything before it is ready to send.</p>
-          </div>
-        </section>
-
-        {/* SECTION 5 — The hard truth */}
-        <section className="story-section truth" data-reveal>
-          <div className="container split-layout reverse">
-            <div className="story-copy" data-reveal>
-              <h2>It is not a talent problem. It is a translation problem.</h2>
-              <p>You know what you can do. But hiring platforms are crowded, forms make you repeat your story 10 times, and rushed applications bury your best work. High performers do not lose because they lack skill. They lose because their experience does not get translated for each role.</p>
-              <p className="muted">Your experience deserves a fair shot. Jobiest puts it into words for each job — without inventing credentials, without taking the decision from you. Truthful. Specific. Yours.</p>
-              <a className="text-link" href="#how-it-works">Put your experience in the right places <ArrowRight size={15} /></a>
-              <div className="benefits-inline" data-reveal>
-                <span><Check size={12} /> ATS Optimised</span><span><Check size={12} /> Keywords matched</span><span><Check size={12} /> Skills aligned</span><span><Check size={12} /> Formatting ready</span>
-              </div>
-            </div>
-            <div className="laptop-visual" data-reveal>
-              <div className="laptop">
-                <div className="screen">
-                  <div className="screen-bar" />
-                  <div className="screen-lines"><i /><i /><i /><i /><i /></div>
-                  <div className="highlight-row"><Check size={12} /> Relevant experience highlighted</div>
-                </div>
-                <div className="laptop-base" />
-              </div>
-              <div className="ats-card">
-                <span className="check-bubble"><Check size={14} /></span><strong>ATS Optimised</strong>
-                <p><Check size={12} /> Keywords matched</p><p><Check size={12} /> Skills aligned</p><p><Check size={12} /> Formatting ready</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* SECTION 6 — How it works */}
-        <section className="story-section how" id="how-it-works" data-reveal>
-          <div className="container split-layout">
-            <div className="story-copy" data-reveal>
-              <h2>Your job search, handled. You stay in control.</h2>
-              <p>You set the direction. Jobiest does the heavy lifting. You make the final call on everything that gets sent. That is how pros play this game.</p>
-              <div className="how-steps">
-                <div className="how-step" data-reveal><strong>Find the right doors</strong><p>Find roles that actually fit your experience and goals, not random noise.</p></div>
-                <div className="how-step" data-reveal><strong>Position yourself right</strong><p>Prepare a truthful, tailored CV and cover letter for each role, built from your real work.</p></div>
-                <div className="how-step" data-reveal><strong>You approve or edit</strong><p>Nothing is submitted until you say yes. Flagged claims are surfaced for review.</p></div>
-                <div className="how-step" data-reveal><strong>Track and follow through</strong><p>Spend your saved hours preparing to win the interview, not refilling forms.</p></div>
-              </div>
-              <Button href="/signup">Start for free</Button>
-            </div>
-            <div className="story-visual how-visual" style={{ backgroundImage: `url(${howImage})` }} data-reveal>
-              <div className="scribble dark-scribble">Less effort.<br />More opportunities.<ArrowRight size={23} /></div>
-              <div className="floating-notification"><span className="check-bubble"><Check size={13} /></span><div><strong>Application submitted!</strong><small>Only after your approval</small></div><ChevronRight size={16} /></div>
-            </div>
-          </div>
-        </section>
-
-        {/* SECTION 7 — Three simple steps */}
-        <section className="steps-section" id="steps" data-reveal>
-          <div className="container">
-            <div className="section-intro" data-reveal>
-              <h2>Three steps. Fifteen minutes. Then it runs for you.</h2>
-              <p>Amateurs make job hunting complicated. Pros make it systematic. Tell us what you want. We handle the repetitive parts. You keep the decision.</p>
-            </div>
-            <div className="steps-grid">
-              <div className="step-card" data-reveal><div className="step-number">1</div><div className="step-icon"><BriefcaseBusiness size={20} /></div><h3>Declare your next move</h3><p>Tell us what you have done, what you are great at, and what your next chapter looks like. Clarity first.</p></div>
-              <div className="step-card" data-reveal><div className="step-number">2</div><div className="step-icon"><Sparkles size={20} /></div><h3>We position you</h3><p>Jobiest finds fitting roles and builds a truthful, tailored application for each. You inspect every word before it is ready.</p><span className="mini-tag">Takes ~15 minutes</span></div>
-              <div className="step-card" data-reveal><div className="step-number">3</div><div className="step-icon"><Search size={20} /></div><h3>You call the shots</h3><p>Approve only what feels right. Track every submission. Use the hours you saved to prepare like a closer.</p></div>
-            </div>
-          </div>
-        </section>
-
-        {/* SECTION 8 — Pricing */}
-        <section className="pricing-section" id="pricing" data-reveal>
-          <div className="container pricing-wrap">
-            <div className="pricing-copy" data-reveal>
-              <span className="kicker">Pricing — invest, do not expense</span>
-              <h2>Start free. Upgrade when you feel the lift.</h2>
-              <p>This is not a cost. It is leverage. Choose the level that matches your ambition. Cancel anytime — your next move stays yours.</p>
-              <div className="pricing-grid">
-                {plans.map((plan, idx) => (
-                  <div key={plan.name} className={plan.popular ? "price-card popular" : "price-card"} data-reveal style={{ transitionDelay: `${idx * 80}ms` }}>
-                    {plan.popular && <span className="popular-tag">Most popular</span>}
-                    <div className="plan-name">{plan.name}</div>
-                    <div className="price">{plan.price}<small> / month</small></div>
-                    <div className="price-rule" />
-                    {plan.features.map((f) => <div key={f} className="plan-feature"><Check size={13} />{f}</div>)}
-                    <a href="/signup" className="plan-button">Get started <ArrowRight size={14} /></a>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="pricing-image" style={{ backgroundImage: `url(${pricingImage})` }} data-reveal>
-              <div className="image-note">Invest in<br />your future <span>♡</span></div>
-            </div>
-          </div>
-        </section>
-
-        {/* SECTION 9 — Final CTA */}
-        <section className="bottom-cta" data-reveal>
-          <div className="container cta-inner" data-reveal>
-            <div className="cta-thumb" style={{ backgroundImage: `url(${heroImage})` }} />
-            <div>
-              <span className="kicker kicker-light">Invest in your future ♡</span>
-              <h2>The job you want is still open.</h2>
-              <p>Ready to play at a higher level? Stop leaving it to chance. Let Jobiest handle the busywork — with your approval at every step — so you can show up ready to win.</p>
-            </div>
-            <Button href="/signup">Create free account</Button>
-            <a className="button button-ghost" href="#how-it-works">See how it works</a>
-          </div>
-        </section>
-      </main>
-
-      <footer id="footer" data-reveal>
-        <div className="container footer-top">
-          <div className="footer-brand">
-            <FooterLogo />
-            <p>Your AI career agent. Truthful. On-demand. Yours.</p>
-            <span>You're in control.</span>
-          </div>
-          <div className="footer-links">
-            <div><strong>Explore</strong><a href="#how-it-works">How it works</a><a href="#steps">Free tools</a><a href="#pricing">Pricing</a><a href="#footer">Blog</a></div>
-            <div><strong>Help</strong><a href="#footer">Support</a><a href="#footer">Email support</a><a href="#footer">Terms &amp; privacy</a></div>
-          </div>
-          <div className="socials"><a href="#footer" aria-label="X">X</a><a href="#footer" aria-label="LinkedIn">in</a><a href="#footer" aria-label="Instagram">IG</a></div>
-        </div>
-        <div className="container footer-bottom">
-          <span>© 2025 Jobiest. Nothing is submitted without your approval.</span>
-          <span>Better jobs.<br /><em>Brighter futures.</em> <Sparkles size={14} /></span>
-        </div>
-      </footer>
-    </div>
-  );
+      <section className="bottom-cta"><div className="container cta-inner"><div className="cta-thumb" style={{ backgroundImage: `url(${heroImage})` }} /><Reveal><span className="kicker kicker-light">Invest in your future ♡</span><h2>Ready to play at a higher level?</h2><p>The job you want is still open. Stop leaving it to chance. Let Jobiest handle the busywork — with your approval at every step — so you can show up ready to win.</p></Reveal><Button href="#pricing">Create free account</Button><a className="button button-ghost" href="#how-it-works">See how it works</a></div></section>
+    </main>
+    <footer id="footer"><div className="container footer-top"><div className="footer-brand"><FooterLogo /><p>Your AI career agent. Truthful. On-demand. Yours.</p><span>You're in control.</span></div><div className="footer-links"><div><strong>Explore</strong><a href="#how-it-works">How it works</a><a href="#steps">Free tools</a><a href="#pricing">Pricing</a><a href="#footer">Blog</a></div><div><strong>Help</strong><a href="#footer">Support</a><a href="#footer">Email support</a><a href="#footer">Terms & privacy</a></div></div><div className="socials"><a href="#footer" aria-label="X"><span>X</span></a><a href="#footer" aria-label="LinkedIn"><span>in</span></a><a href="#footer" aria-label="Instagram"><span>IG</span></a></div></div><div className="container footer-bottom"><span>© 2025 Jobiest. Nothing is submitted without your approval.</span><span>Better jobs.<br /><em>Brighter futures.</em> <Sparkles size={14} /></span></div></footer>
+  </div>;
 }
