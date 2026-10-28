@@ -131,10 +131,10 @@
 .letter-preview span{font-size:10px;font-weight:700;background:#f7f9fc;padding:4px 8px;border-radius:999px;border:1px solid #e2e6ed}
 
 /* Header light */
-.site-header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);backdrop-filter:blur(12px);border-bottom:1px solid #eaf0f5;color:#17223b}
+.site-header{position:sticky;top:0;z-index:20;background:#111d35;backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.08);color:#fff}
 .site-header .nav-wrap{height:72px}
 .site-header .brand{color:#17223b}
-.nav-links a,.login-link{color:#42516a}
+.nav-links a,.login-link{color:rgba(255,255,255,.82)}
 .nav-links a:hover,.login-link:hover{color:#3b72bc}
 .menu-toggle{color:#17223b}
 
