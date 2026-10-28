@@ -223,7 +223,7 @@ export default function Home({ authenticated }: { authenticated?: boolean } = {}
     <div className="site-shell" id="top">
       <header className={`site-header ${scrolled ? "scrolled" : ""}`}>
         <div className="nav-wrap">
-          <Logo variant="light" />
+          <Logo variant="dark" />
           <nav className={menuOpen ? "nav-links open" : "nav-links"}>
             <a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a>
             <a href="#steps" onClick={() => setMenuOpen(false)}>Free tools</a>
