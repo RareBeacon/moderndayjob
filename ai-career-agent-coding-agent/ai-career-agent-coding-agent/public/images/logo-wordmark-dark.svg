@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="544" height="180" viewBox="0 0 544 180" role="img" aria-label="Jobiest">
+  <defs>
+    <linearGradient id="lime2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d7f94b"/>
+      <stop offset="100%" stop-color="#eaff7a"/>
+    </linearGradient>
+  </defs>
+  <path d="M 128 14 C 92 56, 62 98, 72 138 C 76 154, 86 166, 102 172 C 68 178, 42 168, 36 138 C 30 108, 48 74, 74 46 C 88 30, 108 18, 128 14 Z" fill="url(#lime2)" />
+  <path d="M 128 14 C 96 54, 70 96, 78 132 C 82 146, 92 158, 106 164 C 78 168, 52 160, 44 136 C 36 108, 52 76, 76 48 C 90 32, 108 18, 128 14 Z" fill="#d7f94b" opacity="0.95"/>
+  <text x="148" y="128" font-family="'DM Sans', 'Inter', 'Space Grotesk', sans-serif" font-size="92" font-weight="800" letter-spacing="-0.03em" fill="#111d35">obiest</text>
+</svg>

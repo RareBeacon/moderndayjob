@@ -37,7 +37,7 @@ const plans = [
 function Logo() {
   return (
     <a href="#top" className="brand" aria-label="Jobiest home">
-      <img src="/logo-wordmark-light.jpg" alt="Jobiest" className="header-logo-image" width={108} height={36} />
+      <img src="/logo-wordmark-light.svg" alt="Jobiest" className="header-logo-image" width={128} height={42} />
     </a>
   );
 }
@@ -45,7 +45,7 @@ function Logo() {
 function FooterLogo() {
   return (
     <a href="#top" className="brand footer-wordmark" aria-label="Jobiest home">
-      <img src="/logo-wordmark-light.jpg" alt="Jobiest" className="footer-logo-image" width={142} height={54} />
+      <img src="/logo-wordmark-light.svg" alt="Jobiest" className="footer-logo-image" width={160} height={58} />
     </a>
   );
 }
