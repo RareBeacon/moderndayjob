@@ -2,19 +2,19 @@ import { describe, it, expect } from 'vitest';
 import { hashToken, generateSessionToken, IDLE_TIMEOUT_MS, ABSOLUTE_TIMEOUT_MS } from '../lib/session';
 
 describe('app session helpers', () => {
-  it('generates opaque token and hashes deterministically', () => {
+  it('generates opaque token and hashes deterministically', async () => {
     const token = generateSessionToken();
     expect(token.length).toBeGreaterThan(20);
-    const h1 = hashToken(token);
-    const h2 = hashToken(token);
+    const h1 = await hashToken(token);
+    const h2 = await hashToken(token);
     expect(h1).toBe(h2);
     expect(h1).toMatch(/^[a-f0-9]{64}$/);
   });
 
-  it('hash differs for different tokens', () => {
+  it('hash differs for different tokens', async () => {
     const a = generateSessionToken();
     const b = generateSessionToken();
-    expect(hashToken(a)).not.toBe(hashToken(b));
+    expect(await hashToken(a)).not.toBe(await hashToken(b));
   });
 
   it('constants match approved policy', () => {

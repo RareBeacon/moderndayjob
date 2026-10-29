@@ -13,7 +13,7 @@ function safeNext(next?: string | null): string | null {
 }
 
 /**
- * Fresh OAuth starter — minimal, correct, single purpose.
+ * Fresh OAuth starter - minimal, correct, single purpose.
  * - Uses Supabase SSR httpOnly PKCE verifier (no client JS cookie)
  * - redirectTo is always https://jobiest.com/auth/callback plus optional ?next
  * - Only exchange happens in app/auth/callback/route.ts

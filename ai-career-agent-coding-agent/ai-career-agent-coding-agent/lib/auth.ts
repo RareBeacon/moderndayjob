@@ -41,7 +41,7 @@ function bearerToken(header: string | null): string | null {
 }
 
 async function validateBrowserAppSession(userId: string, bearerPresent: boolean): Promise<{ valid: true } | { valid: false; reason: string }> {
-  // Bearer clients (mobile) are exempt — they have their own JWT lifecycle
+  // Bearer clients (mobile) are exempt - they have their own JWT lifecycle
   if (bearerPresent) return { valid: true };
   try {
     const cookieStore = await cookies();
@@ -50,7 +50,7 @@ async function validateBrowserAppSession(userId: string, bearerPresent: boolean)
     const { validateAppSession, touchAppSession } = await import('./session');
     const v = await validateAppSession({ token: appToken, userId });
     if (!v.valid) return { valid: false, reason: v.reason };
-    // Qualifying activity = authenticated page/API request — touch throttled
+    // Qualifying activity = authenticated page/API request - touch throttled
     await touchAppSession(v.row).catch(() => {});
     return { valid: true };
   } catch {
@@ -184,7 +184,7 @@ export async function requireUser(opts: { allowIncompleteMfa?: boolean; req?: Re
   const { user, needsMfa } = await getAuthContext(opts.req);
   if (!user) throw new Error('UNAUTHENTICATED');
   // Enforce app-managed session (30m idle / 7d absolute) for browser clients
-  // Bearer token clients (mobile) are exempt — see validateBrowserAppSession
+  // Bearer token clients (mobile) are exempt - see validateBrowserAppSession
   const bearerPresent = Boolean(opts.req?.headers.get('authorization')?.startsWith('Bearer '));
   const appCheck = await validateBrowserAppSession(user.id, bearerPresent);
   if (!appCheck.valid) throw new Error(appCheck.reason === 'NO_APP_SESSION' ? 'SESSION_EXPIRED' : appCheck.reason === 'IDLE_EXPIRED' ? 'SESSION_IDLE_EXPIRED' : appCheck.reason === 'ABSOLUTE_EXPIRED' ? 'SESSION_ABSOLUTE_EXPIRED' : 'SESSION_EXPIRED');

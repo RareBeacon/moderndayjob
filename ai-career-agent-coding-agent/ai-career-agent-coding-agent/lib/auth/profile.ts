@@ -1,7 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase';
 
 /**
- * Ensure a profiles row exists for this user. Idempotent — uses admin client
+ * Ensure a profiles row exists for this user. Idempotent - uses admin client
  * so it works even when the user's own session cannot yet read profiles (RLS).
  * The DB trigger `handle_new_user` already does this for most signups, but
  * concurrent OAuth callbacks can race it; this fills the gap without overwriting

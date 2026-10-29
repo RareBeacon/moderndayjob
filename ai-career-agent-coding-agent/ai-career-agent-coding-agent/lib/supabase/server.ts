@@ -27,10 +27,10 @@ export async function createSupabaseServerClient() {
 }
 
 /**
- * Helper for Middleware — mirrors Supabase SSR docs `updateSession`.
+ * Helper for Middleware - mirrors Supabase SSR docs `updateSession`.
  * Creates a server client bound to the request/response, refreshes the
  * Supabase session via getUser(), and returns the response with updated cookies.
- * Does NOT exchange code — that belongs in /auth/callback only.
+ * Does NOT exchange code - that belongs in /auth/callback only.
  */
 export async function createSupabaseMiddlewareClient(request: NextRequest) {
   let response = NextResponse.next({ request });

@@ -260,7 +260,7 @@ export default function VerifyEmailPage() {
 
         <AnimatePresence>
           {notice && !error ? (
-            <motion.div
+            <motion.div className="auth-success"
               role="status"
               initial={reduce ? false : { opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
@@ -335,7 +335,7 @@ export default function VerifyEmailPage() {
 
           <AnimatePresence mode="wait">
             {error ? (
-              <motion.p role="alert" style={{ color: '#ef4444', fontSize: 13, margin: 0 }} initial={reduce ? false : { opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} key="verify-error">
+              <motion.p className="auth-error" role="alert" style={{ color: '#ef4444', fontSize: 13, margin: 0 }} initial={reduce ? false : { opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} key="verify-error">
                 {error}
               </motion.p>
             ) : (
@@ -399,7 +399,7 @@ export default function VerifyEmailPage() {
               cursor: cooldown > 0 ? 'not-allowed' : 'pointer',
             }}
           >
-            {cooldown > 0 ? `Resend in ${cooldown}s` : "Didn't get it? Resend code"}
+            {cooldown > 0 ? `Resend in ${cooldown}s` : "Send a new code"}
           </button>
         </div>
 

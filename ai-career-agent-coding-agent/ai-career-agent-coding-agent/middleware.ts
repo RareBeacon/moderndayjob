@@ -107,7 +107,7 @@ export async function middleware(request: NextRequest) {
     redirect.pathname = '/login';
     redirect.searchParams.set('next', pathname);
     const res = NextResponse.redirect(redirect);
-    // Do not delete app cookie here — keep it so /api/debug/session can show why it was invalid; callback will overwrite on next login
+    // Do not delete app cookie here - keep it so /api/debug/session can show why it was invalid; callback will overwrite on next login
     return res;
   }
 

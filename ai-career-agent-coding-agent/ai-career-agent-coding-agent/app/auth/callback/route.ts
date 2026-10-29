@@ -22,7 +22,7 @@ function errorRedirect(origin: string, code: string): NextResponse {
 }
 
 /**
- * Unified OAuth callback — the ONLY place exchangeCodeForSession happens.
+ * Unified OAuth callback - the ONLY place exchangeCodeForSession happens.
  * Correct Supabase SSR pattern for Route Handlers: create client from request cookies,
  * collect setAll cookies into response, then add app_session cookie to same response.
  * Preserves PKCE verifier httpOnly cookie and session cookies.

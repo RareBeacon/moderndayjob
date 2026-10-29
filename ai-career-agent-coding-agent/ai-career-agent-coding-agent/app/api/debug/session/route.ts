@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { APP_SESSION_COOKIE, validateAppSession } from '@/lib/session';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
+
+// Diagnostic endpoint - rate limited to prevent enumeration
+
 
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
 export async function GET(request: NextRequest) {
+  const rl = await enforceRateLimit(`debug:${requestIp(request as unknown as Request)}`, 30, "1 m");
+  if (!rl.allowed) return NextResponse.json({ error: "rate_limited" }, { status: 429 });
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
   let response = NextResponse.next({ request });

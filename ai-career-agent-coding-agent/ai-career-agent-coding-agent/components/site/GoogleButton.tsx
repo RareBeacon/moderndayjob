@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { startOAuth } from '@/lib/auth/oauth';
 
 /**
- * Continue with Google — Server Action initiation (httpOnly PKCE verifier).
+ * Continue with Google - Server Action initiation (httpOnly PKCE verifier).
  * This replaces the previous client-side signInWithOAuth which stored the
  * verifier in JS-accessible cookies and was prone to bad_oauth_state from
  * double-clicks. Now the verifier is httpOnly Secure, and /auth/callback

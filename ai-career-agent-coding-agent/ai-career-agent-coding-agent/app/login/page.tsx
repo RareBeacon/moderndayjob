@@ -68,7 +68,7 @@ function LoginInner() {
     } catch {
       // fall through to the dashboard; middleware re-checks
     }
-    // Create app session (30m idle / 7d absolute, session-only cookie) — required for protected pages
+    // Create app session (30m idle / 7d absolute, session-only cookie) - required for protected pages
     try {
       await fetch('/api/auth/session', { method: 'POST' });
     } catch {}

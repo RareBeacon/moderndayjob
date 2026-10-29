@@ -41,7 +41,7 @@ export type DashboardViewProps = {
  */
 export function DashboardView(props: DashboardViewProps) {
   const reduce = useReducedMotion();
-  // D1: Motion.dev AnimatePresence — https://motion.dev/docs/react-animate-presence
+  // D1: Motion.dev AnimatePresence - https://motion.dev/docs/react-animate-presence
   const {
     greeting, firstName, autoMode, planLabel, quotaLine, profilePercent,
     stats, pipeline, drafts, allowances, autoSubmit, boardLinks, suggestions,

@@ -24,7 +24,7 @@ function isSocialUser(user: Parameters<typeof isGoogleProvider>[0]): boolean {
 
 /**
  * Single authoritative routing decision after authentication.
- * Uses supabaseAdmin (service role) to read profiles — never trusts client input.
+ * Uses supabaseAdmin (service role) to read profiles - never trusts client input.
  * Rules:
  * - Password users: require verification if Supabase email_confirmed_at is null
  * - Social users: require verification if profiles.email_verified_at is null
@@ -64,7 +64,7 @@ export async function resolveAuthDestination(
     return { requiresVerification: false, needsCompletion: Boolean(needsCompletion), providerVerified: google };
   }
 
-  // Not yet verified in profiles — can we trust Supabase's email_confirmed_at for Google?
+  // Not yet verified in profiles - can we trust Supabase's email_confirmed_at for Google?
   // Google's emails are verified by Google; Supabase sets email_confirmed_at when provider email is verified.
   // We auto-trust Google only; LinkedIn emails are not reliably verified and may be missing.
   if (google && user.email_confirmed_at) {

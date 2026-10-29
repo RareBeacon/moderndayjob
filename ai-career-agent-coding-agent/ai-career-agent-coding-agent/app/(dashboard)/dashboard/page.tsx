@@ -62,7 +62,7 @@ async function DashboardBody(user: Awaited<ReturnType<typeof requireUserOrRedire
     entitlement,
     completeness,
   ] = await Promise.all([
-    supabaseAdmin.from('profiles').select('full_name,target_roles,account_status').eq('user_id', user.id).single(),
+    supabaseAdmin.from('profiles').select('full_name,target_roles,account_status').eq('user_id', user.id).maybeSingle(),
     supabaseAdmin.from('career_profiles').select('headline,skills').eq('user_id', user.id).maybeSingle(),
     supabaseAdmin.from('job_preferences').select('remote_types,locations,application_mode').eq('user_id', user.id).maybeSingle(),
     // Display-only: an entitlements hiccup (missing row, transient read
@@ -81,10 +81,11 @@ async function DashboardBody(user: Awaited<ReturnType<typeof requireUserOrRedire
     getProfileCompleteness(user.id).catch(() => ({ percent: 0, next: [], checks: [] })),
   ]);
 
+  const profileSafe = profile ?? { full_name: null, target_roles: null, account_status: 'ACTIVE' } as any;
   const setupRequired = isGatedCohort(user.created_at) && completeness.percent < ONBOARDING_THRESHOLD;
 
   const boardLinks = buildBoardLinks({
-    targetRoles: profile?.target_roles ?? [],
+    targetRoles: profileSafe?.target_roles ?? [],
     locations: preferences?.locations ?? [],
     remoteOnly: isRemoteOnly(preferences?.remote_types),
   });
@@ -140,7 +141,7 @@ async function DashboardBody(user: Awaited<ReturnType<typeof requireUserOrRedire
   const interviews = interviewCount ?? 0;
   const responseRate = inFlight > 0 ? Math.round((interviews / inFlight) * 100) : 0;
 
-  const firstName = (profile?.full_name || user.email?.split('@')[0] || 'there').split(' ')[0];
+  const firstName = (profileSafe?.full_name || user.email?.split('@')[0] || 'there').split(' ')[0];
   const lagosHour = Number(
     new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hour12: false, timeZone: 'Africa/Lagos' }).format(new Date()),
   );
@@ -215,7 +216,7 @@ async function DashboardBody(user: Awaited<ReturnType<typeof requireUserOrRedire
         }}
         boardLinks={boardLinks}
         suggestions={suggestions}
-        setup={{ needsSetup: !profile?.target_roles?.length, required: setupRequired }}
+        setup={{ needsSetup: !profileSafe?.target_roles?.length, required: setupRequired }}
         careerHeadline={career?.headline ?? null}
       />
     </AppShell>
