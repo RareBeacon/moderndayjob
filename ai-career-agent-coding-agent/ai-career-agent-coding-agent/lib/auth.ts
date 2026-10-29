@@ -235,6 +235,9 @@ export async function requireUserOrRedirect(nextPath: string): Promise<User> {
       if (error.message === 'MFA_REQUIRED') {
         redirect('/mfa-verify');
       }
+      if (error.message.startsWith('SESSION_') || error.message === 'NO_APP_SESSION' || error.message === 'APP_SESSION_ERROR' || ['NOT_FOUND','REVOKED','USER_MISMATCH','IDLE_EXPIRED','ABSOLUTE_EXPIRED','DB_ERROR'].some(r => error.message.includes(r))) {
+        redirect(`/login?next=${encodeURIComponent(nextPath)}`);
+      }
       if (error.message.startsWith('ACCOUNT_')) {
         const client = await serverClient().catch(() => null);
         await client?.auth.signOut().catch(() => undefined);
