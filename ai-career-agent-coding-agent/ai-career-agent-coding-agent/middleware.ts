@@ -74,29 +74,40 @@ export async function middleware(request: NextRequest) {
 
   let appSessionValid = false;
   let appSessionRow: { id: string; user_id: string; token_hash: string; created_at: string; last_active_at: string; expires_at: string; revoked_at: string | null } | null = null;
+  let appSessionReason = 'NO_CHECK';
   if (user && pathname !== '/verify-email') {
     const appToken = request.cookies.get(APP_SESSION_COOKIE)?.value;
-    if (appToken) {
+    if (!appToken) {
+      appSessionReason = 'NO_APP_COOKIE';
+    } else {
       try {
         const v = await validateAppSession({ token: appToken, userId: user.id });
         if (v.valid) {
           appSessionValid = true;
           appSessionRow = v.row as any;
+          appSessionReason = 'VALID';
         } else {
           appSessionValid = false;
+          appSessionReason = (v as any).reason || 'INVALID';
+          console.warn(`[middleware] appSession invalid user=${user.id.slice(0,8)} reason=${appSessionReason} path=${pathname}`);
         }
-      } catch {
+      } catch (e: any) {
         appSessionValid = false;
+        appSessionReason = `EXCEPTION:${e?.message?.slice(0,80) || 'unknown'}`;
+        console.warn(`[middleware] appSession exception ${appSessionReason} path=${pathname}`);
       }
     }
+  } else if (!user) {
+    appSessionReason = 'NO_SUPABASE_USER';
   }
 
   if (isProtected(pathname) && user && !appSessionValid) {
+    console.warn(`[middleware] bounce to login: protected=${pathname} user=${user.id.slice(0,8)} reason=${appSessionReason} hasAppCookie=${Boolean(request.cookies.get(APP_SESSION_COOKIE)?.value)}`);
     const redirect = request.nextUrl.clone();
     redirect.pathname = '/login';
     redirect.searchParams.set('next', pathname);
     const res = NextResponse.redirect(redirect);
-    res.cookies.set(APP_SESSION_COOKIE, '', { ...appSessionCookieOptions(), maxAge: 0 } as CookieOptions & { maxAge: number });
+    // Do not delete app cookie here — keep it so /api/debug/session can show why it was invalid; callback will overwrite on next login
     return res;
   }
 

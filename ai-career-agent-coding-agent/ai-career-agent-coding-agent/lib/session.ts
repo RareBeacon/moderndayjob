@@ -1,4 +1,3 @@
-import { createHash } from 'crypto';
 import { supabaseAdmin } from './supabase';
 
 export const APP_SESSION_COOKIE = 'jobiest_app_session';
@@ -17,12 +16,10 @@ export type AppSessionRow = {
 };
 
 export function generateSessionToken(): string {
-  // Edge-compatible: Web Crypto (middleware runs on Edge Runtime)
   const bytes = new Uint8Array(32);
   if (typeof crypto !== 'undefined' && (crypto as any).getRandomValues) {
     (crypto as any).getRandomValues(bytes);
   } else {
-    // Fallback for Node build - dynamic import to avoid Edge bundling
     const { randomBytes } = require('crypto');
     return randomBytes(32).toString('base64url');
   }
@@ -32,7 +29,19 @@ export function generateSessionToken(): string {
   return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-export function hashToken(token: string): string {
+export async function hashToken(token: string): Promise<string> {
+  // Edge-compatible: use Web Crypto subtle if available (Edge Runtime), fallback to Node crypto
+  try {
+    if (typeof crypto !== 'undefined' && (crypto as any).subtle && (crypto as any).subtle.digest) {
+      const enc = new TextEncoder();
+      const data = enc.encode(token);
+      const hashBuf = await (crypto as any).subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuf));
+      return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+    }
+  } catch {}
+  // Node fallback
+  const { createHash } = await import('crypto');
   return createHash('sha256').update(token).digest('hex');
 }
 
@@ -43,7 +52,6 @@ export function appSessionCookieOptions() {
     secure: isProd,
     sameSite: 'lax' as const,
     path: '/',
-    // No maxAge / expires -> session cookie (deleted when browser session ends)
   };
 }
 
@@ -53,7 +61,7 @@ export async function createAppSession(params: {
   userAgent?: string | null;
 }): Promise<{ token: string; row: AppSessionRow }> {
   const token = generateSessionToken();
-  const tokenHash = hashToken(token);
+  const tokenHash = await hashToken(token);
   const { data, error } = await supabaseAdmin
     .from('app_sessions')
     .insert({
@@ -75,13 +83,13 @@ export async function validateAppSession(params: {
   token: string;
   userId?: string;
 }): Promise<{ valid: true; row: AppSessionRow } | { valid: false; reason: string; row?: AppSessionRow }> {
-  const tokenHash = hashToken(params.token);
+  const tokenHash = await hashToken(params.token);
   const { data, error } = await supabaseAdmin
     .from('app_sessions')
     .select('id, user_id, token_hash, created_at, last_active_at, expires_at, revoked_at')
     .eq('token_hash', tokenHash)
     .maybeSingle();
-  if (error) return { valid: false, reason: 'DB_ERROR' };
+  if (error) return { valid: false, reason: `DB_ERROR:${error.message.slice(0, 80)}` };
   if (!data) return { valid: false, reason: 'NOT_FOUND' };
   const row = data as AppSessionRow;
   if (row.revoked_at) return { valid: false, reason: 'REVOKED', row };
@@ -90,10 +98,8 @@ export async function validateAppSession(params: {
   const lastActive = new Date(row.last_active_at).getTime();
   const expiresAt = new Date(row.expires_at).getTime();
   const createdAt = new Date(row.created_at).getTime();
-  // Absolute check: if expires_at passed or created_at + 7d passed (defense in depth)
   if (now > expiresAt) return { valid: false, reason: 'ABSOLUTE_EXPIRED', row };
   if (now - createdAt > ABSOLUTE_TIMEOUT_MS) return { valid: false, reason: 'ABSOLUTE_EXPIRED', row };
-  // Idle check: 30 minutes since last qualifying activity
   if (now - lastActive > IDLE_TIMEOUT_MS) return { valid: false, reason: 'IDLE_EXPIRED', row };
   return { valid: true, row };
 }
@@ -108,7 +114,7 @@ export async function touchAppSession(row: AppSessionRow): Promise<void> {
 }
 
 export async function revokeAppSessionByToken(token: string): Promise<void> {
-  const tokenHash = hashToken(token);
+  const tokenHash = await hashToken(token);
   await supabaseAdmin
     .from('app_sessions')
     .update({ revoked_at: new Date().toISOString() })
@@ -125,7 +131,5 @@ export async function revokeAllUserSessions(userId: string): Promise<void> {
 }
 
 export async function revokeExpiredSessions(): Promise<void> {
-  // Called optionally via cron; not required for correctness (expired sessions are rejected on validate)
   const nowIso = new Date().toISOString();
-  // No-op placeholder: validation already rejects, cleanup can run via SQL cron
 }
