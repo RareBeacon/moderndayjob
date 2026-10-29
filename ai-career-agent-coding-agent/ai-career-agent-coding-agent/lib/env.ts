@@ -34,6 +34,13 @@ const schema = z.object({
   // Resend transactional email.
   RESEND_API_KEY: z.string().default(''),
   RESEND_FROM: z.string().default('hello@jobiest.com'),
+  SMTP_HOST: z.string().default(''),
+  SMTP_PORT: z.string().default('587'),
+  SMTP_USER: z.string().default(''),
+  SMTP_PASSWORD: z.string().default(''),
+  EMAIL_FROM: z.string().default('Jobiest <notifications@jobiest.com>'),
+  TRANSACTIONAL_STRATEGY: z.string().default('auto'),
+  SMTP_FALLBACK: z.string().default('resend'),
   NEXT_PUBLIC_APP_URL: z.string().url().default('https://jobiest.com'),
   GOOGLE_CLIENT_ID: z.string().default(''),
   GOOGLE_CLIENT_SECRET: z.string().default(''),
