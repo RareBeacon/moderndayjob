@@ -39,18 +39,30 @@ export default async function Dashboard() {
   try {
     return await DashboardBody(user);
   } catch (error) {
-    // Keep the boundary UX, but record the real server-side cause: the
-    // client error reporter only sees a redacted message.
+    const msg = String((error as Error)?.message ?? error).slice(0, 800);
+    console.error('[dashboard] render failed', { userId: user.id.slice(0,8), message: msg, stack: (error as Error)?.stack?.slice(0,500) });
     void auditEvent({
       action: 'SERVER_RENDER_ERROR',
       resource: 'dashboard',
       outcome: 'error',
       meta: {
-        message: String((error as Error)?.message ?? error).slice(0, 400),
+        message: msg.slice(0, 400),
         userId: user.id,
+        stack: String((error as Error)?.stack ?? '').slice(0, 800),
       },
     });
-    throw error;
+    // Fallback UI that never throws: keep the user on dashboard and surface the real cause
+    return (
+      <div style={{ maxWidth: 720, margin: '40px auto', padding: 24 }}>
+        <h1 style={{ fontSize: 22, color: '#0f172a' }}>Your dashboard is being prepared</h1>
+        <p style={{ color: '#6b7280', lineHeight: 1.6 }}>We had trouble loading some dashboard data. Your account and data are safe. This usually resolves on retry.</p>
+        <pre style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: 12, fontSize: 12, whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: '#374151' }}>{msg}</pre>
+        <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+          <a href="/dashboard" style={{ background: '#d7f94b', color: '#111d35', padding: '10px 18px', borderRadius: 999, textDecoration: 'none', fontWeight: 600 }}>Try again</a>
+          <a href="/profile" style={{ border: '1px solid #e5e7eb', padding: '10px 18px', borderRadius: 999, textDecoration: 'none', color: '#374151' }}>Complete profile</a>
+        </div>
+      </div>
+    );
   }
 }
 
