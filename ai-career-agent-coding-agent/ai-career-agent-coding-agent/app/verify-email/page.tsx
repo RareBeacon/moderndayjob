@@ -1,11 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import Link from 'next/link';
 
 export default function VerifyEmailPage() {
+  const reduce = useReducedMotion(); // F1: https://motion.dev/docs/react-animate-presence https://motion.dev/docs/react-gestures
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -256,23 +258,29 @@ export default function VerifyEmailPage() {
           We sent a 6-digit code to <strong style={{ color: '#111827', fontWeight: 600 }}>{email || 'your email'}</strong>. It expires in 10 minutes.
         </p>
 
-        {notice && !error ? (
-          <div
-            role="status"
-            style={{
-              background: '#f0fdf4',
-              border: '1px solid #bbf7d0',
-              color: '#166534',
-              padding: '10px 14px',
-              borderRadius: 10,
-              fontSize: 13,
-              marginBottom: 16,
-              textAlign: 'center',
-            }}
-          >
-            {notice}
-          </div>
-        ) : null}
+        <AnimatePresence>
+          {notice && !error ? (
+            <motion.div
+              role="status"
+              initial={reduce ? false : { opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              style={{
+                background: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                color: '#166534',
+                padding: '10px 14px',
+                borderRadius: 10,
+                fontSize: 13,
+                marginBottom: 16,
+                textAlign: 'center',
+              }}
+            >
+              {notice}
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
 
         <form
           onSubmit={(e) => {
@@ -293,11 +301,13 @@ export default function VerifyEmailPage() {
             }}
           >
             {Array.from({ length: 6 }).map((_, i) => (
-              <input
+              <motion.input
                 key={i}
                 ref={(el) => {
                   inputsRef.current[i] = el;
                 }}
+                whileFocus={reduce ? {} : { scale: 1.04 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 maxLength={1}
@@ -323,13 +333,15 @@ export default function VerifyEmailPage() {
             ))}
           </div>
 
-          {error ? (
-            <p role="alert" style={{ color: '#ef4444', fontSize: 13, margin: 0 }}>
-              {error}
-            </p>
-          ) : (
-            <p style={{ height: 18, margin: 0 }} />
-          )}
+          <AnimatePresence mode="wait">
+            {error ? (
+              <motion.p role="alert" style={{ color: '#ef4444', fontSize: 13, margin: 0 }} initial={reduce ? false : { opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} key="verify-error">
+                {error}
+              </motion.p>
+            ) : (
+              <motion.p style={{ height: 18, margin: 0 }} key="verify-spacer" initial={false} />
+            )}
+          </AnimatePresence>
 
           <button
             type="submit"

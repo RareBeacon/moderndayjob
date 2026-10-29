@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { AuthShell } from '@/components/site/AuthShell';
 import { GoogleButton } from '@/components/site/GoogleButton';
@@ -10,6 +11,7 @@ import { LinkedInButton } from '@/components/site/LinkedInButton';
 import { humanizeAuthError } from '@/lib/auth-messages';
 
 function LoginInner() {
+  const reduce = useReducedMotion();
   const router = useRouter();
   const params = useSearchParams();
   const [email, setEmail] = useState(() => {
@@ -77,24 +79,28 @@ function LoginInner() {
 
   return (
     <AuthShell title="Welcome back" subtitle="Sign in to your Jobiest workspace.">
-      {verified ? (
-        <div className="auth-success" role="status" style={{ marginTop: 16 }}>
-          Your email is verified. Enter your password to continue.
-        </div>
-      ) : null}
-      {oauthErrorMessage ? (
-        <div className="auth-error" role="alert" style={{ marginTop: 16 }}>
-          {oauthErrorMessage}
-        </div>
-      ) : null}
+      <AnimatePresence>
+        {verified ? (
+          <motion.div className="auth-success" role="status" style={{ marginTop: 16 }} initial={reduce ? false : { opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+            Your email is verified. Enter your password to continue.
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+      <AnimatePresence>
+        {oauthErrorMessage ? (
+          <motion.div className="auth-error" role="alert" style={{ marginTop: 16 }} initial={reduce ? false : { opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+            {oauthErrorMessage}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
       <div style={{ marginTop: 20, display: 'grid', gap: 10 }}>
         <LinkedInButton />
         <GoogleButton />
       </div>
       <div className="auth-divider" style={{ margin: '18px 0' }}><span>or with email</span></div>
       <form onSubmit={submit} className="auth-form" noValidate>
-        {error ? <div className="auth-error" role="alert">{error}</div> : null}
-        <label>
+        <AnimatePresence>{error ? <motion.div className="auth-error" role="alert" initial={reduce ? false : { opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>{error}</motion.div> : null}</AnimatePresence>
+        <motion.label whileFocus={reduce ? {} : { scale: 1.01 }} transition={{ type: "spring", stiffness: 400, damping: 20 }}>
           Email
           <input
             type="email"
@@ -103,8 +109,8 @@ function LoginInner() {
             onChange={(e) => setEmail(e.target.value)}
             required
           />
-        </label>
-        <label>
+        </motion.label>
+        <motion.label whileFocus={reduce ? {} : { scale: 1.01 }} transition={{ type: "spring", stiffness: 400, damping: 20 }}>
           Password
           <div className="control">
             <input
@@ -123,7 +129,7 @@ function LoginInner() {
               {show ? 'Hide' : 'Show'}
             </button>
           </div>
-        </label>
+        </motion.label>
         <button type="submit" className="btn btn-block" disabled={busy}>
           {busy ? 'Signing in…' : 'Sign in'}
         </button>

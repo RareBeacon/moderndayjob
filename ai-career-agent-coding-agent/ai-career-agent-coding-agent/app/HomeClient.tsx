@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { motion, useInView, useReducedMotion } from "framer-motion";
+import { motion, AnimatePresence, useInView, useReducedMotion } from "framer-motion";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import {
   ArrowRight,
@@ -59,16 +59,18 @@ function FooterLogo() {
 }
 
 function Button({ children, href = "#pricing", secondary = false }: { children: React.ReactNode; href?: string; secondary?: boolean }) {
-  return <a className={secondary ? "button button-secondary" : "button"} href={href}>{children}<ArrowRight size={15} strokeWidth={2.5} /></a>;
+  const reduce = useReducedMotion();
+  // Motion.dev Gestures — https://motion.dev/docs/react-gestures (whileHover/whileTap)
+  return <motion.a className={secondary ? "button button-secondary" : "button"} href={href} whileHover={reduce ? {} : { scale: 1.02 }} whileTap={reduce ? {} : { scale: 0.98 }} transition={{ type: "spring", stiffness: 400, damping: 17 }}>{children}<ArrowRight size={15} strokeWidth={2.5} /></motion.a>;
 }
 
 function Reveal({ children, className = "", delay = 0, direction = "up" }: { children: React.ReactNode; className?: string; delay?: number; direction?: "up" | "left" | "right" }) {
   const elementRef = useRef<HTMLDivElement>(null);
-  const inView = useInView(elementRef, { once: true, amount: 0.18 });
+  const inView = useInView(elementRef, { once: true, amount: 0.2 });
   const reduce = useReducedMotion();
   const initial = reduce ? { opacity: 1 } : direction === "left" ? { opacity: 0, x: -28 } : direction === "right" ? { opacity: 0, x: 28 } : { opacity: 0, y: 28 };
   const animate = reduce ? { opacity: 1 } : { opacity: 1, x: 0, y: 0 };
-  return <motion.div ref={elementRef} className={className} initial={initial} animate={inView ? animate : initial} transition={{ duration: reduce ? 0 : 0.68, delay: reduce ? 0 : delay, ease: [0.22, 1, 0.36, 1] }}>{children}</motion.div>;
+  return <motion.div ref={elementRef} className={className} initial={initial} animate={inView ? animate : initial} transition={{ duration: reduce ? 0 : 0.45, delay: reduce ? 0 : delay, ease: "easeOut" }}>{children}</motion.div>;
 }
 
 function ApprovalCard() {
@@ -145,7 +147,28 @@ export default function Home() {
     }
   }, []);
   return <div className="site-shell" id="top">
-    <header className="site-header"><div className="nav-wrap"><Logo /><nav className={menuOpen ? "nav-links open" : "nav-links"}><a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a><a href="#steps" onClick={() => setMenuOpen(false)}>Free tools</a><a href="#pricing" onClick={() => setMenuOpen(false)}>Pricing</a><a href="#footer" onClick={() => setMenuOpen(false)}>Blog</a><a href="#footer" onClick={() => setMenuOpen(false)}>About</a></nav><div className="nav-actions"><a className="login-link" href="/login">Log in</a><Button href="/signup">Get started free</Button></div><button className="menu-toggle" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu" aria-expanded={menuOpen}>{menuOpen ? <X size={22} /> : <Menu size={22} />}</button></div></header>
+    <header className="site-header"><div className="nav-wrap"><Logo />
+      {/* Desktop nav — CSS handles visibility, no motion needed */}
+      <nav className="nav-links desktop-only" aria-label="Primary"><a href="#how-it-works">How it works</a><a href="#steps">Free tools</a><a href="#pricing">Pricing</a><a href="#footer">Blog</a><a href="#footer">About</a></nav>
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.nav
+            className="nav-links open mobile-only"
+            aria-label="Primary"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+          >
+            <a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a>
+            <a href="#steps" onClick={() => setMenuOpen(false)}>Free tools</a>
+            <a href="#pricing" onClick={() => setMenuOpen(false)}>Pricing</a>
+            <a href="#footer" onClick={() => setMenuOpen(false)}>Blog</a>
+            <a href="#footer" onClick={() => setMenuOpen(false)}>About</a>
+          </motion.nav>
+        )}
+      </AnimatePresence>
+      <div className="nav-actions"><a className="login-link" href="/login">Log in</a><Button href="/signup">Get started free</Button></div><button className="menu-toggle" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu" aria-expanded={menuOpen}>{menuOpen ? <X size={22} /> : <Menu size={22} />}</button></div></header>
     <main>
       <Hero />
 
@@ -159,9 +182,9 @@ export default function Home() {
 
       <section className="story-section how" id="how-it-works"><div className="container split-layout"><Reveal className="story-copy" direction="left"><span className="kicker">How it works</span><h2>Your job search, handled. You stay in control.</h2><p>You set the direction. Jobiest does the heavy lifting. You make the final call on everything that gets sent. That is how pros play this game.</p><div className="process-timeline">{howSteps.map(([title, body], index) => <motion.div className="process-item" key={title} initial={{ opacity: 0, x: -16 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: index * .08 }}><span>{index + 1}</span><div><strong>{title}</strong><p>{body}</p></div></motion.div>)}</div><Button href="/signup">Start for free</Button></Reveal><Reveal className="story-visual how-visual" direction="right"><div style={{ position: "absolute", inset: 0, backgroundImage: `url(${howImage})`, backgroundSize: "cover", backgroundPosition: "center" }} /><div className="scribble dark-scribble">Less effort.<br />More opportunities.<ArrowRight size={23} /></div><div className="floating-notification"><span className="check-bubble"><Check size={13} /></span><div><strong>Application ready for review</strong><small>Only after your approval</small></div><ChevronRight size={16} /></div></Reveal></div></section>
 
-      <section className="steps-section" id="steps"><div className="container"><Reveal className="section-intro"><span className="kicker">Three simple steps</span><h2>Three steps. Fifteen minutes. Then it runs for you.</h2><p>Amateurs make job hunting complicated. Pros make it systematic. Tell us what you want. We handle the repetitive parts. You keep the decision.</p></Reveal><div className="steps-grid"><Reveal delay={.05}><StepCard number="1" icon={<BriefcaseBusiness size={20} />} title="Declare your next move">Tell us what you have done, what you are great at, and what your next chapter looks like. Clarity first.</StepCard></Reveal><Reveal delay={.12}><StepCard number="2" icon={<Sparkles size={20} />} title="We position you" tag="Takes ~15 minutes">Jobiest finds fitting roles and builds a truthful, tailored application for each. You inspect every word before it is ready.</StepCard></Reveal><Reveal delay={.19}><StepCard number="3" icon={<Search size={20} />} title="You call the shots">Approve only what feels right. Track every submission. Use the hours you saved to prepare like a closer.</StepCard></Reveal></div></div></section>
+      <section className="steps-section" id="steps"><div className="container"><Reveal className="section-intro"><span className="kicker">Three simple steps</span><h2>Three steps. Fifteen minutes. Then it runs for you.</h2><p>Amateurs make job hunting complicated. Pros make it systematic. Tell us what you want. We handle the repetitive parts. You keep the decision.</p></Reveal><motion.div className="steps-grid" initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.08 } } }}><motion.div variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.4 }}><StepCard number="1" icon={<BriefcaseBusiness size={20} />} title="Declare your next move">Tell us what you have done, what you are great at, and what your next chapter looks like. Clarity first.</StepCard></motion.div><motion.div variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.4 }}><StepCard number="2" icon={<Sparkles size={20} />} title="We position you" tag="Takes ~15 minutes">Jobiest finds fitting roles and builds a truthful, tailored application for each. You inspect every word before it is ready.</StepCard></motion.div><motion.div variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.4 }}><StepCard number="3" icon={<Search size={20} />} title="You call the shots">Approve only what feels right. Track every submission. Use the hours you saved to prepare like a closer.</StepCard></motion.div></motion.div></div></section>
 
-      <section className="pricing-section" id="pricing"><div className="container pricing-wrap"><Reveal className="pricing-copy" direction="left"><span className="kicker">Pricing — invest, do not expense</span><h2>Start free. Upgrade when you feel the lift.</h2><p>This is not a cost. It is leverage. Choose the level that matches your ambition. Cancel anytime — your next move stays yours.</p><div className="pricing-grid">{plans.map((plan, index) => <Reveal key={plan.name} delay={index * .08}><div className={plan.popular ? "price-card popular" : "price-card"}>{plan.popular && <span className="popular-tag">Most popular</span>}<div className="plan-name">{plan.name}</div><div className="price">{plan.price}<small> / month</small></div><div className="price-rule" />{plan.features.map((feature) => <div className="plan-feature" key={feature}><Check size={13} />{feature}</div>)}<a href="/signup" className="plan-button">Get started <ArrowRight size={14} /></a></div></Reveal>)}</div></Reveal><Reveal className="pricing-image" direction="right"><div style={{ position: "absolute", inset: 0, backgroundImage: `url(${pricingImage})`, backgroundSize: "cover", backgroundPosition: "center", borderRadius: "inherit" }} /><div className="image-note">Invest in<br />your future <span>♡</span></div></Reveal></div></section>
+      <section className="pricing-section" id="pricing"><div className="container pricing-wrap"><Reveal className="pricing-copy" direction="left"><span className="kicker">Pricing — invest, do not expense</span><h2>Start free. Upgrade when you feel the lift.</h2><p>This is not a cost. It is leverage. Choose the level that matches your ambition. Cancel anytime — your next move stays yours.</p><motion.div className="pricing-grid" initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.08 } } }}>{plans.map((plan) => <motion.div key={plan.name} variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } } }}><div className={plan.popular ? "price-card popular" : "price-card"}>{plan.popular && <span className="popular-tag">Most popular</span>}<div className="plan-name">{plan.name}</div><div className="price">{plan.price}<small> / month</small></div><div className="price-rule" />{plan.features.map((feature) => <div className="plan-feature" key={feature}><Check size={13} />{feature}</div>)}<motion.a href="/signup" className="plan-button" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} transition={{ type: "spring", stiffness: 400, damping: 17 }}>Get started <ArrowRight size={14} /></motion.a></div></motion.div>)}</motion.div></Reveal><Reveal className="pricing-image" direction="right"><div style={{ position: "absolute", inset: 0, backgroundImage: `url(${pricingImage})`, backgroundSize: "cover", backgroundPosition: "center", borderRadius: "inherit" }} /><div className="image-note">Invest in<br />your future <span>♡</span></div></Reveal></div></section>
 
       <section className="bottom-cta"><div className="container cta-inner"><div className="cta-thumb" style={{ backgroundImage: `url(${heroImage})` }} /><Reveal><span className="kicker kicker-light">Invest in your future ♡</span><h2>Ready to play at a higher level?</h2><p>The job you want is still open. Stop leaving it to chance. Let Jobiest handle the busywork — with your approval at every step — so you can show up ready to win.</p></Reveal><Button href="/signup">Create free account</Button><a className="button button-ghost" href="#how-it-works">See how it works</a></div></section>
     </main>

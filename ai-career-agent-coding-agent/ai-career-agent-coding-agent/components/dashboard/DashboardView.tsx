@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Icon } from '@/components/icons/icons';
 import { DashboardSetup } from '@/components/site/DashboardSetup';
 import { AutoSubmitToggle } from '@/components/site/AutoSubmitToggle';
@@ -39,6 +40,8 @@ export type DashboardViewProps = {
  * next steps.
  */
 export function DashboardView(props: DashboardViewProps) {
+  const reduce = useReducedMotion();
+  // D1: Motion.dev AnimatePresence — https://motion.dev/docs/react-animate-presence
   const {
     greeting, firstName, autoMode, planLabel, quotaLine, profilePercent,
     stats, pipeline, drafts, allowances, autoSubmit, boardLinks, suggestions,
@@ -140,34 +143,36 @@ export function DashboardView(props: DashboardViewProps) {
               ? `${drafts.length} application${drafts.length === 1 ? '' : 's'} waiting on you`
               : 'Nothing is waiting on you'}
           </h2>
-          {drafts.length > 0 ? (
-            <>
-              {drafts.map((d) => (
-                <div className={styles.draftRow} key={d.id}>
-                  <span className={styles.draftWho}>
-                    <b>{d.role}</b>
-                    <span>{d.company}</span>
-                  </span>
-                  <Link className={styles.reviewLink} href="/applications">
-                    Review →
-                  </Link>
-                </div>
-              ))}
-              <p className={styles.cardNote}>
-                Drafts are prepared from your verified facts only. Approve, edit, or reject, your call, every time.
-              </p>
-            </>
-          ) : (
-            <>
-              <p className={styles.cardNote} style={{ fontSize: 14.5 }}>
-                Bring the job you want as a link or a description. Your agent prepares a truthful,
-                tailored package and you approve every send.
-              </p>
-              <Link className={styles.reviewLink} href="/applications">
-                Start an application →
-              </Link>
-            </>
-          )}
+          <AnimatePresence mode="wait">
+            {drafts.length > 0 ? (
+              <motion.div key="has-drafts" initial={reduce ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                {drafts.map((d) => (
+                  <motion.div className={styles.draftRow} key={d.id} initial={reduce ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                    <span className={styles.draftWho}>
+                      <b>{d.role}</b>
+                      <span>{d.company}</span>
+                    </span>
+                    <Link className={styles.reviewLink} href="/applications">
+                      Review →
+                    </Link>
+                  </motion.div>
+                ))}
+                <p className={styles.cardNote}>
+                  Drafts are prepared from your verified facts only. Approve, edit, or reject, your call, every time.
+                </p>
+              </motion.div>
+            ) : (
+              <motion.div key="empty-drafts" initial={reduce ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                <p className={styles.cardNote} style={{ fontSize: 14.5 }}>
+                  Bring the job you want as a link or a description. Your agent prepares a truthful,
+                  tailored package and you approve every send.
+                </p>
+                <Link className={styles.reviewLink} href="/applications">
+                  Start an application →
+                </Link>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </section>
 
         <section className={`${styles.card} ${styles.span5}`} data-animate aria-labelledby="allow-title">
@@ -263,8 +268,9 @@ export function DashboardView(props: DashboardViewProps) {
           </div>
         </section>
 
-        {boardLinks.length > 0 && (
-          <section className={`${styles.card} ${styles.span7}`} data-animate aria-labelledby="boards-title">
+        <AnimatePresence>
+          {boardLinks.length > 0 && (
+            <motion.section className={`${styles.card} ${styles.span7}`} initial={reduce ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} data-animate aria-labelledby="boards-title">
             <p className={styles.cardKicker}>Browse the boards yourself</p>
             <h2 className={styles.cardTitle} id="boards-title">Boards for your roles</h2>
             <div className={styles.boardChips}>
@@ -279,8 +285,9 @@ export function DashboardView(props: DashboardViewProps) {
               Search links built from your roles and locations. Your agent applies through employers&apos; own
               career sites; these boards are for your own browsing.
             </p>
-          </section>
-        )}
+            </motion.section>
+          )}
+        </AnimatePresence>
 
         <section className={`${styles.card} ${styles.span5}`} data-animate aria-labelledby="ready-title">
           <p className={styles.cardKicker}>Profile readiness</p>

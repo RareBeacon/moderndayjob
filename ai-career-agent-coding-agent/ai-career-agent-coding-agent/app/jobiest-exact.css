@@ -54,3 +54,10 @@
 @media(max-width:900px){.editorial-grid{gap:38px}.editorial-copy h2{font-size:46px}.editorial-photo{left:35px}.editorial-bottom{gap:28px}.workflow-panel{padding:15px}}
 @media(max-width:680px){.typing-label{font-size:12px;margin-bottom:9px}.hero-copy h1{font-size:clamp(30px,8.6vw,43px);line-height:1.03;letter-spacing:-.055em}.reality-editorial{padding:64px 0}.editorial-grid,.editorial-bottom{grid-template-columns:1fr;gap:28px}.editorial-copy h2{font-size:42px}.editorial-copy p,.editorial-bottom p{font-size:12px}.editorial-visual{min-height:270px}.editorial-photo{inset:30px 0 0 45px}.editorial-quote{font-size:19px}.editorial-quote strong{font-size:28px}.editorial-bottom{margin-top:30px;padding-top:22px}.workflow-panel{padding:13px}.workflow-step{padding:10px}.workflow-step small{font-size:8px}.process-timeline{margin:19px 0 24px}.process-item p{font-size:9px}.bottom-cta .cta-inner h2{font-size:18px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.typing-label::after{display:none}.hero-copy h1,.hero-copy>p,.hero-actions{opacity:1!important;transform:none!important}}
+/* A1: Motion refinement — preserve palette, add desktop/mobile helpers */
+.desktop-only{display:flex}
+.mobile-only{display:none}
+@media(max-width:680px){
+  .desktop-only{display:none !important}
+  .mobile-only{display:flex}
+}
