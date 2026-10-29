@@ -68,6 +68,77 @@ export async function middleware(request: NextRequest) {
     },
   });
 
+  // Handle OAuth callback code exchange (PKCE) - idempotent
+  // If request contains ?code=, attempt server-side exchange before checking session
+  // This prevents flow_state_already_used double-exchange errors
+  const code = request.nextUrl.searchParams.get('code');
+  const errorCode = request.nextUrl.searchParams.get('error_code');
+  const errorDesc = request.nextUrl.searchParams.get('error_description');
+  
+  if (code && (pathname === '/auth/callback' || pathname === '/')) {
+    try {
+      // Only attempt exchange if we don't already have a valid session
+      // The browser client (detectSessionInUrl) may have already exchanged
+      const { data: existingSession } = await supabase.auth.getSession();
+      if (!existingSession?.session) {
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        if (exchangeError) {
+          const msg = exchangeError.message || '';
+          const isAlreadyUsed = /already been used|flow_state/i.test(msg) || errorCode === 'flow_state_already_used';
+          if (isAlreadyUsed) {
+            // Code already consumed - check if we now have a session (client may have exchanged)
+            const { data: retrySession } = await supabase.auth.getSession();
+            if (retrySession?.session) {
+              // Already authenticated via previous exchange - clean URL and continue to normal flow
+              const cleanUrl = request.nextUrl.clone();
+              cleanUrl.searchParams.delete('code');
+              cleanUrl.searchParams.delete('error');
+              cleanUrl.searchParams.delete('error_code');
+              cleanUrl.searchParams.delete('error_description');
+              cleanUrl.searchParams.delete('state');
+              return NextResponse.redirect(cleanUrl);
+            }
+            // No session despite already-used - log safely and redirect to login with retry message
+            console.warn('[auth] OAuth code already used without session - redirecting to login', { pathname, errorCode });
+            const redirect = request.nextUrl.clone();
+            redirect.pathname = '/login';
+            redirect.searchParams.delete('code');
+            redirect.searchParams.delete('state');
+            redirect.searchParams.delete('error');
+            redirect.searchParams.delete('error_code');
+            redirect.searchParams.delete('error_description');
+            redirect.searchParams.set('error', 'session_expired');
+            return NextResponse.redirect(redirect);
+          }
+          // Other exchange errors - log and redirect to login with error
+          console.warn('[auth] OAuth code exchange failed', { pathname, error: msg.slice(0, 100) });
+          const redirect = request.nextUrl.clone();
+          redirect.pathname = '/login';
+          redirect.search = '';
+          redirect.searchParams.set('error', 'oauth_failed');
+          return NextResponse.redirect(redirect);
+        }
+        // Successful exchange - create response with updated cookies and redirect to clean URL
+        // The supabase client already set cookies via setAll callback above
+        const cleanUrl = request.nextUrl.clone();
+        cleanUrl.searchParams.delete('code');
+        cleanUrl.searchParams.delete('state');
+        // Preserve next param if present
+        return NextResponse.redirect(cleanUrl);
+      } else {
+        // Already have session - just clean URL (idempotent - prevents double exchange)
+        const cleanUrl = request.nextUrl.clone();
+        cleanUrl.searchParams.delete('code');
+        cleanUrl.searchParams.delete('state');
+        return NextResponse.redirect(cleanUrl);
+      }
+    } catch (e) {
+      console.warn('[auth] OAuth code handling error', { pathname, error: e instanceof Error ? e.message.slice(0, 100) : 'unknown' });
+    }
+  }
+
+  // OAuth error on site root is handled client-side in HomeClient (see app/HomeClient.tsx)
+
   let user: Awaited<ReturnType<typeof supabase.auth.getUser>>['data']['user'] = null;
   try {
     ({ data: { user } } = await supabase.auth.getUser());
@@ -179,5 +250,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/onboarding', '/profile', '/settings', '/documents', '/applications', '/billing', '/generate', '/login', '/signup', '/verify-email', '/mfa-verify', '/complete-account'],
+  matcher: ['/auth/callback', '/dashboard/:path*', '/onboarding', '/profile', '/settings', '/documents', '/applications', '/billing', '/generate', '/login', '/signup', '/verify-email', '/mfa-verify', '/complete-account'],
 };

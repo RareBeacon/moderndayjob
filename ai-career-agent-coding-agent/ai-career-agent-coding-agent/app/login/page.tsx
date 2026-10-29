@@ -22,6 +22,16 @@ function LoginInner() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const verified = params.get('verified') === '1';
+  const oauthError = params.get('error');
+  const oauthErrorMessage = oauthError === 'oauth_retry' 
+    ? 'Your previous sign-in link expired. Please try again.'
+    : oauthError === 'session_expired'
+    ? 'Your sign-in session expired. Please try again.'
+    : oauthError === 'oauth_failed'
+    ? 'Google sign-in failed. Please try again or use email and password.'
+    : oauthError === 'oauth_retry' || oauthError === 'flow_state_already_used'
+    ? 'Please try signing in again.'
+    : null;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -70,6 +80,11 @@ function LoginInner() {
       {verified ? (
         <div className="auth-success" role="status" style={{ marginTop: 16 }}>
           Your email is verified. Enter your password to continue.
+        </div>
+      ) : null}
+      {oauthErrorMessage ? (
+        <div className="auth-error" role="alert" style={{ marginTop: 16 }}>
+          {oauthErrorMessage}
         </div>
       ) : null}
       <div style={{ marginTop: 20, display: 'grid', gap: 10 }}>

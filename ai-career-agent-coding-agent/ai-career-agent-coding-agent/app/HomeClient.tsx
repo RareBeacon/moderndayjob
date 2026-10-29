@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { motion, useInView, useReducedMotion } from "framer-motion";
+import { supabaseBrowser } from "@/lib/supabase-browser";
 import {
   ArrowRight,
   BriefcaseBusiness,
@@ -120,6 +121,29 @@ function Hero() {
 
 export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
+  
+  // Handle OAuth errors redirected to site root (flow_state_already_used etc)
+  // Supabase redirects to NEXT_PUBLIC_APP_URL on PKCE errors - we handle client-side
+  // since middleware is not allowed to run on '/' per homepage routing contract
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const errorCode = params.get('error_code');
+    const error = params.get('error');
+    if (errorCode === 'flow_state_already_used' || error === 'invalid_request') {
+      // Check if we have a session despite error (race condition where code was already exchanged)
+      supabaseBrowser().auth.getSession().then(({ data }) => {
+        if (data?.session) {
+          // Already authenticated - go to callback to complete flow
+          window.location.href = '/auth/callback';
+        } else {
+          // No session - redirect to login with retry message
+          window.location.href = '/login?error=oauth_retry';
+        }
+      }).catch(() => {
+        window.location.href = '/login?error=oauth_retry';
+      });
+    }
+  }, []);
   return <div className="site-shell" id="top">
     <header className="site-header"><div className="nav-wrap"><Logo /><nav className={menuOpen ? "nav-links open" : "nav-links"}><a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a><a href="#steps" onClick={() => setMenuOpen(false)}>Free tools</a><a href="#pricing" onClick={() => setMenuOpen(false)}>Pricing</a><a href="#footer" onClick={() => setMenuOpen(false)}>Blog</a><a href="#footer" onClick={() => setMenuOpen(false)}>About</a></nav><div className="nav-actions"><a className="login-link" href="/login">Log in</a><Button href="/signup">Get started free</Button></div><button className="menu-toggle" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu" aria-expanded={menuOpen}>{menuOpen ? <X size={22} /> : <Menu size={22} />}</button></div></header>
     <main>

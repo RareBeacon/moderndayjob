@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 
 /**
@@ -16,10 +16,14 @@ import { supabaseBrowser } from '@/lib/supabase-browser';
  */
 export function LinkedInButton() {
   const [busy, setBusy] = useState(false);
+  const lastClickRef = useRef<number>(0);
   const [error, setError] = useState('');
 
   async function go() {
     if (busy) return;
+    const now = Date.now();
+    if (now - lastClickRef.current < 1500) return;
+    lastClickRef.current = now;
     setBusy(true);
     setError('');
     const next = new URLSearchParams(window.location.search).get('next');

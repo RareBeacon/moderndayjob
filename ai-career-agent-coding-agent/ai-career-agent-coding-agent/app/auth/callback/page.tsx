@@ -16,6 +16,9 @@ import { Logo } from '@/components/site/Logo';
  * "Sign-in incomplete" bug). Here we only: read any OAuth error params,
  * confirm the auto-created session, then follow MFA / email-verification /
  * account-completion routing.
+ * 
+ * FIX 2026-10-28: Handle flow_state_already_used gracefully - if code already
+ * consumed, check for existing session and proceed rather than failing.
  */
 function CallbackInner() {
   const router = useRouter();
@@ -29,16 +32,47 @@ function CallbackInner() {
     (async () => {
       // Read params first: the auto-exchange scrubs ?code from the URL.
       const oauthError = params.get('error_description') || params.get('error');
+      const errorCode = params.get('error_code');
       const next = params.get('next');
-      if (oauthError) {
+      
+      // Handle flow_state_already_used specifically - check for existing session
+      if (errorCode === 'flow_state_already_used' || oauthError?.includes('State has already been used')) {
+        // This is a duplicate callback - code already exchanged, check if we have session
+        try {
+          const { data: sessionData } = await supabaseBrowser().auth.getSession();
+          if (sessionData?.session) {
+            // We have session despite the error - proceed normally (idempotent)
+            console.log('[auth/callback] flow_state_already_used but session exists, continuing');
+            // Clear error params and continue to normal flow
+          } else {
+            setError('This sign-in link has already been used. Please start again from the sign-in page.');
+            return;
+          }
+        } catch {
+          setError('Sign-in was cancelled or failed. You can try again or use email and password.');
+          return;
+        }
+      } else if (oauthError) {
+        // Check if it's a cancellation (user clicked cancel on Google)
+        if (oauthError.includes('access_denied') || params.get('error') === 'access_denied') {
+          setError('Google sign-in was cancelled. You can try again or use email and password.');
+          return;
+        }
         setError('Sign-in was cancelled or failed. You can try again or use email and password.');
         return;
       }
 
       // The client already exchanged the code during initialisation;
       // getSession() waits for that and reports the result.
-      const { data: sessionData } = await supabaseBrowser().auth.getSession();
-      const session = sessionData?.session ?? null;
+      // Retry once with delay for race condition where middleware also handling
+      let session = null;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const { data: sessionData } = await supabaseBrowser().auth.getSession();
+        session = sessionData?.session ?? null;
+        if (session) break;
+        if (attempt === 0) await new Promise(r => setTimeout(r, 500));
+      }
+      
       if (!session) {
         try {
           void fetch('/api/client-error', {
@@ -47,6 +81,7 @@ function CallbackInner() {
             body: JSON.stringify({
               message: 'oauth callback landed without a session (auto-exchange failed)',
               path: '/auth/callback',
+              errorCode,
             }),
             keepalive: true,
           });
@@ -56,6 +91,9 @@ function CallbackInner() {
         setError('We could not finish signing you in. Please start again from the sign-in page; if it repeats, use a regular browser window (not an in-app one).');
         return;
       }
+
+      // Clear OAuth in-progress flag
+      try { sessionStorage.removeItem('jobiest_oauth_in_progress'); } catch {}
 
       // MFA users (social accounts with an enrolled authenticator)
       // continue at the second-factor step before any app page opens.
@@ -90,7 +128,15 @@ function CallbackInner() {
       }
 
       // Create app session for OAuth login (30m/7d, session-only)
-      try { await fetch('/api/auth/session', { method: 'POST' }); } catch {}
+      // Idempotent - safe to call multiple times
+      try { 
+        const sessionRes = await fetch('/api/auth/session', { method: 'POST' });
+        if (!sessionRes.ok) {
+          // Session creation failed - try once more after brief delay
+          await new Promise(r => setTimeout(r, 300));
+          await fetch('/api/auth/session', { method: 'POST' });
+        }
+      } catch {}
       const safe = next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard';
       router.replace(safe);
       router.refresh();

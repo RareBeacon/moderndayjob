@@ -103,6 +103,13 @@ export default function SignupPage() {
 
   return (
     <AuthShell title="Create your account" subtitle="One step. Your career profile comes later, when it matters.">
+      {typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('error') ? (
+        <div className="auth-error" role="alert" style={{ marginTop: 16 }}>
+          {new URLSearchParams(window.location.search).get('error') === 'oauth_retry'
+            ? 'Your previous sign-in link expired. Please try again.'
+            : 'Sign-in failed. Please try again.'}
+        </div>
+      ) : null}
       <div style={{ marginTop: 20, display: 'grid', gap: 10 }}>
         <LinkedInButton />
         <GoogleButton />

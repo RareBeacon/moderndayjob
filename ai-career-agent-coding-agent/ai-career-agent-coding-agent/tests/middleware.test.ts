@@ -10,7 +10,21 @@ import { NextRequest } from 'next/server';
 
 const { getUser, from } = vi.hoisted(() => ({ getUser: vi.fn(), from: vi.fn() }));
 vi.mock('@supabase/ssr', () => ({
-  createServerClient: () => ({ auth: { getUser }, from }),
+  createServerClient: () => ({ 
+    auth: { 
+      getUser, 
+      getSession: () => Promise.resolve({ data: { session: null } }),
+      exchangeCodeForSession: () => Promise.resolve({ error: null }),
+    }, 
+    from 
+  }),
+}));
+
+vi.mock('@/lib/session', () => ({
+  APP_SESSION_COOKIE: 'jobiest_app_session',
+  validateAppSession: () => Promise.resolve({ valid: true, row: { id: 'sess1', user_id: 'u1', created_at: new Date().toISOString(), last_active_at: new Date().toISOString(), expires_at: new Date(Date.now() + 86400000).toISOString(), revoked_at: null } }),
+  touchAppSession: () => Promise.resolve(),
+  appSessionCookieOptions: () => ({ httpOnly: true, secure: false, sameSite: 'lax', path: '/' }),
 }));
 
 /** profiles row chain for the social gates. */
@@ -26,7 +40,11 @@ function profilesRow(row: Record<string, unknown> | null) {
 import { middleware } from '../middleware';
 
 function req(path: string) {
-  return new NextRequest(`http://localhost:3000${path}`);
+  // In tests, include app session cookie so middleware's appSessionValid check passes when user exists
+  // Real middleware requires both supabase session AND app session
+  return new NextRequest(`http://localhost:3000${path}`, {
+    headers: { cookie: 'jobiest_app_session=test-token' },
+  });
 }
 
 afterEach(() => vi.unstubAllEnvs());

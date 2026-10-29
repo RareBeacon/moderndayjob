@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 
 /**
@@ -15,9 +15,28 @@ import { supabaseBrowser } from '@/lib/supabase-browser';
 export function GoogleButton() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const lastClickRef = useRef<number>(0);
 
   async function go() {
     if (busy) return;
+    // Debounce rapid clicks - prevents duplicate OAuth state (flow_state_already_used)
+    const now = Date.now();
+    if (now - lastClickRef.current < 1500) return;
+    lastClickRef.current = now;
+    
+    // Use sessionStorage to prevent duplicate OAuth across rapid navigation
+    const storageKey = 'jobiest_oauth_in_progress';
+    const inProgress = typeof window !== 'undefined' ? sessionStorage.getItem(storageKey) : null;
+    if (inProgress && now - parseInt(inProgress, 10) < 10000) {
+      setError('Google sign-in is already in progress. Please wait or refresh the page.');
+      return;
+    }
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(storageKey, String(now));
+      // Clear after 30s - OAuth should have redirected by then
+      setTimeout(() => sessionStorage.removeItem(storageKey), 30000);
+    }
+    
     setBusy(true);
     setError('');
     const next = new URLSearchParams(window.location.search).get('next');
@@ -34,8 +53,10 @@ export function GoogleButton() {
           : 'Could not start Google sign-in. Please try again.',
       );
       setBusy(false);
+      if (typeof window !== 'undefined') sessionStorage.removeItem(storageKey);
     }
     // On success the browser leaves for Google; nothing left to do here.
+    // Clear busy only if we stay (error case already handled)
   }
 
   return (
