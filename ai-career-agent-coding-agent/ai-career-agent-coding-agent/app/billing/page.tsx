@@ -81,12 +81,21 @@ export default function Billing() {
 
   useEffect(() => {
     fetch('/api/entitlements')
-      .then((r) => r.json())
-      .then(setEntitlement)
+      .then((r) => {
+        if (r.status === 401) {
+          location.href = '/login?next=%2Fbilling';
+          return null;
+        }
+        if (!r.ok) throw new Error('ENTITLEMENTS_FAILED');
+        return r.json();
+      })
+      .then((data) => {
+        if (data) setEntitlement(data);
+      })
       .catch(() => setMessage('Unable to load plan information.'));
     fetch('/api/geo')
-      .then((r) => r.json())
-      .then((j: { country?: string | null }) => {
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { country?: string | null } | null) => {
         if (j?.country && j.country !== 'NG') {
           usdVisitor = true;
           setUsdMode(true);
@@ -95,12 +104,13 @@ export default function Billing() {
       })
       .catch(() => {});
     fetch('/api/billing/providers')
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : {}))
       .then((j: { flutterwave?: boolean; paystack?: boolean; dodo?: boolean }) => {
         const available: Provider[] = [];
         if (j.flutterwave) available.push('flutterwave');
         if (j.paystack) available.push('paystack');
         if (j.dodo) available.push('dodo');
+        providersRef.current = available;
         setProviders(available);
         if (available.length > 0) setProvider(usdVisitor && available.includes('dodo') ? 'dodo' : available[0]);
       })
@@ -142,25 +152,30 @@ export default function Billing() {
       };
     }
     const p = PLANS.find((x) => x.code === plan)!;
-    return { display: usdMode ? p.priceUsd : p.priceNgn };
+    return { display: usdMode && provider !== 'flutterwave' ? p.priceUsd : p.priceNgn };
   }
 
   async function buy(plan: PaidPlan) {
     setLoading(plan);
     setMessage('');
-    const couponCode = appliedCoupon && appliedCoupon.plan === plan ? appliedCoupon.code : undefined;
-    const r = await fetch(`/api/billing/${provider}/create`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ plan, couponCode }),
-    });
-    const j = await r.json();
-    // Flutterwave returns data.link; Paystack returns data.authorization_url;
-    // Dodo returns data.checkout_url.
-    const link = j.data?.link ?? j.data?.authorization_url ?? j.data?.checkout_url;
-    if (link) location.href = link;
-    else setMessage(j.error === 'BILLING_NOT_CONFIGURED' ? 'Payments are not available yet. Please check back soon.' : j.error ?? 'Unable to start payment');
-    setLoading('');
+    try {
+      const couponCode = appliedCoupon && appliedCoupon.plan === plan ? appliedCoupon.code : undefined;
+      const r = await fetch(`/api/billing/${provider}/create`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ plan, couponCode }),
+      });
+      const j = await r.json().catch(() => ({}));
+      // Flutterwave returns data.link; Paystack returns data.authorization_url;
+      // Dodo returns data.checkout_url.
+      const link = j.data?.link ?? j.data?.authorization_url ?? j.data?.checkout_url;
+      if (link) location.href = link;
+      else setMessage(j.error === 'BILLING_NOT_CONFIGURED' ? 'Payments are not available yet. Please check back soon.' : j.message ?? j.error ?? 'Unable to start payment');
+    } catch {
+      setMessage('Unable to start payment right now. Please try again.');
+    } finally {
+      setLoading('');
+    }
   }
 
   return (
@@ -242,7 +257,7 @@ export default function Billing() {
         })}
       </section>
       <p className="form-hint">
-        {usdMode ? 'Prices are in US dollars.' : 'Prices are in Naira; visitors outside Nigeria are charged in US dollars.'} See <a href="/pricing" style={{ color: 'var(--brand)' }}>the public pricing page</a> for full plan details. Checkout is handled on {providers.length === 1 ? PROVIDER_LABELS[providers[0]] : 'the provider you pick'} secure pages; card details never touch our servers.{provider === 'dodo' && ' Dodo is the merchant of record: VAT or sales tax for your country is calculated and handled by them at checkout.'}
+        {usdMode && provider !== 'flutterwave' ? 'Prices are in US dollars.' : 'Prices are in Naira; visitors outside Nigeria are charged in US dollars on Paystack or Dodo.'} See <a href="/pricing" style={{ color: 'var(--brand)' }}>the public pricing page</a> for full plan details. Paid plan checkout runs on {providers.length === 1 ? PROVIDER_LABELS[providers[0]] : 'the provider you pick'} secure hosted pages; Jobiest never stores card numbers.{provider === 'dodo' && ' Dodo is the merchant of record: VAT or sales tax for your country is calculated and handled by them at checkout.'}
       </p>
     </AppShell>
   );

@@ -3,7 +3,7 @@ import { requireUser } from '@/lib/auth';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { AppActionError, prepareApplication } from '@/lib/applications/service';
 
-const body = z.object({ jobId: z.string().uuid() });
+const body = z.object({ jobId: z.guid() });
 
 function httpStatus(code: string): number {
   switch (code) {
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     return Response.json({ application: detail }, { status: 201 });
   } catch (error) {
     if (error instanceof AppActionError) return Response.json({ error: error.code }, { status: httpStatus(error.code) });
-    if (error instanceof Error && error.message === 'UNAUTHENTICATED') return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    if (error instanceof Error && (error.message === 'UNAUTHENTICATED' || error.message.startsWith('SESSION_'))) return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
     if (error instanceof Error && error.message === 'MFA_REQUIRED') return Response.json({ error: 'MFA_REQUIRED' }, { status: 401 });
     if (error instanceof Error && error.message.startsWith('ACCOUNT_')) return Response.json({ error: error.message }, { status: 403 });
     throw error;

@@ -14,7 +14,7 @@ const CATEGORIES: readonly string[] = SUPPORT_CATEGORIES;
 export async function POST(request: Request) {
   try {
     const ip = requestIp(request);
-    const rl = await enforceRateLimit('support-ticket', 5, '1 h', ip);
+    const rl = await enforceRateLimit(`support-ticket:${ip}`, 5, '1 h', ip);
     if (!rl.allowed) {
       return NextResponse.json({ error: 'RATE_LIMITED', message: 'Too many tickets. Please wait before submitting another.' }, { status: 429 });
     }
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
         .select('id, user_id')
         .eq('id', conversationId)
         .maybeSingle();
-      if (!existing || (user && existing.user_id && existing.user_id !== user.id)) conversationId = null;
+      if (!existing || (existing.user_id && existing.user_id !== user?.id)) conversationId = null;
     }
 
     const isBilling = category === 'Payments & Subscription';

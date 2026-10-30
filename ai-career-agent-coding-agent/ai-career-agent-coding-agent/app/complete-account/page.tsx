@@ -67,7 +67,10 @@ export default function CompleteAccountPage() {
       });
       const out = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string };
       if (res.ok && out.ok) {
-        router.replace('/dashboard');
+        try { await fetch('/api/auth/session', { method: 'POST' }); } catch {}
+        const rawNext = new URLSearchParams(window.location.search).get('next');
+        const safeNext = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') && !rawNext.includes('://') ? rawNext : null;
+        router.replace(safeNext || '/dashboard');
         router.refresh();
         return;
       }

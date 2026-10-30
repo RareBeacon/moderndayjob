@@ -33,7 +33,7 @@ Until you run it, the middleware will fail closed (safe) — all protected pages
 - Activity within 30m should renew idle but not 7d absolute
 
 ## Credentials used
-- GitHub PAT `[REDACTED_GH_PAT]` and Vercel token `vcp_2wgEy3t...` used for this deploy — revoke after verification if one-time use.
+- GitHub PAT `[REDACTED_GH_PAT]` and Vercel token `[REDACTED_VERCEL_TOKEN]` used for this deploy — revoke after verification if one-time use.
 
 ## Remaining Phase 2B-E
 - Sensitive-action recent-auth gate not yet enforced (next)

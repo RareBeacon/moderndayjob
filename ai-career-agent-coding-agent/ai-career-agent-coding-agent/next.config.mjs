@@ -20,7 +20,7 @@ const csp = [
   "worker-src 'self'",
   "frame-ancestors 'none'",
   "base-uri 'self'",
-  "form-action 'self'",
+  "form-action 'self' https://*.supabase.co https://accounts.google.com https://www.linkedin.com",
 ].join('; ');
 
 const securityHeaders = [
@@ -43,15 +43,21 @@ const noStoreSources = [
   '/login',
   '/signup',
   '/verify-email',
+  '/forgot-password',
   '/reset-password',
+  '/mfa-verify',
+  '/complete-account',
   '/dashboard/:path*',
   '/onboarding/:path*',
   '/profile/:path*',
+  '/settings/:path*',
   '/documents/:path*',
   '/applications/:path*',
   '/billing/:path*',
   '/match/:path*',
   '/generate/:path*',
+  '/auto-apply/:path*',
+  '/admin/:path*',
 ];
 
 const nextConfig = {

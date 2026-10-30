@@ -40,7 +40,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (error instanceof AppActionError) {
       return Response.json({ error: error.code, message: error.message }, { status: httpStatus(error.code) });
     }
-    if (error instanceof Error && error.message === 'UNAUTHENTICATED') {
+    if (error instanceof Error && (error.message === 'UNAUTHENTICATED' || error.message.startsWith('SESSION_'))) {
       return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
     }
     if (error instanceof Error && error.message === 'MFA_REQUIRED') {

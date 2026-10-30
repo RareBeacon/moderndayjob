@@ -24,16 +24,18 @@ function LoginInner() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const verified = params.get('verified') === '1';
+  const expired = params.get('expired') === '1';
   const oauthError = params.get('error');
-  const oauthErrorMessage = oauthError === 'oauth_retry' 
-    ? 'Your previous sign-in link expired. Please try again.'
-    : oauthError === 'session_expired'
-    ? 'Your sign-in session expired. Please try again.'
-    : oauthError === 'oauth_failed'
-    ? 'Google sign-in failed. Please try again or use email and password.'
-    : oauthError === 'oauth_retry' || oauthError === 'flow_state_already_used'
-    ? 'Please try signing in again.'
-    : null;
+  const oauthErrorMessage =
+    oauthError === 'oauth_cancelled'
+      ? 'Sign-in was cancelled. You can try again whenever you are ready.'
+      : oauthError === 'oauth_retry' || oauthError === 'flow_state_already_used'
+      ? 'Your previous sign-in link expired. Please try again.'
+      : oauthError === 'session_expired' || expired
+      ? 'Your session expired for your security. Please sign in again.'
+      : oauthError === 'oauth_failed'
+      ? 'Social sign-in could not finish. Please try again or use email and password.'
+      : null;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -56,24 +58,24 @@ function LoginInner() {
       setError(humanizeAuthError(error.message));
       return;
     }
+    // Create app session (30m idle / 7d absolute, session-only cookie) - required for protected pages including /mfa-verify
+    try {
+      await fetch('/api/auth/session', { method: 'POST' });
+    } catch {}
     // MFA is part of the real login flow: if the user has an enrolled
     // authenticator, the session stays aal1 until the code is verified.
+    const rawNext = new URLSearchParams(window.location.search).get('next');
+    const safeNext = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') && !rawNext.includes('://') ? rawNext : null;
     try {
       const { data: aal } = await supabaseBrowser().auth.mfa.getAuthenticatorAssuranceLevel();
       if (aal?.nextLevel === 'aal2' && aal.currentLevel !== 'aal2') {
-        const nextParam = new URLSearchParams(window.location.search).get('next');
-        router.push(nextParam ? `/mfa-verify?next=${encodeURIComponent(nextParam)}` : '/mfa-verify');
+        router.push(safeNext ? `/mfa-verify?next=${encodeURIComponent(safeNext)}` : '/mfa-verify');
         return;
       }
     } catch {
       // fall through to the dashboard; middleware re-checks
     }
-    // Create app session (30m idle / 7d absolute, session-only cookie) - required for protected pages
-    try {
-      await fetch('/api/auth/session', { method: 'POST' });
-    } catch {}
-    const next = new URLSearchParams(window.location.search).get('next') || '/dashboard';
-    router.push(next);
+    router.push(safeNext || '/dashboard');
     router.refresh();
   }
 
@@ -128,6 +130,11 @@ function LoginInner() {
             >
               {show ? 'Hide' : 'Show'}
             </button>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
+            <Link href="/forgot-password" className="inline-link" style={{ fontSize: 13 }}>
+              Forgot password?
+            </Link>
           </div>
         </motion.label>
         <button type="submit" className="btn btn-block" disabled={busy}>

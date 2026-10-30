@@ -59,8 +59,8 @@ function ResetForm() {
     setBusy(true);
     setError('');
 
-    if (password.length < 8) {
-      setError('Your new password needs at least 8 characters.');
+    if (password.length < 8 || !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
+      setError('Your new password needs at least 8 characters, including a number and a special character.');
       setBusy(false);
       return;
     }

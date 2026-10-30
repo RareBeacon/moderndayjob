@@ -23,7 +23,7 @@ import { sendPlanChangeEmail } from '@/lib/email/resend';
  */
 
 const body = z.object({
-  userId: z.string().uuid(),
+  userId: z.guid(),
   plan: z.enum(['FREE', 'BASIC', 'PREMIUM', 'MAX']),
   durationDays: z.number().int().min(1).max(3650).optional(),
   startMode: z.enum(['IMMEDIATELY', 'AFTER_CURRENT']).default('IMMEDIATELY'),

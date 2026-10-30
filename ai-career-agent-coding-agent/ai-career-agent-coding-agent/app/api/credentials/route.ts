@@ -56,9 +56,9 @@ export async function POST(req: Request) {
   }
   const { provider, model, base_url, api_key } = parsed.data;
 
-  // Egress allowlist (B-223): reject private/loopback/metadata targets.
+  // Egress allowlist (B-223): reject private/loopback/metadata and cleartext http targets.
   try {
-    assertPublicHttpsUrl(base_url);
+    assertPublicHttpsUrl(base_url, { requireHttps: true });
   } catch (err) {
     return Response.json(
       { error: 'BASE_URL_BLOCKED', detail: err instanceof Error ? 'Only public https endpoints are allowed.' : 'Invalid base URL.' },
@@ -101,7 +101,9 @@ export async function POST(req: Request) {
 
   let host = base_url;
   try { host = new URL(base_url).host; } catch { /* keep raw */ }
-  return Response.json({ credential: { ...inserted, host } }, { status: 201 });
+  const { base_url: _omitBaseUrl, ...safeInserted } = inserted as Record<string, unknown>;
+  void _omitBaseUrl;
+  return Response.json({ credential: { ...safeInserted, host } }, { status: 201 });
 }
 
 export async function DELETE(req: Request) {

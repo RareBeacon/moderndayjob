@@ -39,7 +39,8 @@ export async function ensureProfile(user: {
 
   if (existing) return;
 
-  // Insert minimal row; RLS-safe via service_role. ON CONFLICT ensures idempotency.
+  // Insert minimal row; RLS-safe via service_role. ignoreDuplicates prevents
+  // concurrent OAuth callbacks from overwriting fields written by handle_new_user.
   await supabaseAdmin
     .from('profiles')
     .upsert(
@@ -52,9 +53,7 @@ export async function ensureProfile(user: {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },
-      { onConflict: 'user_id', ignoreDuplicates: false },
-    )
-    .select()
-    .maybeSingle();
+      { onConflict: 'user_id', ignoreDuplicates: true },
+    );
 
 }

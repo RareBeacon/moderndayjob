@@ -69,7 +69,7 @@ export async function POST(req: Request) {
     return Response.json({ application: detail.application, package: detail.package, timeline: detail.timeline, automationEnabled: detail.automationEnabled }, { status: 201 });
   } catch (error) {
     if (error instanceof AppActionError) return Response.json({ error: error.code }, { status: httpStatus(error.code) });
-    if (error instanceof Error && error.message === 'UNAUTHENTICATED') return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    if (error instanceof Error && (error.message === 'UNAUTHENTICATED' || error.message.startsWith('SESSION_'))) return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
     if (error instanceof Error && error.message === 'MFA_REQUIRED') return Response.json({ error: 'MFA_REQUIRED' }, { status: 401 });
     if (error instanceof Error && error.message.startsWith('ACCOUNT_')) return Response.json({ error: error.message }, { status: 403 });
     throw error;

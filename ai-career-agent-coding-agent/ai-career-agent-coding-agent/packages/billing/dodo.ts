@@ -28,9 +28,11 @@ import { planForAmountIn } from './flutterwave';
 
 export { planForAmountIn };
 
-const DODO_API_BASE = process.env.DODO_PAYMENTS_ENVIRONMENT === 'live_mode'
-  ? 'https://live.dodopayments.com'
-  : 'https://test.dodopayments.com';
+function dodoApiBase(): string {
+  return process.env.DODO_PAYMENTS_ENVIRONMENT === 'live_mode'
+    ? 'https://live.dodopayments.com'
+    : 'https://test.dodopayments.com';
+}
 
 export type DodoPlan = 'BASIC' | 'PREMIUM' | 'MAX';
 
@@ -57,6 +59,7 @@ export interface DodoCheckoutInput {
   email: string;
   name?: string | null;
   returnUrl: string;
+  discountCode?: string | null;
   metadata?: Record<string, unknown>;
 }
 
@@ -67,7 +70,7 @@ export interface DodoCheckoutResult {
 
 export async function createDodoCheckout(input: DodoCheckoutInput): Promise<DodoCheckoutResult> {
   if (!dodoConfigured()) throw new Error('BILLING_NOT_CONFIGURED');
-  const res = await fetch(`${DODO_API_BASE}/checkouts`, {
+  const res = await fetch(`${dodoApiBase()}/checkouts`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${process.env.DODO_PAYMENTS_API_KEY}`,
@@ -77,6 +80,7 @@ export async function createDodoCheckout(input: DodoCheckoutInput): Promise<Dodo
       product_cart: [{ product_id: input.productId, quantity: 1 }],
       customer: { email: input.email, ...(input.name ? { name: input.name } : {}) },
       return_url: input.returnUrl,
+      ...(input.discountCode ? { discount_code: input.discountCode } : {}),
       metadata: input.metadata ?? {},
     }),
     signal: AbortSignal.timeout(15_000),
@@ -94,6 +98,8 @@ export interface DodoPayment {
   status: string;
   /** Minor units (cents). */
   total_amount: number;
+  /** Minor units (cents) of VAT / sales tax collected by Dodo as MoR, when present. */
+  tax?: number | null;
   currency: string;
   customer: { email?: string | null } | null;
   product_id?: string | null;
@@ -103,7 +109,7 @@ export interface DodoPayment {
 /** Re-fetch a payment from Dodo by id. Never trust the webhook payload. */
 export async function retrieveDodoPayment(paymentId: string): Promise<DodoPayment> {
   if (!dodoConfigured()) throw new Error('BILLING_NOT_CONFIGURED');
-  const res = await fetch(`${DODO_API_BASE}/payments/${encodeURIComponent(paymentId)}`, {
+  const res = await fetch(`${dodoApiBase()}/payments/${encodeURIComponent(paymentId)}`, {
     headers: { Authorization: `Bearer ${process.env.DODO_PAYMENTS_API_KEY}` },
     signal: AbortSignal.timeout(15_000),
   });
@@ -129,7 +135,21 @@ export function verifyDodoWebhookSignature(
 ): boolean {
   if (!secret || !webhookId || !timestamp || !signatureHeader) return false;
   const signedContent = `${webhookId}.${timestamp}.${rawBody}`;
-  const expected = crypto.createHmac('sha256', secret).update(signedContent, 'utf8').digest();
+  // Standard Webhooks keys carry a "whsec_<base64>" secret whose raw key bytes
+  // are base64-decoded after stripping "whsec_". Also support raw UTF-8 secret
+  // keys so non-base64 test/custom secrets verify identically.
+  const candidates: Buffer[] = [
+    crypto.createHmac('sha256', secret).update(signedContent, 'utf8').digest(),
+  ];
+  if (secret.startsWith('whsec_')) {
+    const b64Part = secret.slice(6);
+    if (b64Part.length > 0) {
+      const decodedKey = Buffer.from(b64Part, 'base64');
+      if (decodedKey.length > 0) {
+        candidates.push(crypto.createHmac('sha256', decodedKey).update(signedContent, 'utf8').digest());
+      }
+    }
+  }
   // The header is "v1,<base64>"; multiple signatures are space-separated
   // ("v1,<b64> v1,<b64>"). Any exact v1 match is valid.
   for (const token of signatureHeader.split(/\s+/)) {
@@ -140,8 +160,10 @@ export function verifyDodoWebhookSignature(
     } catch {
       continue;
     }
-    if (provided.length === expected.length && crypto.timingSafeEqual(provided, expected)) {
-      return true;
+    for (const expected of candidates) {
+      if (provided.length === expected.length && crypto.timingSafeEqual(provided, expected)) {
+        return true;
+      }
     }
   }
   return false;

@@ -5,7 +5,7 @@ import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { z } from 'zod';
 
 const saveJobSchema = z.object({
-  jobId: z.string().uuid(),
+  jobId: z.guid(),
 });
 
 /**

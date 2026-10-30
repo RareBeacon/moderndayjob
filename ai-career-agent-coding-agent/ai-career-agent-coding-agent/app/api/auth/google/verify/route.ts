@@ -51,7 +51,7 @@ function needsAccountCompletion(phone: string | null, passwordSetAt: string | nu
 export async function GET() {
   let user;
   try {
-    user = await requireUser({ allowIncompleteMfa: true });
+    user = await requireUser({ allowIncompleteMfa: true, allowMissingAppSession: true });
   } catch {
     return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   }
@@ -85,7 +85,7 @@ export async function GET() {
 export async function POST(req: Request) {
   let user;
   try {
-    user = await requireUser({ allowIncompleteMfa: true });
+    user = await requireUser({ allowIncompleteMfa: true, allowMissingAppSession: true, req });
   } catch {
     return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   }
@@ -122,7 +122,7 @@ export async function POST(req: Request) {
     void auditEvent({ action: 'GOOGLE_VERIFY_PASSED', resource: 'auth', userId: user.id, outcome: 'allow' });
     // First-time google sign-ups get the welcome email exactly once; the
     // marker makes replays and refreshes harmless.
-    void sendWelcomeEmailOnce(user.id, user.email);
+    await sendWelcomeEmailOnce(user.id, user.email).catch(() => {});
     const { phone, passwordSetAt } = await verificationState(user.id);
     return Response.json({ ok: true, needsAccountCompletion: needsAccountCompletion(phone, passwordSetAt) });
   }

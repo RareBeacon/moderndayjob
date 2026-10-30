@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import { assertEntitlement } from '@packages/security/entitlements';
+import { creditAvailable, ledgerEnabled } from '@/lib/credits';
 import { detectApplyAdapter } from '@/lib/apply/registry';
 import { computeApprovalSnapshot, verifyApprovalAndRevert } from '@/lib/apply/snapshot';
 import {
@@ -435,15 +436,31 @@ export async function requestAutoSubmit(userId: string, id: string): Promise<{ t
     throw new AppActionError('INVALID_TRANSITION', 'Only applications you have approved can be submitted automatically.');
   }
   if (!isAutomationEnabled()) throw new AppActionError('AUTOMATION_DISABLED', 'Automatic submission is not enabled.');
-  let entitlement;
+  let entitlement: Awaited<ReturnType<typeof assertEntitlement>> | null = null;
   try {
     entitlement = await assertEntitlement(userId, 'automation');
   } catch {
+    entitlement = null;
+  }
+
+  let hasAutoCredits = false;
+  if (!entitlement || Number(entitlement.applications_remaining) <= 0) {
+    if (ledgerEnabled()) {
+      try {
+        hasAutoCredits = (await creditAvailable(userId, 'AUTO_APPLY')) > 0;
+      } catch {
+        hasAutoCredits = false;
+      }
+    }
+  }
+
+  if (!entitlement && !hasAutoCredits) {
     throw new AppActionError('NOT_ENTITLED', 'Your plan does not include automatic submission.');
   }
   // The advertised per-plan agent-run limits (Basic 2 in total; Premium 10 a
-  // day; Max 20 a day) are enforced here too, not only in the discovery path.
-  if (Number(entitlement.applications_remaining) <= 0) {
+  // day; Max 20 a day) are enforced here too, unless card-activated ledger
+  // auto-apply credits are available.
+  if (entitlement && Number(entitlement.applications_remaining) <= 0 && !hasAutoCredits) {
     throw new AppActionError('APPLICATION_QUOTA_EXHAUSTED', 'You have used all the agent runs your plan allows. Upgrade for more.');
   }
 

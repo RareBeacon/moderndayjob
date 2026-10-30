@@ -99,19 +99,35 @@ export async function POST(req: Request) {
       if (currency === 'USD') {
         await supabaseAdmin.from('payment_quotes').update({ status: 'SUPERSEDED' }).eq('reference', reference).then(() => undefined, () => undefined);
         const ngnRef = `${reference}_ngn`;
-        const ngnQuote = await createCheckoutQuote({
-          reference: ngnRef,
-          userId: user.id,
-          plan,
-          currency: 'NGN',
-          originalAmount: Number(planRecord.amount),
-          couponCode: null,
-        });
+        let ngnQuote;
+        try {
+          ngnQuote = await createCheckoutQuote({
+            reference: ngnRef,
+            userId: user.id,
+            plan,
+            currency: 'NGN',
+            originalAmount: Number(planRecord.amount),
+            couponCode: couponCode ?? null,
+          });
+        } catch (err) {
+          if (err instanceof CouponApplyError) {
+            ngnQuote = await createCheckoutQuote({
+              reference: ngnRef,
+              userId: user.id,
+              plan,
+              currency: 'NGN',
+              originalAmount: Number(planRecord.amount),
+              couponCode: null,
+            });
+          } else {
+            throw err;
+          }
+        }
         result = await init(ngnRef, 'NGN', ngnQuote.finalAmount, ngnQuote);
         chargedCurrency = 'NGN';
         chargedAmount = ngnQuote.finalAmount;
         chargedReference = ngnRef;
-        couponApplied = false;
+        couponApplied = ngnQuote.couponId !== null;
         void firstError;
       } else {
         throw firstError;

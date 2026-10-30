@@ -1,5 +1,4 @@
-import { redirect } from 'next/navigation';
-import { getUser } from '@/lib/auth';
+import { requireUserOrRedirect } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { AdminShell, AdminForbidden } from '@/components/site/AdminShell';
 
@@ -9,8 +8,7 @@ export const dynamic = 'force-dynamic';
  *  Server-side gated (the old client-only fetch had no page-level gate).
  *  Enforcement stays on the server-side termination endpoint. */
 export default async function AdminSecurityPage() {
-  const user = await getUser();
-  if (!user) redirect('/login?next=/admin/security');
+  const user = await requireUserOrRedirect('/admin/security');
 
   const { data: admin } = await supabaseAdmin
     .from('admin_users')
@@ -26,7 +24,7 @@ export default async function AdminSecurityPage() {
 
   const rows = (data ?? []) as Array<{
     user_id: string;
-    email: string | null;
+    email_domain: string | null;
     full_name: string | null;
     plan: string | null;
     account_status: string | null;
@@ -45,7 +43,7 @@ export default async function AdminSecurityPage() {
         <table className="ad-table">
           <thead>
             <tr>
-              <th>Email</th>
+              <th>Domain</th>
               <th>Name</th>
               <th>Plan</th>
               <th>Status</th>
@@ -60,13 +58,13 @@ export default async function AdminSecurityPage() {
             )}
             {rows.map((x) => (
               <tr key={x.user_id}>
-                <td className="ad-mono">{x.email ?? '-'}</td>
+                <td className="ad-mono"><a className="inline-link" href={`/admin/users/${x.user_id}`}>{x.email_domain ?? '-'}</a></td>
                 <td>{x.full_name ?? '-'}</td>
                 <td>
                   <span className="ad-chip">{x.plan ?? 'unknown'}</span>
                 </td>
                 <td>
-                  <span className={`ad-chip ${x.account_status === 'active' ? 'ok' : 'warn'}`}>
+                  <span className={`ad-chip ${String(x.account_status).toLowerCase() === 'active' ? 'ok' : 'warn'}`}>
                     {x.account_status ?? 'unknown'}
                   </span>
                 </td>

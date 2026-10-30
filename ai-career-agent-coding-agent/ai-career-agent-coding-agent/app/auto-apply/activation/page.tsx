@@ -40,12 +40,19 @@ function ActivationInner() {
   const loadStatus = useCallback(async () => {
     try {
       const res = await fetch('/api/auto-apply/activation');
-      if (!res.ok) return;
+      if (res.status === 401) {
+        window.location.href = '/login?next=%2Fauto-apply%2Factivation';
+        return;
+      }
+      if (!res.ok) {
+        setActivation(null);
+        return;
+      }
       const out = await res.json();
       setActivation(out.activation ?? null);
       setCredits(typeof out.autoApplyCredits === 'number' ? out.autoApplyCredits : null);
     } catch {
-      /* status display is best-effort */
+      setActivation(null);
     }
   }, []);
 
@@ -83,7 +90,9 @@ function ActivationInner() {
         return;
       }
       if (out.error === 'INVALID_CARD') setError('Please check the card details and try again.');
-      else if (out.error === 'RATE_LIMITED') setError('Too many attempts. Please wait an hour and try again.');
+      else if (out.error === 'ALREADY_ACTIVATED') {
+        await loadStatus();
+      } else if (out.error === 'RATE_LIMITED') setError('Too many attempts. Please wait an hour and try again.');
       else setError('We could not start the card check right now. Please try again in a moment.');
     } catch {
       setError('We could not reach the card check service. Please try again in a moment.');
@@ -145,7 +154,7 @@ function ActivationInner() {
         {submitting ? 'Starting the check…' : 'Verify my card'}
       </button>
       <p style={{ fontSize: 14, color: 'var(--ink-2)' }}>
-        The check is run by Paystack. Your card details go straight to Paystack over a secure connection and are never stored by us.
+        The check is run by Paystack. Card details are transmitted over TLS exclusively to initiate Paystack&apos;s zero-charge verification and are never stored or logged by Jobiest.
       </p>
     </form>
   );
@@ -162,7 +171,7 @@ function ActivationInner() {
         <ul style={{ lineHeight: 1.8, margin: '12px 0' }}>
           <li>The check costs 0 naira. Nothing is charged, now or later.</li>
           <li>We never charge the card and we never keep the ability to charge it.</li>
-          <li>We only ever see the last four digits and the bank name.</li>
+          <li>Card numbers and CVVs are never stored or logged; only the last four digits and bank name are saved.</li>
           <li>Once verified, you get 5 auto-apply credits every month.</li>
         </ul>
 

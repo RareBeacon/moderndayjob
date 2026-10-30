@@ -1,18 +1,19 @@
 import { requireUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { revokeAllUserSessions } from '@/lib/session';
 import { z } from 'zod';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
 /* Admin-only account termination: sets TERMINATED, cancels queued/running
  * agent work, revokes live sessions, and writes an audited admin action. */
-const body = z.object({ userId: z.string().uuid(), relatedUserIds: z.array(z.string().uuid()).default([]) });
+const body = z.object({ userId: z.guid(), relatedUserIds: z.array(z.guid()).default([]) });
 
 export async function POST(req: Request) {
   const rl = await enforceRateLimit(`admin:users:terminate:${requestIp(req)}`, 60, '1 m');
   if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
 
   try {
-    const admin = await requireUser().catch(() => null);
+    const admin = await requireUser({ req }).catch(() => null);
     if (!admin) return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
     const { data: a } = await supabaseAdmin
       .from('admin_users')
@@ -23,6 +24,9 @@ export async function POST(req: Request) {
 
     const b = body.parse(await req.json());
     const ids = [b.userId, ...b.relatedUserIds];
+    if (ids.includes(admin.id)) {
+      return Response.json({ error: 'CANNOT_TERMINATE_SELF' }, { status: 400 });
+    }
 
     await supabaseAdmin.from('profiles').update({ account_status: 'TERMINATED' }).in('user_id', ids);
     await supabaseAdmin
@@ -34,6 +38,7 @@ export async function POST(req: Request) {
     // Revoke every live session so termination takes effect immediately.
     for (const id of ids) {
       await supabaseAdmin.auth.admin.signOut(id, 'global').catch(() => undefined);
+      await revokeAllUserSessions(id).catch(() => undefined);
       await supabaseAdmin.from('admin_actions').insert({
         admin_user_id: admin.id,
         target_user_id: id,

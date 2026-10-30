@@ -112,12 +112,16 @@ export default function VerifyEmailPage() {
         if (passwordMode) {
           setNotice('Your email is verified. Taking you to sign in…');
           router.replace(`/login?email=${encodeURIComponent(email)}&verified=1`);
-        } else if (out.needsAccountCompletion) {
-          router.replace('/complete-account');
         } else {
           try { await fetch('/api/auth/session', { method: 'POST' }); } catch {}
-          router.replace('/dashboard');
-          router.refresh();
+          const rawNext = new URLSearchParams(window.location.search).get('next');
+          const safeNext = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') && !rawNext.includes('://') ? rawNext : null;
+          if (out.needsAccountCompletion) {
+            router.replace(safeNext ? `/complete-account?next=${encodeURIComponent(safeNext)}` : '/complete-account');
+          } else {
+            router.replace(safeNext || '/dashboard');
+            router.refresh();
+          }
         }
         return;
       }

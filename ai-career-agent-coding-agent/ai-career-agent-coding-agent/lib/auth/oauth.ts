@@ -41,16 +41,3 @@ export async function startOAuth(formData: FormData): Promise<void> {
   redirect(data.url);
 }
 
-export async function getOAuthUrl(provider: 'google' | 'linkedin_oidc', next?: string | null): Promise<string> {
-  const safe = safeNext(next);
-  const base = (env.NEXT_PUBLIC_APP_URL || 'https://jobiest.com').replace(/\/$/, '');
-  const redirectTo = `${base}/auth/callback${safe ? `?next=${encodeURIComponent(safe)}` : ''}`;
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider,
-    options: { redirectTo, queryParams: provider === 'google' ? { prompt: 'select_account' } : undefined },
-  });
-  if (error) throw error;
-  if (!data.url) throw new Error('No OAuth URL');
-  return data.url;
-}

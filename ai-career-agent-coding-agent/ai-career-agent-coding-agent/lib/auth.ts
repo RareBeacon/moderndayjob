@@ -180,14 +180,16 @@ export async function getAuthContext(req?: Request): Promise<AuthContext> {
  *
  *  Accepts an optional Request so native clients (which send a Bearer token
  *  instead of cookies) authenticate through the same gate. */
-export async function requireUser(opts: { allowIncompleteMfa?: boolean; req?: Request } = {}) {
+export async function requireUser(opts: { allowIncompleteMfa?: boolean; allowMissingAppSession?: boolean; req?: Request } = {}) {
   const { user, needsMfa } = await getAuthContext(opts.req);
   if (!user) throw new Error('UNAUTHENTICATED');
   // Enforce app-managed session (30m idle / 7d absolute) for browser clients
   // Bearer token clients (mobile) are exempt - see validateBrowserAppSession
   const bearerPresent = Boolean(opts.req?.headers.get('authorization')?.startsWith('Bearer '));
   const appCheck = await validateBrowserAppSession(user.id, bearerPresent);
-  if (!appCheck.valid) throw new Error(appCheck.reason === 'NO_APP_SESSION' ? 'SESSION_EXPIRED' : appCheck.reason === 'IDLE_EXPIRED' ? 'SESSION_IDLE_EXPIRED' : appCheck.reason === 'ABSOLUTE_EXPIRED' ? 'SESSION_ABSOLUTE_EXPIRED' : 'SESSION_EXPIRED');
+  if (!appCheck.valid && !(opts.allowMissingAppSession && appCheck.reason === 'NO_APP_SESSION')) {
+    throw new Error(appCheck.reason === 'NO_APP_SESSION' ? 'SESSION_EXPIRED' : appCheck.reason === 'IDLE_EXPIRED' ? 'SESSION_IDLE_EXPIRED' : appCheck.reason === 'ABSOLUTE_EXPIRED' ? 'SESSION_ABSOLUTE_EXPIRED' : 'SESSION_EXPIRED');
+  }
   // Password signups must not use authenticated API routes until Supabase
   // itself has recorded confirmation. Social accounts have a separate
   // profile-backed email gate and are allowed into their verification APIs.
@@ -234,6 +236,9 @@ export async function requireUserOrRedirect(nextPath: string): Promise<User> {
       }
       if (error.message === 'MFA_REQUIRED') {
         redirect('/mfa-verify');
+      }
+      if (error.message === 'SESSION_IDLE_EXPIRED' || error.message === 'SESSION_ABSOLUTE_EXPIRED') {
+        redirect(`/login?next=${encodeURIComponent(nextPath)}&expired=1`);
       }
       if (error.message.startsWith('SESSION_') || error.message === 'NO_APP_SESSION' || error.message === 'APP_SESSION_ERROR' || ['NOT_FOUND','REVOKED','USER_MISMATCH','IDLE_EXPIRED','ABSOLUTE_EXPIRED','DB_ERROR'].some(r => error.message.includes(r))) {
         redirect(`/login?next=${encodeURIComponent(nextPath)}`);

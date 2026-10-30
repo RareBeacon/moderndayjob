@@ -5,7 +5,7 @@ import { APP_SESSION_COOKIE, validateAppSession, touchAppSession, appSessionCook
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
 /** Pages that require an authenticated session. /verify-email is NOT here (pre-session for password signups / social gate). */
-const PROTECTED = ['/dashboard', '/onboarding', '/profile', '/settings', '/documents', '/applications', '/billing', '/generate', '/mfa-verify', '/complete-account'];
+const PROTECTED = ['/dashboard', '/onboarding', '/profile', '/settings', '/documents', '/applications', '/billing', '/generate', '/auto-apply', '/admin', '/mfa-verify', '/complete-account'];
 const AUTH_PAGES = ['/login', '/signup'];
 
 function isProtected(pathname: string): boolean {
@@ -106,6 +106,9 @@ export async function middleware(request: NextRequest) {
     const redirect = request.nextUrl.clone();
     redirect.pathname = '/login';
     redirect.searchParams.set('next', pathname);
+    if (appSessionReason === 'IDLE_EXPIRED' || appSessionReason === 'ABSOLUTE_EXPIRED') {
+      redirect.searchParams.set('expired', '1');
+    }
     const res = NextResponse.redirect(redirect);
     // Do not delete app cookie here - keep it so /api/debug/session can show why it was invalid; callback will overwrite on next login
     return res;
@@ -119,7 +122,10 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && appSessionValid && appSessionRow) {
-    await touchAppSession(appSessionRow as any).catch(() => {});
+    const refreshedToken = await touchAppSession(appSessionRow as any).catch(() => undefined);
+    if (typeof refreshedToken === 'string') {
+      response.cookies.set(APP_SESSION_COOKIE, refreshedToken, appSessionCookieOptions());
+    }
   }
 
   if (user && pathname !== '/verify-email') {
@@ -174,5 +180,22 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/auth/callback', '/dashboard/:path*', '/onboarding', '/profile', '/settings', '/documents', '/applications', '/billing', '/generate', '/login', '/signup', '/verify-email', '/mfa-verify', '/complete-account'],
+  matcher: [
+    '/auth/callback',
+    '/dashboard/:path*',
+    '/onboarding/:path*',
+    '/profile/:path*',
+    '/settings/:path*',
+    '/documents/:path*',
+    '/applications/:path*',
+    '/billing/:path*',
+    '/generate/:path*',
+    '/auto-apply/:path*',
+    '/admin/:path*',
+    '/login',
+    '/signup',
+    '/verify-email',
+    '/mfa-verify',
+    '/complete-account',
+  ],
 };

@@ -16,7 +16,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     if (error instanceof AppActionError && error.code === 'NOT_FOUND') {
       return Response.json({ error: 'NOT_FOUND' }, { status: 404 });
     }
-    if (error instanceof Error && error.message === 'UNAUTHENTICATED') {
+    if (error instanceof Error && (error.message === 'UNAUTHENTICATED' || error.message.startsWith('SESSION_'))) {
       return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
     }
     if (error instanceof Error && error.message === 'MFA_REQUIRED') {

@@ -212,4 +212,25 @@ describe('buildGatewayForUser platform fallback (disaster switch)', () => {
       delete process.env.OPENROUTER_API_KEY;
     }
   });
+
+  it('shares the concurrency semaphore across separate buildGatewayForUser calls', async () => {
+    process.env.OLLAMA_BASE_URL = 'https://ollama.example.test';
+    process.env.OLLAMA_MODEL = 'qwen2.5:7b';
+    process.env.OLLAMA_FALLBACK_MODEL = 'qwen2.5:7b';
+    process.env.AI_MAX_CONCURRENCY = '1';
+    try {
+      const server = await loadServer();
+      const gw1 = await server.buildGatewayForUser('u1');
+      const gw2 = await server.buildGatewayForUser('u2');
+      const p1 = (gw1 as unknown as { providers: Array<{ stats: () => { active: number; queued: number } }> }).providers[0];
+      const p2 = (gw2 as unknown as { providers: Array<{ stats: () => { active: number; queued: number } }> }).providers[0];
+      expect(p1).not.toBe(p2);
+      expect(p1.stats()).toEqual(p2.stats());
+    } finally {
+      delete process.env.OLLAMA_BASE_URL;
+      delete process.env.OLLAMA_MODEL;
+      delete process.env.OLLAMA_FALLBACK_MODEL;
+      delete process.env.AI_MAX_CONCURRENCY;
+    }
+  });
 });

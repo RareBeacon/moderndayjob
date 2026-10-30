@@ -7,6 +7,7 @@ import { classifyRegistrationRisk, isRegistrationBlocked } from '@/lib/security/
 import { hashIp } from '@/lib/ai/usage';
 import { issueEmailVerificationCode } from '@/lib/auth-oauth';
 import { countSignupsFromIp, logSecuritySignal, signupRisk } from '@/lib/security/abuse';
+import { ensurePeriodGrants } from '@/lib/credits';
 
 function safeShort(value: unknown, max = 180) {
   if (typeof value !== 'string') return null;
@@ -180,6 +181,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'We could not complete your account setup. Please contact support.' }, { status: 502 });
   }
 
+  await ensurePeriodGrants(data.user.id).catch(() => {});
+
   void auditEvent({
     action: 'USER_SIGNUP',
     resource: 'auth',
@@ -228,7 +231,7 @@ export async function POST(req: Request) {
   res.cookies.set(DEVICE_COOKIE, deviceId, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: true,
+    secure: process.env.NODE_ENV === 'production',
     path: '/',
     maxAge: 60 * 60 * 24 * 365,
   });

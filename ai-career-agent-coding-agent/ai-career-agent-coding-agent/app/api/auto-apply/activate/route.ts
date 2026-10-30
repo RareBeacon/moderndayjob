@@ -3,6 +3,7 @@ import { requireUser } from '@/lib/auth';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { supabaseAdmin } from '@/lib/supabase';
 import { initializeCardAuthorization, paystackConfigured } from '@packages/billing/paystack';
+import { SITE_URL } from '@/lib/site';
 
 /**
  * POST /api/auto-apply/activate: start the free auto-apply activation
@@ -44,6 +45,19 @@ export async function POST(req: Request) {
 
   const { card } = parsed.data;
 
+  // Never downgrade an already-verified activation back to PENDING.
+  const { data: existingActivation } = await supabaseAdmin
+    .from('auto_apply_activations')
+    .select('status')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if ((existingActivation as { status?: string } | null)?.status === 'ACTIVE') {
+    return Response.json(
+      { error: 'ALREADY_ACTIVATED', message: 'Auto-apply is already unlocked on your account.' },
+      { status: 409 },
+    );
+  }
+
   const { data: profile } = await supabaseAdmin
     .from('profiles')
     .select('full_name')
@@ -53,6 +67,7 @@ export async function POST(req: Request) {
   const firstName = fullName ? fullName.split(' ')[0] : null;
   const lastName = fullName && fullName.includes(' ') ? fullName.split(' ').slice(1).join(' ') : null;
 
+  const baseAppUrl = (process.env.NEXT_PUBLIC_APP_URL || SITE_URL).replace(/\/$/, '');
   let init;
   try {
     init = await initializeCardAuthorization({
@@ -66,7 +81,7 @@ export async function POST(req: Request) {
         expiryYear: card.expiryYear,
         cardholderName: card.cardholderName,
       },
-      returnUrl: `${process.env.NEXT_PUBLIC_APP_URL}/auto-apply/activation`,
+      returnUrl: `${baseAppUrl}/auto-apply/activation?verified=1`,
     });
   } catch (error) {
     // Paystack error messages never contain card data; ours must not either.

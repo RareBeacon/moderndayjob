@@ -16,6 +16,7 @@ const m = vi.hoisted(() => ({
   rpc: vi.fn(),
   dailyData: { ai_used: 2 } as { ai_used?: number } | null,
   lifetimeData: null as Record<string, unknown> | null,
+  updates: [] as Array<{ table: string; payload: unknown }>,
 }));
 
 vi.mock('@/lib/supabase', () => ({
@@ -28,7 +29,10 @@ vi.mock('@/lib/supabase', () => ({
         select: () => chain,
         eq: () => chain,
         single: () => Promise.resolve({ data }),
-        update: () => chain,
+        update: (payload: unknown) => {
+          m.updates.push({ table, payload });
+          return chain;
+        },
         then: (resolve: unknown, reject: unknown) => done.then(resolve as never, reject as never),
       };
       return chain;
@@ -190,5 +194,31 @@ describe('createUsageMeter · ledger armed', () => {
     const meter = createUsageMeter('u1');
     const err = await meter.reserve().catch((e: unknown) => e);
     expect(err).toBeInstanceOf(AIGatewayError);
+  });
+
+  it('never double-refunds legacy counters when caller calls refund() after reserve() threw', async () => {
+    m.updates = [];
+    m.rpc.mockImplementation((fn: string) =>
+      fn === 'credit_reserve'
+        ? Promise.resolve({ error: { message: 'CREDIT_EXHAUSTED' } })
+        : Promise.resolve({ error: null, data: null }),
+    );
+    const meter = createUsageMeter('u1');
+    await expect(meter.reserve()).rejects.toMatchObject({ code: 'AI_QUOTA_EXHAUSTED' });
+    const countAfterReserveRollback = m.updates.length;
+    expect(countAfterReserveRollback).toBeGreaterThan(0);
+    await meter.refund();
+    expect(m.updates.length).toBe(countAfterReserveRollback);
+  });
+
+  it('ensurePeriodGrants(userId) calls single-user RPC and falls back on PGRST202', async () => {
+    m.rpc.mockResolvedValueOnce({ data: 2, error: null });
+    expect(await ensurePeriodGrants('u-single')).toBe(2);
+    expect(m.rpc).toHaveBeenCalledWith('credit_ensure_user_period_grants', { p_user: 'u-single' });
+
+    m.rpc.mockResolvedValueOnce({ data: null, error: { code: 'PGRST202', message: 'Could not find the function' } });
+    m.rpc.mockResolvedValueOnce({ data: 5, error: null });
+    expect(await ensurePeriodGrants('u-fallback')).toBe(5);
+    expect(m.rpc).toHaveBeenLastCalledWith('credit_ensure_period_grants');
   });
 });

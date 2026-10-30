@@ -457,8 +457,39 @@ export async function runDiscoveryStage(partial: Partial<DiscoveryDeps> = {}): P
   const today = now.toISOString().slice(0, 10);
   const report: DiscoveryStageReport = { usersConsidered: 0, usersRun: 0, applicationsCreated: 0, sources: [], outcomes: [] };
 
-  const { data: subs } = await deps.db.from('subscriptions').select('user_id,plan').in('plan', ['BASIC', 'PREMIUM', 'MAX']).limit(MAX_USERS_PER_RUN);
-  const candidates = ((subs ?? []) as Array<{ user_id: string; plan: string }>).map((s) => s.user_id);
+  const [subsRes, compedRes, activatedRes] = await Promise.all([
+    deps.db
+      .from('subscriptions')
+      .select('user_id,plan,status,current_period_end')
+      .in('plan', ['BASIC', 'PREMIUM', 'MAX'])
+      .in('status', ['ACTIVE_BASIC', 'ACTIVE_PREMIUM', 'ACTIVE_MAX'])
+      .order('current_period_end', { ascending: false }),
+    deps.db
+      .from('profiles')
+      .select('user_id,comped_plan,comped_until')
+      .in('comped_plan', ['BASIC', 'PREMIUM', 'MAX'])
+      .eq('account_status', 'ACTIVE'),
+    deps.db
+      .from('auto_apply_activations')
+      .select('user_id')
+      .eq('status', 'ACTIVE'),
+  ]);
+
+  const candidateSet = new Set<string>();
+  for (const s of (subsRes.data ?? []) as Array<{ user_id: string; current_period_end?: string | null }>) {
+    if (!s.current_period_end || new Date(s.current_period_end) > now) {
+      candidateSet.add(s.user_id);
+    }
+  }
+  for (const p of (compedRes.data ?? []) as Array<{ user_id: string; comped_until?: string | null }>) {
+    if (!p.comped_until || new Date(p.comped_until) > now) {
+      candidateSet.add(p.user_id);
+    }
+  }
+  for (const a of (activatedRes.data ?? []) as Array<{ user_id: string }>) {
+    candidateSet.add(a.user_id);
+  }
+  const candidates = [...candidateSet].slice(0, MAX_USERS_PER_RUN);
   report.usersConsidered = candidates.length;
   if (candidates.length === 0) return report;
 

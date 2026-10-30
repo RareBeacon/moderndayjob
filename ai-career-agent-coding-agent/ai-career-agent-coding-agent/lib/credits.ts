@@ -78,8 +78,24 @@ export async function creditAvailable(userId: string, resource: CreditResource):
   return Number(data ?? 0);
 }
 
-/** Daily pipeline step: open the due periods and issue their grants. */
-export async function ensurePeriodGrants(): Promise<number> {
+/** Daily pipeline & on-demand step: open due periods and issue their grants.
+ *  When `userId` is omitted, sweeps all active accounts (pipeline / cron).
+ *  When `userId` is provided, targets that single account immediately and
+ *  gracefully falls back to the full RPC if migration 046 is still pending. */
+export async function ensurePeriodGrants(userId?: string): Promise<number> {
+  if (typeof (supabaseAdmin as { rpc?: unknown }).rpc !== 'function') return 0;
+  if (userId) {
+    const single = await supabaseAdmin.rpc('credit_ensure_user_period_grants', { p_user: userId });
+    if (!single.error) return Number(single.data ?? 0);
+    const msg = String(single.error.message ?? '');
+    if (
+      single.error.code !== 'PGRST202' &&
+      !/function .* does not exist/i.test(msg) &&
+      !/Could not find the function/i.test(msg)
+    ) {
+      throw single.error;
+    }
+  }
   const { data, error } = await supabaseAdmin.rpc('credit_ensure_period_grants');
   if (error) throw error;
   return Number(data ?? 0);

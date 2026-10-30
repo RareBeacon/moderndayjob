@@ -18,7 +18,7 @@ interface ChatTurn {
 export async function POST(request: Request) {
   try {
     const ip = requestIp(request);
-    const rl = await enforceRateLimit('support-chat', 15, '1 m', ip);
+    const rl = await enforceRateLimit(`support-chat:${ip}`, 15, '1 m', ip);
     if (!rl.allowed) {
       return NextResponse.json({ error: 'RATE_LIMITED', message: 'Too many messages. Please wait a moment.' }, { status: 429 });
     }
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
         .select('id, user_id')
         .eq('id', conversationId)
         .maybeSingle();
-      if (!existing || (user && existing.user_id && existing.user_id !== user.id)) conversationId = null;
+      if (!existing || (existing.user_id && existing.user_id !== user?.id)) conversationId = null;
     }
     if (!conversationId) {
       const { data: created, error } = await supabaseAdmin
