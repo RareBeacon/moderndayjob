@@ -47,21 +47,9 @@ export function TemplateGallery({ templates }: { templates: ResumeTemplate[] }) 
   const closeRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
   const allVisible = useMemo(() => templates.filter((template) => matches(template, filter)), [templates, filter]);
-  const getInitialCount = () => (typeof window !== 'undefined' && window.innerWidth <= 768 ? 6 : 8);
-  const [showCount, setShowCount] = useState(8);
-  const [pageSize, setPageSize] = useState(8);
-  useEffect(() => {
-    const updateSize = () => {
-      const size = window.innerWidth <= 768 ? 6 : 8;
-      setPageSize(size);
-      setShowCount(size);
-    };
-    updateSize();
-    window.addEventListener('resize', updateSize);
-    return () => window.removeEventListener('resize', updateSize);
-  }, [filter]);
-  // Legacy effect for filter changes is now handled above, but keep for SSR
-  useEffect(() => { setShowCount(pageSize); }, [filter, pageSize]);
+  const pageSize = 8;
+  const [showCount, setShowCount] = useState(pageSize);
+  useEffect(() => { setShowCount(pageSize); }, [filter]);
   const visible = useMemo(() => allVisible.slice(0, showCount), [allVisible, showCount]);
   const counts = useMemo(() => ({
     ats: templates.filter((t) => templateAtsFriendly(t)).length,

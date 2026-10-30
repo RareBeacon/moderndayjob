@@ -183,7 +183,19 @@ export default function VerifyEmailPage() {
   }, [router, passwordMode]);
 
   const handleBoxChange = (index: number, val: string) => {
-    const digit = val.replace(/\D/g, '').slice(-1);
+    const digits = val.replace(/\D/g, '');
+    if (digits.length > 1) {
+      const next = Array.from({ length: 6 }, (_, k) => code[k] ?? '');
+      for (let k = 0; k < digits.length && index + k < 6; k++) {
+        next[index + k] = digits[k];
+      }
+      setCode(next.join('').slice(0, 6));
+      setError('');
+      const focusIndex = Math.min(index + digits.length, 5);
+      inputsRef.current[focusIndex]?.focus();
+      return;
+    }
+    const digit = digits.slice(-1);
     const next = code.split('');
     while (next.length < 6) next.push('');
     if (digit) {
@@ -313,8 +325,9 @@ export default function VerifyEmailPage() {
                 whileFocus={reduce ? {} : { scale: 1.04 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                 inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={1}
+                autoComplete={i === 0 ? 'one-time-code' : 'off'}
+                maxLength={i === 0 ? 6 : 1}
+                aria-label={`Verification code digit ${i + 1}`}
                 value={code[i] ?? ''}
                 onChange={(e) => handleBoxChange(i, e.target.value)}
                 onKeyDown={(e) => handleBoxKeyDown(i, e)}
