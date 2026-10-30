@@ -11,6 +11,8 @@ import { buildBoardLinks, isRemoteOnly } from '@/lib/boardlinks';
 import { creditAvailable } from '@/lib/credits';
 import { AutoSubmitToggle } from '@/components/site/AutoSubmitToggle';
 
+export const dynamic = 'force-dynamic';
+
 type DraftApp = {
   id: string;
   created_at: string;
@@ -195,14 +197,14 @@ async function DashboardBodyInner(user: Awaited<ReturnType<typeof requireUserOrR
   const autoMode = (preferences as any)?.application_mode === 'auto';
 
   // Second batch: EVERY query individually guarded so one table/RPC failure cannot crash dashboard
-  const safeCount = (p: Promise<any>): Promise<{ count: number | null }> =>
-    p.then(
-      (r) => ({ count: r?.count ?? null }),
+  const safeCount = (p: PromiseLike<any>): Promise<{ count: number | null }> =>
+    Promise.resolve(p as Promise<any>).then(
+      (r) => ({ count: (r as any)?.count ?? null }),
       () => ({ count: null }),
     );
-  const safeData = (p: Promise<any>): Promise<{ data: any }> =>
-    p.then(
-      (r) => ({ data: r?.data ?? null }),
+  const safeData = (p: PromiseLike<any>): Promise<{ data: any }> =>
+    Promise.resolve(p as Promise<any>).then(
+      (r) => ({ data: (r as any)?.data ?? null }),
       () => ({ data: null }),
     );
 
