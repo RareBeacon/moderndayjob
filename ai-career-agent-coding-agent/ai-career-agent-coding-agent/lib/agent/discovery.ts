@@ -457,7 +457,7 @@ export async function runDiscoveryStage(partial: Partial<DiscoveryDeps> = {}): P
   const today = now.toISOString().slice(0, 10);
   const report: DiscoveryStageReport = { usersConsidered: 0, usersRun: 0, applicationsCreated: 0, sources: [], outcomes: [] };
 
-  const [subsRes, compedRes, activatedRes] = await Promise.all([
+  const [subsRes, scheduledRes, activatedRes] = await Promise.all([
     deps.db
       .from('subscriptions')
       .select('user_id,plan,status,current_period_end')
@@ -465,10 +465,10 @@ export async function runDiscoveryStage(partial: Partial<DiscoveryDeps> = {}): P
       .in('status', ['ACTIVE_BASIC', 'ACTIVE_PREMIUM', 'ACTIVE_MAX'])
       .order('current_period_end', { ascending: false }),
     deps.db
-      .from('profiles')
-      .select('user_id,comped_plan,comped_until')
-      .in('comped_plan', ['BASIC', 'PREMIUM', 'MAX'])
-      .eq('account_status', 'ACTIVE'),
+      .from('scheduled_plan_changes')
+      .select('user_id,activate_at')
+      .in('plan', ['BASIC', 'PREMIUM', 'MAX'])
+      .eq('status', 'SCHEDULED'),
     deps.db
       .from('auto_apply_activations')
       .select('user_id')
@@ -481,9 +481,9 @@ export async function runDiscoveryStage(partial: Partial<DiscoveryDeps> = {}): P
       candidateSet.add(s.user_id);
     }
   }
-  for (const p of (compedRes.data ?? []) as Array<{ user_id: string; comped_until?: string | null }>) {
-    if (!p.comped_until || new Date(p.comped_until) > now) {
-      candidateSet.add(p.user_id);
+  for (const sc of (scheduledRes.data ?? []) as Array<{ user_id: string; activate_at?: string | null }>) {
+    if (sc.activate_at && new Date(sc.activate_at) <= now) {
+      candidateSet.add(sc.user_id);
     }
   }
   for (const a of (activatedRes.data ?? []) as Array<{ user_id: string }>) {

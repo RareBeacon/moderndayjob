@@ -1,18 +1,19 @@
 -- 046_fix_period_grants.sql
 --
 -- Fixes credit_ensure_period_grants (Bugs #11 & #12c):
---  1. Uses effective_plan(p_user) + profiles.comped_plan so CANCELLED/EXPIRED
---     subscriptions never receive paid grants and comped/scheduled grants do.
+--  1. Uses effective_plan(p_user) (falling back safely to active subscriptions
+--     if 043 has not run yet) so CANCELLED/EXPIRED subscriptions never receive
+--     paid grants while active paid, admin-comped, and due scheduled grants do.
 --  2. Guards against NULL subscriptions.current_period_start / end so admin or
---     comped grants without explicit period bounds never fail NOT NULL casts.
+--     scheduled grants without explicit period bounds never fail NOT NULL casts.
 --  3. Includes plan_code in paid idempotency keys so mid-period upgrades
 --     (e.g. BASIC -> PREMIUM -> MAX on the same starts_at date) issue the
 --     new plan's grant instead of colliding on period_id alone, while keeping
 --     the FREE key shape unchanged so existing free grants are never duplicated.
 --  4. Adds single-user credit_ensure_user_period_grants(p_user, p_now) plus
---     triggers on profiles, subscriptions, and auto_apply_activations so new
---     accounts, paid upgrades, admin grants, and card verifications receive
---     their credits immediately at write time without waiting for the 06:00 cron.
+--     triggers on profiles, subscriptions, scheduled_plan_changes, and
+--     auto_apply_activations so new accounts, paid upgrades, admin grants, and
+--     card verifications receive their credits immediately at write time.
 
 create or replace function public.credit_ensure_user_period_grants(
   p_user uuid,
@@ -23,10 +24,11 @@ language plpgsql security definer set search_path = public as $$
 declare
   v_acct text;
   v_eff_plan text;
-  v_comped_plan text;
-  v_comped_until timestamptz;
+  v_sub_plan text;
+  v_sub_status text;
   v_sub_start timestamptz;
   v_sub_end timestamptz;
+  v_sched_end timestamptz;
   v_period_start date;
   v_period_end date;
   v_period_id uuid;
@@ -36,8 +38,13 @@ declare
   v_app_key text;
   v_granted int := 0;
 begin
-  select p.account_status, p.comped_plan::text, p.comped_until
-    into v_acct, v_comped_plan, v_comped_until
+  -- If credit_periods (037) has not been created yet, no-op safely.
+  if to_regclass('public.credit_periods') is null then
+    return 0;
+  end if;
+
+  select p.account_status::text
+    into v_acct
     from public.profiles p
    where p.user_id = p_user;
 
@@ -45,23 +52,41 @@ begin
     return 0;
   end if;
 
-  v_eff_plan := coalesce(public.effective_plan(p_user)::text, 'FREE');
-  if v_eff_plan = 'FREE'
-     and v_comped_plan in ('BASIC', 'PREMIUM', 'MAX')
-     and (v_comped_until is null or v_comped_until > p_now) then
-    v_eff_plan := v_comped_plan;
-  end if;
-
-  select s.current_period_start, s.current_period_end
-    into v_sub_start, v_sub_end
+  select s.plan::text, s.status::text, s.current_period_start, s.current_period_end
+    into v_sub_plan, v_sub_status, v_sub_start, v_sub_end
     from public.subscriptions s
    where s.user_id = p_user;
 
+  begin
+    v_eff_plan := coalesce(public.effective_plan(p_user)::text, 'FREE');
+  exception when undefined_function then
+    if v_sub_plan in ('BASIC', 'PREMIUM', 'MAX')
+       and v_sub_status in ('ACTIVE_BASIC', 'ACTIVE_PREMIUM', 'ACTIVE_MAX')
+       and (v_sub_end is null or v_sub_end > p_now) then
+      v_eff_plan := v_sub_plan;
+    else
+      v_eff_plan := 'FREE';
+    end if;
+  end;
+
   if v_eff_plan in ('BASIC', 'PREMIUM', 'MAX') then
+    begin
+      select c.activate_at + make_interval(days => c.duration_days)
+        into v_sched_end
+        from public.scheduled_plan_changes c
+       where c.user_id = p_user
+         and c.status = 'SCHEDULED'
+         and c.activate_at <= p_now
+       order by c.activate_at desc
+       limit 1;
+    exception when undefined_table then
+      v_sched_end := null;
+    end;
+
     v_period_start := coalesce(v_sub_start, date_trunc('month', p_now))::date;
     v_period_end := coalesce(
       case when v_sub_end is not null and v_sub_end > p_now then v_sub_end else null end,
-      v_comped_until,
+      v_sched_end,
       p_now + interval '30 days'
     )::date;
     if v_period_end <= v_period_start then
@@ -92,11 +117,15 @@ begin
     returning id into v_period_id;
 
     v_docs := 5;
-    v_apps := coalesce((
-      select 5 from public.auto_apply_activations a
-      where a.user_id = p_user and a.status = 'ACTIVE'
-      limit 1
-    ), 0);
+    if to_regclass('public.auto_apply_activations') is not null then
+      select coalesce((
+        select 5 from public.auto_apply_activations a
+        where a.user_id = p_user and a.status = 'ACTIVE'
+        limit 1
+      ), 0) into v_apps;
+    else
+      v_apps := 0;
+    end if;
 
     v_doc_key := 'grant:' || p_user::text || ':DOCUMENT:' || v_period_id::text;
     v_app_key := 'grant:' || p_user::text || ':AUTO_APPLY:' || v_period_id::text;
@@ -142,7 +171,7 @@ end $$;
 
 drop trigger if exists trg_profiles_ensure_period_grants on public.profiles;
 create trigger trg_profiles_ensure_period_grants
-  after insert or update of account_status, comped_plan, comped_until on public.profiles
+  after insert or update of account_status on public.profiles
   for each row execute function public.tg_ensure_user_period_grants();
 
 drop trigger if exists trg_subscriptions_ensure_period_grants on public.subscriptions;
@@ -150,7 +179,14 @@ create trigger trg_subscriptions_ensure_period_grants
   after insert or update of plan, status, current_period_start, current_period_end on public.subscriptions
   for each row execute function public.tg_ensure_user_period_grants();
 
-drop trigger if exists trg_activations_ensure_period_grants on public.auto_apply_activations;
-create trigger trg_activations_ensure_period_grants
-  after insert or update of status on public.auto_apply_activations
-  for each row execute function public.tg_ensure_user_period_grants();
+do $$
+begin
+  if to_regclass('public.scheduled_plan_changes') is not null then
+    execute 'drop trigger if exists trg_scheduled_plans_ensure_period_grants on public.scheduled_plan_changes';
+    execute 'create trigger trg_scheduled_plans_ensure_period_grants after insert or update of status, activate_at on public.scheduled_plan_changes for each row execute function public.tg_ensure_user_period_grants()';
+  end if;
+  if to_regclass('public.auto_apply_activations') is not null then
+    execute 'drop trigger if exists trg_activations_ensure_period_grants on public.auto_apply_activations';
+    execute 'create trigger trg_activations_ensure_period_grants after insert or update of status on public.auto_apply_activations for each row execute function public.tg_ensure_user_period_grants()';
+  end if;
+end $$;

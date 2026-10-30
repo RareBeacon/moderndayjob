@@ -24,7 +24,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const revealValid = revealToken ? verifyRevealToken(revealToken, admin.id) : false;
 
     const [profile, subscription, lifetime, usage, apps, audit, security] = await Promise.all([
-      supabaseAdmin.from('profiles').select('user_id,email,full_name,account_status,comped_plan,comped_until,created_at').eq('user_id', id).maybeSingle(),
+      supabaseAdmin.from('profiles').select('user_id,email,full_name,account_status,created_at').eq('user_id', id).maybeSingle(),
       supabaseAdmin.from('subscriptions').select('plan,status,provider,current_period_end,created_at').eq('user_id', id).maybeSingle(),
       supabaseAdmin.from('usage_lifetime').select('docs_used,tools_used').eq('user_id', id).maybeSingle(),
       supabaseAdmin.from('ai_usage').select('created_at,feature,provider,status,latency_ms').eq('user_id', id).order('created_at', { ascending: false }).limit(20),
