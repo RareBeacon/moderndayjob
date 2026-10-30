@@ -4,7 +4,7 @@ import { requireUser } from '@/lib/auth';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { assertEntitlement } from '@packages/security/entitlements';
 import { AIGatewayError } from '@packages/ai/gateway';
-import { createToolMeter } from '@/lib/ai/server';
+import { buildGatewayForUser, createToolMeter } from '@/lib/ai/server';
 import { generateFollowupEmail } from '@/lib/analysis/service';
 import { supabaseAdmin } from '@/lib/supabase';
 import { trackGeneration } from '@/lib/ai/usage';
@@ -15,7 +15,7 @@ const manual = z.object({
   daysSinceApplied: z.number().int().min(1).max(90),
   contactName: z.string().trim().min(2).max(120).optional(),
   note: z.string().trim().min(5).max(500).optional(),
-  applicationId: z.string().uuid().optional(),
+  applicationId: z.guid().optional(),
 });
 
 export const maxDuration = 300;
@@ -75,7 +75,8 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await trackGeneration({ userId: user.id, feature: 'ai.followup-email' }, () => generateFollowupEmail({ company, role, daysSinceApplied: days, contactName: b.contactName, note: b.note, deterministicOnly: true }));
+    const gateway = await buildGatewayForUser(user.id).catch(() => undefined);
+    const result = await trackGeneration({ userId: user.id, feature: 'ai.followup-email' }, () => generateFollowupEmail({ company, role, daysSinceApplied: days, contactName: b.contactName, note: b.note, gateway }));
     return NextResponse.json({ email: result });
   } catch (err) {
     await meter.refund();

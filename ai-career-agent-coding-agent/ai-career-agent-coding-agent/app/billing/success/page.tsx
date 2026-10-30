@@ -21,7 +21,13 @@ function SuccessInner() {
   const reference = isPaystack ? paystackRef : txRef;
   // Flutterwave tells us the outcome in the URL; Paystack does not, so its
   // page stays neutral until the server-side check runs.
-  const failed = !isPaystack && status !== '' && status !== 'success' && status !== 'successful';
+  const failed =
+    !isPaystack &&
+    status !== '' &&
+    status !== 'success' &&
+    status !== 'successful' &&
+    status !== 'succeeded' &&
+    status !== 'completed';
   const [checking, setChecking] = useState(false);
   const [checkResult, setCheckResult] = useState<string | null>(null);
 

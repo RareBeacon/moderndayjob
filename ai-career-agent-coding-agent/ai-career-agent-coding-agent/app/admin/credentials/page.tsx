@@ -1,5 +1,4 @@
-import { redirect } from 'next/navigation';
-import { getUser } from '@/lib/auth';
+import { requireUserOrRedirect } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { AdminShell, AdminForbidden } from '@/components/site/AdminShell';
 import CredentialForm from './CredentialForm';
@@ -10,8 +9,7 @@ export const dynamic = 'force-dynamic';
 /** Admin • AI credentials, encrypted per-user provider keys.
  *  Server-side gated. Secrets are never rendered back to the browser. */
 export default async function AdminCredentialsPage() {
-  const user = await getUser();
-  if (!user) redirect('/login?next=/admin/credentials');
+  const user = await requireUserOrRedirect('/admin/credentials');
 
   const { data: admin } = await supabaseAdmin
     .from('admin_users')

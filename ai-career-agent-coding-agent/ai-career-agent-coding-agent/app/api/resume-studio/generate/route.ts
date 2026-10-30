@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
 
 const body = z.object({
-  draftId: z.string().uuid().optional(),
+  draftId: z.guid().optional(),
   templateId: z.string().trim().min(1).max(100).optional(),
   draft: z.record(z.string(), z.unknown()),
 });
@@ -143,7 +143,7 @@ export async function POST(req: Request) {
 
   try {
     await Promise.allSettled([
-      supabaseAdmin.from('profiles').update({ full_name: draft.personal.name, email: draft.personal.email, target_roles: draft.career.targetRole ? [draft.career.targetRole] : [] }).eq('user_id', user.id),
+      supabaseAdmin.from('profiles').update({ full_name: draft.personal.name, target_roles: draft.career.targetRole ? [draft.career.targetRole] : [] }).eq('user_id', user.id),
       supabaseAdmin.from('career_profiles').upsert({
         user_id: user.id,
         headline: content.headline,
@@ -191,6 +191,6 @@ export async function POST(req: Request) {
   } catch (error) {
     await meter.refund();
     void recordGenerationUsage({ userId: user.id, feature: 'resume-studio.cv', provider: 'none', latencyMs: Date.now() - studioT0, status: 'error', errorCode: error instanceof Error ? error.message.slice(0, 80) : 'RESUME_GENERATION_FAILED' });
-    return NextResponse.json({ error: 'RESUME_GENERATION_FAILED', message: "Looks like my writing assistant took a tiny coffee break. Let's try that again.", detail: error instanceof Error ? error.message : String(error) }, { status: 500 });
+    return NextResponse.json({ error: 'RESUME_GENERATION_FAILED', message: "Looks like my writing assistant took a tiny coffee break. Let's try that again." }, { status: 500 });
   }
 }

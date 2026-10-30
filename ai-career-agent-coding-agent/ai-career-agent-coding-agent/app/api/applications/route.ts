@@ -6,7 +6,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { isAutomationEnabled, listApplications } from '@/lib/applications/service';
 
-const automated = z.object({ jobId: z.string().uuid(), email: z.string().email() });
+const automated = z.object({ jobId: z.guid(), email: z.string().email() });
 const manual = z.object({
   mode: z.literal('manual'),
   company: z.string().trim().min(2).max(120),

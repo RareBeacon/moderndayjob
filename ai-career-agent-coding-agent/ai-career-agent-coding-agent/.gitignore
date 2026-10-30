@@ -10,3 +10,4 @@ playwright/.auth
 *.tsbuildinfo
 test-results
 playwright-report
+*.bak

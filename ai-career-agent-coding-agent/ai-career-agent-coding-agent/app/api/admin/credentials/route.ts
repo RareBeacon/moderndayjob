@@ -10,7 +10,7 @@ import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
  * Secrets are encrypted at rest; ciphertext is never returned to the browser. */
 
 const addBody = z.object({
-  userId: z.string().uuid(),
+  userId: z.guid(),
   provider: z.enum(['openrouter', 'huggingface']),
   apiKey: z.string().min(10).max(500),
   model: z.string().min(1).max(200),
@@ -18,7 +18,7 @@ const addBody = z.object({
 });
 
 const actionBody = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   action: z.enum(['REVOKE', 'ROTATE']),
   apiKey: z.string().min(10).max(500).optional(),
 });

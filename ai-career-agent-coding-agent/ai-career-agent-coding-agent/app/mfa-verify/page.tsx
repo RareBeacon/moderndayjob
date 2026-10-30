@@ -66,8 +66,11 @@ export default function MfaVerifyPage() {
         );
         return;
       }
+      try {
+        await fetch('/api/auth/session', { method: 'POST' });
+      } catch {}
       const next = new URLSearchParams(window.location.search).get('next');
-      router.replace(next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard');
+      router.replace(next && next.startsWith('/') && !next.startsWith('//') && !next.includes('://') ? next : '/dashboard');
       router.refresh();
     } finally {
       setBusy(false);

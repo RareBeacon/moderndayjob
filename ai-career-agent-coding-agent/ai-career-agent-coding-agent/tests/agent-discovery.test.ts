@@ -353,4 +353,15 @@ describe('runDiscoveryStage', () => {
     expect(report.applicationsCreated).toBe(1);
     expect(report.sources).toEqual([{ source: 'greenhouse:acme', ok: true, fetched: 1 }]);
   });
+
+  it('filters out expired subscription rows before running discovery', async () => {
+    m.state.subscriptions = [
+      { user_id: 'expired-user', plan: 'PREMIUM', current_period_end: '2020-01-01T00:00:00.000Z' },
+      { user_id: 'u1', plan: 'PREMIUM', current_period_end: '2099-01-01T00:00:00.000Z' },
+    ];
+    const fetchImpl = fakeFetch([{ id: 1, title: 'Graphics Designer' }]);
+    const report = await runDiscoveryStage({ fetchImpl, isSubmittable: isGh });
+    expect(report.usersConsidered).toBe(1);
+    expect(report.usersRun).toBe(1);
+  });
 });

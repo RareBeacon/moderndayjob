@@ -1,19 +1,20 @@
 import { requireUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { revokeAllUserSessions } from '@/lib/session';
 import { z } from 'zod';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
 /* Admin-only "sign out everywhere": revokes every live session for the target
- * user via Supabase Auth admin. Combined with suspend/terminate this closes
+ * user via Supabase Auth admin + app_sessions. Combined with suspend/terminate this closes
  * the "revoke-sessions" promise from SECURITY_ARCHITECTURE. */
-const body = z.object({ userId: z.string().uuid() });
+const body = z.object({ userId: z.guid() });
 
 export async function POST(req: Request) {
   const rl = await enforceRateLimit(`admin:users:signout:${requestIp(req)}`, 60, '1 m');
   if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
 
   try {
-    const admin = await requireUser().catch(() => null);
+    const admin = await requireUser({ req }).catch(() => null);
     if (!admin) return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
     const { data: a } = await supabaseAdmin
       .from('admin_users')
@@ -25,6 +26,7 @@ export async function POST(req: Request) {
     const { userId } = body.parse(await req.json());
     const { error } = await supabaseAdmin.auth.admin.signOut(userId, 'global');
     if (error) return Response.json({ error: error.message }, { status: 409 });
+    await revokeAllUserSessions(userId).catch(() => undefined);
 
     await supabaseAdmin.from('admin_actions').insert({
       admin_user_id: admin.id,

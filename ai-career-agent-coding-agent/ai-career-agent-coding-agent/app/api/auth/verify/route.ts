@@ -5,6 +5,7 @@ import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { auditEvent } from '@/lib/audit';
 import { issueEmailVerificationCode, confirmEmailVerificationCode } from '@/lib/auth-oauth';
 import { sendWelcomeEmailOnce } from '@/lib/email/welcome';
+import { ensurePeriodGrants } from '@/lib/credits';
 
 const body = z.discriminatedUnion('action', [
   z.object({ action: z.literal('send'), email: z.string().email() }),
@@ -108,9 +109,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, message: 'Your email is confirmed, but we could not finish account setup. Please contact support.' }, { status: 500 });
   }
 
+  await ensurePeriodGrants(user.id).catch(() => {});
   void auditEvent({ action: 'EMAIL_VERIFIED', resource: 'auth', userId: user.id, outcome: 'allow' });
   // Welcome email, once per account (marker-guarded on the profiles row).
-  if (user.email) void sendWelcomeEmailOnce(user.id, user.email);
+  if (user.email) await sendWelcomeEmailOnce(user.id, user.email).catch(() => {});
 
   return NextResponse.json({ ok: true });
 }

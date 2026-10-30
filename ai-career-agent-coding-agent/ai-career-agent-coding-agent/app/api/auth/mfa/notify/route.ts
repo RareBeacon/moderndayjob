@@ -19,7 +19,7 @@ const body = z.object({ event: z.enum(['enabled', 'disabled']) });
 export async function POST(req: Request) {
   let user;
   try {
-    user = await requireUser({ allowIncompleteMfa: true });
+    user = await requireUser({ allowIncompleteMfa: true, allowMissingAppSession: true, req });
   } catch {
     return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   }
@@ -37,8 +37,8 @@ export async function POST(req: Request) {
   } catch {
     return Response.json({ ok: true, stateUnknown: true });
   }
-  const expected = parsed.data.event === 'enabled' ? 1 : 0;
-  if (verifiedFactors < expected) {
+  const stateMatches = parsed.data.event === 'enabled' ? verifiedFactors >= 1 : verifiedFactors === 0;
+  if (!stateMatches) {
     // State does not match the claimed event; do not send a false email.
     return Response.json({ ok: true, skipped: true });
   }
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
   });
 
   if (user.email) {
-    void sendMfaSecurityEmail(user.email, parsed.data.event, fullName ?? undefined).catch(() => {});
+    await sendMfaSecurityEmail(user.email, parsed.data.event, fullName ?? undefined).catch(() => {});
   }
   return Response.json({ ok: true });
 }

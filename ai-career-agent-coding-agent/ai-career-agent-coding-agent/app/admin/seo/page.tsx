@@ -1,5 +1,4 @@
-import { redirect } from 'next/navigation';
-import { getUser } from '@/lib/auth';
+import { requireUserOrRedirect } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { AdminForbidden, AdminShell } from '@/components/site/AdminShell';
 import { getSeoConversionEvents, getSeoContentInventory, getSeoDashboardData, getSeoKeywordResearch, getSeoSearchPerformance } from '@/lib/seo/service';
@@ -41,8 +40,7 @@ function TrendChart({ daily }: { daily: DailyMetricPoint[] }) {
 }
 
 export default async function SeoMissionControlPage() {
-  const user = await getUser();
-  if (!user) redirect('/login?next=/admin/seo');
+  const user = await requireUserOrRedirect('/admin/seo');
   const { data: admin } = await supabaseAdmin.from('admin_users').select('user_id').eq('user_id', user.id).maybeSingle();
   if (!admin) return <AdminForbidden />;
 

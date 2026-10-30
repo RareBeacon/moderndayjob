@@ -107,9 +107,13 @@ export async function POST(req: Request) {
   }
   if (verified.status !== 'succeeded') return Response.json({ ok: true, verifyStatus: verified.status });
 
-  // 5. Guard: USD amount must match a known plan (cents -> dollars) AND the
-  //    dashboard product must map to the same plan, with a reachable email.
-  const amountMajor = verified.total_amount / 100;
+  // 5. Guard: pre-tax USD subtotal must match a known plan (cents -> dollars)
+  //    AND the dashboard product must map to the same plan, with a reachable email.
+  //    Subtract MoR VAT/sales tax when reported so e.g. $7.99 + 30% VAT ($10.39)
+  //    evaluates its $7.99 pre-tax price rather than colliding with a higher tier.
+  const taxMinor = Math.max(0, Number(verified.tax ?? 0));
+  const subtotalMinor = Math.max(0, verified.total_amount - taxMinor);
+  const amountMajor = subtotalMinor / 100;
   const amountPlan = planForAmountIn('USD', amountMajor);
   const productPlan = verified.product_id ? dodoPlanForProductId(verified.product_id) : null;
   const plan = productPlan ?? amountPlan;
@@ -118,7 +122,7 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, unexpectedAmount: amountMajor, currency: verified.currency }, { status: 202 });
   }
   if (productPlan && amountPlan && productPlan !== amountPlan) {
-    // Product and charged amount disagree: refuse rather than guess.
+    // Product and pre-tax charged amount disagree: refuse rather than guess.
     return Response.json({ ok: false, amountProductMismatch: { productPlan, amountPlan } }, { status: 202 });
   }
 

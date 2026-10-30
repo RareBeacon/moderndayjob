@@ -4,49 +4,20 @@ import { requireUser } from '@/lib/auth';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { assertEntitlement } from '@packages/security/entitlements';
 import { AIGatewayError } from '@packages/ai/gateway';
-import { createUsageMeter } from '@/lib/ai/server';
-import { stripDashes } from '@/lib/ai/sanitize';
+import { buildGatewayForUser, createUsageMeter } from '@/lib/ai/server';
 import { auditEvent } from '@/lib/audit';
 import { supabaseAdmin } from '@/lib/supabase';
-import { buildFallbackCV, SAFE_FALLBACK_PROVIDER } from '@/lib/generation/fallback';
-import type { CVOutput, GenerationProfile } from '@/lib/generation/types';
+import { generateDocument } from '@/lib/generation/service';
+import type { GenerationProfile } from '@/lib/generation/types';
 import { recordGenerationUsage } from '@/lib/ai/usage';
 
 const body = z.object({
   jobDescription: z.string().min(30).max(30000),
-  // Kept for client compatibility. The safe route no longer depends on these.
   provider: z.enum(['openrouter', 'huggingface']).optional(),
   model: z.string().min(1).max(200).optional(),
 });
 
 export const maxDuration = 300;
-
-function cvToText(cv: CVOutput): string {
-  const sections: string[] = [];
-  sections.push(cv.headline);
-  if (cv.summary) sections.push(`Summary\n${cv.summary}`);
-  if (cv.experiences.length) {
-    sections.push(
-      `Experience\n${cv.experiences
-        .map((e) => {
-          const head = [e.title, e.company].filter(Boolean).join(' - ');
-          const bullets = e.bullets.map((b) => `- ${b}`).join('\n');
-          return [head, bullets].filter(Boolean).join('\n');
-        })
-        .join('\n\n')}`,
-    );
-  }
-  if (cv.skills.length) sections.push(`Skills\n${cv.skills.join(', ')}`);
-  if (cv.education.length) {
-    sections.push(
-      `Education\n${cv.education
-        .map((e) => [e.qualification, e.institution].filter(Boolean).join(' - '))
-        .filter(Boolean)
-        .join('\n')}`,
-    );
-  }
-  return stripDashes(sections.filter(Boolean).join('\n\n'));
-}
 
 export async function POST(req: Request) {
   const user = await requireUser({ req: req }).catch(() => null);
@@ -95,21 +66,45 @@ export async function POST(req: Request) {
     experience: (career.experience ?? []) as GenerationProfile['experience'],
     education: (career.education ?? []) as GenerationProfile['education'],
   };
-  const cv = buildFallbackCV(generationProfile);
-  // Milestone 2: the generation succeeded and is delivered; consume the
-  // reserved ledger credit (no-op unless the ledger is armed).
+
+  let gen;
+  try {
+    const gateway = await buildGatewayForUser(user.id).catch(() => undefined);
+    gen = await generateDocument({
+      kind: 'CV',
+      profile: generationProfile,
+      job: {
+        company: '',
+        title: generationProfile.targetRoles[0] ?? generationProfile.headline ?? 'Target Role',
+        description: parsed.data.jobDescription,
+      },
+      gateway,
+    });
+  } catch (err) {
+    await meter.refund();
+    if (err instanceof AIGatewayError) {
+      return NextResponse.json({ error: err.code, detail: String(err.message ?? '').slice(0, 500) }, { status: 502 });
+    }
+    throw err;
+  }
+
+  if (!gen.report.passed) {
+    await meter.refund();
+    return NextResponse.json({ error: 'TRUTHFULNESS_FAILED', report: gen.report }, { status: 422 });
+  }
+
   await meter.commit();
-  void recordGenerationUsage({ userId: user.id, feature: 'ai.resume', provider: SAFE_FALLBACK_PROVIDER, latencyMs: Date.now() - resumeT0, status: 'ok' });
+  void recordGenerationUsage({ userId: user.id, feature: 'ai.resume', provider: gen.provider, latencyMs: Date.now() - resumeT0, status: 'ok' });
 
   void auditEvent({
     action: 'AI_RESUME_GENERATED',
     resource: 'ai',
     userId: user.id,
-    meta: { provider: SAFE_FALLBACK_PROVIDER },
+    meta: { provider: gen.provider },
   });
 
   return NextResponse.json({
-    resume: cvToText(cv),
-    provider: SAFE_FALLBACK_PROVIDER,
+    resume: gen.content,
+    provider: gen.provider,
   });
 }

@@ -79,8 +79,8 @@ export async function POST(req: Request) {
     );
     void auditEvent({ action: 'free_tool_generation_completed', resource: 'free_tool', userId: user?.id ?? null, meta: { toolId, anonymousId: parsed.data.anonymousId, authenticated: Boolean(user), success: true, timeToCompletionMs: parsed.data.startedAt ? Date.now() - parsed.data.startedAt : null } });
     return NextResponse.json({ ...result, authenticated: Boolean(user) });
-  } catch (error) {
+  } catch {
     void auditEvent({ action: 'free_tool_generation_completed', resource: 'free_tool', userId: user?.id ?? null, meta: { toolId, anonymousId: parsed.data.anonymousId, authenticated: Boolean(user), success: false } });
-    return NextResponse.json({ error: 'FREE_TOOL_GENERATION_FAILED', message: "Something went wrong while I was working on that. Your answers are safe. Let's try again.", detail: error instanceof Error ? error.message.slice(0, 300) : String(error).slice(0, 300) }, { status: 500 });
+    return NextResponse.json({ error: 'FREE_TOOL_GENERATION_FAILED', message: "Something went wrong while I was working on that. Your answers are safe. Let's try again." }, { status: 500 });
   }
 }

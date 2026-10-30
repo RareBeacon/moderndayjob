@@ -2,9 +2,14 @@ import { requireUser } from '@/lib/auth';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createDodoCheckout, dodoConfigured, dodoProductIdForPlan } from '@packages/billing/dodo';
+import { normalizeCouponCode, validateCouponForUser } from '@/lib/billing/coupons';
+import { SITE_URL } from '@/lib/site';
 import { z } from 'zod';
 
-const body = z.object({ plan: z.enum(['BASIC', 'PREMIUM', 'MAX']) });
+const body = z.object({
+  plan: z.enum(['BASIC', 'PREMIUM', 'MAX']),
+  couponCode: z.string().trim().max(32).optional(),
+});
 
 /** POST /api/billing/dodo/create; start a Dodo Payments hosted checkout
  *  (Merchant of Record: Dodo handles global VAT/sales tax) for a paid plan.
@@ -25,7 +30,7 @@ export async function POST(req: Request) {
 
   const parsed = body.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return Response.json({ error: 'INVALID_BODY' }, { status: 400 });
-  const { plan } = parsed.data;
+  const { plan, couponCode } = parsed.data;
 
   const { data: planRecord } = await supabaseAdmin.from('subscription_plans').select('*').eq('code', plan).maybeSingle();
   if (!planRecord) return Response.json({ error: 'PLAN_NOT_FOUND' }, { status: 404 });
@@ -33,14 +38,37 @@ export async function POST(req: Request) {
   const productId = dodoProductIdForPlan(plan);
   if (!productId) return Response.json({ error: 'PLAN_NOT_CONFIGURED' }, { status: 503 });
 
+  let normalizedCoupon: string | null = null;
+  if (couponCode && couponCode.trim().length > 0) {
+    normalizedCoupon = normalizeCouponCode(couponCode);
+    const check = await validateCouponForUser({
+      code: normalizedCoupon,
+      userId: user.id,
+      plan,
+      amount: Number(planRecord.amount_usd ?? 0),
+      currency: 'USD',
+    });
+    if (!check.ok) {
+      return Response.json({ error: 'COUPON_INVALID', reason: check.code, message: check.message }, { status: 422 });
+    }
+  }
+
+  const baseAppUrl = (process.env.NEXT_PUBLIC_APP_URL || SITE_URL).replace(/\/$/, '');
   try {
     const session = await createDodoCheckout({
       productId,
       email: user.email ?? '',
-      returnUrl: `${process.env.NEXT_PUBLIC_APP_URL}/billing/success`,
-      metadata: { plan, userId: user.id, product: 'jobiest subscription', currency: 'USD' },
+      returnUrl: `${baseAppUrl}/billing/success`,
+      discountCode: normalizedCoupon,
+      metadata: {
+        plan,
+        userId: user.id,
+        product: 'jobiest subscription',
+        currency: 'USD',
+        ...(normalizedCoupon ? { couponCode: normalizedCoupon } : {}),
+      },
     });
-    return Response.json({ session_id: session.session_id, currency: 'USD', data: { checkout_url: session.checkout_url } });
+    return Response.json({ session_id: session.session_id, currency: 'USD', couponApplied: Boolean(normalizedCoupon), data: { checkout_url: session.checkout_url } });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : 'BILLING_UNAVAILABLE' }, { status: 503 });
   }

@@ -1,4 +1,4 @@
-import type { ZodType, ZodTypeDef } from 'zod';
+import type { ZodType } from 'zod';
 
 /** Chat message in the OpenAI-compatible roles we use. */
 export interface AIMessage {
@@ -61,7 +61,7 @@ export interface AIProvider {
 export interface AITask<Input, Output> {
   readonly id: string;
   readonly version: number;
-  readonly schema: ZodType<Output, ZodTypeDef, unknown>;
+  readonly schema: ZodType<Output>;
   /** Maximum completion tokens; forwarded to the provider to bound cost and
    *  latency on slow (CPU) models. Undefined = provider default. */
   readonly maxTokens?: number;

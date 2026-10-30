@@ -5,7 +5,7 @@ import { onboardingGateResponse } from '@/lib/onboarding-gate';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { assertEntitlement } from '@packages/security/entitlements';
 import { AIGatewayError } from '@packages/ai/gateway';
-import { createUsageMeter } from '@/lib/ai/server';
+import { buildGatewayForUser, createUsageMeter } from '@/lib/ai/server';
 import { generateDocument } from '@/lib/generation/service';
 import { trackGeneration } from '@/lib/ai/usage';
 import { persistGeneratedDocument } from '@/lib/generation/persist';
@@ -14,8 +14,8 @@ import { partitionQuestions } from '@/lib/apply/sensitive';
 
 const body = z.object({
   kind: z.enum(['CV', 'COVER_LETTER', 'ANSWERS']),
-  jobId: z.string().uuid().optional(),
-  applicationId: z.string().uuid().nullable().optional(),
+  jobId: z.guid().optional(),
+  applicationId: z.guid().nullable().optional(),
   questions: z.array(z.string().trim().min(1).max(1000)).min(1).max(20).optional(),
 });
 
@@ -101,7 +101,8 @@ export async function POST(req: Request) {
 
   let result;
   try {
-    result = await trackGeneration({ userId: user.id, feature: `document.${String(kind).toLowerCase()}` }, () => generateDocument({ kind, profile, job, questions: autoQuestions, deterministicOnly: true }));
+    const gateway = await buildGatewayForUser(user.id).catch(() => undefined);
+    result = await trackGeneration({ userId: user.id, feature: `document.${String(kind).toLowerCase()}` }, () => generateDocument({ kind, profile, job, questions: autoQuestions, gateway }));
   } catch (err) {
     await meter.refund();
     if (err instanceof AIGatewayError) {

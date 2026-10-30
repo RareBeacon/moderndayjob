@@ -51,6 +51,18 @@ export function MfaManager() {
     setError('');
     setDone(false);
     try {
+      // Clean up any stale unverified factor from an abandoned wizard attempt
+      // so Supabase does not reject enrollment for duplicate friendlyName.
+      try {
+        const { data: existing } = await supabaseBrowser().auth.mfa.listFactors();
+        const unverified = (existing?.all ?? []).filter((f) => f.status !== 'verified');
+        for (const stale of unverified) {
+          await supabaseBrowser().auth.mfa.unenroll({ factorId: stale.id }).catch(() => {});
+        }
+      } catch {
+        // non-fatal; proceed to enroll
+      }
+
       const { data, error: enrollError } = await supabaseBrowser().auth.mfa.enroll({
         factorType: 'totp',
         friendlyName: 'Jobiest authenticator',

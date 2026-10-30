@@ -1,5 +1,4 @@
-import { redirect } from 'next/navigation';
-import { getUser } from '@/lib/auth';
+import { requireUserOrRedirect } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { AdminShell, AdminForbidden } from '@/components/site/AdminShell';
 import UserActions from './UserActions';
@@ -7,10 +6,9 @@ import UserActions from './UserActions';
 export const dynamic = 'force-dynamic';
 
 /** Admin • Users, dense ruled table over the admin_user_overview view.
- *  Server-side gated: unauthenticated → login, non-admin → forbidden. */
+ *  Server-side gated: unauthenticated -> login, non-admin -> forbidden. */
 export default async function AdminUsersPage() {
-  const user = await getUser();
-  if (!user) redirect('/login?next=/admin/users');
+  const user = await requireUserOrRedirect('/admin/users');
 
   const { data: admin } = await supabaseAdmin
     .from('admin_users')

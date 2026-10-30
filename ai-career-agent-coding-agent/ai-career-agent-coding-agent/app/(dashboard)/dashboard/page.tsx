@@ -8,7 +8,7 @@ import { getEntitlement } from '@packages/security/entitlements';
 import { getProfileCompleteness } from '@/lib/profile-completeness';
 import { isGatedCohort, ONBOARDING_THRESHOLD } from '@/lib/onboarding-gate';
 import { buildBoardLinks, isRemoteOnly } from '@/lib/boardlinks';
-import { creditAvailable } from '@/lib/credits';
+import { creditAvailable, ensurePeriodGrants } from '@/lib/credits';
 import { AutoSubmitToggle } from '@/components/site/AutoSubmitToggle';
 
 export const dynamic = 'force-dynamic';
@@ -25,33 +25,18 @@ function greetingForHour(hour: number): string {
   return 'Good evening';
 }
 
-// Safe fallback UI that never throws — used when anything in the dashboard data path fails.
-// Shows real message so support can diagnose without relying on redacted production digests.
-function DashboardFallback({ message, stack }: { message: string; stack?: string }) {
-  const safeMsg = String(message || 'Unknown error').slice(0, 800);
-  const safeStack = String(stack || '').slice(0, 800);
+// Safe fallback UI that never throws; used when anything in the dashboard data path fails.
+// Never exposes internal error messages or server stack traces to end users.
+function DashboardFallback({ referenceId }: { referenceId?: string }) {
   return (
     <div style={{ maxWidth: 720, margin: '40px auto', padding: 24 }}>
       <h1 style={{ fontSize: 22, color: '#0f172a', margin: '0 0 8px' }}>Your dashboard is being prepared</h1>
       <p style={{ color: '#6b7280', lineHeight: 1.6, margin: '0 0 16px' }}>
         We had trouble loading some dashboard data. Your account and data are safe. This usually resolves on retry.
       </p>
-      <pre
-        style={{
-          background: '#f9fafb',
-          border: '1px solid #e5e7eb',
-          borderRadius: 8,
-          padding: 12,
-          fontSize: 12,
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          color: '#374151',
-          margin: 0,
-        }}
-      >
-        {safeMsg}
-        {safeStack ? `\n\n${safeStack}` : ''}
-      </pre>
+      {referenceId ? (
+        <p style={{ color: '#9ca3af', fontSize: 12, margin: '0 0 16px' }}>Reference: {referenceId.slice(0, 24)}</p>
+      ) : null}
       <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
         <a
           href="/dashboard"
@@ -96,18 +81,19 @@ export default async function Dashboard() {
     const user = await requireUserOrRedirect('/dashboard');
     return await DashboardBody(user);
   } catch (error) {
-    // Next.js redirect() throws a special NEXT_REDIRECT error — must rethrow it
+    // Next.js redirect() throws a special NEXT_REDIRECT error; must rethrow it.
     const msg = String((error as any)?.message ?? error);
     if (msg === 'NEXT_REDIRECT' || (error as any)?.digest?.startsWith?.('NEXT_REDIRECT')) {
       throw error;
     }
     const displayMsg = msg.slice(0, 800);
+    const digest = String((error as any)?.digest ?? '');
     console.error('[dashboard] render failed', {
       message: displayMsg,
-      digest: (error as any)?.digest,
+      digest,
       stack: String((error as Error)?.stack ?? '').slice(0, 600),
     });
-    // Best-effort audit — never let logging break the fallback
+    // Best-effort audit; never let logging break the fallback.
     try {
       void auditEvent({
         action: 'SERVER_RENDER_ERROR',
@@ -115,21 +101,22 @@ export default async function Dashboard() {
         outcome: 'error',
         meta: {
           message: displayMsg.slice(0, 400),
-          digest: String((error as any)?.digest ?? '').slice(0, 80),
+          digest: digest.slice(0, 80),
           stack: String((error as Error)?.stack ?? '').slice(0, 800),
         },
       });
     } catch {}
-    return <DashboardFallback message={displayMsg} stack={String((error as Error)?.stack ?? '')} />;
+    return <DashboardFallback referenceId={digest || undefined} />;
   }
 }
 
 async function DashboardBody(user: Awaited<ReturnType<typeof requireUserOrRedirect>>): Promise<import('react').ReactNode> {
-  // Wrap entire body in try so second-batch failures also hit the fallback with real message
+  // Wrap entire body in try so second-batch failures also hit the safe fallback.
   try {
     return await DashboardBodyInner(user);
   } catch (error) {
     const msg = String((error as Error)?.message ?? error).slice(0, 800);
+    const digest = String((error as any)?.digest ?? '');
     console.error('[dashboard:body] failed', { userId: user.id.slice(0, 8), message: msg, stack: String((error as Error)?.stack ?? '').slice(0, 500) });
     try {
       void auditEvent({
@@ -139,7 +126,7 @@ async function DashboardBody(user: Awaited<ReturnType<typeof requireUserOrRedire
         meta: { message: msg.slice(0, 400), userId: user.id, stack: String((error as Error)?.stack ?? '').slice(0, 800) },
       });
     } catch {}
-    return <DashboardFallback message={msg} stack={String((error as Error)?.stack ?? '')} />;
+    return <DashboardFallback referenceId={digest || undefined} />;
   }
 }
 
@@ -215,8 +202,8 @@ async function DashboardBodyInner(user: Awaited<ReturnType<typeof requireUserOrR
     { count: draftCount },
     { data: drafts },
     { data: pipelineCounts },
-    docCredits,
-    appCredits,
+    initialDocCredits,
+    initialAppCredits,
     { data: activation },
     { count: portfolioCount },
   ] = await Promise.all([
@@ -231,6 +218,20 @@ async function DashboardBodyInner(user: Awaited<ReturnType<typeof requireUserOrR
     safeData(supabaseAdmin.from('auto_apply_activations').select('status, card_last4, bank').eq('user_id', user.id).maybeSingle()),
     safeCount(supabaseAdmin.from('portfolios').select('*', { count: 'exact', head: true }).eq('user_id', user.id)),
   ]);
+
+  let docCredits = initialDocCredits;
+  let appCredits = initialAppCredits;
+  if (docCredits === 0 && Number((entitlement as any)?.ai_credits_remaining ?? 0) > 0) {
+    try {
+      const granted = await ensurePeriodGrants();
+      if (granted > 0) {
+        [docCredits, appCredits] = await Promise.all([
+          creditAvailable(user.id, 'DOCUMENT').catch(() => docCredits),
+          creditAvailable(user.id, 'AUTO_APPLY').catch(() => appCredits),
+        ]);
+      }
+    } catch {}
+  }
 
   const statusTally = new Map<string, number>();
   try {
@@ -261,15 +262,19 @@ async function DashboardBodyInner(user: Awaited<ReturnType<typeof requireUserOrR
     greeting = greetingForHour(Number.isFinite(lagosHour) ? lagosHour : 12);
   } catch {}
 
-  // Quota line: guard against missing entitlement fields
+  // Quota line: align with both legacy entitlement ceiling and monthly ledger credits
+  const legacyRemaining = Number((entitlement as any)?.ai_credits_remaining ?? 0);
+  const effectiveDocCredits = docCredits !== null ? Math.min(docCredits, legacyRemaining) : null;
   let quotaLine = 'Your documents and applications';
   try {
     quotaLine =
-      docCredits !== null
-        ? `${docCredits} document credit${docCredits === 1 ? '' : 's'} left this month`
+      effectiveDocCredits !== null
+        ? (entitlement as any)?.plan === 'FREE'
+          ? `${effectiveDocCredits} of ${PLANS.FREE.lifetimeDocs ?? 3} free documents left`
+          : `${effectiveDocCredits} document credit${effectiveDocCredits === 1 ? '' : 's'} available today`
         : (entitlement as any)?.plan === 'FREE'
-          ? `${(entitlement as any)?.ai_credits_remaining ?? 0} of 3 free documents left`
-          : `${(entitlement as any)?.ai_credits_remaining ?? 0} AI generations today`;
+          ? `${legacyRemaining} of ${PLANS.FREE.lifetimeDocs ?? 3} free documents left`
+          : `${legacyRemaining} AI generations today`;
   } catch {}
   const activationActive = (activation as { status?: string } | null)?.status === 'ACTIVE';
 
@@ -288,7 +293,8 @@ async function DashboardBodyInner(user: Awaited<ReturnType<typeof requireUserOrR
     if (suggestions.length === 0) suggestions.push({ text: 'Refresh your CV and run an ATS check for your next role.', href: '/generate' });
   }
 
-  // Allowance meters: guard PLANS lookup
+  // Allowance meters: guard PLANS lookup and keep left <= max across Free + paid tiers
+  const MONTHLY_AUTO_CREDITS: Record<string, number> = { FREE: 5, BASIC: 20, PREMIUM: 30, MAX: 50 };
   let docLeft = 0;
   let docMax = 3;
   let autoLeft = 0;
@@ -297,10 +303,17 @@ async function DashboardBodyInner(user: Awaited<ReturnType<typeof requireUserOrR
   try {
     const planCode = ((entitlement as any)?.plan as keyof typeof PLANS) ?? 'FREE';
     const planDef = (PLANS as any)[planCode];
-    docLeft = docCredits !== null ? docCredits : ((entitlement as any)?.ai_credits_remaining ?? 0);
-    docMax = planCode === 'FREE' ? ((PLANS.FREE.lifetimeDocs ?? 3) as number) : ((planDef?.documentCredits ?? 3) as number);
+    docLeft = effectiveDocCredits !== null ? effectiveDocCredits : legacyRemaining;
+    const rawDocMax = planCode === 'FREE' ? ((PLANS.FREE.lifetimeDocs ?? 3) as number) : ((planDef?.dailyCredits ?? 3) as number);
+    docMax = Math.max(rawDocMax, docLeft);
     autoLeft = (appCredits as number) ?? 0;
-    autoMax = (planDef?.automationSlots ?? 0) as number;
+    const rawAutoMax =
+      planCode === 'FREE'
+        ? activationActive
+          ? MONTHLY_AUTO_CREDITS.FREE
+          : 0
+        : (MONTHLY_AUTO_CREDITS[planCode] ?? (planDef?.dailyApplications ?? 0));
+    autoMax = Math.max(rawAutoMax, autoLeft);
     autoLocked = !(entitlement as any)?.automation_enabled && !activationActive;
   } catch {}
 
@@ -335,7 +348,7 @@ async function DashboardBodyInner(user: Awaited<ReturnType<typeof requireUserOrR
         }}
         autoSubmit={{
           initialMode: (preferences as any)?.application_mode ?? 'approval',
-          planIncludesAutomation: Boolean((entitlement as any)?.automation_enabled),
+          planIncludesAutomation: Boolean((entitlement as any)?.automation_enabled || activationActive),
           sendingLive: process.env.AUTOMATION_SUBMIT_ENABLED === 'true',
         }}
         boardLinks={boardLinks}

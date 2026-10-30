@@ -1,6 +1,5 @@
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
-import { getUser } from '@/lib/auth';
+import { requireUserOrRedirect } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { AdminShell, AdminForbidden } from '@/components/site/AdminShell';
 import RevealEmail from './RevealEmail';
@@ -15,9 +14,8 @@ export const dynamic = 'force-dynamic';
  * fail-closed server-side.
  */
 export default async function AdminUserDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const user = await getUser();
-  if (!user) redirect('/login?next=/admin/users');
   const { id } = await params;
+  const user = await requireUserOrRedirect(`/admin/users/${id}`);
 
   const { data: admin } = await supabaseAdmin
     .from('admin_users')

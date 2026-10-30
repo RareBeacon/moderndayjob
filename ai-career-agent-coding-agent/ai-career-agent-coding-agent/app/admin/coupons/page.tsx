@@ -1,5 +1,4 @@
-import { redirect } from 'next/navigation';
-import { getUser } from '@/lib/auth';
+import { requireUserOrRedirect } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { AdminShell, AdminForbidden } from '@/components/site/AdminShell';
 import CouponsManager from './CouponsManager';
@@ -9,8 +8,7 @@ export const dynamic = 'force-dynamic';
 /** Admin • Coupons & Discounts (spec Part 10/13/19). All data flows through
  *  the audited, admin-gated API routes; this page only renders the manager. */
 export default async function AdminCouponsPage() {
-  const user = await getUser();
-  if (!user) redirect('/login?next=/admin/coupons');
+  const user = await requireUserOrRedirect('/admin/coupons');
   const { data: admin } = await supabaseAdmin
     .from('admin_users')
     .select('user_id')

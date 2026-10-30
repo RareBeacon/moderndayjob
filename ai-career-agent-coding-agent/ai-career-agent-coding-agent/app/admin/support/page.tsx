@@ -1,6 +1,5 @@
-import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
-import { getUser } from '@/lib/auth';
+import { requireUserOrRedirect } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { AdminForbidden, AdminShell } from '@/components/site/AdminShell';
 
@@ -12,8 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminSupportPage() {
-  const user = await getUser();
-  if (!user) redirect('/login?next=/admin/support');
+  const user = await requireUserOrRedirect('/admin/support');
   const { data: admin } = await supabaseAdmin.from('admin_users').select('user_id').eq('user_id', user.id).maybeSingle();
   if (!admin) return <AdminForbidden />;
 

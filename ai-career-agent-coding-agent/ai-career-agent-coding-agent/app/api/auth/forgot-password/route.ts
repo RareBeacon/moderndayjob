@@ -33,9 +33,9 @@ export async function POST(req: Request) {
     options: { redirectTo: `${appUrl}/reset-password` },
   });
   if (!error && data?.properties?.action_link) {
-    sent = true;
-    // Best-effort email; failures must not leak or block the response.
-    sendPasswordResetEmail(email, data.properties.action_link).catch(() => {});
+    // Await email delivery before returning so serverless invocations never drop the message.
+    const res = await sendPasswordResetEmail(email, data.properties.action_link).catch(() => ({ ok: false }));
+    sent = Boolean((res as { ok?: boolean } | undefined)?.ok);
   }
 
   // Audit without PII: no email address is stored in meta.

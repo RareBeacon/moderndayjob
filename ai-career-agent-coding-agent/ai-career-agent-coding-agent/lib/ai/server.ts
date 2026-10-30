@@ -79,6 +79,48 @@ export class AIConcurrencyTimeoutError extends Error {
   }
 }
 
+class ProviderSemaphore {
+  active = 0;
+  readonly waiters: (() => void)[] = [];
+
+  constructor(readonly limit: number) {}
+
+  acquire(waitTimeoutMs: number): Promise<void> {
+    if (this.active < this.limit) {
+      this.active += 1;
+      return Promise.resolve();
+    }
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        const idx = this.waiters.indexOf(wakeup);
+        if (idx !== -1) this.waiters.splice(idx, 1);
+        reject(new AIConcurrencyTimeoutError());
+      }, waitTimeoutMs);
+      const wakeup = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+      this.waiters.push(wakeup);
+    });
+  }
+
+  release() {
+    const next = this.waiters.shift();
+    if (next) next();
+    else this.active -= 1;
+  }
+}
+
+const providerSemaphores = new Map<string, ProviderSemaphore>();
+
+function getSharedSemaphore(key: string, limit: number): ProviderSemaphore {
+  const existing = providerSemaphores.get(key);
+  if (existing && existing.limit === limit) return existing;
+  const created = new ProviderSemaphore(limit);
+  providerSemaphores.set(key, created);
+  return created;
+}
+
 /**
  * Concurrency-bounded provider wrapper (2026-09-20 capacity work). At most
  * `limit` provider calls run at once per server instance; the rest queue in
@@ -92,66 +134,45 @@ export class BoundedProvider implements AIProvider {
   readonly name: string;
   readonly model?: string;
   readonly priority: number;
-  private active = 0;
-  private readonly waiters: (() => void)[] = [];
+  private readonly sem: ProviderSemaphore;
 
   constructor(
     private readonly inner: AIProvider,
-    private readonly limit: number,
+    limit: number,
     private readonly waitTimeoutMs = 120_000,
+    sharedSemaphore?: ProviderSemaphore,
   ) {
     this.name = inner.name;
     this.model = inner.model;
     this.priority = inner.priority;
-  }
-
-  private acquire(): Promise<void> {
-    if (this.active < this.limit) {
-      this.active += 1;
-      return Promise.resolve();
-    }
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        const idx = this.waiters.indexOf(wakeup);
-        if (idx !== -1) this.waiters.splice(idx, 1);
-        reject(new AIConcurrencyTimeoutError());
-      }, this.waitTimeoutMs);
-      const wakeup = () => {
-        clearTimeout(timer);
-        resolve();
-      };
-      this.waiters.push(wakeup);
-    });
-  }
-
-  private release() {
-    const next = this.waiters.shift();
-    if (next) next();
-    else this.active -= 1;
+    this.sem = sharedSemaphore ?? new ProviderSemaphore(limit);
   }
 
   /** Snapshot for tests: current in-flight calls and queued waiters. */
   stats(): { active: number; queued: number } {
-    return { active: this.active, queued: this.waiters.length };
+    return { active: this.sem.active, queued: this.sem.waiters.length };
   }
 
   async chat(
     messages: AIMessage[],
     opts?: { temperature?: number; responseFormat?: 'json' | 'text'; maxTokens?: number },
   ): Promise<ChatResponse> {
-    await this.acquire();
+    await this.sem.acquire(this.waitTimeoutMs);
     try {
       return await this.inner.chat(messages, opts);
     } finally {
-      this.release();
+      this.sem.release();
     }
   }
 }
 
-/** Wrap each provider with the global concurrency bound (env-tunable). */
+/** Wrap each provider with the shared server-wide concurrency bound (env-tunable). */
 function boundProviders(providers: AIProvider[]): AIProvider[] {
   const limit = env.AI_MAX_CONCURRENCY;
-  return providers.map((p) => new BoundedProvider(p, limit));
+  return providers.map((p) => {
+    const key = `${p.name}:${p.model ?? ''}:${limit}`;
+    return new BoundedProvider(p, limit, 120_000, getSharedSemaphore(key, limit));
+  });
 }
 
 /**
@@ -229,7 +250,7 @@ export async function buildGatewayForUser(userId: string): Promise<AIGateway> {
 
   for (const c of (creds ?? []) as CredentialRow[]) {
     try {
-      assertPublicHttpsUrl(c.base_url);
+      assertPublicHttpsUrl(c.base_url, { requireHttps: true });
     } catch {
       // Egress policy violation: never fetch this target, never log the URL.
       skipped += 1;
@@ -318,18 +339,23 @@ export function createUsageMeter(userId: string): UsageMeter {
   // calls are inert until ENTITLEMENTS_LEDGER=true, so the parallel-run
   // phase changes nothing for users.
   const ledgerRef = `doc:${crypto.randomUUID()}`;
+  let legacyRefunded = false;
 
   const legacyReserve = async (): Promise<void> => {
     const { error } = await supabaseAdmin.rpc('consume_ai_credit', { p_user_id: userId });
     if (error) {
+      legacyRefunded = true;
       if (error.message.includes('AI_QUOTA_EXHAUSTED')) {
         throw new AIGatewayError('AI_QUOTA_EXHAUSTED', 'AI document limit reached for your plan.');
       }
       throw error;
     }
+    legacyRefunded = false;
   };
 
   const legacyRefund = async (): Promise<void> => {
+    if (legacyRefunded) return;
+    legacyRefunded = true;
     // Best-effort decrement of both counters; never throws (callers ignore
     // refund failures). Each block is independent and clamped at zero, so a
     // missing row (e.g. lifetime row for a paid user) is a harmless no-op.
@@ -372,10 +398,8 @@ export function createUsageMeter(userId: string): UsageMeter {
         try {
           await reserveCredit(userId, 'DOCUMENT', ledgerRef);
         } catch (err) {
+          await legacyRefund();
           if (err instanceof CreditExhaustedError) {
-            // Ledger says no: give the legacy counter back and surface the
-            // same exhausted error the routes already map to a 429.
-            await legacyRefund();
             throw new AIGatewayError('AI_QUOTA_EXHAUSTED', 'Document credit limit reached for your plan.');
           }
           throw err;
@@ -409,17 +433,22 @@ export function createUsageMeter(userId: string): UsageMeter {
  * documents stay reserved for resumes, cover letters and answers.
  */
 export function createToolMeter(userId: string): UsageMeter {
+  let toolRefunded = false;
   return {
     async reserve() {
       const { error } = await supabaseAdmin.rpc('consume_tool_use', { p_user_id: userId });
       if (error) {
+        toolRefunded = true;
         if (error.message.includes('TOOL_QUOTA_EXHAUSTED')) {
           throw new AIGatewayError('TOOL_QUOTA_EXHAUSTED', 'Daily free-tool limit reached.');
         }
         throw error;
       }
+      toolRefunded = false;
     },
     async refund() {
+      if (toolRefunded) return;
+      toolRefunded = true;
       // Best-effort decrement; never throws.
       try {
         const today = new Date().toISOString().slice(0, 10);

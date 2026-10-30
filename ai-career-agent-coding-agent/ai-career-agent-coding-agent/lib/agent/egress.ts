@@ -45,6 +45,22 @@ function isPrivateIPv4(host: string): string | null {
   return null;
 }
 
+function parseEmbeddedIPv4Tail(tail: string): string | null {
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(tail)) return isPrivateIPv4(tail);
+  const twoGroup = tail.match(/^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (twoGroup) {
+    const hi = parseInt(twoGroup[1], 16);
+    const lo = parseInt(twoGroup[2], 16);
+    return isPrivateIPv4(`${(hi >>> 8) & 255}.${hi & 255}.${(lo >>> 8) & 255}.${lo & 255}`);
+  }
+  const oneGroup = tail.match(/^([0-9a-f]{1,4})$/);
+  if (oneGroup) {
+    const lo = parseInt(oneGroup[1], 16);
+    return isPrivateIPv4(`0.0.${(lo >>> 8) & 255}.${lo & 255}`);
+  }
+  return null;
+}
+
 function isPrivateIPv6(host: string): string | null {
   const h = host.replace(/^\[|\]$/g, '').toLowerCase();
   if (!h.includes(':')) return null;
@@ -52,16 +68,15 @@ function isPrivateIPv6(host: string): string | null {
   if (h.startsWith('fe80')) return 'ipv6-link-local';
   if (h.startsWith('fc') || h.startsWith('fd')) return 'ipv6-unique-local';
   if (h.startsWith('ff')) return 'ipv6-multicast';
-  // IPv4-mapped (::ffff:10.0.0.1; URL canonicalizes to hex groups ::ffff:a00:1)
-  const mapped = h.match(/^::ffff:(.+)$/);
-  if (mapped) {
-    const tail = mapped[1];
-    if (/^\d+\.\d+\.\d+\.\d+$/.test(tail)) return isPrivateIPv4(tail);
-    const hex = tail.replace(/:/g, '');
-    if (/^[0-9a-f]{1,8}$/.test(hex)) {
-      const n = parseInt(hex.padStart(8, '0'), 16) >>> 0;
-      return isPrivateIPv4(`${(n >>> 24) & 255}.${(n >>> 16) & 255}.${(n >>> 8) & 255}.${n & 255}`);
-    }
+  if (h.startsWith('2001:db8:') || h === '2001:db8') return 'ipv6-documentation';
+  // IPv4-mapped (::ffff:x:y), SIIT (::ffff:0:x:y), NAT64 (64:ff9b::x:y), and IPv4-compatible (::x:y)
+  const embedded =
+    h.match(/^::ffff:0:(.+)$/) ??
+    h.match(/^::ffff:(.+)$/) ??
+    h.match(/^64:ff9b(?::1)?::(.+)$/) ??
+    h.match(/^::(.+)$/);
+  if (embedded) {
+    return parseEmbeddedIPv4Tail(embedded[1]);
   }
   return null;
 }
@@ -80,12 +95,15 @@ function isEncodedIpHost(host: string): boolean {
  * Assert the URL is an https address to a public host, on a standard or
  * registered port. Throws EgressViolationError otherwise. Returns the URL.
  */
-export function assertPublicHttpsUrl(raw: string): URL {
+export function assertPublicHttpsUrl(raw: string, opts?: { requireHttps?: boolean }): URL {
   let url: URL;
   try {
     url = new URL(raw);
   } catch {
     throw new EgressViolationError('unparseable', raw);
+  }
+  if (opts?.requireHttps && url.protocol !== 'https:') {
+    throw new EgressViolationError('https-required', raw);
   }
   if (url.protocol !== 'https:' && url.protocol !== 'http:') {
     throw new EgressViolationError('scheme', raw);

@@ -1,5 +1,4 @@
-import { redirect } from 'next/navigation';
-import { getUser } from '@/lib/auth';
+import { requireUserOrRedirect } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { AdminShell, AdminForbidden } from '@/components/site/AdminShell';
 import { applyAdapters, detectApplyAdapter } from '@/lib/apply/registry';
@@ -35,8 +34,7 @@ function median(values: number[]): number | null {
 }
 
 export default async function AdminApplicationsPage() {
-  const user = await getUser();
-  if (!user) redirect('/login?next=/admin/applications');
+  const user = await requireUserOrRedirect('/admin/applications');
 
   const { data: admin } = await supabaseAdmin
     .from('admin_users')

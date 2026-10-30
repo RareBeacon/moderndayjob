@@ -8,7 +8,7 @@ import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 export const dynamic = 'force-dynamic';
 
 const draftBody = z.object({
-  id: z.string().uuid().optional(),
+  id: z.guid().optional(),
   name: z.string().trim().min(1).max(160).optional(),
   selectedTemplate: z.string().trim().min(1).max(100).optional(),
   currentStep: z.string().trim().min(1).max(100).optional(),

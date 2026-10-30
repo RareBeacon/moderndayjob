@@ -14,7 +14,13 @@ const body = z.object({
   // (The sha256 helper in lib/auth/recovery applies to the 6-digit email OTP
   // code flow, not to link tokens.)
   token: z.string().min(10).max(2000).optional(),
-  password: z.string().min(8).max(200),
+  password: z
+    .string()
+    .min(8)
+    .max(200)
+    .refine((pw) => /\d/.test(pw) && /[^A-Za-z0-9]/.test(pw), {
+      message: 'Password must include a number and a special character.',
+    }),
 });
 
 /**
@@ -69,7 +75,7 @@ export async function POST(req: Request) {
     // Session path: the caller arrived via the recovery link and holds the
     // recovery session in cookies. requireUser also rejects SUSPENDED/
     // TERMINATED accounts.
-    const user = await requireUser({ allowIncompleteMfa: true, req }).catch(() => null);
+    const user = await requireUser({ allowIncompleteMfa: true, allowMissingAppSession: true, req }).catch(() => null);
     if (!user) {
       return NextResponse.json({ error: 'NO_RESET_SESSION' }, { status: 401 });
     }
@@ -80,6 +86,7 @@ export async function POST(req: Request) {
   if (updateError) {
     return NextResponse.json({ error: 'RESET_UNAVAILABLE' }, { status: 500 });
   }
+  await supabaseAdmin.auth.admin.signOut?.(userId, 'global').catch(() => undefined);
 
   void auditEvent({
     action: 'PASSWORD_RESET_COMPLETED',
