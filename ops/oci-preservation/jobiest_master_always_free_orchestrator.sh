@@ -37,8 +37,8 @@ REPO_RAW_BASE="https://raw.githubusercontent.com/RareBeacon/moderndayjob"
 PINNED_GATE0_COMMIT="298bbf055bdaf27d7bca0f4b48fd8abffc369de7"
 PINNED_GATE0_SHA256="ceb930cc75642091000e0074bf37e23b4d2781608b17b11f76b0c08341dd82ce"
 
-PINNED_GATE4_COMMIT="3e37d93c37af704fc0b19c6f8692708cff91a83c"
-PINNED_GATE4_SHA256="7486f6e22e1133d1e9f4e52e152edf68c78a19e713c74838b8ca6f284d66ef76"
+PINNED_GATE4_COMMIT="39da3c130899e3009a1aca902201774ad26d9e2f"
+PINNED_GATE4_SHA256="c827f35127376bb0b0da0652450406e13c2f95f78e775690653b5011c014fe79"
 
 APP_COMMIT_SHA="dc74ef8e0d24a560abe360d84dacfc1663ed2e89"
 MAILU_VERSION="2024.06.67"
@@ -117,7 +117,9 @@ cleanup() {
   rm -rf "$TMP_DIR" >/dev/null 2>&1 || true
   exit "$rc"
 }
-trap cleanup EXIT
+trap cleanup EXIT TERM
+trap '' INT
+printf -- '[Cloud Shell Copy-Safe Mode] Ctrl+C is ignored so copying terminal text never aborts an active run (type Q + Enter at any prompt to exit cleanly).\n'
 
 prompt_tty() {
   local prompt_msg="$1"
@@ -463,6 +465,7 @@ EOF
 
     while true; do
       set +e
+      IGNORE_SIGINT_FOR_CLOUDSHELL="true" \
       A1_MAX_RETRY_ROUNDS="$A1_MAX_RETRY_ROUNDS" \
       A1_RETRY_SLEEP_SEC="$A1_RETRY_SLEEP_SEC" \
       ALLOW_1OCPU_FALLBACK="$ALLOW_1OCPU_FALLBACK" \
@@ -488,6 +491,16 @@ sudo chmod 644 /etc/cron.d/jobiest-a1-keepwarm"
           printf -- 'Installed /etc/cron.d/jobiest-a1-keepwarm health readiness cron on %s.\n' "$A1_DISPLAY_NAME"
         fi
         break
+      elif (( G4_RC == 75 )); then
+        printf -- '\n[Stage 1 Deferred] Proceeding directly to Stage 2 (Mail VM on x86_64) per operator selection.\n'
+        break
+      elif (( G4_RC == 76 )); then
+        PREAPPROVED_STAGE2_C=1
+        printf -- '\n[Stage 1 Deferred + APPROVE_C Confirmed] Proceeding directly into Stage 2 (Mail VM on x86_64).\n'
+        break
+      elif (( G4_RC == 77 )); then
+        printf -- '\nStopped cleanly during Stage 1 cooldown per operator selection (zero OCI mutations).\n'
+        exit 0
       fi
 
       printf -- '\n[Stage 1 Notice] gate4 exited with code %d (typically transient OCI ARM host capacity in %s).\n' "$G4_RC" "$REGION"
