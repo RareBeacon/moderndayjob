@@ -122,7 +122,8 @@ printf 'Gate 2 RVol  : %s (state=%s, ad=%s, size=%sGB)\n' "$GATE2_RESTORE_VOL_ID
 EXISTING_A1_JSON="$(oci compute instance list --region "$REGION" --compartment-id "$TENANCY_ID" --display-name "$A1_DISPLAY_NAME" --all)"
 EXISTING_A1_LINE="$(python3 -c '
 import json, sys
-items = json.loads(sys.stdin.read()).get("data", [])
+s = sys.stdin.read().strip()
+items = (json.loads(s) if s else {}).get("data") or []
 live = [x for x in items if x.get("lifecycle-state") in ("PROVISIONING", "RUNNING", "STARTING")]
 if live:
     i = live[0]
@@ -134,7 +135,8 @@ ADS_JSON="$(oci iam availability-domain list --region "$REGION" --compartment-id
 mapfile -t ORDERED_ADS < <(python3 - "$RVOL_AD" <<<"$ADS_JSON" <<'PY'
 import json, sys
 preferred = sys.argv[1]
-ads = [x["name"] for x in json.loads(sys.stdin.read()).get("data", [])]
+s = sys.stdin.read().strip()
+ads = [x["name"] for x in ((json.loads(s) if s else {}).get("data") or [])]
 ordered = ([preferred] if preferred in ads else []) + [a for a in ads if a != preferred]
 for a in ordered:
     print(a)
@@ -145,9 +147,9 @@ PY
 TOTAL_STORAGE_GB=0
 for ad in "${ORDERED_ADS[@]}"; do
   BV_SUM="$(oci bv boot-volume list --region "$REGION" --compartment-id "$TENANCY_ID" --availability-domain "$ad" --all | \
-    python3 -c 'import json,sys; items=json.loads(sys.stdin.read()).get("data",[]); print(sum(int(x.get("size-in-gbs",0)) for x in items if x.get("lifecycle-state") not in ("TERMINATED","TERMINATING")))')"
+    python3 -c 'import json,sys; s=sys.stdin.read().strip(); items=(json.loads(s) if s else {}).get("data") or []; print(sum(int(x.get("size-in-gbs",0)) for x in items if x.get("lifecycle-state") not in ("TERMINATED","TERMINATING")))')"
   VOL_SUM="$(oci bv volume list --region "$REGION" --compartment-id "$TENANCY_ID" --availability-domain "$ad" --all | \
-    python3 -c 'import json,sys; items=json.loads(sys.stdin.read()).get("data",[]); print(sum(int(x.get("size-in-gbs",0)) for x in items if x.get("lifecycle-state") not in ("TERMINATED","TERMINATING")))')"
+    python3 -c 'import json,sys; s=sys.stdin.read().strip(); items=(json.loads(s) if s else {}).get("data") or []; print(sum(int(x.get("size-in-gbs",0)) for x in items if x.get("lifecycle-state") not in ("TERMINATED","TERMINATING")))')"
   TOTAL_STORAGE_GB=$((TOTAL_STORAGE_GB + BV_SUM + VOL_SUM))
   printf 'Storage [%s]: boot_volumes=%sGB, block_volumes=%sGB\n' "$ad" "$BV_SUM" "$VOL_SUM"
 done
@@ -165,9 +167,10 @@ fi
 LIMITS_JSON="$(oci limits value list --region "$REGION" --compartment-id "$TENANCY_ID" --service-name compute --all)"
 python3 - <<<"$LIMITS_JSON" <<'PY'
 import json, sys
-rows = [x for x in json.loads(sys.stdin.read()).get("data", []) if "a1" in x.get("name", "").lower()]
+s = sys.stdin.read().strip()
+rows = [x for x in ((json.loads(s) if s else {}).get("data") or []) if "a1" in x.get("name", "").lower()]
 for r in rows:
-    print(f"LimitDef: name={r.get('name')} scope={r.get('scope-type')} ad={r.get('availability-domain')} limit={r.get('value')}")
+    print("LimitDef: name=%s scope=%s ad=%s limit=%s" % (r.get("name"), r.get("scope-type"), r.get("availability-domain"), r.get("value")))
 PY
 
 CANDIDATE_ADS=()
@@ -175,7 +178,13 @@ for ad in "${ORDERED_ADS[@]}"; do
   OCPU_AVAIL="$(oci limits resource-availability get --region "$REGION" --compartment-id "$TENANCY_ID" --service-name compute --limit-name standard-a1-core-count --availability-domain "$ad" --query 'data.available' --raw-output 2>/dev/null || echo 0)"
   MEM_AVAIL="$(oci limits resource-availability get --region "$REGION" --compartment-id "$TENANCY_ID" --service-name compute --limit-name standard-a1-memory-count --availability-domain "$ad" --query 'data.available' --raw-output 2>/dev/null || echo 0)"
   printf 'Quota   [%s]: A1 OCPUs available=%s | A1 RAM available=%s GB\n' "$ad" "$OCPU_AVAIL" "$MEM_AVAIL"
-  if python3 -c "import sys; sys.exit(0 if float('${OCPU_AVAIL:-0}' or 0) >= 2.0 and float('${MEM_AVAIL:-0}' or 0) >= 12.0 else 1)"; then
+  if python3 -c '
+import sys
+try:
+    sys.exit(0 if float(sys.argv[1]) >= 2.0 and float(sys.argv[2]) >= 12.0 else 1)
+except Exception:
+    sys.exit(1)
+' "${OCPU_AVAIL:-0}" "${MEM_AVAIL:-0}"; then
     CANDIDATE_ADS+=("$ad")
   fi
 done
@@ -195,7 +204,8 @@ IMG_JSON="$(oci compute image list \
   --all)"
 IMG_LINE="$(python3 -c '
 import json, sys
-imgs = [x for x in json.loads(sys.stdin.read()).get("data", []) if "aarch64" in x.get("display-name", "").lower() and "minimal" not in x.get("display-name", "").lower()]
+s = sys.stdin.read().strip()
+imgs = [x for x in ((json.loads(s) if s else {}).get("data") or []) if "aarch64" in x.get("display-name", "").lower() and "minimal" not in x.get("display-name", "").lower()]
 if not imgs:
     sys.exit(1)
 print("|".join("" if imgs[0].get(k) is None else str(imgs[0].get(k)) for k in ("id", "display-name")))
@@ -336,41 +346,51 @@ if [[ "$A1_AD" == "$RVOL_AD" ]]; then
     --is-read-only true 2>"$TMP_DIR/attach_err.txt")"; then
     ACTIVE_ATTACH_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["data"]["id"])' <<<"$ATTACH_OUT")"
     RECOVERY_VOL_TO_ATTACH="$GATE2_RESTORE_VOL_ID"
+  elif ATTACH_OUT="$(oci compute volume-attachment attach-paravirtualized-volume \
+    --region "$REGION" \
+    --instance-id "$A1_INSTANCE_ID" \
+    --volume-id "$GATE2_RESTORE_VOL_ID" 2>"$TMP_DIR/attach_err2.txt")"; then
+    ACTIVE_ATTACH_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["data"]["id"])' <<<"$ATTACH_OUT")"
+    RECOVERY_VOL_TO_ATTACH="$GATE2_RESTORE_VOL_ID"
   else
-    printf '  Direct boot-volume data attach returned: %s\n' "$(tr '\r\n' ' ' <"$TMP_DIR/attach_err.txt" | head -c 220)"
+    printf '  Direct boot-volume data attach returned: %s\n' "$(tr '\r\n' ' ' <"$TMP_DIR/attach_err2.txt" | head -c 220)"
   fi
 fi
 
 if [[ -z "$ACTIVE_ATTACH_ID" ]]; then
-  EXISTING_BV_COPY="$(oci bv volume list --region "$REGION" --compartment-id "$TENANCY_ID" --availability-domain "$A1_AD" --display-name "jobiest-gate4-ro-seed" --all | \
-    python3 -c 'import json,sys; d=[x for x in json.loads(sys.stdin.read()).get("data",[]) if x.get("lifecycle-state")=="AVAILABLE"]; print(d[0]["id"] if d else "")')"
+  EXISTING_BV_COPY="$(oci bv boot-volume list --region "$REGION" --compartment-id "$TENANCY_ID" --availability-domain "$A1_AD" --all | \
+    python3 -c 'import json,sys; s=sys.stdin.read().strip(); d=[x for x in ((json.loads(s) if s else {}).get("data") or []) if x.get("display-name")=="jobiest-gate4-ro-seed" and x.get("lifecycle-state")=="AVAILABLE"]; print(d[0]["id"] if d else "")')"
   if [[ -z "$EXISTING_BV_COPY" ]]; then
     NOW_GB=0
     for ad in "${ORDERED_ADS[@]}"; do
-      B1="$(oci bv boot-volume list --region "$REGION" --compartment-id "$TENANCY_ID" --availability-domain "$ad" --all | python3 -c 'import json,sys; print(sum(int(x.get("size-in-gbs",0)) for x in json.loads(sys.stdin.read()).get("data",[]) if x.get("lifecycle-state") not in ("TERMINATED","TERMINATING")))')"
-      B2="$(oci bv volume list --region "$REGION" --compartment-id "$TENANCY_ID" --availability-domain "$ad" --all | python3 -c 'import json,sys; print(sum(int(x.get("size-in-gbs",0)) for x in json.loads(sys.stdin.read()).get("data",[]) if x.get("lifecycle-state") not in ("TERMINATED","TERMINATING")))')"
+      B1="$(oci bv boot-volume list --region "$REGION" --compartment-id "$TENANCY_ID" --availability-domain "$ad" --all | python3 -c 'import json,sys; s=sys.stdin.read().strip(); print(sum(int(x.get("size-in-gbs",0)) for x in ((json.loads(s) if s else {}).get("data") or []) if x.get("lifecycle-state") not in ("TERMINATED","TERMINATING")))')"
+      B2="$(oci bv volume list --region "$REGION" --compartment-id "$TENANCY_ID" --availability-domain "$ad" --all | python3 -c 'import json,sys; s=sys.stdin.read().strip(); print(sum(int(x.get("size-in-gbs",0)) for x in ((json.loads(s) if s else {}).get("data") or []) if x.get("lifecycle-state") not in ("TERMINATED","TERMINATING")))')"
       NOW_GB=$((NOW_GB + B1 + B2))
     done
-    (( NOW_GB + 50 <= 200 )) || die "Cannot create cross-AD recovery block volume without exceeding 200 GB Always Free limit (current=${NOW_GB}GB)."
-    SRC_JSON="$(printf '{"type":"bootVolumeBackup","id":"%s"}' "$GATE2_BACKUP_ID")"
-    CREATE_BV_OUT="$(oci bv volume create \
+    (( NOW_GB + 50 <= 200 )) || die "Cannot create cross-AD recovery volume without exceeding 200 GB Always Free limit (current=${NOW_GB}GB)."
+    CREATE_BV_OUT="$(oci bv boot-volume create \
       --region "$REGION" \
       --compartment-id "$TENANCY_ID" \
       --availability-domain "$A1_AD" \
       --display-name "jobiest-gate4-ro-seed" \
-      --source-details "$SRC_JSON")"
+      --boot-volume-backup-id "$GATE2_BACKUP_ID")"
     EXISTING_BV_COPY="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["data"]["id"])' <<<"$CREATE_BV_OUT")"
     for _ in $(seq 1 40); do
-      VST="$(oci bv volume get --region "$REGION" --volume-id "$EXISTING_BV_COPY" --query 'data."lifecycle-state"' --raw-output)"
+      VST="$(oci bv boot-volume get --region "$REGION" --boot-volume-id "$EXISTING_BV_COPY" --query 'data."lifecycle-state"' --raw-output)"
       [[ "$VST" == "AVAILABLE" ]] && break
       sleep 6
     done
   fi
-  ATTACH_OUT="$(oci compute volume-attachment attach-paravirtualized-volume \
+  if ! ATTACH_OUT="$(oci compute volume-attachment attach-paravirtualized-volume \
     --region "$REGION" \
     --instance-id "$A1_INSTANCE_ID" \
     --volume-id "$EXISTING_BV_COPY" \
-    --is-read-only true)"
+    --is-read-only true 2>/dev/null)"; then
+    ATTACH_OUT="$(oci compute volume-attachment attach-paravirtualized-volume \
+      --region "$REGION" \
+      --instance-id "$A1_INSTANCE_ID" \
+      --volume-id "$EXISTING_BV_COPY")"
+  fi
   ACTIVE_ATTACH_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["data"]["id"])' <<<"$ATTACH_OUT")"
   RECOVERY_VOL_TO_ATTACH="$EXISTING_BV_COPY"
 fi
@@ -427,15 +447,30 @@ PAR2_FULL="https://objectstorage.${REGION}.oraclecloud.com${PAR2_URI}"
 set -euo pipefail
 
 ROOT_SRC="$(findmnt -n -o SOURCE /)"
-ROOT_DISK="/dev/$(lsblk -no PKNAME "$ROOT_SRC" | head -n1)"
+ROOT_DISK="/dev/$(sudo lsblk -no PKNAME "$ROOT_SRC" | head -n1)"
 
+sudo udevadm settle 2>/dev/null || true
 REC_PART=""
 for _ in $(seq 1 15); do
-  REC_PART="$(lsblk -nrpo NAME,FSTYPE,TYPE | awk -v r="$ROOT_DISK" '$3=="part" && $2=="ext4" && index($1, r)!=1 {print $1; exit}')"
+  REC_PART="$(sudo lsblk -J -b -p -o NAME,FSTYPE,TYPE,SIZE | python3 -c '
+import json, sys
+root_disk = sys.argv[1]
+data = json.loads(sys.stdin.read())
+cands = []
+def walk(nodes):
+    for n in nodes or []:
+        name = n.get("name") or ""
+        if n.get("type") == "part" and n.get("fstype") == "ext4" and not name.startswith(root_disk):
+            cands.append((int(n.get("size") or 0), name))
+        walk(n.get("children"))
+walk(data.get("blockdevices"))
+cands.sort(reverse=True)
+print(cands[0][1] if cands else "")
+' "$ROOT_DISK")"
   [[ -n "$REC_PART" ]] && break
   sleep 2
 done
-[[ -n "$REC_PART" ]] || { echo "FATAL: Could not locate secondary ext4 partition"; lsblk; exit 1; }
+[[ -n "$REC_PART" ]] || { echo "FATAL: Could not locate secondary ext4 partition"; sudo lsblk -f; exit 1; }
 echo "Found read-only recovery partition: $REC_PART (root disk is $ROOT_DISK)"
 
 sudo mkdir -p /mnt/e5_recovery
