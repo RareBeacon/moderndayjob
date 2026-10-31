@@ -184,7 +184,12 @@ cleanup() {
   rm -rf "$TMP_DIR" || true
   exit "$exit_rc"
 }
-trap cleanup EXIT INT TERM
+if [[ "${IGNORE_SIGINT_FOR_CLOUDSHELL:-false}" == "true" ]]; then
+  trap cleanup EXIT TERM
+  trap '' INT
+else
+  trap cleanup EXIT INT TERM
+fi
 
 # ------------------------------------------------------------------------------
 # PHASE 1: LIVE ACCOUNT, QUOTA, STORAGE & COST VERIFICATION ($0.00 HARD GATE)
@@ -961,9 +966,36 @@ PY
 
     ELAPSED_NOW=$(( $(date +%s) - SWEEP_START_EPOCH ))
     if (( round < A1_MAX_RETRY_ROUNDS )); then
-      printf 'Sweep %d complete: probed %d/%d distinct regional AD/FD slot(s) (%d attempts, %ds elapsed). Sleeping %ds before next sweep...\n' \
-        "$round" "${#UNIQUE_PROBED_SLOTS[@]}" "$TOTAL_REGIONAL_SLOT_COUNT" "$TOTAL_LAUNCH_ATTEMPTS" "$ELAPSED_NOW" "$A1_RETRY_SLEEP_SEC"
-      sleep "$A1_RETRY_SLEEP_SEC"
+      printf 'Sweep %d complete: probed %d/%d distinct regional AD/FD slot(s) (%d attempts, %ds elapsed).\n' \
+        "$round" "${#UNIQUE_PROBED_SLOTS[@]}" "$TOTAL_REGIONAL_SLOT_COUNT" "$TOTAL_LAUNCH_ATTEMPTS" "$ELAPSED_NOW"
+      if [[ -r /dev/tty ]]; then
+        printf '  Waiting %ds before next sweep — leave idle to keep sweeping, or type P + Enter (Stage 2 Mail VM) or Q + Enter (quit): ' "$A1_RETRY_SLEEP_SEC" >/dev/tty
+        SWEEP_WAIT_IN=""
+        if IFS= read -r -t "$A1_RETRY_SLEEP_SEC" SWEEP_WAIT_IN </dev/tty; then
+          SWEEP_WAIT_IN="${SWEEP_WAIT_IN#"${SWEEP_WAIT_IN%%[![:space:]]*}"}"
+          SWEEP_WAIT_IN="${SWEEP_WAIT_IN%"${SWEEP_WAIT_IN##*[![:space:]]}"}"
+          case "$SWEEP_WAIT_IN" in
+            P|p)
+              print_sweep_summary
+              exit 75
+              ;;
+            APPROVE_C|approve_c)
+              print_sweep_summary
+              exit 76
+              ;;
+            Q|q)
+              print_sweep_summary
+              exit 77
+              ;;
+            *)
+              ;;
+          esac
+        else
+          printf '\n' >/dev/tty
+        fi
+      else
+        sleep "$A1_RETRY_SLEEP_SEC"
+      fi
     fi
   done
 
