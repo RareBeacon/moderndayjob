@@ -110,6 +110,7 @@ describe('endpoint guard (B-024: deny-by-default route registry)', () => {
   /** Intentionally public routes. Every other route needs a server auth marker. */
   const PUBLIC_ROUTES = new Set([
     '/api/health', // status only, no data, rate-limited
+    '/api/auth/oauth', // pre-login PKCE OAuth starter (Google / LinkedIn); rate-limited, origin-validated
     '/api/auth/signup', // rate-limited account creation
     '/api/auth/signout', // clears cookies; nothing to protect
     '/api/auth/forgot-password',

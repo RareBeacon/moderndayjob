@@ -12,14 +12,24 @@ function isProtected(pathname: string): boolean {
   return PROTECTED.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
-function isSocialProvider(user: { app_metadata?: { providers?: string[]; [key: string]: unknown } | null }): boolean {
+function isSocialProvider(user: {
+  app_metadata?: { providers?: string[]; provider?: string; [key: string]: unknown } | null;
+  identities?: Array<{ provider?: string }> | null;
+}): boolean {
   const providers = user.app_metadata?.providers ?? [];
-  return providers.includes('google') || providers.includes('linkedin_oidc') || providers.includes('linkedin');
+  const primary = typeof user.app_metadata?.provider === 'string' ? [user.app_metadata.provider] : [];
+  const ids = user.identities?.map((i) => i.provider ?? '') ?? [];
+  const all = [...providers, ...primary, ...ids];
+  return all.includes('google') || all.includes('linkedin_oidc') || all.includes('linkedin');
 }
 
 async function socialGates(
   supabase: Awaited<ReturnType<typeof createServerClient>>,
-  user: { id: string; app_metadata?: { providers?: string[]; [key: string]: unknown } | null },
+  user: {
+    id: string;
+    app_metadata?: { providers?: string[]; provider?: string; [key: string]: unknown } | null;
+    identities?: Array<{ provider?: string }> | null;
+  },
 ): Promise<{ needsVerification: boolean; needsCompletion: boolean }> {
   if (!isSocialProvider(user)) return { needsVerification: false, needsCompletion: false };
   const { data } = await supabase
@@ -36,15 +46,21 @@ async function socialGates(
 }
 
 function sessionCookieOptionsWithoutPersistence(opts: CookieOptions): CookieOptions {
+  if (opts.maxAge === 0) return opts;
   const { maxAge, expires, ...rest } = opts as CookieOptions & { maxAge?: number; expires?: Date };
   return rest;
 }
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  // Never intercept OAuth starter or PKCE callback routes in middleware.
+  if (pathname.startsWith('/auth/callback') || pathname.startsWith('/api/auth/oauth')) {
+    return NextResponse.next();
+  }
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return NextResponse.next();
-  const { pathname } = request.nextUrl;
 
   let response = NextResponse.next({ request });
   const supabase = createServerClient(url, key, {
@@ -60,10 +76,6 @@ export async function middleware(request: NextRequest) {
       },
     },
   });
-
-  // NOTE: No code exchange here. PKCE exchange lives ONLY in app/auth/callback/route.ts
-  // per Supabase SSR docs. Middleware only refreshes session via getUser() (which updates cookies via setAll above).
-  // This fixes bad_oauth_state / flow_state_already_used double-exchange.
 
   let user: Awaited<ReturnType<typeof supabase.auth.getUser>>['data']['user'] = null;
   try {
@@ -109,9 +121,7 @@ export async function middleware(request: NextRequest) {
     if (appSessionReason === 'IDLE_EXPIRED' || appSessionReason === 'ABSOLUTE_EXPIRED') {
       redirect.searchParams.set('expired', '1');
     }
-    const res = NextResponse.redirect(redirect);
-    // Do not delete app cookie here - keep it so /api/debug/session can show why it was invalid; callback will overwrite on next login
-    return res;
+    return NextResponse.redirect(redirect);
   }
 
   if (isProtected(pathname) && !user) {
@@ -181,7 +191,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/auth/callback',
     '/dashboard/:path*',
     '/onboarding/:path*',
     '/profile/:path*',

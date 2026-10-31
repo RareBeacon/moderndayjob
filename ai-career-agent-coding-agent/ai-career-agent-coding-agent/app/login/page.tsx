@@ -26,9 +26,14 @@ function LoginInner() {
   const verified = params.get('verified') === '1';
   const expired = params.get('expired') === '1';
   const oauthError = params.get('error');
+  const oauthProvider = params.get('provider') === 'linkedin' ? 'LinkedIn' : 'Google';
   const oauthErrorMessage =
     oauthError === 'oauth_cancelled'
       ? 'Sign-in was cancelled. You can try again whenever you are ready.'
+      : oauthError === 'provider_disabled'
+      ? `${oauthProvider} sign-in is not enabled right now. Please sign in with email and password.`
+      : oauthError === 'rate_limited'
+      ? 'Too many sign-in attempts just now. Please wait a minute and try again.'
       : oauthError === 'oauth_retry' || oauthError === 'flow_state_already_used'
       ? 'Your previous sign-in link expired. Please try again.'
       : oauthError === 'session_expired' || expired

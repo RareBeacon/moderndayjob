@@ -1,5 +1,6 @@
 'use server';
 
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { env } from '@/lib/env';
@@ -12,11 +13,29 @@ function safeNext(next?: string | null): string | null {
   return trimmed;
 }
 
+async function resolveActionOrigin(): Promise<string> {
+  try {
+    const h = await headers();
+    const host = (h.get('x-forwarded-host') || h.get('host') || '').split(',')[0]?.trim();
+    const proto = (h.get('x-forwarded-proto') || 'https').split(',')[0]?.trim();
+    const clean = host.toLowerCase().split(':')[0] ?? '';
+    if (
+      clean === 'jobiest.com' ||
+      clean === 'www.jobiest.com' ||
+      clean === 'localhost' ||
+      clean === '127.0.0.1' ||
+      clean.endsWith('.vercel.app') ||
+      clean.endsWith('.e2b.app')
+    ) {
+      return `${proto === 'http' ? 'http' : 'https'}://${host}`;
+    }
+  } catch {}
+  return (env.NEXT_PUBLIC_APP_URL || 'https://jobiest.com').replace(/\/$/, '');
+}
+
 /**
- * Fresh OAuth starter - minimal, correct, single purpose.
- * - Uses Supabase SSR httpOnly PKCE verifier (no client JS cookie)
- * - redirectTo is always https://jobiest.com/auth/callback plus optional ?next
- * - Only exchange happens in app/auth/callback/route.ts
+ * Server Action fallback OAuth starter (primary buttons use GET /api/auth/oauth
+ * so PKCE cookies are attached directly onto a standard HTTP 302 response).
  */
 export async function startOAuth(formData: FormData): Promise<void> {
   const rawProvider = formData.get('provider');
@@ -25,19 +44,8 @@ export async function startOAuth(formData: FormData): Promise<void> {
   if (!provider) throw new Error('Invalid provider');
 
   const next = typeof rawNext === 'string' ? safeNext(rawNext) : null;
-  const base = (env.NEXT_PUBLIC_APP_URL || 'https://jobiest.com').replace(/\/$/, '');
-  const redirectTo = `${base}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ''}`;
-
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider,
-    options: {
-      redirectTo,
-      queryParams: provider === 'google' ? { prompt: 'select_account' } : undefined,
-    },
-  });
-  if (error) throw new Error(error.message || 'oauth_failed');
-  if (!data?.url) throw new Error('No OAuth URL returned');
-  redirect(data.url);
+  const base = await resolveActionOrigin();
+  const qs = new URLSearchParams({ provider });
+  if (next) qs.set('next', next);
+  redirect(`${base}/api/auth/oauth?${qs.toString()}`);
 }
-

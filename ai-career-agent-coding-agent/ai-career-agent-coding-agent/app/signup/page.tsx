@@ -1,5 +1,5 @@
 'use client';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AuthShell } from '@/components/site/AuthShell';
@@ -25,6 +25,26 @@ export default function SignupPage() {
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [oauthNotice, setOauthNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('error');
+    const provider = params.get('provider') === 'linkedin' ? 'LinkedIn' : 'Google';
+    if (!code) {
+      setOauthNotice(null);
+    } else if (code === 'oauth_cancelled') {
+      setOauthNotice('Sign-in was cancelled. You can try again whenever you are ready.');
+    } else if (code === 'provider_disabled') {
+      setOauthNotice(`${provider} sign-in is not enabled right now. Please sign up with email and password below.`);
+    } else if (code === 'oauth_retry' || code === 'session_expired') {
+      setOauthNotice('Your previous sign-in link expired. Please try again.');
+    } else if (code === 'rate_limited') {
+      setOauthNotice('Too many sign-in attempts just now. Please wait a minute and try again.');
+    } else {
+      setOauthNotice('Social sign-up could not finish. Please try again or create your account with email below.');
+    }
+  }, []);
 
   const hasLength = password.length >= 8;
   const hasNumber = /\d/.test(password);
@@ -103,11 +123,9 @@ export default function SignupPage() {
 
   return (
     <AuthShell title="Create your account" subtitle="One step. Your career profile comes later, when it matters.">
-      {typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('error') ? (
+      {oauthNotice ? (
         <div className="auth-error" role="alert" style={{ marginTop: 16 }}>
-          {new URLSearchParams(window.location.search).get('error') === 'oauth_retry'
-            ? 'Your previous sign-in link expired. Please try again.'
-            : 'Sign-in failed. Please try again.'}
+          {oauthNotice}
         </div>
       ) : null}
       <div style={{ marginTop: 20, display: 'grid', gap: 10 }}>

@@ -165,7 +165,12 @@ create or replace function public.tg_ensure_user_period_grants()
 returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
-  perform public.credit_ensure_user_period_grants(new.user_id, now());
+  begin
+    perform public.credit_ensure_user_period_grants(new.user_id, now());
+  exception when others then
+    -- Never block auth.users signup, subscription writes, or card activation.
+    null;
+  end;
   return new;
 end $$;
 
