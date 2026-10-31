@@ -29,7 +29,7 @@ test('signup, forgot-password, and free career tools render cleanly', async ({ p
 
 test('expired session redirect displays clear re-authentication notice on /login', async ({ page }) => {
   await page.goto('/login?next=%2Fdashboard&expired=1');
-  await expect(page.getByRole('alert')).toContainText(/session expired/i);
+  await expect(page.locator('.auth-error').first()).toContainText(/session expired/i);
 });
 
 test('protected workspace and admin pages redirect anonymous visitors to /login', async ({ request }) => {
