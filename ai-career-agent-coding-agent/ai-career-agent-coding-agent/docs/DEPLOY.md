@@ -1,5 +1,7 @@
 # Deploy procedure · Jobiest
 
+> **UPDATED DEPLOYMENT AUTHORITY**: The `modernjob` Vercel project is now **GitHub-linked** (automatic Preview deployments on branches/PRs and Production deployments on `main`, verified by `.github/workflows/ci.yml`). See [`../DEPLOYMENT.md`](../DEPLOYMENT.md) for the current mandatory 8-stage pre-deployment verification pipeline and rollback runbook. The manual Vercel REST notes below are retained only as an emergency fallback reference.
+
 Credentials do **not** survive between agent sessions (`.git/config`, env vars
 and netrc are excluded from workspace snapshots). Tokens must be re-supplied
 each session; everything else needed is recorded here.

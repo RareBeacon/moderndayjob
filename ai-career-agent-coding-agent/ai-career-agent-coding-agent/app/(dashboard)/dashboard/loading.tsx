@@ -1,28 +1,33 @@
+import { AppShell } from '@/components/site/AppShell';
+
 /**
- * Dashboard loading state: shown while the server component fetches the
- * user's profile, entitlements and application counts. A visible indicator
- * instead of a blank screen, per the dashboard-reliability brief
- * (2026-09-21); errors surface through the app-level error boundary, which
- * offers a retry.
+ * Workspace loading state: shown inside AppShell while the server component
+ * fetches the user's profile, entitlements, and application counts so the
+ * transition into DashboardView happens without layout shift.
  */
 export default function DashboardLoading() {
   return (
-    <div className="jl-page" aria-busy="true" aria-label="Loading your dashboard">
-      <div style={{ maxWidth: 880, margin: '0 auto', padding: '32px 0' }}>
-        <div className="spinner" style={{ margin: '0 auto 18px' }} role="status" aria-label="Loading" />
-        <div className="skeleton" style={{ height: 28, width: '46%', borderRadius: 8 }} />
-        <div className="skeleton skeleton-line" style={{ width: '64%', marginTop: 16 }} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginTop: 28 }}>
-          <div className="skeleton" style={{ height: 92, borderRadius: 12 }} />
-          <div className="skeleton" style={{ height: 92, borderRadius: 12 }} />
-          <div className="skeleton" style={{ height: 92, borderRadius: 12 }} />
+    <AppShell active="dashboard" title="Workspace">
+      <div aria-busy="true" aria-label="Loading your workspace" style={{ display: 'grid', gap: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ display: 'grid', gap: 8, width: 'min(100%, 420px)' }}>
+            <div className="skeleton" style={{ height: 30, width: '58%', borderRadius: 8 }} />
+            <div className="skeleton skeleton-line" style={{ height: 16, width: '88%', borderRadius: 6 }} />
+          </div>
+          <div className="skeleton" style={{ height: 32, width: 190, borderRadius: 999 }} />
         </div>
-        <div className="skeleton skeleton-line" style={{ width: '100%', marginTop: 26, height: 60, borderRadius: 12 }} />
-        <div className="skeleton skeleton-line" style={{ width: '100%', height: 60, borderRadius: 12 }} />
-        <p className="muted" style={{ textAlign: 'center', marginTop: 18, fontSize: 13 }}>
-          Loading your dashboard…
+
+        <div className="skeleton" style={{ height: 148, width: '100%', borderRadius: 18 }} />
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
+          <div className="skeleton" style={{ height: 240, borderRadius: 16 }} />
+          <div className="skeleton" style={{ height: 240, borderRadius: 16 }} />
+        </div>
+
+        <p className="muted" role="status" style={{ textAlign: 'center', marginTop: 4, fontSize: 13 }}>
+          Loading your workspace…
         </p>
       </div>
-    </div>
+    </AppShell>
   );
 }

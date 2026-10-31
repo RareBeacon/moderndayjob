@@ -471,34 +471,40 @@ h1, h2, h3, h4 { font-family: var(--font-display, "Satoshi", system-ui, sans-ser
    Sidebar recedes (dimmer than content) so the work area leads.
    Mobile uses a CSS-only drawer (checkbox) + fixed bottom tab bar.
    ============================================================ */
-.app-shell { display: flex; min-height: 100vh; background: #f7f9fc; }
+.app-shell { display: flex; min-height: 100vh; background: var(--color-surface-soft, #f7f9fc); }
 .app-nav-toggle { display: none; }
-.app-sidebar { width: 250px; flex: none; background: #ffffff; border-right: 1px solid var(--line); display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; }
-.app-side-top { padding: 20px 18px 16px; border-bottom: 1px solid var(--line); }
-.app-nav { display: flex; flex-direction: column; gap: 2px; padding: 14px 12px; flex: 1; overflow-y: auto; }
-.app-link { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--radius-sm); color: var(--muted); font-weight: 600; font-size: 14.5px; text-decoration: none; transition: background 0.15s var(--ease), color 0.15s; }
-.app-link:hover { background: rgba(17,28,53,0.06); color: var(--ink); }
-.app-link.active { background: #eff4de; color: var(--color-primary); box-shadow: inset 3px 0 0 var(--color-lime); }
-.app-link.active .app-ico { color: var(--brand); }
-.app-ico { display: grid; place-items: center; color: var(--muted-2); flex: none; }
+.app-sidebar { width: 252px; flex: none; background: #ffffff; border-right: 1px solid var(--color-line, #e2e6ed); display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; }
+.app-side-top { padding: 18px 18px 15px; border-bottom: 1px solid var(--color-line, #e2e6ed); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.app-drawer-close { display: none; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--color-line, #e2e6ed); background: var(--color-surface-soft, #f7f9fc); color: var(--color-ink, #17223b); font-size: 14px; font-weight: 700; align-items: center; justify-content: center; cursor: pointer; }
+.app-nav { display: flex; flex-direction: column; gap: 14px; padding: 14px 12px; flex: 1; overflow-y: auto; }
+.app-nav-group { display: flex; flex-direction: column; gap: 2px; }
+.app-nav-heading { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-muted, #5d6b85); padding: 4px 12px 6px; }
+.app-link { display: flex; align-items: center; gap: 11px; padding: 9px 12px; border-radius: 10px; color: var(--color-muted, #5d6b85); font-weight: 600; font-size: 14px; text-decoration: none; transition: background 0.15s ease, color 0.15s ease; }
+.app-link:hover { background: var(--color-surface-soft, #f7f9fc); color: var(--color-ink, #17223b); }
+.app-link.active { background: #f2f8d8; color: var(--color-primary-navy, #111d35); font-weight: 700; box-shadow: inset 3px 0 0 var(--color-lime, #d7f94b); }
+.app-link.active .app-ico { color: var(--color-primary-navy, #111d35); }
+.app-ico { display: grid; place-items: center; color: var(--color-muted, #5d6b85); flex: none; }
 .app-ico.sm { width: 22px; height: 22px; }
-.app-side-foot { padding: 12px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
-.app-foot-card { display: flex; gap: 10px; align-items: flex-start; background: var(--brand-soft); border: 1px solid var(--brand-line); border-radius: var(--radius-md); padding: 12px; }
-.app-foot-card .app-ico.sm { color: var(--brand); }
-.app-foot-card strong { display: block; font-size: 13px; color: var(--brand-ink); }
-.app-foot-card span { font-size: 12px; color: var(--brand-strong); }
-.app-signout { width: 100%; border: 1px solid var(--line); background: var(--card); color: var(--muted); font-weight: 700; font-size: 13px; padding: 9px; border-radius: var(--radius-sm); cursor: pointer; font-family: inherit; }
-.app-signout:hover { border-color: var(--brand-line); color: var(--brand-ink); }
+.app-side-foot { padding: 12px; border-top: 1px solid var(--color-line, #e2e6ed); display: flex; flex-direction: column; gap: 10px; }
+.app-foot-card { display: flex; gap: 10px; align-items: flex-start; background: var(--color-surface-soft, #f7f9fc); border: 1px solid var(--color-line, #e2e6ed); border-radius: 12px; padding: 11px 12px; }
+.app-foot-card .app-ico.sm { color: var(--color-primary-navy, #111d35); margin-top: 1px; }
+.app-foot-card strong { display: block; font-size: 12.5px; font-weight: 700; color: var(--color-ink, #17223b); line-height: 1.3; }
+.app-foot-card span { display: block; font-size: 12px; color: var(--color-muted, #5d6b85); line-height: 1.4; margin-top: 2px; }
+.app-signout { width: 100%; border: 1px solid var(--color-line, #e2e6ed); background: #ffffff; color: var(--color-muted, #5d6b85); font-weight: 600; font-size: 13px; padding: 9px; border-radius: 10px; cursor: pointer; font-family: inherit; transition: border-color 0.15s ease, color 0.15s ease; }
+.app-signout:hover { border-color: var(--color-primary-navy, #111d35); color: var(--color-primary-navy, #111d35); }
 .app-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.app-topbar { display: flex; align-items: center; gap: 14px; height: 64px; padding: 0 28px; border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.85); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); position: sticky; top: 0; z-index: 20; }
-.app-title { font-size: 18px; font-weight: 800; color: var(--brand-ink); font-family: var(--font-display, "Satoshi", system-ui, sans-serif); margin: 0; }
-.app-top-cta { margin-left: auto; border: 1px solid transparent; background: var(--color-lime); color: #111d35; font-weight: 700; font-size: 13.5px; padding: 9px 16px; border-radius: var(--radius-pill); text-decoration: none; }
-.app-top-cta:hover { filter: brightness(1.04); }
-.app-burger { display: none; width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; flex: none; }
-.app-burger span { display: block; width: 18px; height: 2px; background: var(--ink); border-radius: 2px; }
-.app-content { padding: 28px; max-width: 1080px; width: 100%; }
+.app-topbar { display: flex; align-items: center; gap: 14px; height: 62px; padding: 0 28px; border-bottom: 1px solid var(--color-line, #e2e6ed); background: rgba(255,255,255,0.92); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); position: sticky; top: 0; z-index: 20; }
+.app-title { font-size: 16.5px; font-weight: 700; color: var(--color-ink, #17223b); font-family: var(--font-display, system-ui, sans-serif); margin: 0; letter-spacing: -0.015em; }
+.app-topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.app-top-ghost { border: 1px solid var(--color-line, #e2e6ed); background: #ffffff; color: var(--color-ink, #17223b); font-weight: 600; font-size: 13px; padding: 8px 14px; border-radius: 10px; text-decoration: none; transition: border-color 0.15s ease, background 0.15s ease; }
+.app-top-ghost:hover { border-color: var(--color-primary-navy, #111d35); background: var(--color-surface-soft, #f7f9fc); }
+.app-top-cta { border: 1px solid transparent; background: var(--color-lime, #d7f94b); color: var(--color-primary-navy, #111d35); font-weight: 700; font-size: 13.5px; padding: 8px 15px; border-radius: 10px; text-decoration: none; transition: background 0.15s ease; }
+.app-top-cta:hover { background: var(--color-lime-hover, #c6e436); }
+.app-burger { display: none; width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--color-line, #e2e6ed); background: #ffffff; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; flex: none; }
+.app-burger span { display: block; width: 18px; height: 2px; background: var(--color-ink, #17223b); border-radius: 2px; }
+.app-content { padding: 26px 28px 40px; max-width: 1120px; width: 100%; }
 .app-bottom { display: none; }
-@media (max-width: 860px) {.app-sidebar { position: fixed; top: 0; left: 0; z-index: 60; transform: translateX(-100%); transition: transform 0.25s var(--ease); box-shadow: var(--shadow-3); }.app-nav-toggle:checked ~ .app-sidebar { transform: none; }.app-nav-toggle:checked ~ .app-main::before { content: ""; position: fixed; inset: 0; background: rgba(20,32,31,0.35); z-index: 55; }.app-burger { display: flex; }.app-top-cta { display: none; }.app-content { padding: 20px 16px 92px; }.app-bottom { display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: var(--card); border-top: 1px solid var(--line); padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); }.app-tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; color: var(--muted); font-weight: 700; text-decoration: none; border-radius: var(--radius-sm); }.app-tab.active { color: var(--brand); }.app-tab .app-lbl { font-size: 11px; }}
+@media (max-width: 860px) {.app-sidebar { position: fixed; top: 0; left: 0; z-index: 60; transform: translateX(-100%); transition: transform 0.25s var(--ease); box-shadow: 0 24px 64px rgba(7, 13, 28, 0.24); }.app-drawer-close { display: inline-flex; }.app-nav-toggle:checked ~ .app-sidebar { transform: none; }.app-nav-toggle:checked ~ .app-main::before { content: ""; position: fixed; inset: 0; background: rgba(7, 13, 28, 0.42); z-index: 55; }.app-burger { display: flex; }.app-topbar { padding: 0 16px; height: 58px; }.app-topbar-actions { display: none; }.app-content { padding: 18px 16px 96px; }.app-bottom { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: #ffffff; border-top: 1px solid var(--color-line, #e2e6ed); padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); }.app-tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 48px; padding: 5px 2px; color: var(--color-muted, #5d6b85); font-weight: 600; text-decoration: none; border-radius: 8px; cursor: pointer; }.app-tab.active { color: var(--color-primary-navy, #111d35); background: #f2f8d8; font-weight: 700; }.app-tab.active .app-ico { color: var(--color-primary-navy, #111d35); }.app-tab .app-lbl { font-size: 11px; line-height: 1.15; }}
 /* ============================================================
    Onboarding v2, celebratory "ready" review (step 6)
    ============================================================ */

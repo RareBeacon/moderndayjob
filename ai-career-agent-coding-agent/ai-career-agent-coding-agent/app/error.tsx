@@ -33,6 +33,11 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
         <p style={{ color: 'var(--color-text-secondary)', margin: '12px 0 28px' }}>
           Nothing you entered was lost. Try again, and if it keeps happening, come back in a minute.
         </p>
+        {error?.digest ? (
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: 12, margin: '0 0 20px' }}>
+            Reference: {String(error.digest).slice(0, 32)}
+          </p>
+        ) : null}
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button className="jl-btn-solid" onClick={() => reset()} style={{ cursor: 'pointer' }}>Try again</button>
           <a className="jl-btn-ghost" href="/" style={{ textDecoration: 'none' }}>Back home</a>

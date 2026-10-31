@@ -1,5 +1,7 @@
 # AI Career Agent, Database Schema
 
+> **IMPORTANT - LIVE SCHEMA AUTHORITY**: Several early specification tables below (`profiles.id`, `display_name`, separate `target_roles` / `skills` tables) were superseded during migrations `001_initial.sql`..`046_fix_period_grants.sql`. **Always use [`../DATABASE.md`](../DATABASE.md) and `supabase/migrations/*.sql` as the authoritative source of truth** (`public.profiles` uses `user_id` PK, `full_name`, and `target_roles text[]`; `public.career_profiles` uses `user_id` PK and `skills text[]`).
+
 ## Design Rules
 
 - PostgreSQL.

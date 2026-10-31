@@ -1,6 +1,7 @@
 import { env } from '@/lib/env';
 import { supabaseAdmin } from '@/lib/supabase';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
+import { CORRELATION_HEADER, resolveRequestId } from '@/lib/observability';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,20 +39,30 @@ async function checkAiGateway(): Promise<'ok' | 'error' | 'not_configured'> {
 }
 
 export async function GET(req: Request) {
+  const requestId = resolveRequestId(req);
   const rl = await enforceRateLimit(`health:${requestIp(req)}`, 60, '1 m');
-  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+  if (!rl.allowed) {
+    return Response.json(
+      { error: 'RATE_LIMITED', requestId },
+      { status: 429, headers: { [CORRELATION_HEADER]: requestId } },
+    );
+  }
 
   const [database, aiGateway] = await Promise.all([checkDb(), checkAiGateway()]);
   const email = env.RESEND_API_KEY ? 'configured' : 'not_configured';
   const degraded = database !== 'ok' || aiGateway === 'error' || email === 'not_configured';
-  return Response.json({
-    ok: database === 'ok',
-    degraded,
-    service: 'ai-career-agent',
-    // Public deploy marker (the git SHA is public): lets CI and uptime
-    // checks confirm WHICH build is live before testing it. Null locally.
-    commit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
-    time: new Date().toISOString(),
-    checks: { database, ai_gateway: aiGateway, email },
-  });
+  return Response.json(
+    {
+      ok: database === 'ok',
+      degraded,
+      service: 'ai-career-agent',
+      requestId,
+      // Public deploy marker (the git SHA is public): lets CI and uptime
+      // checks confirm WHICH build is live before testing it. Null locally.
+      commit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
+      time: new Date().toISOString(),
+      checks: { database, ai_gateway: aiGateway, email },
+    },
+    { headers: { [CORRELATION_HEADER]: requestId } },
+  );
 }
