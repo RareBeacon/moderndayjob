@@ -52,10 +52,12 @@ VAULT_BUCKET="jobiest-gate2-vault"
 
 REPO_URL="https://github.com/RareBeacon/moderndayjob.git"
 ISOLATED_BRANCH="arena/5a999da6-moderndayjob"
-APP_COMMIT_SHA="2ba2df52f950253df8ea752cd554fa4b93b8a04d"
+APP_COMMIT_SHA="dc74ef8e0d24a560abe360d84dacfc1663ed2e89"
 
 A1_DISPLAY_NAME="jobiest-a1"
 ALLOW_1OCPU_FALLBACK="${ALLOW_1OCPU_FALLBACK:-false}"
+ALLOW_BROAD_SSH_CIDR="${ALLOW_BROAD_SSH_CIDR:-false}"
+TRUSTED_SSH_CIDRS="${TRUSTED_SSH_CIDRS:-}"
 A1_MAX_RETRY_ROUNDS="${A1_MAX_RETRY_ROUNDS:-30}"
 A1_RETRY_SLEEP_SEC="${A1_RETRY_SLEEP_SEC:-45}"
 
@@ -75,10 +77,16 @@ chmod 700 "$TMP_DIR"
 ACTIVE_PAR_IDS=()
 ACTIVE_NS=""
 ACTIVE_ATTACH_ID=""
+ACTIVE_ATTACH_VOL_ID=""
+REMOTE_RECOVERY_UNMOUNT_CONFIRMED="true"
 ACTIVE_CONSOLE_HISTORY_ID=""
+A1_INSTANCE_ID=""
 A1_PUBLIC_IP=""
 REMOTE_SECRETS_DIR=""
+SSH_READY=0
 SSH_OPTS=()
+VALIDATED_SSH_CIDRS=()
+VALIDATED_SSH_CIDRS_STR=""
 
 banner() {
   printf '\n==============================================================================\n'
@@ -91,8 +99,61 @@ die() {
   exit 1
 }
 
+safe_detach_recovery_volume() {
+  local context_label="${1:-cleanup}"
+  [[ -n "$ACTIVE_ATTACH_ID" ]] || return 0
+
+  if [[ "$REMOTE_RECOVERY_UNMOUNT_CONFIRMED" != "true" ]]; then
+    if (( SSH_READY == 1 )) && [[ -n "$A1_PUBLIC_IP" && "${#SSH_OPTS[@]}" -gt 0 ]]; then
+      local umount_probe=""
+      umount_probe="$(ssh "${SSH_OPTS[@]}" "ubuntu@$A1_PUBLIC_IP" '
+        set -e
+        if mountpoint -q /mnt/e5_recovery || grep -Eq "[[:space:]]/mnt/e5_recovery([[:space:]]|$)" /proc/mounts; then
+          sudo umount /mnt/e5_recovery
+        fi
+        if ! mountpoint -q /mnt/e5_recovery && ! grep -Eq "[[:space:]]/mnt/e5_recovery([[:space:]]|$)" /proc/mounts; then
+          echo "GATE4_UNMOUNT_CONFIRMED_CLEAN"
+        fi
+      ' 2>/dev/null || true)"
+      if [[ "$umount_probe" == *"GATE4_UNMOUNT_CONFIRMED_CLEAN"* ]]; then
+        REMOTE_RECOVERY_UNMOUNT_CONFIRMED="true"
+      fi
+    fi
+  fi
+
+  if [[ "$REMOTE_RECOVERY_UNMOUNT_CONFIRMED" != "true" ]]; then
+    printf '\n[SAFEGUARD RETAIN — %s] Remote mount state of /mnt/e5_recovery on %s (%s) could NOT be confirmed unmounted.\n' \
+      "$context_label" "$A1_DISPLAY_NAME" "${A1_INSTANCE_ID:-unknown}" >&2
+    printf '[SAFEGUARD RETAIN — %s] Retaining read-only attachment ID=%s (volume=%s) — NOT detaching while mount state is mounted or unknown.\n' \
+      "$context_label" "$ACTIVE_ATTACH_ID" "${ACTIVE_ATTACH_VOL_ID:-unknown}" >&2
+    return 1
+  fi
+
+  oci compute volume-attachment detach \
+    --region "$REGION" \
+    --volume-attachment-id "$ACTIVE_ATTACH_ID" \
+    --force >/dev/null
+  local ast=""
+  for _ in $(seq 1 25); do
+    ast="$(oci compute volume-attachment get --region "$REGION" --volume-attachment-id "$ACTIVE_ATTACH_ID" --query 'data."lifecycle-state"' --raw-output 2>/dev/null || true)"
+    [[ "$ast" == "DETACHED" ]] && break
+    sleep 3
+  done
+  if [[ "$ast" != "DETACHED" ]]; then
+    printf '\n[SAFEGUARD WARNING — %s] Detach requested for attachment ID=%s, current state=%s.\n' \
+      "$context_label" "$ACTIVE_ATTACH_ID" "${ast:-unknown}" >&2
+    return 1
+  fi
+  ACTIVE_ATTACH_ID=""
+  ACTIVE_ATTACH_VOL_ID=""
+  return 0
+}
+
 cleanup() {
-  if [[ -n "$A1_PUBLIC_IP" && -n "$REMOTE_SECRETS_DIR" && "${#SSH_OPTS[@]}" -gt 0 ]]; then
+  local exit_rc=$?
+  trap - EXIT INT TERM
+  set +e
+  if (( SSH_READY == 1 )) && [[ -n "$A1_PUBLIC_IP" && -n "$REMOTE_SECRETS_DIR" && "${#SSH_OPTS[@]}" -gt 0 ]]; then
     ssh "${SSH_OPTS[@]}" "ubuntu@$A1_PUBLIC_IP" \
       "find '$REMOTE_SECRETS_DIR' -type f -exec shred -u {} + 2>/dev/null || true; rm -rf '$REMOTE_SECRETS_DIR' 2>/dev/null || true" \
       >/dev/null 2>&1 || true
@@ -116,12 +177,12 @@ cleanup() {
     done
   fi
   if [[ -n "$ACTIVE_ATTACH_ID" ]]; then
-    oci compute volume-attachment detach \
-      --region "$REGION" \
-      --volume-attachment-id "$ACTIVE_ATTACH_ID" \
-      --force >/dev/null 2>&1 || true
+    if ! safe_detach_recovery_volume "exit-trap"; then
+      (( exit_rc == 0 )) && exit_rc=1
+    fi
   fi
   rm -rf "$TMP_DIR" || true
+  exit "$exit_rc"
 }
 trap cleanup EXIT INT TERM
 
@@ -165,6 +226,120 @@ IFS='|' read -r RVOL_LIFECYCLE RVOL_AD RVOL_SIZE <<<"$RVOL_STATE"
 printf 'Gate 2 Backup        : %s (state=%s)\n' "$GATE2_BACKUP_ID" "$BKP_STATE"
 printf 'Gate 2 RVol          : %s (state=%s, ad=%s, size=%sGB)\n' "$GATE2_RESTORE_VOL_ID" "$RVOL_LIFECYCLE" "$RVOL_AD" "$RVOL_SIZE"
 [[ "$BKP_STATE" == "AVAILABLE" && "$RVOL_LIFECYCLE" == "AVAILABLE" ]] || die "Gate 2 backup or restore-test volume is not AVAILABLE."
+
+# 1.3b Read-only inspection of effective OCI Subnet Security Lists & NSGs + Trusted SSH Source Resolution
+SUBNET_JSON="$(oci network subnet get --region "$REGION" --subnet-id "$SUBNET_ID")"
+printf '%s\n' "$SUBNET_JSON" >"$TMP_DIR/subnet.json"
+SUBNET_META="$(python3 - "$TMP_DIR/subnet.json" <<'PY'
+import json, sys
+d = json.loads(open(sys.argv[1], "r", encoding="utf-8").read())["data"]
+sls = ",".join(d.get("security-list-ids") or [])
+vals = [d.get("vcn-id"), d.get("cidr-block"), d.get("prohibit-public-ip-on-vnic"), sls]
+print("|".join("" if v is None else str(v) for v in vals))
+PY
+)"
+IFS='|' read -r SUBNET_VCN_ID SUBNET_CIDR SUBNET_PROHIBIT_PUB SUBNET_SL_CSV <<<"$SUBNET_META"
+printf 'Shared Subnet (RO)   : %s | vcn=%s | cidr=%s | prohibit_pub_ip=%s\n' \
+  "$SUBNET_ID" "$SUBNET_VCN_ID" "$SUBNET_CIDR" "$SUBNET_PROHIBIT_PUB"
+[[ -n "$SUBNET_SL_CSV" ]] || die "Shared subnet $SUBNET_ID returned zero security-list-ids."
+
+IFS=',' read -r -a SUBNET_SL_IDS <<<"$SUBNET_SL_CSV"
+for sl_id in "${SUBNET_SL_IDS[@]}"; do
+  SL_FILE="$TMP_DIR/sl_$(echo "$sl_id" | tr -cd 'A-Za-z0-9_-').json"
+  oci network security-list get --region "$REGION" --security-list-id "$sl_id" >"$SL_FILE"
+  python3 - "$SL_FILE" <<'PY'
+import json, sys
+d = json.loads(open(sys.argv[1], "r", encoding="utf-8").read())["data"]
+print("SecurityList (RO)    : %s (%s)" % (d.get("display-name"), d.get("id")))
+wide_ssh = False
+for r in d.get("ingress-security-rules") or []:
+    proto = str(r.get("protocol", ""))
+    src = r.get("source", "")
+    tcp = r.get("tcp-options") or {}
+    pr = tcp.get("destination-port-range") or {}
+    pmin, pmax = pr.get("min"), pr.get("max")
+    proto_lbl = {"6": "TCP", "17": "UDP", "1": "ICMP", "all": "ALL"}.get(proto, proto)
+    ports = "%s-%s" % (pmin, pmax) if pmin is not None else "ALL"
+    print("  [SL Ingress] src=%-18s proto=%-4s dport=%-11s stateless=%s" % (src, proto_lbl, ports, bool(r.get("is-stateless"))))
+    if src == "0.0.0.0/0" and proto in ("6", "all") and (pmin is None or (int(pmin) <= 22 <= int(pmax))):
+        wide_ssh = True
+if wide_ssh:
+    print("  [SL Notice] Shared production subnet Security List allows 0.0.0.0/0 -> 22/tcp at VCN layer.")
+    print("              Per preservation policy, shared subnet Security Lists are NOT modified without separate owner approval;")
+    print("              SSH source restriction is enforced directly on jobiest-a1 via cloud-init + UFW + sshd hardening.")
+PY
+done
+
+NSG_LIST_FILE="$TMP_DIR/nsgs.json"
+oci network nsg list --region "$REGION" --compartment-id "$TENANCY_ID" --vcn-id "$SUBNET_VCN_ID" --all >"$NSG_LIST_FILE"
+mapfile -t VCN_NSG_IDS < <(python3 - "$NSG_LIST_FILE" <<'PY'
+import json, sys
+s = open(sys.argv[1], "r", encoding="utf-8").read().strip()
+for n in ((json.loads(s) if s else {}).get("data") or []):
+    if n.get("lifecycle-state") not in ("TERMINATED", "TERMINATING") and n.get("id"):
+        print(n["id"])
+PY
+)
+if [[ "${#VCN_NSG_IDS[@]}" -eq 0 ]]; then
+  printf 'VCN NSGs (RO)        : 0 active NSGs in %s\n' "$SUBNET_VCN_ID"
+else
+  for nsg_id in "${VCN_NSG_IDS[@]}"; do
+    NSG_RULES_FILE="$TMP_DIR/nsg_rules_$(echo "$nsg_id" | tr -cd 'A-Za-z0-9_-').json"
+    oci network nsg rules list --region "$REGION" --nsg-id "$nsg_id" --all >"$NSG_RULES_FILE"
+    python3 - "$nsg_id" "$NSG_RULES_FILE" <<'PY'
+import json, sys
+nsg_id = sys.argv[1]
+s = open(sys.argv[2], "r", encoding="utf-8").read().strip()
+rules = [r for r in ((json.loads(s) if s else {}).get("data") or []) if r.get("direction") == "INGRESS"]
+print("VCN NSG (RO)         : %s (ingress_rules=%d)" % (nsg_id, len(rules)))
+PY
+  done
+fi
+
+RAW_SSH_CANDIDATES="$TRUSTED_SSH_CIDRS"
+if [[ -z "$RAW_SSH_CANDIDATES" ]]; then
+  for ip_probe_url in "https://checkip.amazonaws.com" "https://api.ipify.org"; do
+    DETECTED_IP="$(curl -fsS --max-time 8 "$ip_probe_url" 2>/dev/null | tr -d ' \r\n\t' || true)"
+    if [[ -n "$DETECTED_IP" ]]; then
+      RAW_SSH_CANDIDATES="$DETECTED_IP"
+      break
+    fi
+  done
+fi
+[[ -n "$RAW_SSH_CANDIDATES" ]] || \
+  die "Could not determine operator egress IP to restrict 22/tcp SSH ingress. Export TRUSTED_SSH_CIDRS='<your_ip>/32' and re-run."
+
+if ! VALIDATED_SSH_CIDRS_STR="$(python3 - "$RAW_SSH_CANDIDATES" "$ALLOW_BROAD_SSH_CIDR" <<'PY'
+import ipaddress, re, sys
+raw = sys.argv[1]
+allow_broad = sys.argv[2] == "true"
+tokens = [t.strip() for t in re.split(r"[\s,]+", raw) if t.strip()]
+if not tokens:
+    sys.exit(1)
+out = []
+for tok in tokens:
+    if "/" not in tok:
+        ip_obj = ipaddress.ip_address(tok)
+        net = ipaddress.ip_network("%s/%d" % (ip_obj, 32 if ip_obj.version == 4 else 128), strict=False)
+    else:
+        net = ipaddress.ip_network(tok, strict=False)
+    if net.prefixlen == 0 or net.is_unspecified or net.is_multicast:
+        sys.stderr.write("Refusing wildcard/unspecified SSH CIDR: %s\n" % net)
+        sys.exit(2)
+    min_prefix = 24 if net.version == 4 else 64
+    if not allow_broad and net.prefixlen < min_prefix:
+        sys.stderr.write("Refusing overly broad SSH CIDR %s (prefixlen <%d while ALLOW_BROAD_SSH_CIDR=false)\n" % (net, min_prefix))
+        sys.exit(3)
+    s = str(net)
+    if s not in out:
+        out.append(s)
+print(" ".join(out))
+PY
+)"; then
+  die "Invalid or overly broad TRUSTED_SSH_CIDRS ('$RAW_SSH_CANDIDATES'); refusing unrestricted SSH exposure."
+fi
+read -r -a VALIDATED_SSH_CIDRS <<<"$VALIDATED_SSH_CIDRS_STR"
+printf 'Trusted SSH Source(s): %s (22/tcp restricted; 80/tcp & 443/tcp remain public for Gate 4 testing)\n' "$VALIDATED_SSH_CIDRS_STR"
 
 # 1.4 Check if jobiest-a1 already exists AND enforce exact shape + 1-OCPU approval gate on reuse
 EXISTING_A1_JSON="$(oci compute instance list --region "$REGION" --compartment-id "$TENANCY_ID" --display-name "$A1_DISPLAY_NAME" --all)"
@@ -375,21 +550,53 @@ fi
 VAULT_KEY_ID="$(python3 -c 'import hashlib,hmac,sys; k=open(sys.argv[1],"rb").read().strip(); print(hmac.new(k,b"jobiest-gate2-vault-key-id-v1",hashlib.sha256).hexdigest()[:16])' "$VAULT_KEY_PRIV")"
 printf 'Vault Key Identifier : hmac-id=%s (non-reversible identifier)\n' "$VAULT_KEY_ID"
 
-# Cloud-init user-data emits exact SSH host public keys to the hypervisor serial console (/dev/console)
-cat >"$TMP_DIR/a1_userdata.yaml" <<'CLOUDINIT'
-#cloud-config
+# Cloud-init user-data hardens sshd, restricts 22/tcp to VALIDATED_SSH_CIDRS at boot, keeps 80/443 open,
+# and emits exact SSH host public keys to the hypervisor serial console (/dev/console).
+python3 - "$TMP_DIR/a1_userdata.yaml" "$VALIDATED_SSH_CIDRS_STR" <<'PY'
+import sys
+out_path, cidrs_str = sys.argv[1], sys.argv[2]
+cidrs = [c for c in cidrs_str.split() if c]
+ufw_ssh_lines = "\n".join('      ufw allow from "%s" to any port 22 proto tcp comment "Gate4-Trusted-SSH"' % c for c in cidrs)
+content = """#cloud-config
+write_files:
+  - path: /etc/ssh/sshd_config.d/99-gate4-hardening.conf
+    permissions: '0600'
+    content: |
+      PermitRootLogin no
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      ChallengeResponseAuthentication no
+      PubkeyAuthentication yes
+      MaxAuthTries 3
+      AllowUsers ubuntu
 runcmd:
   - |
+    systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true
+    while iptables -C INPUT -j REJECT --reject-with icmp-host-prohibited 2>/dev/null; do
+      iptables -D INPUT -j REJECT --reject-with icmp-host-prohibited || true
+    done
+    if command -v ufw >/dev/null 2>&1; then
+      ufw --force reset >/dev/null 2>&1 || true
+      ufw default deny incoming >/dev/null 2>&1 || true
+      ufw default allow outgoing >/dev/null 2>&1 || true
+%s
+      ufw allow 80/tcp comment "Gate4-HTTP" >/dev/null 2>&1 || true
+      ufw allow 443/tcp comment "Gate4-HTTPS" >/dev/null 2>&1 || true
+      ufw --force enable >/dev/null 2>&1 || true
+    fi
     {
       echo "===== GATE4_SSH_HOST_PUBKEYS_BEGIN ====="
       cat /etc/ssh/ssh_host_rsa_key.pub /etc/ssh/ssh_host_ecdsa_key.pub 2>/dev/null || true
       echo "===== GATE4_SSH_HOST_PUBKEYS_END ====="
     } > /dev/console
-CLOUDINIT
+""" % ufw_ssh_lines
+open(out_path, "w", encoding="utf-8").write(content)
+PY
 
 A1_INSTANCE_ID=""
 A1_AD=""
 A1_ALLOCATED_SHAPE_CFG=""
+SWEEP_NONCE="$(date -u '+%Y%m%dT%H%M%SZ')"
 
 if [[ -n "$EXISTING_A1_LINE" ]]; then
   IFS='|' read -r A1_INSTANCE_ID EX_STATE A1_AD EX_FD EX_SHAPE EX_OCPUS EX_MEM <<<"$EXISTING_A1_LINE"
@@ -494,6 +701,156 @@ print(" ".join(names))
     printf -- '------------------------------------------------------------------\n'
   }
 
+  assert_zero_live_a1_before_launch() {
+    local check_json check_cnt
+    if ! check_json="$(oci compute instance list --region "$REGION" --compartment-id "$TENANCY_ID" --display-name "$A1_DISPLAY_NAME" --all 2>"$TMP_DIR/prelaunch_check_err.txt")"; then
+      print_sweep_summary
+      die "Pre-launch reconciliation query failed ($(tr '\r\n' ' ' <"$TMP_DIR/prelaunch_check_err.txt" | head -c 220)); refusing to issue another launch request while instance state is unknown."
+    fi
+    if ! check_cnt="$(python3 -c '
+import json, sys
+s = sys.stdin.read().strip()
+items = (json.loads(s) if s else {}).get("data") or []
+live = [x for x in items if x.get("lifecycle-state") not in ("TERMINATED", "TERMINATING")]
+print(len(live))
+' <<<"$check_json")"; then
+      print_sweep_summary
+      die "Pre-launch reconciliation returned invalid JSON; refusing to issue another launch request."
+    fi
+    if (( check_cnt > 0 )); then
+      print_sweep_summary
+      die "Pre-launch guard found $check_cnt existing non-terminated $A1_DISPLAY_NAME instance(s); aborting before issuing duplicate launch."
+    fi
+  }
+
+  is_confirmed_out_of_host_capacity() {
+    local err_file="$1"
+    python3 - "$err_file" <<'PY'
+import sys
+txt = open(sys.argv[1], "r", encoding="utf-8", errors="replace").read()
+low = txt.lower()
+# Must be an explicit OCI ServiceError response reporting "Out of host capacity"
+# (never treat network timeouts, connection resets, or generic 5xx errors as capacity exhaustion).
+if "serviceerror" in low and "out of host capacity" in low:
+    sys.exit(0)
+sys.exit(1)
+PY
+  }
+
+  reconcile_non_capacity_launch_error() {
+    local expected_ad="$1"
+    local expected_fd="$2"
+    local expected_ocpus="$3"
+    local slot_key="$4"
+    local err_file="$5"
+    local short_err
+    short_err="$(tr '\r\n' ' ' <"$err_file" | head -c 220)"
+
+    printf '\n  [Reconcile] Non-capacity launch error (%s). Querying OCI for %s before any further action...\n' \
+      "$short_err" "$A1_DISPLAY_NAME"
+
+    local recon_list_json recon_ids_str
+    if ! recon_list_json="$(oci compute instance list --region "$REGION" --compartment-id "$TENANCY_ID" --display-name "$A1_DISPLAY_NAME" --all 2>"$TMP_DIR/recon_list_err.txt")"; then
+      SLOT_LAST_STATUS["$slot_key"]="ambiguous_reconcile_query_failed"
+      print_sweep_summary
+      die "Ambiguous launch outcome after error (${short_err}): reconciliation query failed ($(tr '\r\n' ' ' <"$TMP_DIR/recon_list_err.txt" | head -c 200)). Refusing further launch attempts."
+    fi
+
+    if ! recon_ids_str="$(python3 -c '
+import json, sys
+s = sys.stdin.read().strip()
+items = (json.loads(s) if s else {}).get("data") or []
+live = [x.get("id", "") for x in items if x.get("lifecycle-state") not in ("TERMINATED", "TERMINATING") and x.get("id")]
+print(" ".join(live))
+' <<<"$recon_list_json")"; then
+      SLOT_LAST_STATUS["$slot_key"]="ambiguous_reconcile_bad_json"
+      print_sweep_summary
+      die "Ambiguous launch outcome: reconciliation returned unparseable JSON; refusing further launch attempts."
+    fi
+
+    local -a recon_ids=()
+    if [[ -n "$recon_ids_str" ]]; then
+      read -r -a recon_ids <<<"$recon_ids_str"
+    fi
+
+    if [[ "${#recon_ids[@]}" -eq 0 ]]; then
+      SLOT_LAST_STATUS["$slot_key"]="aborted_non_capacity_error"
+      print_sweep_summary
+      die "Launch failed with non-capacity error (reconciled 0 live $A1_DISPLAY_NAME instances): ${short_err}. Only confirmed 'Out of host capacity' responses are retried."
+    fi
+
+    if (( ${#recon_ids[@]} > 1 )); then
+      SLOT_LAST_STATUS["$slot_key"]="aborted_duplicate_instances_detected"
+      print_sweep_summary
+      die "Reconciliation detected ${#recon_ids[@]} non-terminated $A1_DISPLAY_NAME instances (${recon_ids_str}); aborting immediately to prevent duplicate resource consumption."
+    fi
+
+    local recon_id="${recon_ids[0]}"
+    printf '  [Reconcile] Found created instance %s — waiting to verify lifecycle, shape, OCPU, RAM, AD & FD...\n' "$recon_id"
+
+    local inst_json="" inst_check=""
+    for _ in $(seq 1 30); do
+      if ! oci compute instance get --region "$REGION" --instance-id "$recon_id" >"$TMP_DIR/recon_inst.json" 2>"$TMP_DIR/recon_get_err.txt"; then
+        SLOT_LAST_STATUS["$slot_key"]="ambiguous_instance_get_failed"
+        print_sweep_summary
+        die "Ambiguous reconciliation: failed to inspect created instance $recon_id ($(tr '\r\n' ' ' <"$TMP_DIR/recon_get_err.txt" | head -c 200))."
+      fi
+      inst_check="$(python3 - "$TMP_DIR/recon_inst.json" "$expected_ad" "$expected_fd" "$expected_ocpus" <<'PY'
+import json, sys
+inst_path, exp_ad, exp_fd, exp_ocpus = sys.argv[1], sys.argv[2], sys.argv[3], float(sys.argv[4])
+d = json.loads(open(inst_path, "r", encoding="utf-8").read())["data"]
+st = d.get("lifecycle-state") or ""
+sh = d.get("shape") or ""
+ad = d.get("availability-domain") or ""
+fd = d.get("fault-domain") or ""
+sc = d.get("shape-config") or {}
+ocpus = float(sc.get("ocpus") or 0.0)
+mem = float(sc.get("memory-in-gbs") or 0.0)
+summary = "id=%s state=%s shape=%s ocpus=%s mem=%sGB ad=%s fd=%s" % (d.get("id"), st, sh, ocpus, mem, ad, fd)
+if st in ("PROVISIONING", "STARTING"):
+    print("WAIT|" + summary)
+elif st != "RUNNING":
+    print("BAD_STATE|" + summary)
+elif sh != "VM.Standard.A1.Flex" or abs(ocpus - exp_ocpus) > 0.01 or abs(mem - 12.0) > 0.01 or ad != exp_ad or fd != exp_fd:
+    print("MISMATCH|" + summary)
+else:
+    print("VERIFIED|" + summary)
+PY
+)"
+      case "${inst_check%%|*}" in
+        WAIT)
+          sleep 5
+          ;;
+        VERIFIED)
+          printf '  [Reconcile] Adopted verified instance (%s)\n' "${inst_check#*|}"
+          A1_INSTANCE_ID="$recon_id"
+          A1_AD="$expected_ad"
+          if [[ "$expected_ocpus" == "1.0" ]]; then
+            A1_ALLOCATED_SHAPE_CFG="1 OCPU / 12 GB ($expected_fd) [reconciled owner-approved fallback]"
+          else
+            A1_ALLOCATED_SHAPE_CFG="2 OCPU / 12 GB ($expected_fd) [reconciled]"
+          fi
+          SLOT_LAST_STATUS["$slot_key"]="RECONCILED_LAUNCH (${A1_ALLOCATED_SHAPE_CFG})"
+          return 0
+          ;;
+        MISMATCH)
+          SLOT_LAST_STATUS["$slot_key"]="aborted_reconciled_spec_mismatch"
+          print_sweep_summary
+          die "Reconciled instance spec mismatch (${inst_check#*|}; expected VM.Standard.A1.Flex ${expected_ocpus} OCPU / 12.0 GB in ${expected_ad}/${expected_fd}). Aborting safely."
+          ;;
+        *)
+          SLOT_LAST_STATUS["$slot_key"]="aborted_reconciled_bad_state"
+          print_sweep_summary
+          die "Reconciled instance entered unexpected state (${inst_check#*|}). Aborting safely."
+          ;;
+      esac
+    done
+
+    SLOT_LAST_STATUS["$slot_key"]="aborted_reconciled_provisioning_timeout"
+    print_sweep_summary
+    die "Reconciled instance $recon_id remained in PROVISIONING/STARTING past verification window; outcome remains ambiguous — refusing further launch attempts."
+  }
+
   for round in $(seq 1 "$A1_MAX_RETRY_ROUNDS"); do
     printf '\n[Capacity Sweep %d/%d — %s] Probing %d quota-eligible 2 OCPU / 12 GB AD/FD slot(s)%s...\n' \
       "$round" "$A1_MAX_RETRY_ROUNDS" "$(date -u '+%H:%M:%SZ')" "$ELIGIBLE_2OCPU_SLOT_COUNT" \
@@ -501,9 +858,11 @@ print(" ".join(names))
 
     for slot_key in "${SLOTS_2OCPU[@]}"; do
       IFS='|' read -r cand_ad fd <<<"$slot_key"
+      assert_zero_live_a1_before_launch
       UNIQUE_PROBED_SLOTS["$slot_key"]=1
       SLOT_ATTEMPTS["$slot_key"]=$(( ${SLOT_ATTEMPTS["$slot_key"]} + 1 ))
       TOTAL_LAUNCH_ATTEMPTS=$((TOTAL_LAUNCH_ATTEMPTS + 1))
+      RETRY_TOK="gate4-${SWEEP_NONCE}-r${round}-a${TOTAL_LAUNCH_ATTEMPTS}-2c"
 
       printf '  Trying 2 OCPU / 12 GB in %s / %s ... ' "$cand_ad" "$fd"
       if LAUNCH_OUT="$(oci compute instance launch \
@@ -519,7 +878,8 @@ print(" ".join(names))
         --assign-public-ip true \
         --boot-volume-size-in-gbs 50 \
         --ssh-authorized-keys-file "$SSH_KEY_PUB" \
-        --user-data-file "$TMP_DIR/a1_userdata.yaml" 2>"$TMP_DIR/launch_err.txt")"; then
+        --user-data-file "$TMP_DIR/a1_userdata.yaml" \
+        --opc-retry-token "$RETRY_TOK" 2>"$TMP_DIR/launch_err.txt")"; then
         A1_INSTANCE_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["data"]["id"])' <<<"$LAUNCH_OUT")"
         A1_AD="$cand_ad"
         A1_ALLOCATED_SHAPE_CFG="2 OCPU / 12 GB ($fd)"
@@ -527,14 +887,12 @@ print(" ".join(names))
         printf 'SUCCESS! (%s)\n' "$A1_INSTANCE_ID"
         break 2
       else
-        ERR_FLAT="$(tr '\r\n' ' ' <"$TMP_DIR/launch_err.txt")"
-        if [[ "$ERR_FLAT" == *"Out of host capacity"* ]]; then
+        if is_confirmed_out_of_host_capacity "$TMP_DIR/launch_err.txt"; then
           SLOT_LAST_STATUS["$slot_key"]="out_of_host_capacity (2 OCPU / 12 GB)"
           printf 'out of host capacity\n'
         else
-          SHORT_ERR="$(printf '%s' "$ERR_FLAT" | head -c 180)"
-          SLOT_LAST_STATUS["$slot_key"]="error: $SHORT_ERR"
-          printf 'error: %s\n' "$SHORT_ERR"
+          reconcile_non_capacity_launch_error "$cand_ad" "$fd" "2.0" "$slot_key" "$TMP_DIR/launch_err.txt"
+          [[ -n "$A1_INSTANCE_ID" ]] && break 2
         fi
       fi
       sleep 2
@@ -543,9 +901,11 @@ print(" ".join(names))
     if [[ -z "$A1_INSTANCE_ID" && "$ALLOW_1OCPU_FALLBACK" == "true" ]]; then
       for slot_key in "${SLOTS_1OCPU[@]}"; do
         IFS='|' read -r cand_ad fd <<<"$slot_key"
+        assert_zero_live_a1_before_launch
         UNIQUE_PROBED_SLOTS["$slot_key"]=1
         SLOT_ATTEMPTS["$slot_key"]=$(( ${SLOT_ATTEMPTS["$slot_key"]} + 1 ))
         TOTAL_LAUNCH_ATTEMPTS=$((TOTAL_LAUNCH_ATTEMPTS + 1))
+        RETRY_TOK="gate4-${SWEEP_NONCE}-r${round}-a${TOTAL_LAUNCH_ATTEMPTS}-1c"
 
         printf '  Trying approved fallback 1 OCPU / 12 GB in %s / %s ... ' "$cand_ad" "$fd"
         if LAUNCH_OUT="$(oci compute instance launch \
@@ -561,7 +921,8 @@ print(" ".join(names))
           --assign-public-ip true \
           --boot-volume-size-in-gbs 50 \
           --ssh-authorized-keys-file "$SSH_KEY_PUB" \
-          --user-data-file "$TMP_DIR/a1_userdata.yaml" 2>"$TMP_DIR/launch_err.txt")"; then
+          --user-data-file "$TMP_DIR/a1_userdata.yaml" \
+          --opc-retry-token "$RETRY_TOK" 2>"$TMP_DIR/launch_err.txt")"; then
           A1_INSTANCE_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["data"]["id"])' <<<"$LAUNCH_OUT")"
           A1_AD="$cand_ad"
           A1_ALLOCATED_SHAPE_CFG="1 OCPU / 12 GB ($fd) [owner-approved fallback]"
@@ -569,14 +930,12 @@ print(" ".join(names))
           printf 'SUCCESS! (%s)\n' "$A1_INSTANCE_ID"
           break 2
         else
-          ERR_FLAT="$(tr '\r\n' ' ' <"$TMP_DIR/launch_err.txt")"
-          if [[ "$ERR_FLAT" == *"Out of host capacity"* ]]; then
+          if is_confirmed_out_of_host_capacity "$TMP_DIR/launch_err.txt"; then
             SLOT_LAST_STATUS["$slot_key"]="out_of_host_capacity (1 OCPU / 12 GB)"
             printf 'out of host capacity\n'
           else
-            SHORT_ERR="$(printf '%s' "$ERR_FLAT" | head -c 180)"
-            SLOT_LAST_STATUS["$slot_key"]="error: $SHORT_ERR"
-            printf 'error: %s\n' "$SHORT_ERR"
+            reconcile_non_capacity_launch_error "$cand_ad" "$fd" "1.0" "$slot_key" "$TMP_DIR/launch_err.txt"
+            [[ -n "$A1_INSTANCE_ID" ]] && break 2
           fi
         fi
         sleep 2
@@ -796,6 +1155,8 @@ if [[ "$A1_AD" == "$RVOL_AD" ]]; then
     die "Read-only attachment (--is-read-only true) of retained Gate 2 recovery volume ($GATE2_RESTORE_VOL_ID) failed: ${ATTACH_ERR}. Refusing to attach writable."
   fi
   ACTIVE_ATTACH_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["data"]["id"])' <<<"$ATTACH_OUT")"
+  ACTIVE_ATTACH_VOL_ID="$GATE2_RESTORE_VOL_ID"
+  REMOTE_RECOVERY_UNMOUNT_CONFIRMED="true"
   RECOVERY_VOL_TO_ATTACH="$GATE2_RESTORE_VOL_ID"
 else
   printf 'A1 is in %s while retained restore-test volume is in %s (untouched); preparing cross-AD read-only recovery volume from Gate 2 backup...\n' \
@@ -832,6 +1193,8 @@ else
     die "Read-only attachment (--is-read-only true) of cross-AD recovery volume ($EXISTING_BV_COPY) failed: ${ATTACH_ERR}. Refusing to attach writable."
   fi
   ACTIVE_ATTACH_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["data"]["id"])' <<<"$ATTACH_OUT")"
+  ACTIVE_ATTACH_VOL_ID="$EXISTING_BV_COPY"
+  REMOTE_RECOVERY_UNMOUNT_CONFIRMED="true"
   RECOVERY_VOL_TO_ATTACH="$EXISTING_BV_COPY"
 fi
 
@@ -897,6 +1260,11 @@ printf 'url = "%s"\n' "$PAR1_FULL" | ssh "${SSH_OPTS[@]}" "ubuntu@$A1_PUBLIC_IP"
 printf 'url = "%s"\n' "$PAR2_FULL" | ssh "${SSH_OPTS[@]}" "ubuntu@$A1_PUBLIC_IP" "umask 077 && cat > '${REMOTE_SECRETS_DIR}/par2.curl' && chmod 600 '${REMOTE_SECRETS_DIR}/par2.curl'"
 PAR1_FULL=""
 PAR2_FULL=""
+
+# Mark remote mount state as unconfirmed BEFORE mounting /mnt/e5_recovery so cleanup() NEVER
+# detaches the volume unless unmount is explicitly verified on the remote guest.
+REMOTE_RECOVERY_UNMOUNT_CONFIRMED="false"
+SEED_LOG="$TMP_DIR/remote_seed.log"
 
 {
   printf 'REMOTE_SECRETS_DIR=%q\n' "$REMOTE_SECRETS_DIR"
@@ -1260,12 +1628,19 @@ fi
 sudo du -sh /var/lib/docker/volumes/oci_ollama/_data/models 2>/dev/null || true
 
 sudo umount /mnt/e5_recovery
+if mountpoint -q /mnt/e5_recovery || grep -Eq '[[:space:]]/mnt/e5_recovery([[:space:]]|$)' /proc/mounts; then
+  echo "FATAL: /mnt/e5_recovery still appears mounted after umount!"; exit 1
+fi
 cleanup_seed
 trap - EXIT
+echo "GATE4_UNMOUNT_CONFIRMED_CLEAN"
 echo "Unmounted /mnt/e5_recovery and shredded RAM staging directory cleanly."
 REMOTE_SEED
-} | ssh "${SSH_OPTS[@]}" "ubuntu@$A1_PUBLIC_IP" 'bash -s'
+} | ssh "${SSH_OPTS[@]}" "ubuntu@$A1_PUBLIC_IP" 'bash -s' | tee "$SEED_LOG"
 REMOTE_SECRETS_DIR=""
+if grep -Fq "GATE4_UNMOUNT_CONFIRMED_CLEAN" "$SEED_LOG"; then
+  REMOTE_RECOVERY_UNMOUNT_CONFIRMED="true"
+fi
 
 # Immediately revoke temporary PARs and verify encrypted vault objects
 for par_id in "${ACTIVE_PAR_IDS[@]}"; do
@@ -1281,24 +1656,21 @@ printf 'Revoked temporary Object Storage PARs. Encrypted vault objects verified:
 oci os object list --region "$REGION" --namespace-name "$ACTIVE_NS" --bucket-name "$VAULT_BUCKET" \
   --query 'data[].{name:name,size:size,created:"time-created"}' --output table
 
-# Detach the read-only volume attachment cleanly (retaining volume AVAILABLE)
-printf 'Detaching read-only volume attachment %s from %s...\n' "$ACTIVE_ATTACH_ID" "$A1_DISPLAY_NAME"
-oci compute volume-attachment detach --region "$REGION" --volume-attachment-id "$ACTIVE_ATTACH_ID" --force >/dev/null
-for _ in $(seq 1 25); do
-  AST="$(oci compute volume-attachment get --region "$REGION" --volume-attachment-id "$ACTIVE_ATTACH_ID" --query 'data."lifecycle-state"' --raw-output)"
-  [[ "$AST" == "DETACHED" ]] && break
-  sleep 3
-done
-[[ "$AST" == "DETACHED" ]] || die "Recovery volume did not reach DETACHED within timeout (state=$AST)."
-printf 'Read-only recovery volume detached (%s); volume remains AVAILABLE and intact.\n' "$AST"
-ACTIVE_ATTACH_ID=""
+# Detach the read-only volume attachment ONLY after remote unmount is confirmed
+printf 'Detaching verified-unmounted read-only volume attachment %s from %s...\n' "$ACTIVE_ATTACH_ID" "$A1_DISPLAY_NAME"
+if ! safe_detach_recovery_volume "phase4"; then
+  die "Refused to detach recovery volume attachment while remote mount state was unconfirmed."
+fi
+printf 'Read-only recovery volume detached (DETACHED); volume remains AVAILABLE and intact.\n'
 
 # ------------------------------------------------------------------------------
 # PHASE 5: CONFIGURE HOST FIREWALL & BUILD/START ARM64 STACK ON jobiest-a1
 # ------------------------------------------------------------------------------
-banner "PHASE 5 — HARDEN UFW/IPTABLES & DEPLOY ISOLATED ARM64 STACK ON jobiest-a1"
+banner "PHASE 5 — HARDEN UFW/IPTABLES (RESTRICTED SSH) & DEPLOY ISOLATED ARM64 STACK ON jobiest-a1"
 
-ssh "${SSH_OPTS[@]}" "ubuntu@$A1_PUBLIC_IP" 'bash -s' <<'REMOTE_DEPLOY'
+{
+  printf 'VALIDATED_SSH_CIDRS_STR=%q\n' "$VALIDATED_SSH_CIDRS_STR"
+  cat <<'REMOTE_DEPLOY'
 set -euo pipefail
 
 # Clean OCI Ubuntu default iptables INPUT/FORWARD icmp-host-prohibited rules that block 80/443 ahead of UFW/Docker
@@ -1312,10 +1684,31 @@ if [[ -f /etc/iptables/rules.v4 ]]; then
   sudo sed -i '/icmp-host-prohibited/d' /etc/iptables/rules.v4 || true
 fi
 
+sudo install -m 0600 /dev/stdin /etc/ssh/sshd_config.d/99-gate4-hardening.conf <<'SSHD_EOF'
+PermitRootLogin no
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+ChallengeResponseAuthentication no
+PubkeyAuthentication yes
+MaxAuthTries 3
+AllowUsers ubuntu
+SSHD_EOF
+sudo sshd -t
+sudo systemctl reload ssh 2>/dev/null || sudo systemctl reload sshd
+
 sudo ufw --force reset >/dev/null
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
-sudo ufw allow 22/tcp comment 'SSH'
+read -r -a SSH_CIDR_LIST <<<"$VALIDATED_SSH_CIDRS_STR"
+(( ${#SSH_CIDR_LIST[@]} > 0 )) || { echo "FATAL: Empty VALIDATED_SSH_CIDRS_STR"; exit 1; }
+for ssh_cidr in "${SSH_CIDR_LIST[@]}"; do
+  sudo ufw allow from "$ssh_cidr" to any port 22 proto tcp comment 'Gate4-Trusted-SSH'
+done
+# Also ensure the active verified SSH peer IP (/32) is included if NAT shifted within session
+ACTIVE_PEER_IP="${SSH_CONNECTION%% *}"
+if [[ -n "$ACTIVE_PEER_IP" && "$ACTIVE_PEER_IP" != *:* ]]; then
+  sudo ufw allow from "${ACTIVE_PEER_IP}/32" to any port 22 proto tcp comment 'Gate4-Active-Operator-IP'
+fi
 sudo ufw allow 80/tcp comment 'Caddy HTTP'
 sudo ufw allow 443/tcp comment 'Caddy HTTPS'
 sudo ufw --force enable
@@ -1371,10 +1764,25 @@ sudo test -s "$CADDY_LOCAL_ROOT" || { echo "FATAL: Caddy local PKI root.crt not 
 sudo cp "$CADDY_LOCAL_ROOT" /tmp/gate4_caddy_root.crt
 sudo chmod 644 /tmp/gate4_caddy_root.crt
 
-echo "=== HOST FIREWALL & SOCKET EXPOSURE ASSERTIONS ==="
+echo "=== HOST FIREWALL, RESTRICTED SSH & SOCKET EXPOSURE ASSERTIONS ==="
 UFW_OUT="$(sudo ufw status verbose)"
 echo "$UFW_OUT"
 echo "$UFW_OUT" | grep -Fq "Status: active" || { echo "FATAL: UFW is not active!"; exit 1; }
+python3 - "$UFW_OUT" <<'PY'
+import re, sys
+txt = sys.argv[1]
+ssh_lines = [ln.strip() for ln in txt.splitlines() if re.match(r"^22/tcp\b", ln.strip())]
+if not ssh_lines:
+    raise SystemExit("FATAL: Expected source-restricted 22/tcp rule in UFW, found none")
+for ln in ssh_lines:
+    if "Anywhere" in ln or "0.0.0.0/0" in ln or "::/0" in ln:
+        raise SystemExit("FATAL: Unrestricted 22/tcp UFW rule detected: %s" % ln)
+if not any(re.match(r"^80/tcp\b.*ALLOW IN", ln.strip()) for ln in txt.splitlines()):
+    raise SystemExit("FATAL: Expected 80/tcp ALLOW IN rule in UFW")
+if not any(re.match(r"^443/tcp\b.*ALLOW IN", ln.strip()) for ln in txt.splitlines()):
+    raise SystemExit("FATAL: Expected 443/tcp ALLOW IN rule in UFW")
+print("  [PASS] UFW 22/tcp strictly source-restricted (%d rule(s)); 80/tcp & 443/tcp open; 0 unrestricted SSH rules." % len(ssh_lines))
+PY
 
 LISTEN_OUT="$(sudo ss -tln)"
 echo "$LISTEN_OUT"
@@ -1384,6 +1792,7 @@ for internal_port in 8081 8082 8083 11434; do
   fi
 done
 REMOTE_DEPLOY
+} | ssh "${SSH_OPTS[@]}" "ubuntu@$A1_PUBLIC_IP" 'bash -s'
 
 # Fetch public Caddy local-PKI root certificate to Cloud Shell for strict external TLS verification
 A1_CA_CERT="$TMP_DIR/a1_gate4_root.crt"
@@ -1517,52 +1926,65 @@ ssrf_json = json.loads(body)
 assert st == "200" and ssrf_json.get("outcome") == "STOP" and ssrf_json.get("code") == "POLICY_RESTRICTED" and ssrf_json.get("message") == "SSRF_BLOCKED", \
     "SSRF guard assertion failed: status=%s body=%s" % (st, body)
 
-print("3. [Browser Worker REAL ARM64 Chromium Launch + PDF Materialize + Greenhouse DOM Check (Zero-Submit name=null)]")
+print("3. [Browser Worker REAL ARM64 Chromium Launch + Server-Enforced navigationOnly=true Zero-Submit Test]")
 print("   Target: %s" % gh_url)
 st, body, dt = call_https(worker_dom, "/submit", worker_secret, {
     "jobUrl": gh_url,
     "allowedDomains": ["greenhouse.io", "boards.greenhouse.io", "job-boards.greenhouse.io"],
+    "navigationOnly": True,
     "candidate": {
         "jobUrl": gh_url,
         "company": "Gate4 Audit",
-        "title": "ARM64 Probe",
-        "email": "",
-        "name": None,
-        "phone": None,
-        "cvPath": None,
-        "cvDownloadUrl": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-        "coverLetter": None,
-        "answers": []
-    }
-}, timeout=120)
-print("   HTTP %s (%.2fs) -> %s" % (st, dt, body[:260]))
-bw_json = json.loads(body)
-assert st == "200", "Browser worker live Greenhouse probe returned HTTP %s (expected 200): %s" % (st, body)
-assert bw_json.get("outcome") == "STOP", "Expected safe zero-submit outcome=STOP, got %r" % (bw_json,)
-assert bw_json.get("code") not in (None, "POLICY_RESTRICTED", "UNSUPPORTED_PLATFORM"), \
-    "Expected post-navigation DOM stop code (proving Chromium launched and loaded page), got %r" % (bw_json,)
-
-print("4. [API Gateway /v1/submit -> Internal Worker Hop Assertion]")
-st, body, dt = call_https(api_dom, "/v1/submit", api_key, {
-    "jobUrl": gh_url,
-    "candidate": {
-        "jobUrl": gh_url,
-        "company": "Gate4 API Audit",
-        "title": "Gateway Probe",
-        "email": "",
-        "name": None,
+        "title": "ARM64 Navigation Probe",
+        "email": "gate4-probe@jobiest.internal",
+        "name": "Gate4 Probe Candidate",
         "phone": None,
         "cvPath": None,
         "cvDownloadUrl": None,
-        "coverLetter": None,
+        "coverLetter": "Server-enforced navigationOnly=true must block all form fill and submission.",
         "answers": []
     }
 }, timeout=120)
-print("   HTTP %s (%.2fs) -> %s" % (st, dt, body[:260]))
+print("   HTTP %s (%.2fs) -> %s" % (st, dt, body[:320]))
+bw_json = json.loads(body)
+assert st == "200", "Browser worker live Greenhouse probe returned HTTP %s (expected 200): %s" % (st, body)
+assert bw_json.get("outcome") == "STOP", "Expected outcome=STOP in navigationOnly mode, got %r" % (bw_json,)
+assert bw_json.get("navigationOnly") is True, "Worker did not confirm navigationOnly=True: %r" % (bw_json,)
+assert bw_json.get("navigated") is True and str(bw_json.get("navigatedUrl") or "").startswith("https://"), \
+    "Expected real Chromium navigation (navigated=True, https URL), got %r" % (bw_json,)
+assert bw_json.get("submissionAttempted") is False and bw_json.get("mutationAttempted") is False, \
+    "CRITICAL: Submission or form mutation was attempted during navigationOnly probe: %r" % (bw_json,)
+assert bw_json.get("message") not in ("SSRF_BLOCKED", "DOMAIN_NOT_ALLOWLISTED", "UNSUPPORTED_URL_SCHEME") and bw_json.get("code") != "UNSUPPORTED_PLATFORM", \
+    "Expected post-navigation server-enforced stop (not pre-launch rejection), got %r" % (bw_json,)
+
+print("4. [API Gateway /v1/submit -> Internal Worker Hop (Server-Enforced navigationOnly=true Zero-Submit Assertion)]")
+st, body, dt = call_https(api_dom, "/v1/submit", api_key, {
+    "jobUrl": gh_url,
+    "navigationOnly": True,
+    "candidate": {
+        "jobUrl": gh_url,
+        "company": "Gate4 API Audit",
+        "title": "Gateway Navigation Probe",
+        "email": "gate4-api-probe@jobiest.internal",
+        "name": "Gate4 API Candidate",
+        "phone": None,
+        "cvPath": None,
+        "cvDownloadUrl": None,
+        "coverLetter": "API gateway must forward navigationOnly=true and assert zero submission.",
+        "answers": []
+    }
+}, timeout=120)
+print("   HTTP %s (%.2fs) -> %s" % (st, dt, body[:320]))
 api_json = json.loads(body)
 assert st == "200", "API gateway /v1/submit returned HTTP %s (expected 200): %s" % (st, body)
-assert api_json.get("outcome") == "STOP" and api_json.get("code") not in (None, "POLICY_RESTRICTED", "UNSUPPORTED_PLATFORM"), \
-    "API gateway -> worker hop did not produce expected post-navigation STOP outcome: %r" % (api_json,)
+assert api_json.get("outcome") == "STOP", "API gateway expected outcome=STOP, got %r" % (api_json,)
+assert api_json.get("navigationOnly") is True, "API gateway did not preserve navigationOnly=True: %r" % (api_json,)
+assert api_json.get("navigated") is True and str(api_json.get("navigatedUrl") or "").startswith("https://"), \
+    "API gateway -> worker hop did not complete real Chromium navigation: %r" % (api_json,)
+assert api_json.get("submissionAttempted") is False and api_json.get("mutationAttempted") is False, \
+    "CRITICAL: Submission or form mutation attempted on API-to-worker test: %r" % (api_json,)
+assert api_json.get("message") not in ("SSRF_BLOCKED", "DOMAIN_NOT_ALLOWLISTED", "UNSUPPORTED_URL_SCHEME") and api_json.get("code") != "UNSUPPORTED_PLATFORM", \
+    "API gateway -> worker hop returned pre-launch rejection instead of post-navigation stop: %r" % (api_json,)
 
 for model in ("llama3.2:3b", "qwen2.5:7b"):
     print("5. [AI Gateway /api/chat -> Ollama ARM64 Strict READY Assertion (%s)]" % model)
