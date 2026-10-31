@@ -234,36 +234,74 @@ fi
 
 A1_INSTANCE_ID=""
 A1_AD=""
+A1_ALLOCATED_SHAPE_CFG=""
+A1_MAX_RETRY_ROUNDS="${A1_MAX_RETRY_ROUNDS:-30}"
+A1_RETRY_SLEEP_SEC="${A1_RETRY_SLEEP_SEC:-45}"
+
 if [[ -n "$EXISTING_A1_LINE" ]]; then
   IFS='|' read -r A1_INSTANCE_ID A1_STATE A1_AD A1_SHAPE <<<"$EXISTING_A1_LINE"
   printf 'Found existing %s: id=%s state=%s ad=%s shape=%s\n' "$A1_DISPLAY_NAME" "$A1_INSTANCE_ID" "$A1_STATE" "$A1_AD" "$A1_SHAPE"
 else
-  for attempt in 1 2; do
-    for cand_ad in "${CANDIDATE_ADS[@]}"; do
-      printf 'Attempting launch of %s (VM.Standard.A1.Flex 2 OCPU / 12 GB / 50 GB) in %s (pass %d)...\n' "$A1_DISPLAY_NAME" "$cand_ad" "$attempt"
-      if LAUNCH_OUT="$(oci compute instance launch \
-        --region "$REGION" \
-        --compartment-id "$TENANCY_ID" \
-        --availability-domain "$cand_ad" \
-        --display-name "$A1_DISPLAY_NAME" \
-        --shape "VM.Standard.A1.Flex" \
-        --shape-config '{"ocpus": 2.0, "memoryInGBs": 12.0}' \
-        --image-id "$A1_IMAGE_ID" \
-        --subnet-id "$SUBNET_ID" \
-        --assign-public-ip true \
-        --boot-volume-size-in-gbs 50 \
-        --ssh-authorized-keys-file "$SSH_KEY_PUB" 2>"$TMP_DIR/launch_err.txt")"; then
-        A1_INSTANCE_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["data"]["id"])' <<<"$LAUNCH_OUT")"
-        A1_AD="$cand_ad"
-        printf 'Launched %s in %s: %s\n' "$A1_DISPLAY_NAME" "$A1_AD" "$A1_INSTANCE_ID"
-        break 2
-      else
-        printf '  Launch attempt in %s failed: %s\n' "$cand_ad" "$(tr '\r\n' ' ' <"$TMP_DIR/launch_err.txt" | head -c 260)"
-      fi
-    done
-    sleep 4
+  # Enumerate Fault Domains per AD so we probe all 9 (AD x Fault-Domain) placement slots,
+  # rather than letting OCI's default placement retry the same congested fault domain.
+  declare -A AD_FDS=()
+  for cand_ad in "${CANDIDATE_ADS[@]}"; do
+    FD_FILE="$TMP_DIR/fds_$(echo "$cand_ad" | tr -cd 'A-Za-z0-9_-').json"
+    oci iam fault-domain list --region "$REGION" --compartment-id "$TENANCY_ID" --availability-domain "$cand_ad" >"$FD_FILE" 2>/dev/null || true
+    FDS_STR="$(python3 -c 'import json,sys; s=open(sys.argv[1],"r",encoding="utf-8").read().strip(); names=[x["name"] for x in ((json.loads(s) if s else {}).get("data") or []) if x.get("name")]; print(" ".join(names) if names else "FAULT-DOMAIN-1 FAULT-DOMAIN-2 FAULT-DOMAIN-3")' "$FD_FILE")"
+    AD_FDS["$cand_ad"]="$FDS_STR"
+    printf 'FaultDomains [%s]: %s\n' "$cand_ad" "$FDS_STR"
   done
-  [[ -n "$A1_INSTANCE_ID" ]] || die "Could not launch VM.Standard.A1.Flex in any AD (transient OCI ARM host capacity). Existing E5 remains 100% untouched."
+
+  SHAPE_CANDIDATES=(
+    '2 OCPU / 12 GB|{"ocpus": 2.0, "memoryInGBs": 12.0}'
+    '1 OCPU / 12 GB|{"ocpus": 1.0, "memoryInGBs": 12.0}'
+  )
+
+  for round in $(seq 1 "$A1_MAX_RETRY_ROUNDS"); do
+    printf '\n[Capacity Sweep %d/%d — %s] Probing all AD x Fault-Domain slots (2 OCPU/12 GB first, then 1 OCPU/12 GB)...\n' \
+      "$round" "$A1_MAX_RETRY_ROUNDS" "$(date -u '+%H:%M:%SZ')"
+    for shape_entry in "${SHAPE_CANDIDATES[@]}"; do
+      IFS='|' read -r SHAPE_LABEL SHAPE_CFG_JSON <<<"$shape_entry"
+      for cand_ad in "${CANDIDATE_ADS[@]}"; do
+        for fd in ${AD_FDS["$cand_ad"]}; do
+          printf '  Trying %s in %s / %s ... ' "$SHAPE_LABEL" "${cand_ad##*-}" "$fd"
+          if LAUNCH_OUT="$(oci compute instance launch \
+            --region "$REGION" \
+            --compartment-id "$TENANCY_ID" \
+            --availability-domain "$cand_ad" \
+            --fault-domain "$fd" \
+            --display-name "$A1_DISPLAY_NAME" \
+            --shape "VM.Standard.A1.Flex" \
+            --shape-config "$SHAPE_CFG_JSON" \
+            --image-id "$A1_IMAGE_ID" \
+            --subnet-id "$SUBNET_ID" \
+            --assign-public-ip true \
+            --boot-volume-size-in-gbs 50 \
+            --ssh-authorized-keys-file "$SSH_KEY_PUB" 2>"$TMP_DIR/launch_err.txt")"; then
+            A1_INSTANCE_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["data"]["id"])' <<<"$LAUNCH_OUT")"
+            A1_AD="$cand_ad"
+            A1_ALLOCATED_SHAPE_CFG="$SHAPE_LABEL ($fd)"
+            printf 'SUCCESS! (%s)\n' "$A1_INSTANCE_ID"
+            break 4
+          else
+            ERR_FLAT="$(tr '\r\n' ' ' <"$TMP_DIR/launch_err.txt")"
+            if [[ "$ERR_FLAT" == *"Out of host capacity"* ]]; then
+              printf 'out of capacity\n'
+            else
+              printf 'error: %s\n' "$(printf '%s' "$ERR_FLAT" | head -c 220)"
+            fi
+          fi
+          sleep 2
+        done
+      done
+    done
+    if (( round < A1_MAX_RETRY_ROUNDS )); then
+      printf 'All 9 Fault Domains currently full in Free-Tier Ampere pool; sleeping %ds before next sweep (Ctrl+C safe; E5 untouched)...\n' "$A1_RETRY_SLEEP_SEC"
+      sleep "$A1_RETRY_SLEEP_SEC"
+    fi
+  done
+  [[ -n "$A1_INSTANCE_ID" ]] || die "OCI Free-Tier Ampere pool in $REGION remained at 100% host capacity across $A1_MAX_RETRY_ROUNDS sweeps. Re-run anytime or see PAYG $0-Always-Free pool option. Existing E5 remains 100% untouched."
 fi
 
 printf 'Waiting for %s (%s) to reach RUNNING state...\n' "$A1_DISPLAY_NAME" "$A1_INSTANCE_ID"
@@ -283,8 +321,8 @@ IFS='|' read -r A1_VNIC_ID A1_PRIVATE_IP A1_PUBLIC_IP <<<"$VNIC_LINE"
 A1_BVA_JSON="$(oci compute boot-volume-attachment list --region "$REGION" --compartment-id "$TENANCY_ID" --availability-domain "$A1_AD" --instance-id "$A1_INSTANCE_ID")"
 A1_BOOT_VOL_ID="$(python3 -c 'import json,sys; d=[x for x in json.loads(sys.stdin.read())["data"] if x["lifecycle-state"]=="ATTACHED"][0]; print(d["boot-volume-id"])' <<<"$A1_BVA_JSON")"
 
-printf 'A1 Instance  : %s\nA1 AD        : %s\nA1 VNIC      : %s\nA1 Private IP: %s\nA1 Ephem IP  : %s (Ephemeral test IP; Reserved IP 147.224.218.163 stays on jobiest-ai)\nA1 Boot Vol  : %s\n' \
-  "$A1_INSTANCE_ID" "$A1_AD" "$A1_VNIC_ID" "$A1_PRIVATE_IP" "$A1_PUBLIC_IP" "$A1_BOOT_VOL_ID"
+printf 'A1 Instance  : %s\nA1 Shape/FD  : %s\nA1 AD        : %s\nA1 VNIC      : %s\nA1 Private IP: %s\nA1 Ephem IP  : %s (Ephemeral test IP; Reserved IP 147.224.218.163 stays on jobiest-ai)\nA1 Boot Vol  : %s\n' \
+  "$A1_INSTANCE_ID" "${A1_ALLOCATED_SHAPE_CFG:-existing}" "$A1_AD" "$A1_VNIC_ID" "$A1_PRIVATE_IP" "$A1_PUBLIC_IP" "$A1_BOOT_VOL_ID"
 
 [[ -n "$A1_PUBLIC_IP" ]] || die "No ephemeral public IP found on jobiest-a1 VNIC."
 
