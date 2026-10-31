@@ -14,6 +14,14 @@ export interface SubmitBody {
   jobUrl: string;
   allowedDomains: string[];
   candidate: ApplyCandidate;
+  /**
+   * When true, enforces server-side zero-submit navigation-only validation:
+   * - skips CV download/materialization,
+   * - aborts any non-GET/HEAD/OPTIONS network request in Chromium (`POST`, `PUT`, `PATCH`, `DELETE`),
+   * - blocks all `ApplyPage` mutators (`fill`, `check`, `click`, `setInputFiles`, `selectOption`),
+   * - halts `runApply` after DOM signal inspection without invoking `adapter.apply`.
+   */
+  navigationOnly?: boolean;
 }
 
 export interface BrowserWorkerDeps {
@@ -31,30 +39,50 @@ const POLICY_ERRORS = new Set([
 ]);
 
 /** Bind a Playwright page to ApplyPage while tracking whether submit was clicked. */
-function bindPage(page: Page, onSubmitClick: () => void): ApplyPage {
+function bindPage(
+  page: Page,
+  opts: {
+    navigationOnly: boolean;
+    onNavigate: () => void;
+    onMutationAttempt: () => void;
+    onSubmitClick: () => void;
+  },
+): ApplyPage {
+  const guardMutation = () => {
+    if (opts.navigationOnly) {
+      opts.onMutationAttempt();
+      throw new Error('NAVIGATION_ONLY_MUTATION_BLOCKED');
+    }
+  };
   return {
     url: () => page.url(),
     title: async () => await page.title(),
     content: async () => await page.content(),
     has: async (sel) => (await page.locator(sel).count()) > 0,
     fill: async (sel, val) => {
+      guardMutation();
       await page.locator(sel).first().fill(val);
     },
     check: async (sel) => {
+      guardMutation();
       await page.locator(sel).first().check();
     },
     click: async (sel) => {
-      onSubmitClick();
+      guardMutation();
+      opts.onSubmitClick();
       await page.locator(sel).first().click({ timeout: 15_000 });
     },
     setInputFiles: async (sel, files) => {
+      guardMutation();
       await page.locator(sel).first().setInputFiles(files);
     },
     selectOption: async (sel, val) => {
+      guardMutation();
       await page.locator(sel).first().selectOption(val);
     },
     goto: async (url) => {
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      opts.onNavigate();
     },
   };
 }
@@ -146,7 +174,8 @@ export function createBrowserWorkerServer(deps: BrowserWorkerDeps = {}): http.Se
         !body.jobUrl ||
         !body.candidate ||
         typeof body.candidate !== 'object' ||
-        !Array.isArray(body.allowedDomains)
+        !Array.isArray(body.allowedDomains) ||
+        (body.navigationOnly !== undefined && typeof body.navigationOnly !== 'boolean')
       ) {
         sendJson(res, 400, {
           outcome: 'STOP',
@@ -155,6 +184,8 @@ export function createBrowserWorkerServer(deps: BrowserWorkerDeps = {}): http.Se
         });
         return;
       }
+
+      const navigationOnly = body.navigationOnly === true;
 
       // 1. Pre-flight SSRF & domain allowlist check BEFORE launching Chromium.
       try {
@@ -180,14 +211,17 @@ export function createBrowserWorkerServer(deps: BrowserWorkerDeps = {}): http.Se
         return;
       }
 
-      const cvPath = await materializeCv(body.candidate.cvDownloadUrl);
+      const cvPath = navigationOnly ? null : await materializeCv(body.candidate.cvDownloadUrl);
       const candidate: ApplyCandidate = {
         ...body.candidate,
-        cvPath: cvPath ?? body.candidate.cvPath,
+        cvPath: navigationOnly ? null : (cvPath ?? body.candidate.cvPath),
       };
 
       let browser: Browser | null = null;
       let submitClicked = false;
+      let mutationAttempted = false;
+      let navigated = false;
+      let blockedWriteRequests = 0;
       try {
         let page: Page;
         try {
@@ -196,6 +230,13 @@ export function createBrowserWorkerServer(deps: BrowserWorkerDeps = {}): http.Se
           page = await context.newPage();
           await page.route('**/*', async (route) => {
             const request = route.request();
+            if (navigationOnly) {
+              const method = request.method().toUpperCase();
+              if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+                blockedWriteRequests += 1;
+                return route.abort('blockedbyclient');
+              }
+            }
             if (request.isNavigationRequest()) {
               try {
                 await assertSafeNavigation(request.url(), body.allowedDomains, lookup);
@@ -219,13 +260,47 @@ export function createBrowserWorkerServer(deps: BrowserWorkerDeps = {}): http.Se
 
         try {
           const outcome: ApplyOutcome = await runApply(
-            bindPage(page, () => {
-              submitClicked = true;
+            bindPage(page, {
+              navigationOnly,
+              onNavigate: () => {
+                navigated = true;
+              },
+              onMutationAttempt: () => {
+                mutationAttempted = true;
+              },
+              onSubmitClick: () => {
+                submitClicked = true;
+              },
             }),
             candidate,
             adapter,
-            lookup ? { assertSafe: (u, allowed) => assertSafeNavigation(u, allowed, lookup) } : {},
+            {
+              ...(lookup ? { assertSafe: (u, allowed) => assertSafeNavigation(u, allowed, lookup) } : {}),
+              navigationOnly,
+            },
           );
+          if (navigationOnly) {
+            if (submitClicked || mutationAttempted) {
+              sendJson(res, 500, {
+                error: 'NAVIGATION_ONLY_INVARIANT_VIOLATION',
+                retryable: false,
+                submissionAttempted: submitClicked,
+                mutationAttempted,
+              });
+              return;
+            }
+            sendJson(res, 200, {
+              ...outcome,
+              navigationOnly: true,
+              navigated,
+              navigatedUrl: page.url(),
+              adapterId: adapter.id,
+              submissionAttempted: false,
+              mutationAttempted: false,
+              blockedWriteRequests,
+            });
+            return;
+          }
           sendJson(res, 200, outcome);
           return;
         } catch (runErr) {

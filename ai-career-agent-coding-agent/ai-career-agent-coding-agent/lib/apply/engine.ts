@@ -13,6 +13,13 @@ import type { ApplyCandidate, ApplyOutcome, ApplyPage, SiteApplyAdapter } from '
 
 export interface EngineDeps {
   assertSafe?: (raw: string, allowed: string[]) => Promise<URL>;
+  /**
+   * Server-enforced zero-submit validation mode. Navigates to the allowlisted
+   * ATS URL and runs real DOM signal inspection, then terminates with STOP
+   * before invoking `adapter.apply` so form mutation and submission are
+   * structurally unreachable.
+   */
+  navigationOnly?: boolean;
 }
 
 export async function runApply(
@@ -30,6 +37,14 @@ export async function runApply(
   // 2. Initial stop scan (CAPTCHA / anti-bot / auth / unsupported form).
   const stops = detectStopConditions(await readSignals(page));
   if (stops.length) return { outcome: 'STOP', code: stops[0], message: messageForStop(stops[0]) };
+
+  if (deps.navigationOnly === true) {
+    return {
+      outcome: 'STOP',
+      code: 'POLICY_RESTRICTED',
+      message: 'NAVIGATION_ONLY_VERIFIED',
+    };
+  }
 
   // 3. Delegate to the site adapter (it re-checks before the final click).
   return adapter.apply(page, candidate);

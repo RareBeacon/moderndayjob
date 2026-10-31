@@ -130,4 +130,44 @@ describe('API gateway (Oracle Always Free)', () => {
     const res = await fetch(`${base}/nope`);
     expect(res.status).toBe(404);
   });
+
+  it('forwards navigationOnly=true to the worker and rejects non-boolean navigationOnly', async () => {
+    const gw = createApiServer({
+      apiKeys: ['nav-key'],
+      workerUrl,
+      workerSecret: 'worker-secret',
+      rateLimitMax: 10,
+      rateLimitWindowMs: 60_000,
+    });
+    const gwBase = await listen(gw);
+    try {
+      const bad = await fetch(`${gwBase}/v1/submit`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: 'Bearer nav-key' },
+        body: JSON.stringify({
+          jobUrl: 'https://boards.greenhouse.io/x/jobs/1',
+          candidate: { email: 'a@b.com', name: 'Ada' },
+          navigationOnly: 'true',
+        }),
+      });
+      expect(bad.status).toBe(400);
+
+      const beforeLen = worker.calls.length;
+      const ok = await fetch(`${gwBase}/v1/submit`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: 'Bearer nav-key' },
+        body: JSON.stringify({
+          jobUrl: 'https://boards.greenhouse.io/x/jobs/1',
+          candidate: { email: 'a@b.com', name: 'Ada' },
+          navigationOnly: true,
+        }),
+      });
+      expect(ok.status).toBe(200);
+      expect(worker.calls).toHaveLength(beforeLen + 1);
+      const forwarded = worker.calls[worker.calls.length - 1].body as { navigationOnly?: boolean };
+      expect(forwarded.navigationOnly).toBe(true);
+    } finally {
+      await new Promise((r) => gw.close(r));
+    }
+  });
 });

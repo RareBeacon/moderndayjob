@@ -265,4 +265,128 @@ describe('Browser worker HTTP server error-reporting & failover contract', () =>
     expect(outcome).toMatchObject({ outcome: 'UNKNOWN', code: 'VERIFY_SIGNAL_MISSING' });
     expect(secondaryCalled).toBe(false);
   });
+
+  it('enforces server-side navigationOnly=true: navigates real page, blocks POST routes & mutators, skips CV download, and makes Submit impossible even with full candidate fields', async () => {
+    let fillCalls = 0;
+    let clickCalls = 0;
+    let fileCalls = 0;
+    let cvDownloaded = false;
+    let postRouteAborted = false;
+    let capturedRouteHandler: ((route: Route) => Promise<void>) | null = null;
+
+    const trackingBrowser = {
+      isConnected: () => true,
+      close: async () => {},
+      newContext: async () => ({
+        newPage: async () => {
+          let currentUrl = 'about:blank';
+          return {
+            url: () => currentUrl,
+            title: async () => 'Software Engineer - Acme',
+            content: async () =>
+              '<form><input type="file"/><button type="submit">Submit Application</button></form><p>Thank you for applying!</p>',
+            route: async (_pattern: string, handler: (route: Route) => Promise<void>) => {
+              capturedRouteHandler = handler;
+            },
+            goto: async (u: string) => {
+              currentUrl = u;
+              if (capturedRouteHandler) {
+                await capturedRouteHandler({
+                  request: () => ({
+                    method: () => 'POST',
+                    url: () => 'https://boards.greenhouse.io/acme/jobs/1/submit',
+                    isNavigationRequest: () => false,
+                  }),
+                  abort: async () => {
+                    postRouteAborted = true;
+                  },
+                  continue: async () => {},
+                } as unknown as Route);
+              }
+            },
+            locator: () => ({
+              count: async () => 1,
+              first: () => ({
+                fill: async () => {
+                  fillCalls += 1;
+                },
+                check: async () => {
+                  fillCalls += 1;
+                },
+                click: async () => {
+                  clickCalls += 1;
+                },
+                setInputFiles: async () => {
+                  fileCalls += 1;
+                },
+                selectOption: async () => {
+                  fillCalls += 1;
+                },
+              }),
+            }),
+          } as unknown as Page;
+        },
+      }),
+    } as unknown as Browser;
+
+    const workerUrl = await listen(
+      createBrowserWorkerServer({
+        secret: () => 's3cret',
+        checkBrowserReady: () => true,
+        lookup: publicLookup,
+        materializeCv: async () => {
+          cvDownloaded = true;
+          return '/tmp/should-not-download.pdf';
+        },
+        launchBrowser: async () => trackingBrowser,
+      }),
+    );
+
+    // Reject non-boolean navigationOnly values cleanly with 400
+    const badFlag = await fetch(`${workerUrl}/submit`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer s3cret' },
+      body: JSON.stringify({
+        jobUrl: baseCandidate.jobUrl,
+        allowedDomains: ['boards.greenhouse.io'],
+        candidate: baseCandidate,
+        navigationOnly: 'yes',
+      }),
+    });
+    expect(badFlag.status).toBe(400);
+
+    // Full candidate data that would otherwise submit on makeFakeBrowser MUST NOT submit in navigationOnly mode
+    const res = await fetch(`${workerUrl}/submit`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer s3cret' },
+      body: JSON.stringify({
+        jobUrl: baseCandidate.jobUrl,
+        allowedDomains: ['boards.greenhouse.io'],
+        candidate: {
+          ...baseCandidate,
+          cvDownloadUrl: 'https://example.com/cv.pdf',
+        },
+        navigationOnly: true,
+      }),
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toEqual({
+      outcome: 'STOP',
+      code: 'POLICY_RESTRICTED',
+      message: 'NAVIGATION_ONLY_VERIFIED',
+      navigationOnly: true,
+      navigated: true,
+      navigatedUrl: 'https://boards.greenhouse.io/acme/jobs/1',
+      adapterId: 'greenhouse',
+      submissionAttempted: false,
+      mutationAttempted: false,
+      blockedWriteRequests: 1,
+    });
+    expect(fillCalls).toBe(0);
+    expect(clickCalls).toBe(0);
+    expect(fileCalls).toBe(0);
+    expect(cvDownloaded).toBe(false);
+    expect(postRouteAborted).toBe(true);
+  });
 });
