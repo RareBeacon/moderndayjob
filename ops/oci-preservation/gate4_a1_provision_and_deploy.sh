@@ -13,22 +13,28 @@
 #   3. Hard-verifies Always Free quotas ($0.00 compute + <=200 GB regional block
 #      storage) BEFORE creating any resource; aborts safely if any limit would
 #      exceed Always Free.
-#   4. Probes only `2 OCPU / 12 GB` across quota-eligible (AD x Fault-Domain)
-#      slots by default. `1 OCPU / 12 GB` CANNOT be provisioned unless the owner
-#      explicitly sets `ALLOW_1OCPU_FALLBACK=true`. Reports exact slot counts,
-#      attempt totals, per-slot outcomes, and elapsed wall-clock time.
-#   5. Attaches the Gate 2 recovery volume STRICTLY READ-ONLY
-#      (`--is-read-only true` + OCI API `is-read-only==true` check + Linux
-#      `blockdev --getro == 1` + `mount -o ro,noload`). NEVER downgrades to a
-#      writable attachment; aborts safely if read-only attach is rejected.
-#   6. Encrypts off-instance archives client-side with authenticated
-#      Encrypt-then-MAC (AES-256-CBC + PBKDF2-HMAC-SHA256 600k + HMAC-SHA256,
-#      `*.tar.gz.enc`) in `/dev/shm` RAM via fd-piped key material (never in
-#      argv or logs), verifies HMAC + round-trip decryption + SHA-256 + tar
-#      integrity locally BEFORE upload, shreds plaintext prior to upload, and
-#      NEVER prints secrets or encryption keys.
-#   7. Deploys isolated branch `arena/5a999da6-moderndayjob`
-#      (`2ba2df52f950253df8ea752cd554fa4b93b8a04d`) and runs independent tests.
+#   4. Enforces `2 OCPU / 12 GB` on BOTH new launches AND existing-instance
+#      reuse. `1 OCPU / 12 GB` is strictly blocked unless `ALLOW_1OCPU_FALLBACK`
+#      is explicitly set to `true` by the owner (`false` by default).
+#   5. Requires live OCI `iam fault-domain list` discovery per AD; aborts if the
+#      API fails or returns empty rather than assuming fault domain names.
+#   6. Authenticates `jobiest-a1`'s SSH host public keys out-of-band via the
+#      IAM-authenticated OCI hypervisor serial console (`console-history`) and
+#      enforces `StrictHostKeyChecking=yes` BEFORE any SSH session or transfer.
+#   7. Attaches the Gate 2 recovery volume STRICTLY READ-ONLY
+#      (`--is-read-only true` + OCI API `is-read-only==true` + Linux kernel
+#      `blockdev --getro == 1` + `mount -o ro,noload`). NEVER downgrades to
+#      writable.
+#   8. Encrypts off-instance archives client-side with Encrypt-then-MAC
+#      (`AES-256-CBC` + `PBKDF2-HMAC-SHA256` 600k + `HMAC-SHA256`, `*.tar.gz.enc`),
+#      verifies round-trip decryption + SHA-256 + tar integrity locally BEFORE
+#      upload, and shreds plaintext prior to upload.
+#   9. Zero production secrets or production TLS private keys are copied onto
+#      `jobiest-a1`: Gate 4 generates dedicated ephemeral 256-bit test secrets
+#      and isolated Caddy local-PKI TLS (`tls internal`), seeding ONLY public
+#      `ollama/models` GGUF weights (excluding Ollama node private keys).
+#  10. Enforces hard pass/fail assertions across all health, 401 auth, port
+#      isolation, SSRF, ARM64 Chromium, API-to-worker, and Ollama `READY` tests.
 # ==============================================================================
 
 set -euo pipefail
@@ -53,9 +59,14 @@ ALLOW_1OCPU_FALLBACK="${ALLOW_1OCPU_FALLBACK:-false}"
 A1_MAX_RETRY_ROUNDS="${A1_MAX_RETRY_ROUNDS:-30}"
 A1_RETRY_SLEEP_SEC="${A1_RETRY_SLEEP_SEC:-45}"
 
+GATE4_WORKER_DOMAIN="worker.gate4.jobiest.internal"
+GATE4_API_DOMAIN="api.gate4.jobiest.internal"
+GATE4_AI_DOMAIN="ai.gate4.jobiest.internal"
+
 SSH_KEY_DIR="$HOME/.ssh"
 SSH_KEY_PRIV="$SSH_KEY_DIR/jobiest_a1_rsa"
 SSH_KEY_PUB="$SSH_KEY_DIR/jobiest_a1_rsa.pub"
+KNOWN_HOSTS_FILE="$SSH_KEY_DIR/known_hosts_gate4"
 VAULT_KEY_PRIV="$SSH_KEY_DIR/jobiest_gate2_vault.key"
 
 TMP_DIR="$(umask 077 && mktemp -d /tmp/jobiest-gate4.XXXXXX)"
@@ -64,6 +75,7 @@ chmod 700 "$TMP_DIR"
 ACTIVE_PAR_IDS=()
 ACTIVE_NS=""
 ACTIVE_ATTACH_ID=""
+ACTIVE_CONSOLE_HISTORY_ID=""
 A1_PUBLIC_IP=""
 REMOTE_SECRETS_DIR=""
 SSH_OPTS=()
@@ -84,6 +96,12 @@ cleanup() {
     ssh "${SSH_OPTS[@]}" "ubuntu@$A1_PUBLIC_IP" \
       "find '$REMOTE_SECRETS_DIR' -type f -exec shred -u {} + 2>/dev/null || true; rm -rf '$REMOTE_SECRETS_DIR' 2>/dev/null || true" \
       >/dev/null 2>&1 || true
+  fi
+  if [[ -n "$ACTIVE_CONSOLE_HISTORY_ID" ]]; then
+    oci compute console-history delete \
+      --region "$REGION" \
+      --instance-console-history-id "$ACTIVE_CONSOLE_HISTORY_ID" \
+      --force >/dev/null 2>&1 || true
   fi
   if [[ -n "$ACTIVE_NS" && "${#ACTIVE_PAR_IDS[@]}" -gt 0 ]]; then
     for par_id in "${ACTIVE_PAR_IDS[@]}"; do
@@ -148,17 +166,87 @@ printf 'Gate 2 Backup        : %s (state=%s)\n' "$GATE2_BACKUP_ID" "$BKP_STATE"
 printf 'Gate 2 RVol          : %s (state=%s, ad=%s, size=%sGB)\n' "$GATE2_RESTORE_VOL_ID" "$RVOL_LIFECYCLE" "$RVOL_AD" "$RVOL_SIZE"
 [[ "$BKP_STATE" == "AVAILABLE" && "$RVOL_LIFECYCLE" == "AVAILABLE" ]] || die "Gate 2 backup or restore-test volume is not AVAILABLE."
 
-# 1.4 Check if jobiest-a1 already exists (idempotent re-run support)
+# 1.4 Check if jobiest-a1 already exists AND enforce exact shape + 1-OCPU approval gate on reuse
 EXISTING_A1_JSON="$(oci compute instance list --region "$REGION" --compartment-id "$TENANCY_ID" --display-name "$A1_DISPLAY_NAME" --all)"
-EXISTING_A1_LINE="$(python3 -c '
+EXISTING_A1_COUNT="$(python3 -c '
 import json, sys
 s = sys.stdin.read().strip()
 items = (json.loads(s) if s else {}).get("data") or []
 live = [x for x in items if x.get("lifecycle-state") in ("PROVISIONING", "RUNNING", "STARTING")]
-if live:
-    i = live[0]
-    print("|".join("" if i.get(k) is None else str(i.get(k)) for k in ("id", "lifecycle-state", "availability-domain", "shape")))
+print(len(live))
 ' <<<"$EXISTING_A1_JSON")"
+
+if (( EXISTING_A1_COUNT > 1 )); then
+  die "Found $EXISTING_A1_COUNT live instances named $A1_DISPLAY_NAME; refusing ambiguous reuse."
+fi
+
+EXISTING_A1_LINE=""
+if (( EXISTING_A1_COUNT == 1 )); then
+  EXISTING_A1_ID="$(python3 -c '
+import json, sys
+s = sys.stdin.read().strip()
+items = (json.loads(s) if s else {}).get("data") or []
+live = [x for x in items if x.get("lifecycle-state") in ("PROVISIONING", "RUNNING", "STARTING")]
+print(live[0]["id"])
+' <<<"$EXISTING_A1_JSON")"
+  EXISTING_A1_DETAIL="$(oci compute instance get --region "$REGION" --instance-id "$EXISTING_A1_ID")"
+  EXISTING_A1_LINE="$(python3 -c '
+import json, sys
+d = json.loads(sys.stdin.read())["data"]
+sc = d.get("shape-config") or {}
+vals = [
+    d.get("id"),
+    d.get("lifecycle-state"),
+    d.get("availability-domain"),
+    d.get("fault-domain"),
+    d.get("shape"),
+    sc.get("ocpus"),
+    sc.get("memory-in-gbs"),
+]
+print("|".join("" if v is None else str(v) for v in vals))
+' <<<"$EXISTING_A1_DETAIL")"
+  IFS='|' read -r EX_ID EX_STATE EX_AD EX_FD EX_SHAPE EX_OCPUS EX_MEM <<<"$EXISTING_A1_LINE"
+  printf 'Existing A1 Check    : id=%s state=%s shape=%s ocpus=%s mem=%sGB ad=%s fd=%s\n' \
+    "$EX_ID" "$EX_STATE" "$EX_SHAPE" "$EX_OCPUS" "$EX_MEM" "$EX_AD" "$EX_FD"
+
+  [[ "$EX_SHAPE" == "VM.Standard.A1.Flex" ]] || \
+    die "Existing $A1_DISPLAY_NAME ($EX_ID) has unexpected shape '$EX_SHAPE' (expected VM.Standard.A1.Flex)."
+
+  SHAPE_VERDICT="$(python3 -c '
+import sys
+allow_1ocpu = sys.argv[1] == "true"
+try:
+    ocpus = float(sys.argv[2])
+    mem = float(sys.argv[3])
+except Exception:
+    print("INVALID_NUMBERS")
+    sys.exit(0)
+if abs(mem - 12.0) > 0.01:
+    print("INVALID_MEM")
+elif abs(ocpus - 2.0) <= 0.01:
+    print("OK_2OCPU")
+elif abs(ocpus - 1.0) <= 0.01:
+    print("OK_1OCPU" if allow_1ocpu else "REJECT_1OCPU_UNAPPROVED")
+else:
+    print("INVALID_OCPU")
+' "$ALLOW_1OCPU_FALLBACK" "$EX_OCPUS" "$EX_MEM")"
+
+  case "$SHAPE_VERDICT" in
+    OK_2OCPU)
+      ;;
+    OK_1OCPU)
+      ;;
+    REJECT_1OCPU_UNAPPROVED)
+      die "Existing instance $A1_DISPLAY_NAME ($EX_ID) has ${EX_OCPUS} OCPU / ${EX_MEM} GB RAM, which is blocked while ALLOW_1OCPU_FALLBACK=false. Explicit owner approval is required."
+      ;;
+    INVALID_MEM)
+      die "Existing instance $A1_DISPLAY_NAME ($EX_ID) has ${EX_MEM} GB RAM (expected 12.0 GB)."
+      ;;
+    *)
+      die "Existing instance $A1_DISPLAY_NAME ($EX_ID) has unsupported shape-config ocpus='${EX_OCPUS}', memory='${EX_MEM}'."
+      ;;
+  esac
+fi
 
 # 1.5 Enumerate ADs (prioritizing RVOL_AD = AD-2 first so same-AD read-only attach needs 0 extra volumes)
 oci iam availability-domain list --region "$REGION" --compartment-id "$TENANCY_ID" >"$TMP_DIR/ads.json"
@@ -208,7 +296,6 @@ declare -A AD_OCPU_AVAIL=()
 declare -A AD_MEM_AVAIL=()
 ADS_2OCPU_ELIGIBLE=()
 ADS_1OCPU_ELIGIBLE=()
-ADS_QUOTA_EXCLUDED=()
 
 for ad in "${ORDERED_ADS[@]}"; do
   OCPU_AVAIL="$(oci limits resource-availability get --region "$REGION" --compartment-id "$TENANCY_ID" --service-name compute --limit-name standard-a1-core-count --availability-domain "$ad" --query 'data.available' --raw-output 2>/dev/null || echo 0)"
@@ -235,8 +322,6 @@ except Exception:
     sys.exit(1)
 ' "${OCPU_AVAIL:-0}" "${MEM_AVAIL:-0}"; then
     ADS_1OCPU_ELIGIBLE+=("$ad")
-  else
-    ADS_QUOTA_EXCLUDED+=("$ad (ocpu=${OCPU_AVAIL}, mem=${MEM_AVAIL}GB)")
   fi
 done
 
@@ -262,9 +347,9 @@ IFS='|' read -r A1_IMAGE_ID A1_IMAGE_NAME <<<"$IMG_LINE"
 printf 'ARM64 Image          : %s (%s)\n' "$A1_IMAGE_NAME" "$A1_IMAGE_ID"
 
 # ------------------------------------------------------------------------------
-# PHASE 2: SSH + VAULT KEYS & INDEPENDENT VM.Standard.A1.Flex PROVISIONING
+# PHASE 2: KEYS, PROVISIONING & OUT-OF-BAND SERIAL CONSOLE HOST-KEY VERIFICATION
 # ------------------------------------------------------------------------------
-banner "PHASE 2 — PROVISION INDEPENDENT VM.Standard.A1.Flex (STRICT QUOTA & APPROVAL GATES)"
+banner "PHASE 2 — PROVISION VM.Standard.A1.Flex & VERIFY SSH HOST KEY VIA OCI CONSOLE-HISTORY"
 
 mkdir -p "$SSH_KEY_DIR"
 chmod 700 "$SSH_KEY_DIR"
@@ -290,21 +375,48 @@ fi
 VAULT_KEY_ID="$(python3 -c 'import hashlib,hmac,sys; k=open(sys.argv[1],"rb").read().strip(); print(hmac.new(k,b"jobiest-gate2-vault-key-id-v1",hashlib.sha256).hexdigest()[:16])' "$VAULT_KEY_PRIV")"
 printf 'Vault Key Identifier : hmac-id=%s (non-reversible identifier)\n' "$VAULT_KEY_ID"
 
+# Cloud-init user-data emits exact SSH host public keys to the hypervisor serial console (/dev/console)
+cat >"$TMP_DIR/a1_userdata.yaml" <<'CLOUDINIT'
+#cloud-config
+runcmd:
+  - |
+    {
+      echo "===== GATE4_SSH_HOST_PUBKEYS_BEGIN ====="
+      cat /etc/ssh/ssh_host_rsa_key.pub /etc/ssh/ssh_host_ecdsa_key.pub 2>/dev/null || true
+      echo "===== GATE4_SSH_HOST_PUBKEYS_END ====="
+    } > /dev/console
+CLOUDINIT
+
 A1_INSTANCE_ID=""
 A1_AD=""
 A1_ALLOCATED_SHAPE_CFG=""
 
 if [[ -n "$EXISTING_A1_LINE" ]]; then
-  IFS='|' read -r A1_INSTANCE_ID A1_STATE A1_AD A1_SHAPE <<<"$EXISTING_A1_LINE"
-  printf 'Found existing %s: id=%s state=%s ad=%s shape=%s\n' "$A1_DISPLAY_NAME" "$A1_INSTANCE_ID" "$A1_STATE" "$A1_AD" "$A1_SHAPE"
+  IFS='|' read -r A1_INSTANCE_ID EX_STATE A1_AD EX_FD EX_SHAPE EX_OCPUS EX_MEM <<<"$EXISTING_A1_LINE"
+  A1_ALLOCATED_SHAPE_CFG="${EX_OCPUS} OCPU / ${EX_MEM} GB (${EX_FD}) [verified existing]"
+  printf 'Reusing verified %s: id=%s shape=%s (%s)\n' "$A1_DISPLAY_NAME" "$A1_INSTANCE_ID" "$EX_SHAPE" "$A1_ALLOCATED_SHAPE_CFG"
 else
-  # Enumerate Fault Domains across ALL regional ADs so reporting reflects true regional topology
+  # Strict Fault-Domain discovery across ALL regional ADs (abort if OCI API fails or returns empty)
   declare -A AD_FDS=()
   ALL_REGIONAL_SLOTS=()
   for reg_ad in "${ORDERED_ADS[@]}"; do
     FD_FILE="$TMP_DIR/fds_$(echo "$reg_ad" | tr -cd 'A-Za-z0-9_-').json"
-    oci iam fault-domain list --region "$REGION" --compartment-id "$TENANCY_ID" --availability-domain "$reg_ad" >"$FD_FILE" 2>/dev/null || true
-    FDS_STR="$(python3 -c 'import json,sys; s=open(sys.argv[1],"r",encoding="utf-8").read().strip(); names=[x["name"] for x in ((json.loads(s) if s else {}).get("data") or []) if x.get("name")]; print(" ".join(names) if names else "FAULT-DOMAIN-1 FAULT-DOMAIN-2 FAULT-DOMAIN-3")' "$FD_FILE")"
+    if ! oci iam fault-domain list --region "$REGION" --compartment-id "$TENANCY_ID" --availability-domain "$reg_ad" >"$FD_FILE" 2>"$TMP_DIR/fd_err.txt"; then
+      FD_ERR="$(tr '\r\n' ' ' <"$TMP_DIR/fd_err.txt" | head -c 260)"
+      die "OCI fault-domain discovery API failed for $reg_ad: ${FD_ERR}. Refusing to assume fault domain names."
+    fi
+    if ! FDS_STR="$(python3 -c '
+import json, sys
+s = open(sys.argv[1], "r", encoding="utf-8").read().strip()
+if not s:
+    sys.exit(1)
+names = [x.get("name", "").strip() for x in (json.loads(s).get("data") or []) if x.get("name", "").strip()]
+if not names:
+    sys.exit(1)
+print(" ".join(names))
+' "$FD_FILE")"; then
+      die "OCI fault-domain discovery returned zero fault domains (or invalid JSON) for $reg_ad; refusing to assume fault domain names."
+    fi
     AD_FDS["$reg_ad"]="$FDS_STR"
     for fd in $FDS_STR; do
       ALL_REGIONAL_SLOTS+=("${reg_ad}|${fd}")
@@ -383,18 +495,15 @@ else
   }
 
   for round in $(seq 1 "$A1_MAX_RETRY_ROUNDS"); do
-    ROUND_PROBED=0
     printf '\n[Capacity Sweep %d/%d — %s] Probing %d quota-eligible 2 OCPU / 12 GB AD/FD slot(s)%s...\n' \
       "$round" "$A1_MAX_RETRY_ROUNDS" "$(date -u '+%H:%M:%SZ')" "$ELIGIBLE_2OCPU_SLOT_COUNT" \
       "$([[ "$ALLOW_1OCPU_FALLBACK" == "true" ]] && printf ' (+ %d approved 1 OCPU / 12 GB fallback slot(s))' "$ELIGIBLE_1OCPU_SLOT_COUNT" || printf ' (1 OCPU fallback disabled)')"
 
-    # Priority 1: Exhaust all quota-eligible 2 OCPU / 12 GB (AD x Fault-Domain) combinations
     for slot_key in "${SLOTS_2OCPU[@]}"; do
       IFS='|' read -r cand_ad fd <<<"$slot_key"
       UNIQUE_PROBED_SLOTS["$slot_key"]=1
       SLOT_ATTEMPTS["$slot_key"]=$(( ${SLOT_ATTEMPTS["$slot_key"]} + 1 ))
       TOTAL_LAUNCH_ATTEMPTS=$((TOTAL_LAUNCH_ATTEMPTS + 1))
-      ROUND_PROBED=$((ROUND_PROBED + 1))
 
       printf '  Trying 2 OCPU / 12 GB in %s / %s ... ' "$cand_ad" "$fd"
       if LAUNCH_OUT="$(oci compute instance launch \
@@ -409,7 +518,8 @@ else
         --subnet-id "$SUBNET_ID" \
         --assign-public-ip true \
         --boot-volume-size-in-gbs 50 \
-        --ssh-authorized-keys-file "$SSH_KEY_PUB" 2>"$TMP_DIR/launch_err.txt")"; then
+        --ssh-authorized-keys-file "$SSH_KEY_PUB" \
+        --user-data-file "$TMP_DIR/a1_userdata.yaml" 2>"$TMP_DIR/launch_err.txt")"; then
         A1_INSTANCE_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["data"]["id"])' <<<"$LAUNCH_OUT")"
         A1_AD="$cand_ad"
         A1_ALLOCATED_SHAPE_CFG="2 OCPU / 12 GB ($fd)"
@@ -430,14 +540,12 @@ else
       sleep 2
     done
 
-    # Priority 2: ONLY if owner explicitly approved ALLOW_1OCPU_FALLBACK=true
     if [[ -z "$A1_INSTANCE_ID" && "$ALLOW_1OCPU_FALLBACK" == "true" ]]; then
       for slot_key in "${SLOTS_1OCPU[@]}"; do
         IFS='|' read -r cand_ad fd <<<"$slot_key"
         UNIQUE_PROBED_SLOTS["$slot_key"]=1
         SLOT_ATTEMPTS["$slot_key"]=$(( ${SLOT_ATTEMPTS["$slot_key"]} + 1 ))
         TOTAL_LAUNCH_ATTEMPTS=$((TOTAL_LAUNCH_ATTEMPTS + 1))
-        ROUND_PROBED=$((ROUND_PROBED + 1))
 
         printf '  Trying approved fallback 1 OCPU / 12 GB in %s / %s ... ' "$cand_ad" "$fd"
         if LAUNCH_OUT="$(oci compute instance launch \
@@ -452,7 +560,8 @@ else
           --subnet-id "$SUBNET_ID" \
           --assign-public-ip true \
           --boot-volume-size-in-gbs 50 \
-          --ssh-authorized-keys-file "$SSH_KEY_PUB" 2>"$TMP_DIR/launch_err.txt")"; then
+          --ssh-authorized-keys-file "$SSH_KEY_PUB" \
+          --user-data-file "$TMP_DIR/a1_userdata.yaml" 2>"$TMP_DIR/launch_err.txt")"; then
           A1_INSTANCE_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["data"]["id"])' <<<"$LAUNCH_OUT")"
           A1_AD="$cand_ad"
           A1_ALLOCATED_SHAPE_CFG="1 OCPU / 12 GB ($fd) [owner-approved fallback]"
@@ -511,27 +620,132 @@ A1_BVA_JSON="$(oci compute boot-volume-attachment list --region "$REGION" --comp
 A1_BOOT_VOL_ID="$(python3 -c 'import json,sys; d=[x for x in json.loads(sys.stdin.read())["data"] if x["lifecycle-state"]=="ATTACHED"][0]; print(d["boot-volume-id"])' <<<"$A1_BVA_JSON")"
 
 printf 'A1 Instance  : %s\nA1 Shape/FD  : %s\nA1 AD        : %s\nA1 VNIC      : %s\nA1 Private IP: %s\nA1 Ephem IP  : %s (Ephemeral test IP; Reserved IP 147.224.218.163 stays on jobiest-ai)\nA1 Boot Vol  : %s\n' \
-  "$A1_INSTANCE_ID" "${A1_ALLOCATED_SHAPE_CFG:-existing}" "$A1_AD" "$A1_VNIC_ID" "$A1_PRIVATE_IP" "$A1_PUBLIC_IP" "$A1_BOOT_VOL_ID"
+  "$A1_INSTANCE_ID" "$A1_ALLOCATED_SHAPE_CFG" "$A1_AD" "$A1_VNIC_ID" "$A1_PRIVATE_IP" "$A1_PUBLIC_IP" "$A1_BOOT_VOL_ID"
 
 [[ -n "$A1_PUBLIC_IP" ]] || die "No ephemeral public IP found on jobiest-a1 VNIC."
 
-SSH_OPTS=(-i "$SSH_KEY_PRIV" -o StrictHostKeyChecking=no -o UserKnownHostsFile="$SSH_KEY_DIR/known_hosts_gate4" -o LogLevel=ERROR -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=6)
+# Out-of-band SSH host-key retrieval & pinning via authenticated OCI Console-History API
+printf 'Authenticating %s SSH host public key(s) out-of-band via OCI Serial Console History...\n' "$A1_DISPLAY_NAME"
+EXTRACTED_HOST_KEYS_FILE="$TMP_DIR/extracted_host_keys.pub"
+: >"$EXTRACTED_HOST_KEYS_FILE"
 
-printf 'Waiting for SSH daemon on ubuntu@%s...\n' "$A1_PUBLIC_IP"
+for attempt in $(seq 1 25); do
+  CH_JSON="$(oci compute console-history capture --region "$REGION" --instance-id "$A1_INSTANCE_ID")"
+  ACTIVE_CONSOLE_HISTORY_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["data"]["id"])' <<<"$CH_JSON")"
+  CH_STATE=""
+  for _ in $(seq 1 15); do
+    CH_STATE="$(oci compute console-history get --region "$REGION" --instance-console-history-id "$ACTIVE_CONSOLE_HISTORY_ID" --query 'data."lifecycle-state"' --raw-output)"
+    [[ "$CH_STATE" == "SUCCEEDED" ]] && break
+    sleep 2
+  done
+  CONSOLE_LOG="$TMP_DIR/console_${attempt}.log"
+  if [[ "$CH_STATE" == "SUCCEEDED" ]]; then
+    oci compute console-history get-content \
+      --region "$REGION" \
+      --instance-console-history-id "$ACTIVE_CONSOLE_HISTORY_ID" \
+      --length 1048576 \
+      --file "$CONSOLE_LOG" >/dev/null
+  fi
+  oci compute console-history delete \
+    --region "$REGION" \
+    --instance-console-history-id "$ACTIVE_CONSOLE_HISTORY_ID" \
+    --force >/dev/null 2>&1 || true
+  ACTIVE_CONSOLE_HISTORY_ID=""
+
+  if [[ -s "$CONSOLE_LOG" ]]; then
+    python3 - "$CONSOLE_LOG" "$EXTRACTED_HOST_KEYS_FILE" <<'PY'
+import re, sys
+
+raw = open(sys.argv[1], "rb").read().decode("utf-8", errors="replace")
+# Remove ANSI escapes and carriage returns emitted by serial console
+clean = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", raw).replace("\r", "")
+
+blocks = []
+for pat in (
+    r"===== GATE4_SSH_HOST_PUBKEYS_BEGIN =====\n(.*?)===== GATE4_SSH_HOST_PUBKEYS_END =====",
+    r"-----BEGIN SSH HOST KEY KEYS-----\n(.*?)-----END SSH HOST KEY KEYS-----",
+):
+    blocks.extend(re.findall(pat, clean, re.S))
+
+allowed_types = ("ssh-rsa", "ecdsa-sha2-nistp256", "ecdsa-sha2-nistp384", "ecdsa-sha2-nistp521")
+seen = set()
+valid_lines = []
+for blk in blocks:
+    for line in blk.splitlines():
+        # Strip optional systemd/cloud-init prefix before key type
+        m = re.search(r"((?:ssh-rsa|ecdsa-sha2-nistp(?:256|384|521))\s+[A-Za-z0-9+/=]+)", line)
+        if m:
+            entry = m.group(1).strip()
+            if entry not in seen:
+                seen.add(entry)
+                valid_lines.append(entry)
+
+if valid_lines:
+    with open(sys.argv[2], "w", encoding="utf-8") as out:
+        for l in valid_lines:
+            out.write(l + "\n")
+PY
+  fi
+
+  if [[ -s "$EXTRACTED_HOST_KEYS_FILE" ]]; then
+    break
+  fi
+  printf '  Console boot log has not emitted SSH host keys yet (attempt %d/25); waiting 6s...\n' "$attempt"
+  sleep 6
+done
+
+[[ -s "$EXTRACTED_HOST_KEYS_FILE" ]] || \
+  die "Could not obtain verifiable SSH host public keys from OCI console-history; refusing unverified SSH connection."
+
+# Validate each extracted key with ssh-keygen and build pinned known_hosts_gate4 (mode 600)
+touch "$KNOWN_HOSTS_FILE"
+chmod 600 "$KNOWN_HOSTS_FILE"
+ssh-keygen -R "$A1_PUBLIC_IP" -f "$KNOWN_HOSTS_FILE" >/dev/null 2>&1 || true
+
+VERIFIED_KEY_COUNT=0
+while IFS= read -r publine; do
+  [[ -n "$publine" ]] || continue
+  KEY_TMP="$TMP_DIR/verify_single.pub"
+  printf '%s\n' "$publine" >"$KEY_TMP"
+  FP_OUT="$(ssh-keygen -lf "$KEY_TMP")" || die "Console-history SSH public key failed ssh-keygen validation!"
+  printf '  Pinned console-verified host key: %s\n' "$FP_OUT"
+  printf '%s %s\n' "$A1_PUBLIC_IP" "$publine" >>"$KNOWN_HOSTS_FILE"
+  VERIFIED_KEY_COUNT=$((VERIFIED_KEY_COUNT + 1))
+done <"$EXTRACTED_HOST_KEYS_FILE"
+
+(( VERIFIED_KEY_COUNT > 0 )) || die "Zero valid FIPS-compatible SSH host keys verified; aborting."
+chmod 600 "$KNOWN_HOSTS_FILE"
+
+# StrictHostKeyChecking=yes enforced for EVERY SSH invocation from this point forward
+SSH_OPTS=(
+  -i "$SSH_KEY_PRIV"
+  -o StrictHostKeyChecking=yes
+  -o UserKnownHostsFile="$KNOWN_HOSTS_FILE"
+  -o IdentitiesOnly=yes
+  -o LogLevel=ERROR
+  -o ConnectTimeout=10
+  -o ServerAliveInterval=15
+  -o ServerAliveCountMax=6
+)
+
+printf 'Connecting to ubuntu@%s with StrictHostKeyChecking=yes...\n' "$A1_PUBLIC_IP"
 SSH_READY=0
-for _ in $(seq 1 30); do
-  if ssh "${SSH_OPTS[@]}" "ubuntu@$A1_PUBLIC_IP" 'uname -srm' 2>/dev/null; then
+for _ in $(seq 1 20); do
+  if ssh "${SSH_OPTS[@]}" "ubuntu@$A1_PUBLIC_IP" 'uname -srm' 2>"$TMP_DIR/ssh_verify_err.txt"; then
     SSH_READY=1
     break
   fi
-  sleep 6
+  if grep -qi "REMOTE HOST IDENTIFICATION HAS CHANGED\|Host key verification failed" "$TMP_DIR/ssh_verify_err.txt" 2>/dev/null; then
+    die "SSH host key verification FAILED against OCI console-pinned key: $(tr '\r\n' ' ' <"$TMP_DIR/ssh_verify_err.txt" | head -c 260)"
+  fi
+  sleep 5
 done
-(( SSH_READY == 1 )) || die "SSH to ubuntu@$A1_PUBLIC_IP timed out."
+(( SSH_READY == 1 )) || die "SSH to ubuntu@$A1_PUBLIC_IP timed out under StrictHostKeyChecking=yes."
 
 # ------------------------------------------------------------------------------
-# PHASE 3: INSTALL DOCKER + GNUPG + UFW ON A1 (NATIVE ARM64 PACKAGES)
+# PHASE 3: INSTALL DOCKER + CLI TOOLS ON A1 (NATIVE ARM64 PACKAGES)
 # ------------------------------------------------------------------------------
-banner "PHASE 3 — INSTALL DOCKER ENGINE, GNUPG, CLI TOOLS & HOST FIREWALL ON jobiest-a1"
+banner "PHASE 3 — INSTALL DOCKER ENGINE, CLI TOOLS & HOST FIREWALL ON jobiest-a1"
 
 ssh "${SSH_OPTS[@]}" "ubuntu@$A1_PUBLIC_IP" 'bash -s' <<'REMOTE_BOOTSTRAP'
 set -euo pipefail
@@ -565,9 +779,9 @@ uname -m
 REMOTE_BOOTSTRAP
 
 # ------------------------------------------------------------------------------
-# PHASE 4: STRICT READ-ONLY GATE 2 MOUNT -> ENCRYPTED VAULT ARCHIVE & SEED A1
+# PHASE 4: STRICT READ-ONLY GATE 2 MOUNT -> ENCRYPTED VAULT ARCHIVE & MODEL-ONLY SEED
 # ------------------------------------------------------------------------------
-banner "PHASE 4 — STRICT READ-ONLY RECOVERY MOUNT, CLIENT-SIDE ENCRYPTED VAULT & SEED"
+banner "PHASE 4 — STRICT READ-ONLY RECOVERY MOUNT, ENCRYPTED VAULT & PUBLIC-MODEL-ONLY SEED"
 
 RECOVERY_VOL_TO_ATTACH=""
 if [[ "$A1_AD" == "$RVOL_AD" ]]; then
@@ -676,7 +890,7 @@ ACTIVE_PAR_IDS+=("$PAR2_ID")
 PAR1_FULL="https://objectstorage.${REGION}.oraclecloud.com${PAR1_URI}"
 PAR2_FULL="https://objectstorage.${REGION}.oraclecloud.com${PAR2_URI}"
 
-# Stage encryption key and PAR URLs into an ephemeral 0700 RAM directory (/dev/shm) on jobiest-a1
+# Stage encryption key and PAR URLs into an ephemeral 0700 RAM directory (/dev/shm) over host-verified SSH
 REMOTE_SECRETS_DIR="$(ssh "${SSH_OPTS[@]}" "ubuntu@$A1_PUBLIC_IP" 'umask 077 && mktemp -d /dev/shm/gate4-sec.XXXXXX')"
 ssh "${SSH_OPTS[@]}" "ubuntu@$A1_PUBLIC_IP" "umask 077 && cat > '${REMOTE_SECRETS_DIR}/vault.key' && chmod 600 '${REMOTE_SECRETS_DIR}/vault.key'" <"$VAULT_KEY_PRIV"
 printf 'url = "%s"\n' "$PAR1_FULL" | ssh "${SSH_OPTS[@]}" "ubuntu@$A1_PUBLIC_IP" "umask 077 && cat > '${REMOTE_SECRETS_DIR}/par1.curl' && chmod 600 '${REMOTE_SECRETS_DIR}/par1.curl'"
@@ -691,6 +905,9 @@ PAR2_FULL=""
   printf 'REPO_URL=%q\n' "$REPO_URL"
   printf 'ISOLATED_BRANCH=%q\n' "$ISOLATED_BRANCH"
   printf 'APP_COMMIT_SHA=%q\n' "$APP_COMMIT_SHA"
+  printf 'GATE4_WORKER_DOMAIN=%q\n' "$GATE4_WORKER_DOMAIN"
+  printf 'GATE4_API_DOMAIN=%q\n' "$GATE4_API_DOMAIN"
+  printf 'GATE4_AI_DOMAIN=%q\n' "$GATE4_AI_DOMAIN"
   cat <<'REMOTE_SEED'
 set -euo pipefail
 
@@ -765,7 +982,7 @@ fi
 
 OLD_ENV_FILE="$OLD_OCI_DIR/.env"
 [[ -f "$OLD_ENV_FILE" ]] || { echo "FATAL: .env missing at $OLD_ENV_FILE"; exit 1; }
-echo "Old .env key names (secret values NEVER printed):"
+echo "Old .env key names on E5 (secret values NEVER printed and NEVER copied to A1):"
 sudo awk -F= '/^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*=/{
   k=$1; gsub(/^[[:space:]]+|[[:space:]]+$/,"",k);
   v=substr($0, index($0,"=")+1);
@@ -785,10 +1002,10 @@ CADDY_DATA_SRC="$CADDY_VOL_DIR/_data"
 CADDY_CFG_SRC="$CADDY_CFG_DIR/_data"
 OLLAMA_SRC="$OLLAMA_VOL_DIR/_data"
 
-echo "Caddy data src : ${CADDY_DATA_SRC#/mnt/e5_recovery}"
+echo "Caddy data src : ${CADDY_DATA_SRC#/mnt/e5_recovery} (archived encrypted to vault ONLY; NOT copied to A1)"
 echo "Ollama data src: ${OLLAMA_SRC#/mnt/e5_recovery}"
 
-echo "=== TLS CERTIFICATES PRESENT IN CADDY VOLUME (PUBLIC CERT METADATA ONLY) ==="
+echo "=== TLS CERTIFICATES PRESENT IN E5 CADDY VOLUME (PUBLIC CERT METADATA ONLY) ==="
 sudo find "$CADDY_DATA_SRC" -type f -name '*.crt' 2>/dev/null | while read -r crt; do
   echo "  Cert file: ${crt#/mnt/e5_recovery}"
   sudo openssl x509 -in "$crt" -noout -subject -issuer -dates | sed 's/^/    /'
@@ -797,7 +1014,7 @@ done
 echo "=== GATE 5 (5.1) OLLAMA MODELS PRESENT ON ORIGINAL E5 SERVER ==="
 if sudo test -d "$OLLAMA_SRC/models/manifests"; then
   sudo find "$OLLAMA_SRC/models/manifests" -type f | sed "s|$OLLAMA_SRC/models/manifests/|  model: |"
-  sudo du -sh "$OLLAMA_SRC" | sed 's|/mnt/e5_recovery||; s/^/  total_size: /'
+  sudo du -sh "$OLLAMA_SRC/models" | sed 's|/mnt/e5_recovery||; s/^/  models_size: /'
 fi
 
 echo "=== SYSTEMD / UFW / CRON INVENTORY ON RESTORED E5 VOLUME ==="
@@ -910,11 +1127,9 @@ encrypt_verify_and_upload() {
   python3 "${WORK_RAM}/vault_crypto.py" encrypt "$KEY_FILE" "$plain_tar" "$enc_file"
   chmod 600 "$enc_file"
 
-  # Shred plaintext archive immediately BEFORE any network upload
   shred -u "$plain_tar" 2>/dev/null || rm -f "$plain_tar"
   [[ ! -e "$plain_tar" ]] || { echo "FATAL: Plaintext archive still exists"; exit 1; }
 
-  # Verify ciphertext header is JBV1 (4a42563100), NOT gzip (1f8b), and passes full authenticated round-trip decrypt + tar check
   local magic_hex dec_sha256 dec_entries cipher_sha256 cipher_bytes
   magic_hex="$(head -c 5 "$enc_file" | od -An -tx1 | tr -d ' \n')"
   [[ "$magic_hex" == "4a42563100" ]] || { echo "FATAL: Unexpected magic header ($magic_hex) for $label!"; exit 1; }
@@ -969,15 +1184,63 @@ if [[ ! -d "$HOME/jobiest/.git" ]]; then
 fi
 git -C "$HOME/jobiest" fetch origin "$ISOLATED_BRANCH"
 git -C "$HOME/jobiest" checkout -f "$APP_COMMIT_SHA"
-echo "Checked out commit: $(git -C "$HOME/jobiest" rev-parse HEAD)"
+ACTUAL_HEAD="$(git -C "$HOME/jobiest" rev-parse HEAD)"
+[[ "$ACTUAL_HEAD" == "$APP_COMMIT_SHA" ]] || { echo "FATAL: Checked out $ACTUAL_HEAD != $APP_COMMIT_SHA"; exit 1; }
+echo "Checked out verified commit: $ACTUAL_HEAD"
 
 NEW_OCI_DIR="$HOME/jobiest/ai-career-agent-coding-agent/ai-career-agent-coding-agent/deploy/oci"
-sudo cp "$OLD_ENV_FILE" "$NEW_OCI_DIR/.env"
-sudo chown ubuntu:ubuntu "$NEW_OCI_DIR/.env"
-chmod 600 "$NEW_OCI_DIR/.env"
-echo "Copied .env disk-to-disk to $NEW_OCI_DIR/.env (mode 600; zero secret values printed)."
 
-echo "=== SEEDING DOCKER NAMED VOLUMES (oci_caddy_data, oci_caddy_config, oci_ollama) ==="
+echo "=== GENERATING DEDICATED EPHEMERAL GATE 4 TEST CREDENTIALS & ISOLATED PKI CONFIG ==="
+(
+  umask 077
+  G4_WORKER_SEC="$(openssl rand -hex 32)"
+  G4_API_KEY="$(openssl rand -hex 32)"
+  G4_OLLAMA_KEY="$(openssl rand -hex 32)"
+  cat >"$NEW_OCI_DIR/.env" <<EOF
+# Dedicated Gate 4 isolated test configuration (ZERO production secrets shared)
+BROWSER_WORKER_SECRET=${G4_WORKER_SEC}
+API_KEYS=${G4_API_KEY}
+OLLAMA_API_KEY=${G4_OLLAMA_KEY}
+WORKER_DOMAIN=${GATE4_WORKER_DOMAIN}
+API_DOMAIN=${GATE4_API_DOMAIN}
+AI_DOMAIN=${GATE4_AI_DOMAIN}
+RATE_LIMIT_MAX=30
+RATE_LIMIT_WINDOW_MS=60000
+OLLAMA_MAX_LOADED_MODELS=1
+OLLAMA_NUM_PARALLEL=1
+OLLAMA_KEEP_ALIVE=5m
+EOF
+  chmod 600 "$NEW_OCI_DIR/.env"
+)
+echo "Generated isolated Gate 4 .env (mode 600; 0 production credentials copied; values NEVER printed)."
+
+cat >"$NEW_OCI_DIR/Caddyfile.gate4" <<'EOF'
+{$WORKER_DOMAIN} {
+	tls internal
+	reverse_proxy worker:8082
+}
+
+{$API_DOMAIN} {
+	tls internal
+	reverse_proxy api:8081
+}
+
+{$AI_DOMAIN} {
+	tls internal
+	reverse_proxy ai:8083
+}
+EOF
+
+cat >"$NEW_OCI_DIR/docker-compose.gate4.yml" <<'EOF'
+services:
+  caddy:
+    volumes:
+      - ./Caddyfile.gate4:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+EOF
+
+echo "=== SEEDING ONLY PUBLIC OLLAMA MODEL WEIGHTS (NO PROD TLS KEYS, NO OLLAMA NODE KEYS) ==="
 for base_vol in caddy_data caddy_config ollama; do
   sudo docker volume create \
     --label com.docker.compose.project=oci \
@@ -985,13 +1248,16 @@ for base_vol in caddy_data caddy_config ollama; do
     "oci_${base_vol}" >/dev/null
 done
 
-sudo cp -a "$CADDY_DATA_SRC/." /var/lib/docker/volumes/oci_caddy_data/_data/
-sudo cp -a "$CADDY_CFG_SRC/." /var/lib/docker/volumes/oci_caddy_config/_data/
-if ! sudo test -d /var/lib/docker/volumes/oci_ollama/_data/models/blobs; then
-  echo "Copying Ollama GGUF model blobs locally from recovery volume (saves ~7 GB download)..."
-  sudo cp -a "$OLLAMA_SRC/." /var/lib/docker/volumes/oci_ollama/_data/
+if sudo test -d "$OLLAMA_SRC/models" && ! sudo test -d /var/lib/docker/volumes/oci_ollama/_data/models/blobs; then
+  echo "Copying ONLY public GGUF model blobs/manifests (excluding id_ed25519* node keys)..."
+  sudo mkdir -p /var/lib/docker/volumes/oci_ollama/_data/models
+  sudo cp -a "$OLLAMA_SRC/models/." /var/lib/docker/volumes/oci_ollama/_data/models/
 fi
-sudo du -sh /var/lib/docker/volumes/oci_caddy_data/_data /var/lib/docker/volumes/oci_ollama/_data
+# Ensure zero Ollama identity keys were copied
+if sudo ls /var/lib/docker/volumes/oci_ollama/_data/id_* >/dev/null 2>&1; then
+  echo "FATAL: Unexpected Ollama identity key present before first start"; exit 1
+fi
+sudo du -sh /var/lib/docker/volumes/oci_ollama/_data/models 2>/dev/null || true
 
 sudo umount /mnt/e5_recovery
 cleanup_seed
@@ -1023,13 +1289,14 @@ for _ in $(seq 1 25); do
   [[ "$AST" == "DETACHED" ]] && break
   sleep 3
 done
+[[ "$AST" == "DETACHED" ]] || die "Recovery volume did not reach DETACHED within timeout (state=$AST)."
 printf 'Read-only recovery volume detached (%s); volume remains AVAILABLE and intact.\n' "$AST"
 ACTIVE_ATTACH_ID=""
 
 # ------------------------------------------------------------------------------
 # PHASE 5: CONFIGURE HOST FIREWALL & BUILD/START ARM64 STACK ON jobiest-a1
 # ------------------------------------------------------------------------------
-banner "PHASE 5 — HARDEN UFW/IPTABLES & DEPLOY ARM64 DOCKER COMPOSE STACK ON jobiest-a1"
+banner "PHASE 5 — HARDEN UFW/IPTABLES & DEPLOY ISOLATED ARM64 STACK ON jobiest-a1"
 
 ssh "${SSH_OPTS[@]}" "ubuntu@$A1_PUBLIC_IP" 'bash -s' <<'REMOTE_DEPLOY'
 set -euo pipefail
@@ -1055,67 +1322,126 @@ sudo ufw --force enable
 sudo systemctl restart docker
 
 cd "$HOME/jobiest/ai-career-agent-coding-agent/ai-career-agent-coding-agent/deploy/oci"
-echo "Building native ARM64 images and starting oci stack..."
-sudo docker compose -p oci up -d --build
+COMPOSE_ARGS=(-p oci -f docker-compose.yml -f docker-compose.gate4.yml)
+
+echo "Building native ARM64 images and starting isolated Gate 4 oci stack..."
+sudo docker compose "${COMPOSE_ARGS[@]}" up -d --build
 
 echo "Waiting for containers to stabilize..."
 sleep 10
-sudo docker compose -p oci ps
+sudo docker compose "${COMPOSE_ARGS[@]}" ps
+
+# Assert all 5 long-running services are strictly running
+RUNNING_SERVICES="$(sudo docker compose "${COMPOSE_ARGS[@]}" ps --status running --services | sort | tr '\n' ' ')"
+echo "Running services: $RUNNING_SERVICES"
+for req_svc in ai api caddy ollama worker; do
+  echo " $RUNNING_SERVICES " | grep -Fq " ${req_svc} " || { echo "FATAL: Required service '$req_svc' is not running!"; exit 1; }
+done
 
 for m in qwen2.5:7b llama3.2:3b; do
-  if ! sudo docker compose -p oci exec -T ollama ollama list | awk 'NR>1{print $1}' | grep -Fxq "$m"; then
+  if ! sudo docker compose "${COMPOSE_ARGS[@]}" exec -T ollama ollama list | awk 'NR>1{print $1}' | grep -Fxq "$m"; then
     echo "Ensuring model $m is pulled in ollama..."
-    sudo docker compose -p oci exec -T ollama ollama pull "$m"
+    sudo docker compose "${COMPOSE_ARGS[@]}" exec -T ollama ollama pull "$m"
   fi
 done
 
-echo "=== ARM64 IMAGE & RUNTIME VERIFICATION ==="
-for img in $(sudo docker compose -p oci images -q | sort -u); do
-  sudo docker image inspect "$img" --format '  image={{index .RepoTags 0}} arch={{.Architecture}} os={{.Os}}'
+echo "=== ARM64 IMAGE & PLAYWRIGHT BINARY ASSERTIONS ==="
+for img in $(sudo docker compose "${COMPOSE_ARGS[@]}" images -q | sort -u); do
+  ARCH_STR="$(sudo docker image inspect "$img" --format '{{.Architecture}}')"
+  TAG_STR="$(sudo docker image inspect "$img" --format '{{index .RepoTags 0}}')"
+  echo "  image=${TAG_STR} arch=${ARCH_STR}"
+  [[ "$ARCH_STR" == "arm64" ]] || { echo "FATAL: Image $TAG_STR architecture is '$ARCH_STR' (expected arm64)!"; exit 1; }
 done
-echo "  worker node_version=$(sudo docker compose -p oci exec -T worker node -v)"
-echo "  worker playwright_version=$(sudo docker compose -p oci exec -T worker node -p 'require("playwright/package.json").version')"
-echo "  worker chromium_path=$(sudo docker compose -p oci exec -T worker node -p 'require("playwright").chromium.executablePath()')"
 
-echo "=== HOST FIREWALL & SOCKET EXPOSURE CHECK ==="
-sudo ufw status verbose
-sudo ss -tulpn | grep -E 'LISTEN'
+PW_VER="$(sudo docker compose "${COMPOSE_ARGS[@]}" exec -T worker node -p 'require("playwright/package.json").version' | tr -d '\r\n')"
+PW_BIN_OK="$(sudo docker compose "${COMPOSE_ARGS[@]}" exec -T worker node -p 'const fs=require("fs"),{chromium}=require("playwright"); fs.existsSync(chromium.executablePath())' | tr -d '\r\n')"
+echo "  worker node_version=$(sudo docker compose "${COMPOSE_ARGS[@]}" exec -T worker node -v | tr -d '\r\n')"
+echo "  worker playwright_version=${PW_VER}"
+echo "  worker chromium_binary_exists=${PW_BIN_OK}"
+[[ "$PW_VER" == "1.62.1" ]] || { echo "FATAL: Expected playwright 1.62.1, got '$PW_VER'"; exit 1; }
+[[ "$PW_BIN_OK" == "true" ]] || { echo "FATAL: Chromium binary missing inside worker container"; exit 1; }
+
+# Export public Caddy local-PKI root CA certificate so external & local HTTPS probes verify TLS strictly (no -k)
+CADDY_LOCAL_ROOT="/var/lib/docker/volumes/oci_caddy_data/_data/caddy/pki/authorities/local/root.crt"
+for _ in $(seq 1 20); do
+  sudo test -s "$CADDY_LOCAL_ROOT" && break
+  sleep 2
+done
+sudo test -s "$CADDY_LOCAL_ROOT" || { echo "FATAL: Caddy local PKI root.crt not generated at $CADDY_LOCAL_ROOT"; exit 1; }
+sudo cp "$CADDY_LOCAL_ROOT" /tmp/gate4_caddy_root.crt
+sudo chmod 644 /tmp/gate4_caddy_root.crt
+
+echo "=== HOST FIREWALL & SOCKET EXPOSURE ASSERTIONS ==="
+UFW_OUT="$(sudo ufw status verbose)"
+echo "$UFW_OUT"
+echo "$UFW_OUT" | grep -Fq "Status: active" || { echo "FATAL: UFW is not active!"; exit 1; }
+
+LISTEN_OUT="$(sudo ss -tln)"
+echo "$LISTEN_OUT"
+for internal_port in 8081 8082 8083 11434; do
+  if echo "$LISTEN_OUT" | awk '{print $4}' | grep -Eq "(^|:|\\*)${internal_port}$"; then
+    echo "FATAL: Internal service port $internal_port is bound on host network stack!"; exit 1
+  fi
+done
 REMOTE_DEPLOY
 
-# ------------------------------------------------------------------------------
-# PHASE 6: INDEPENDENT FUNCTIONAL, SECURITY & RESOURCE TESTS ON jobiest-a1
-# ------------------------------------------------------------------------------
-banner "PHASE 6A — EXTERNAL TLS, HEALTHZ, 401 GATES & PORT-ISOLATION FROM CLOUD SHELL"
+# Fetch public Caddy local-PKI root certificate to Cloud Shell for strict external TLS verification
+A1_CA_CERT="$TMP_DIR/a1_gate4_root.crt"
+ssh "${SSH_OPTS[@]}" "ubuntu@$A1_PUBLIC_IP" 'cat /tmp/gate4_caddy_root.crt' >"$A1_CA_CERT"
+[[ -s "$A1_CA_CERT" ]] || die "Failed to retrieve public Gate 4 Caddy root CA certificate."
 
-for dom in worker.jobiest.com api.jobiest.com ai.jobiest.com; do
-  HC="$(curl -sS --resolve "${dom}:443:${A1_PUBLIC_IP}" --max-time 15 -w ' HTTP=%{http_code} TLS=%{ssl_verify_result} TIME=%{time_total}s' "https://${dom}/healthz")"
-  printf '  [A1 External HTTPS] %s/healthz -> %s\n' "$dom" "$HC"
+# ------------------------------------------------------------------------------
+# PHASE 6: STRICT ASSERTION-GATED FUNCTIONAL, SECURITY & RESOURCE VALIDATION
+# ------------------------------------------------------------------------------
+banner "PHASE 6A — EXTERNAL TLS (STRICT CA VERIFY), HEALTHZ, 401 GATES & PORT ISOLATION"
+
+for dom in "$GATE4_WORKER_DOMAIN" "$GATE4_API_DOMAIN" "$GATE4_AI_DOMAIN"; do
+  HC_FILE="$TMP_DIR/hc_${dom}.json"
+  HC_META="$(curl -sS --cacert "$A1_CA_CERT" --resolve "${dom}:443:${A1_PUBLIC_IP}" --max-time 15 -o "$HC_FILE" -w '%{http_code}|%{ssl_verify_result}|%{time_total}' "https://${dom}/healthz")"
+  IFS='|' read -r HC_CODE HC_SSL HC_TIME <<<"$HC_META"
+  HC_OK="$(python3 -c 'import json,sys; d=json.loads(open(sys.argv[1]).read()); print("true" if d.get("ok") is True else "false")' "$HC_FILE" 2>/dev/null || echo false)"
+  printf '  [A1 External HTTPS] %s/healthz -> HTTP=%s TLS_VERIFY=%s ok=%s time=%ss\n' "$dom" "$HC_CODE" "$HC_SSL" "$HC_OK" "$HC_TIME"
+  [[ "$HC_CODE" == "200" && "$HC_SSL" == "0" && "$HC_OK" == "true" ]] || \
+    die "External healthz assertion failed for $dom (HTTP=$HC_CODE, TLS_VERIFY=$HC_SSL, ok=$HC_OK)!"
 done
 
-printf '  [A1 External 401 Gates]\n'
-printf '    worker /submit (no auth) : HTTP %s\n' "$(curl -sS -o /dev/null -w '%{http_code}' --resolve "worker.jobiest.com:443:${A1_PUBLIC_IP}" -X POST "https://worker.jobiest.com/submit" -H 'Content-Type: application/json' -d '{}' --max-time 15)"
-printf '    api /v1/submit (no auth) : HTTP %s\n' "$(curl -sS -o /dev/null -w '%{http_code}' --resolve "api.jobiest.com:443:${A1_PUBLIC_IP}" -X POST "https://api.jobiest.com/v1/submit" -H 'Content-Type: application/json' -d '{}' --max-time 15)"
-printf '    ai /api/chat   (no auth) : HTTP %s\n' "$(curl -sS -o /dev/null -w '%{http_code}' --resolve "ai.jobiest.com:443:${A1_PUBLIC_IP}" -X POST "https://ai.jobiest.com/api/chat" -H 'Content-Type: application/json' -d '{}' --max-time 15)"
+printf '  [A1 External Unauthenticated & Invalid-Token 401 Assertions]\n'
+for entry in \
+  "${GATE4_WORKER_DOMAIN}|/submit" \
+  "${GATE4_API_DOMAIN}|/v1/submit" \
+  "${GATE4_AI_DOMAIN}|/api/chat"; do
+  IFS='|' read -r dom path <<<"$entry"
+  CODE_NOAUTH="$(curl -sS --cacert "$A1_CA_CERT" -o /dev/null -w '%{http_code}' --resolve "${dom}:443:${A1_PUBLIC_IP}" -X POST "https://${dom}${path}" -H 'Content-Type: application/json' -d '{}' --max-time 15)"
+  CODE_BADTOK="$(curl -sS --cacert "$A1_CA_CERT" -o /dev/null -w '%{http_code}' --resolve "${dom}:443:${A1_PUBLIC_IP}" -X POST "https://${dom}${path}" -H 'Authorization: Bearer invalid-gate4-probe-token' -H 'Content-Type: application/json' -d '{}' --max-time 15)"
+  printf '    %-32s : no_auth=HTTP %s | bad_token=HTTP %s\n' "${dom}${path}" "$CODE_NOAUTH" "$CODE_BADTOK"
+  [[ "$CODE_NOAUTH" == "401" && "$CODE_BADTOK" == "401" ]] || \
+    die "401 auth gate assertion failed on ${dom}${path} (no_auth=$CODE_NOAUTH, bad_token=$CODE_BADTOK)!"
+done
 
-printf '  [A1 Internal Port Block Check from Internet (expect timeout/exit!=0)]\n'
+printf '  [A1 External Internal-Port Block Assertions (8081, 8082, 8083, 11434)]\n'
 for p in 8081 8082 8083 11434; do
   if curl -sS --max-time 3 "http://${A1_PUBLIC_IP}:${p}/healthz" >/dev/null 2>&1; then
-    die "SECURITY FAILURE: Port $p is reachable externally on $A1_PUBLIC_IP!"
+    die "SECURITY FAILURE: Internal port $p is reachable externally on $A1_PUBLIC_IP!"
   else
-    printf '    port %d : BLOCKED externally (OK)\n' "$p"
+    printf '    port %d : BLOCKED externally (PASS)\n' "$p"
   fi
 done
 
-banner "PHASE 6B — AUTHENTICATED E2E TESTS ON jobiest-a1 (WORKER ARM64 CHROMIUM + API + OLLAMA AI)"
+banner "PHASE 6B — ASSERTION-GATED E2E TESTS ON jobiest-a1 (CHROMIUM + API + OLLAMA READY)"
 
-ssh "${SSH_OPTS[@]}" "ubuntu@$A1_PUBLIC_IP" 'bash -s' <<'REMOTE_E2E'
+{
+  printf 'GATE4_WORKER_DOMAIN=%q\n' "$GATE4_WORKER_DOMAIN"
+  printf 'GATE4_API_DOMAIN=%q\n' "$GATE4_API_DOMAIN"
+  printf 'GATE4_AI_DOMAIN=%q\n' "$GATE4_AI_DOMAIN"
+  cat <<'REMOTE_E2E'
 set -euo pipefail
 ENV_PATH="$HOME/jobiest/ai-career-agent-coding-agent/ai-career-agent-coding-agent/deploy/oci/.env"
+CA_CERT="/tmp/gate4_caddy_root.crt"
 
-python3 - "$ENV_PATH" <<'PY'
-import json, subprocess, sys, time, urllib.request
+python3 - "$ENV_PATH" "$CA_CERT" "$GATE4_WORKER_DOMAIN" "$GATE4_API_DOMAIN" "$GATE4_AI_DOMAIN" <<'PY'
+import json, re, subprocess, sys, time, urllib.request
 
-env_path = sys.argv[1]
+env_path, ca_cert, worker_dom, api_dom, ai_dom = sys.argv[1:6]
 env = {}
 with open(env_path, "r", encoding="utf-8") as f:
     for line in f:
@@ -1129,41 +1455,43 @@ worker_secret = env.get("BROWSER_WORKER_SECRET", "")
 api_key = (env.get("API_KEYS", "").split(",")[0]).strip()
 ollama_key = env.get("OLLAMA_API_KEY", "")
 
-assert worker_secret, "BROWSER_WORKER_SECRET empty"
-assert api_key, "API_KEYS empty"
-assert ollama_key, "OLLAMA_API_KEY empty"
+assert len(worker_secret) >= 32, "BROWSER_WORKER_SECRET missing or too short"
+assert len(api_key) >= 32, "API_KEYS missing or too short"
+assert len(ollama_key) >= 32, "OLLAMA_API_KEY missing or too short"
 
-def call_https(domain, path, token, payload_obj, timeout=180):
+def call_https_raw(domain, path, token, raw_body, timeout=180):
     t0 = time.monotonic()
     cmd = [
-        "curl", "-sS", "--config", "-",
-        "--resolve", f"{domain}:443:127.0.0.1",
+        "curl", "-sS",
+        "--cacert", ca_cert,
+        "--config", "-",
+        "--resolve", "%s:443:127.0.0.1" % domain,
         "--max-time", str(timeout),
-        "-X", "POST", f"https://{domain}{path}",
+        "-X", "POST", "https://%s%s" % (domain, path),
         "-H", "Content-Type: application/json",
-        "--data-binary", json.dumps(payload_obj),
-        "-w", "\n__HTTP_STATUS__=%{http_code}"
+        "--data-binary", raw_body,
+        "-w", "\n__HTTP_STATUS__=%{http_code}",
     ]
     proc = subprocess.run(
         cmd,
-        input=f'header = "Authorization: Bearer {token}"\n',
+        input='header = "Authorization: Bearer %s"\n' % token,
         text=True,
         capture_output=True,
         check=False,
     )
     dt = time.monotonic() - t0
-    out = proc.stdout
-    status = "ERR"
-    body = out
-    if "\n__HTTP_STATUS__=" in out:
-        body, status = out.rsplit("\n__HTTP_STATUS__=", 1)
-        status = status.strip()
-    return status, body.strip(), dt
+    if proc.returncode != 0 and "\n__HTTP_STATUS__=" not in proc.stdout:
+        raise AssertionError("curl transport error (rc=%d) for %s%s: %s" % (proc.returncode, domain, path, proc.stderr.strip()))
+    body, status = proc.stdout.rsplit("\n__HTTP_STATUS__=", 1)
+    return status.strip(), body.strip(), dt
 
-gh_url = "https://boards.greenhouse.io/gitlab"
+def call_https(domain, path, token, payload_obj, timeout=180):
+    return call_https_raw(domain, path, token, json.dumps(payload_obj), timeout=timeout)
+
+gh_url = None
 for b in ("gitlab", "cloudflare", "vercel", "datadog"):
     try:
-        req = urllib.request.Request(f"https://boards-api.greenhouse.io/v1/boards/{b}/jobs", headers={"User-Agent": "Mozilla/5.0"})
+        req = urllib.request.Request("https://boards-api.greenhouse.io/v1/boards/%s/jobs" % b, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=10) as r:
             jobs = json.loads(r.read().decode("utf-8")).get("jobs") or []
             if jobs and jobs[0].get("absolute_url"):
@@ -1171,18 +1499,27 @@ for b in ("gitlab", "cloudflare", "vercel", "datadog"):
                 break
     except Exception:
         pass
+assert gh_url, "Could not resolve a live public Greenhouse job posting URL for safe zero-submit DOM test"
 
-print("1. [Browser Worker SSRF Guard]")
-st, body, dt = call_https("worker.jobiest.com", "/submit", worker_secret, {
+print("1. [Browser Worker Malformed JSON -> HTTP 400 Assertion]")
+st, body, dt = call_https_raw(worker_dom, "/submit", worker_secret, "{bad-json", timeout=30)
+print("   HTTP %s (%.2fs) -> %s" % (st, dt, body))
+assert st == "400", "Expected HTTP 400 on malformed JSON, got %s" % st
+
+print("2. [Browser Worker SSRF Guard -> HTTP 200 STOP POLICY_RESTRICTED Assertion]")
+st, body, dt = call_https(worker_dom, "/submit", worker_secret, {
     "jobUrl": "http://169.254.169.254/latest/meta-data/",
     "allowedDomains": ["169.254.169.254"],
     "candidate": {"jobUrl": "http://169.254.169.254/latest/meta-data/", "company": "Test", "title": "Probe", "email": "", "name": None, "phone": None, "cvPath": None, "cvDownloadUrl": None, "coverLetter": None, "answers": []}
 }, timeout=30)
-print(f"   HTTP {st} ({dt:.2f}s) -> {body}")
+print("   HTTP %s (%.2fs) -> %s" % (st, dt, body))
+ssrf_json = json.loads(body)
+assert st == "200" and ssrf_json.get("outcome") == "STOP" and ssrf_json.get("code") == "POLICY_RESTRICTED" and ssrf_json.get("message") == "SSRF_BLOCKED", \
+    "SSRF guard assertion failed: status=%s body=%s" % (st, body)
 
-print("2. [Browser Worker REAL ARM64 Chromium Launch + PDF Materialize + Greenhouse DOM Check (Zero-Submit name=null)]")
-print(f"   Target: {gh_url}")
-st, body, dt = call_https("worker.jobiest.com", "/submit", worker_secret, {
+print("3. [Browser Worker REAL ARM64 Chromium Launch + PDF Materialize + Greenhouse DOM Check (Zero-Submit name=null)]")
+print("   Target: %s" % gh_url)
+st, body, dt = call_https(worker_dom, "/submit", worker_secret, {
     "jobUrl": gh_url,
     "allowedDomains": ["greenhouse.io", "boards.greenhouse.io", "job-boards.greenhouse.io"],
     "candidate": {
@@ -1198,10 +1535,15 @@ st, body, dt = call_https("worker.jobiest.com", "/submit", worker_secret, {
         "answers": []
     }
 }, timeout=120)
-print(f"   HTTP {st} ({dt:.2f}s) -> {body[:260]}")
+print("   HTTP %s (%.2fs) -> %s" % (st, dt, body[:260]))
+bw_json = json.loads(body)
+assert st == "200", "Browser worker live Greenhouse probe returned HTTP %s (expected 200): %s" % (st, body)
+assert bw_json.get("outcome") == "STOP", "Expected safe zero-submit outcome=STOP, got %r" % (bw_json,)
+assert bw_json.get("code") not in (None, "POLICY_RESTRICTED", "UNSUPPORTED_PLATFORM"), \
+    "Expected post-navigation DOM stop code (proving Chromium launched and loaded page), got %r" % (bw_json,)
 
-print("3. [API Gateway /v1/submit -> Internal Worker Hop]")
-st, body, dt = call_https("api.jobiest.com", "/v1/submit", api_key, {
+print("4. [API Gateway /v1/submit -> Internal Worker Hop Assertion]")
+st, body, dt = call_https(api_dom, "/v1/submit", api_key, {
     "jobUrl": gh_url,
     "candidate": {
         "jobUrl": gh_url,
@@ -1216,40 +1558,55 @@ st, body, dt = call_https("api.jobiest.com", "/v1/submit", api_key, {
         "answers": []
     }
 }, timeout=120)
-print(f"   HTTP {st} ({dt:.2f}s) -> {body[:260]}")
+print("   HTTP %s (%.2fs) -> %s" % (st, dt, body[:260]))
+api_json = json.loads(body)
+assert st == "200", "API gateway /v1/submit returned HTTP %s (expected 200): %s" % (st, body)
+assert api_json.get("outcome") == "STOP" and api_json.get("code") not in (None, "POLICY_RESTRICTED", "UNSUPPORTED_PLATFORM"), \
+    "API gateway -> worker hop did not produce expected post-navigation STOP outcome: %r" % (api_json,)
 
 for model in ("llama3.2:3b", "qwen2.5:7b"):
-    print(f"4. [AI Gateway /api/chat -> Ollama ARM64 ({model})]")
-    st, body, dt = call_https("ai.jobiest.com", "/api/chat", ollama_key, {
+    print("5. [AI Gateway /api/chat -> Ollama ARM64 Strict READY Assertion (%s)]" % model)
+    st, body, dt = call_https(ai_dom, "/api/chat", ollama_key, {
         "model": model,
         "stream": False,
         "messages": [{"role": "user", "content": "Reply with the exact word READY and nothing else."}],
         "options": {"num_predict": 12, "temperature": 0}
     }, timeout=300)
-    try:
-        j = json.loads(body)
-        reply = (j.get("message") or {}).get("content", "").strip().replace("\n", " ")
-        eval_cnt = j.get("eval_count", 0)
-        eval_ns = j.get("eval_duration", 1) or 1
-        load_s = (j.get("load_duration", 0) or 0) / 1e9
-        tok_s = eval_cnt / (eval_ns / 1e9) if eval_cnt else 0.0
-        print(f"   HTTP {st} ({dt:.2f}s) | load={load_s:.2f}s | tok/s={tok_s:.2f} | reply={reply!r}")
-    except Exception:
-        print(f"   HTTP {st} ({dt:.2f}s) -> {body[:240]}")
+    assert st == "200", "AI gateway /api/chat (%s) returned HTTP %s: %s" % (model, st, body[:240])
+    j = json.loads(body)
+    assert j.get("done") is True, "Ollama (%s) did not report done=True: %r" % (model, j)
+    reply = ((j.get("message") or {}).get("content") or "").strip()
+    normalized = re.sub(r"[^A-Za-z]", "", reply).upper()
+    eval_cnt = int(j.get("eval_count") or 0)
+    eval_ns = int(j.get("eval_duration") or 1) or 1
+    load_s = float(j.get("load_duration") or 0) / 1e9
+    tok_s = eval_cnt / (eval_ns / 1e9) if eval_cnt else 0.0
+    print("   HTTP %s (%.2fs) | load=%.2fs | tok/s=%.2f | reply=%r" % (st, dt, load_s, tok_s, reply))
+    assert normalized == "READY", "Model %s failed READY assertion (got %r, normalized=%r)" % (model, reply, normalized)
+    assert eval_cnt >= 1, "Model %s reported eval_count=%d (expected >=1)" % (model, eval_cnt)
+
+print("ALL PHASE 6B E2E ASSERTIONS PASSED.")
 PY
 
-echo "=== OLLAMA LOADED MODELS CHECK (EXPECT MAX 1 LOADED) ==="
-sudo docker compose -p oci exec -T ollama ollama list
-sudo docker compose -p oci exec -T ollama ollama ps
+COMPOSE_ARGS=(-p oci -f "$HOME/jobiest/ai-career-agent-coding-agent/ai-career-agent-coding-agent/deploy/oci/docker-compose.yml" -f "$HOME/jobiest/ai-career-agent-coding-agent/ai-career-agent-coding-agent/deploy/oci/docker-compose.gate4.yml")
+
+echo "=== OLLAMA SINGLE-MODEL MEMORY CAP ASSERTION (EXPECT <= 1 LOADED MODEL) ==="
+sudo docker compose "${COMPOSE_ARGS[@]}" exec -T ollama ollama list
+PS_OUT="$(sudo docker compose "${COMPOSE_ARGS[@]}" exec -T ollama ollama ps)"
+echo "$PS_OUT"
+LOADED_COUNT="$(printf '%s\n' "$PS_OUT" | awk 'NR>1 && NF>0 {c++} END {print c+0}')"
+echo "Loaded Ollama models in RAM: $LOADED_COUNT (limit=1)"
+(( LOADED_COUNT <= 1 )) || { echo "FATAL: OLLAMA_MAX_LOADED_MODELS=1 violated (loaded=$LOADED_COUNT)!"; exit 1; }
 
 echo "=== RESOURCE CONSUMPTION ON jobiest-a1 (RAM, DISK, CONTAINER STATS) ==="
 free -h
 df -h /
 sudo docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}'
 REMOTE_E2E
+} | ssh "${SSH_OPTS[@]}" "ubuntu@$A1_PUBLIC_IP" 'bash -s'
 
 # ------------------------------------------------------------------------------
-# PHASE 7: FINAL CONFIRMATION THAT PRODUCTION E5 & LIVE ROUTING ARE UNTOUCHED
+# PHASE 7: ASSERT PRODUCTION E5, RESERVED IP & LIVE ENDPOINTS REMAIN HEALTHY
 # ------------------------------------------------------------------------------
 banner "PHASE 7 — RE-VERIFY PRODUCTION E5, RESERVED IP & LIVE PRODUCTION ENDPOINTS"
 
@@ -1258,8 +1615,13 @@ RIP_AFTER="$(oci network public-ip get --region "$REGION" --public-ip-id "$RESER
 printf 'Production jobiest-ai (E5) state : %s\n' "$E5_AFTER"
 printf 'Reserved IP 147.224.218.163 owner: %s (matches E5=%s)\n' "$RIP_AFTER" "$([[ "$RIP_AFTER" == "$E5_PRIVATE_IP_ID" ]] && echo YES || echo NO)"
 
+[[ "$E5_AFTER" == "RUNNING" ]] || die "Production jobiest-ai is not RUNNING ($E5_AFTER)!"
+[[ "$RIP_AFTER" == "$E5_PRIVATE_IP_ID" ]] || die "Reserved IP 147.224.218.163 assignment changed unexpectedly ($RIP_AFTER)!"
+
 for url in "https://worker.jobiest.com/healthz" "https://api.jobiest.com/healthz" "https://ai.jobiest.com/healthz" "https://jobiest.com/api/health"; do
-  printf '  [Live Prod] %-36s -> HTTP %s\n' "$url" "$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "$url")"
+  PROD_CODE="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "$url")"
+  printf '  [Live Prod] %-36s -> HTTP %s\n' "$url" "$PROD_CODE"
+  [[ "$PROD_CODE" == "200" ]] || die "Live production health check failed for $url (HTTP $PROD_CODE)!"
 done
 
-banner "GATE 4 PROVISIONING, DEPLOYMENT & INDEPENDENT VALIDATION COMPLETE"
+banner "GATE 4 PROVISIONING, DEPLOYMENT & ASSERTION-GATED VALIDATION COMPLETE"
