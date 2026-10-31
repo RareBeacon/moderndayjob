@@ -7,8 +7,8 @@ import "./jobiest-exact.css";
 import HomeClient from "./HomeClient";
 
 export const metadata: Metadata = marketingMetadata({
-  title: "Jobiest - More interviews. Less job hunting.",
-  description: "Your AI career agent. Paste a job link and get a truthful CV and cover letter tailored to your experience.",
+  title: "Jobiest - Tailored CVs, cover letters, and controlled job applications",
+  description: "Build your career profile once, paste any job link, and get a truthful CV and cover letter tailored from your real experience.",
   path: "/",
 });
 

@@ -66,15 +66,16 @@ export function AutoSubmitToggle({
     return (
       <div>
         <p className="muted" style={{ margin: 0, fontSize: 13.5, lineHeight: 1.55 }}>
-          Automatic submission sends eligible applications for you on supported employer sites,
-          within your rules, then emails you after each one. It is part of the paid plans.
+          By default, every application waits for your approval. Paid plans unlock optional
+          automatic submission on supported employer career pages, with an email confirmation after
+          each send.
         </p>
         <Link
           className="btn-ghost"
           href="/pricing"
           style={{ marginTop: 14, textDecoration: 'none', display: 'inline-block' }}
         >
-          See plans
+          Compare plans
         </Link>
       </div>
     );
@@ -84,17 +85,17 @@ export function AutoSubmitToggle({
     <div>
       <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700 }} role="status">
         <span className={`auto-dot${on ? ' on' : ''}`} aria-hidden="true" />
-        {on ? 'On for this account' : 'Off for this account'}
+        {on ? 'Automatic submission active' : 'Review before every send (default)'}
       </p>
       <p className="muted" style={{ margin: '10px 0 0', fontSize: 13.5, lineHeight: 1.55 }}>
         {on
-          ? "Your agent submits eligible applications for you on supported employer sites, within your rules, and emails you after each one. It applies through employers' own career sites only, never LinkedIn Easy Apply or Indeed Apply, and stops on CAPTCHA, logins, and unsupported sites."
-          : 'Your agent prepares every application and waits for your approval before anything is sent. Turn this on and it submits eligible applications for you on supported employer sites, within your rules, then emails you after each one.'}
+          ? 'Eligible applications on supported employer career sites are submitted within your rules, with an email summary after each send. Jobiest never uses LinkedIn Easy Apply or Indeed Apply, and always pauses on CAPTCHAs, logins, or sensitive questions.'
+          : 'Every tailored package pauses for your review and approval before anything goes out. Switch on automatic submission if you want eligible roles on supported employer sites sent within your rules.'}
       </p>
       {on && !sendingLive && (
         <p className="muted" style={{ margin: '10px 0 0', fontSize: 13, lineHeight: 1.5 }}>
-          Your choice is saved. Sending starts once final checks are complete; until then every
-          application still waits for your approval.
+          Your preference is saved. Until live sending is enabled on this environment, every
+          application continues to wait for your manual approval.
         </p>
       )}
       <button
@@ -105,7 +106,7 @@ export function AutoSubmitToggle({
         style={{ marginTop: 14 }}
         aria-pressed={on}
       >
-        {busy ? 'Saving…' : on ? 'Turn off automatic submission' : 'Turn on automatic submission'}
+        {busy ? 'Saving…' : on ? 'Switch to review-first mode' : 'Enable automatic submission'}
       </button>
       {note ? (
         <p className="form-status" role="status" style={{ margin: '10px 0 0' }}>

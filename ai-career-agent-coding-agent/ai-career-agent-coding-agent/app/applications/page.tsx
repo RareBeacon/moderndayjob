@@ -145,6 +145,7 @@ export default function Applications() {
   const [openForm, setOpenForm] = useState(false);
   const [formMsg, setFormMsg] = useState('');
   const [openTarget, setOpenTarget] = useState(false);
+  const [prefillJobUrl, setPrefillJobUrl] = useState('');
   const [targetMsg, setTargetMsg] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ text: string; err: boolean } | null>(null);
@@ -168,7 +169,30 @@ export default function Applications() {
       setAppMode(prefs?.application_mode ?? 'approval');
     }
   }
-  useEffect(() => { load(); loadAgent(); }, []);
+  useEffect(() => {
+    load();
+    loadAgent();
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      const urlParam = sp.get('jobUrl');
+      const shouldOpenTarget = sp.get('openTarget') === '1' || Boolean(urlParam);
+      const openAppId = sp.get('open');
+      if (urlParam) setPrefillJobUrl(urlParam);
+      if (shouldOpenTarget) setOpenTarget(true);
+      if (openAppId) {
+        setOpenId(openAppId);
+        fetch(`/api/applications/${encodeURIComponent(openAppId)}`)
+          .then((r) => (r.ok ? r.json() : null))
+          .then((j) => {
+            if (j) {
+              setDetail(j);
+              setAutomationEnabled(j.automationEnabled ?? false);
+            }
+          })
+          .catch(() => {});
+      }
+    } catch {}
+  }, []);
 
   async function openDetail(id: string) {
     if (openId === id) { setOpenId(null); setDetail(null); return; }
@@ -336,7 +360,7 @@ export default function Applications() {
         </p>
         {openTarget && (
           <form className="form-stack track-form" onSubmit={startApplication}>
-            <label>Job link<input name="url" type="url" required placeholder="https://boards.greenhouse.io/… / any job posting link" /></label>
+            <label>Job link<input name="url" type="url" required defaultValue={prefillJobUrl} placeholder="https://boards.greenhouse.io/… / any job posting link" /></label>
             <label>Role title<input name="title" required placeholder="Role title" /></label>
             <label>Company<input name="company" required placeholder="Company name" /></label>
             <label>Location (optional)<input name="location" placeholder="City, country or remote" /></label>

@@ -22,7 +22,7 @@ export function DashboardSetup({ needsSetup, required = false }: { needsSetup: b
   if (required) {
     return (
       <div>
-        <p className="dd-over" style={{ marginTop: 0 }}>Finish your setup to unlock the full product</p>
+        <p className="dd-over" style={{ marginTop: 0 }}>Complete your career profile to get started</p>
         <SetupWizard
           onFinish={() => router.refresh()}
           onSkip={() => router.refresh()}
@@ -39,15 +39,15 @@ export function DashboardSetup({ needsSetup, required = false }: { needsSetup: b
   return (
     <section className="dd-setup" aria-label="Profile setup invitation">
       <div>
-        <span className="dd-over">One more thing</span>
+        <span className="dd-over">Two-minute setup</span>
         <p>
-          Your agent needs a few facts (target roles, skills, how you like to apply) before it can
-          match and draft for you. Two minutes, all editable later.
+          Add your target roles, core skills, and how you prefer to apply so Jobiest can draft
+          accurate, role-specific packages for you. Everything stays editable anytime.
         </p>
       </div>
       <div className="dd-setup-actions">
-        <button type="button" className="btn" onClick={() => setOpen(true)}>Set up now</button>
-        <button type="button" className="text-button" onClick={() => setLater(true)}>Later</button>
+        <button type="button" className="btn" onClick={() => setOpen(true)}>Set up preferences</button>
+        <button type="button" className="text-button" onClick={() => setLater(true)}>Remind me later</button>
       </div>
     </section>
   );

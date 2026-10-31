@@ -265,32 +265,32 @@ async function DashboardBodyInner(user: Awaited<ReturnType<typeof requireUserOrR
   // Quota line: align with both legacy entitlement ceiling and monthly ledger credits
   const legacyRemaining = Number((entitlement as any)?.ai_credits_remaining ?? 0);
   const effectiveDocCredits = docCredits !== null ? Math.min(docCredits, legacyRemaining) : null;
-  let quotaLine = 'Your documents and applications';
+  let quotaLine = 'Tailored CVs & cover letters';
   try {
     quotaLine =
       effectiveDocCredits !== null
         ? (entitlement as any)?.plan === 'FREE'
-          ? `${effectiveDocCredits} of ${PLANS.FREE.lifetimeDocs ?? 3} free documents left`
-          : `${effectiveDocCredits} document credit${effectiveDocCredits === 1 ? '' : 's'} available today`
+          ? `${effectiveDocCredits} of ${PLANS.FREE.lifetimeDocs ?? 3} free tailored documents left`
+          : `${effectiveDocCredits} document credit${effectiveDocCredits === 1 ? '' : 's'} remaining today`
         : (entitlement as any)?.plan === 'FREE'
-          ? `${legacyRemaining} of ${PLANS.FREE.lifetimeDocs ?? 3} free documents left`
-          : `${legacyRemaining} AI generations today`;
+          ? `${legacyRemaining} of ${PLANS.FREE.lifetimeDocs ?? 3} free tailored documents left`
+          : `${legacyRemaining} tailored generations remaining today`;
   } catch {}
   const activationActive = (activation as { status?: string } | null)?.status === 'ACTIVE';
 
   const suggestions: { text: string; href: string }[] = [];
   try {
-    if ((completeness as any)?.percent < 100) suggestions.push({ text: `Finish your profile, ${(completeness as any).percent}% complete for stronger matches.`, href: '/profile' });
-    if ((applicationCount ?? 0) === 0) suggestions.push({ text: 'Track your first application to start your history.', href: '/applications' });
-    if (autoMode) suggestions.push({ text: 'Automatic submission is on; your agent applies within your rules.', href: '/applications' });
-    else if ((entitlement as any)?.automation_enabled) suggestions.push({ text: 'Agent mode is on for your plan; bring a job link to begin.', href: '/applications' });
+    if ((completeness as any)?.percent < 100) suggestions.push({ text: `Complete your career profile (${(completeness as any).percent}% ready) for stronger role tailoring.`, href: '/profile' });
+    if ((applicationCount ?? 0) === 0) suggestions.push({ text: 'Prepare or log your first application to start tracking your progress.', href: '/applications?openTarget=1' });
+    if (autoMode) suggestions.push({ text: 'Automatic submission is active and sends eligible roles within your rules.', href: '/applications' });
+    else if ((entitlement as any)?.automation_enabled) suggestions.push({ text: 'Agent Mode is included on your plan. Paste any supported job link to begin.', href: '/applications?openTarget=1' });
     if (!(entitlement as any)?.automation_enabled && !activationActive) {
-      suggestions.push({ text: 'Unlock 5 free auto-applies a month: verify a card once (the check costs nothing).', href: '/auto-apply/activation' });
+      suggestions.push({ text: 'Unlock 5 free Agent Mode runs a month with a one-time zero-charge card check.', href: '/auto-apply/activation' });
     }
-    if ((portfolioCount ?? 0) === 0) suggestions.push({ text: 'Create your portfolio page and share one link with recruiters.', href: '/portfolios' });
-    if (suggestions.length === 0) suggestions.push({ text: 'Refresh your CV and run an ATS check for your next role.', href: '/generate' });
+    if ((portfolioCount ?? 0) === 0) suggestions.push({ text: 'Publish a clean portfolio page to share one link with hiring managers.', href: '/portfolios' });
+    if (suggestions.length === 0) suggestions.push({ text: 'Tailor a fresh CV or explore 30 templates in Resume Studio.', href: '/generate' });
   } catch {
-    if (suggestions.length === 0) suggestions.push({ text: 'Refresh your CV and run an ATS check for your next role.', href: '/generate' });
+    if (suggestions.length === 0) suggestions.push({ text: 'Tailor a fresh CV or explore 30 templates in Resume Studio.', href: '/generate' });
   }
 
   // Allowance meters: guard PLANS lookup and keep left <= max across Free + paid tiers
@@ -317,8 +317,12 @@ async function DashboardBodyInner(user: Awaited<ReturnType<typeof requireUserOrR
     autoLocked = !(entitlement as any)?.automation_enabled && !activationActive;
   } catch {}
 
+  const profileNextSteps = Array.isArray((completeness as any)?.next)
+    ? ((completeness as any).next as string[]).filter((s) => typeof s === 'string')
+    : [];
+
   return (
-    <AppShell active="dashboard" title="Dashboard">
+    <AppShell active="dashboard" title="Workspace">
       <DashboardView
         greeting={greeting}
         firstName={firstName}
@@ -326,6 +330,7 @@ async function DashboardBodyInner(user: Awaited<ReturnType<typeof requireUserOrR
         planLabel={(entitlement as any)?.plan ?? 'FREE'}
         quotaLine={quotaLine}
         profilePercent={(completeness as any)?.percent ?? 0}
+        profileNextSteps={profileNextSteps}
         stats={{ applications: applicationCount ?? 0, interviews, responseRate }}
         pipeline={{ prepared: preparedCount, checking: checkingCount, sent: sentCount, interviews }}
         drafts={draftApps.map((a) => ({
@@ -339,11 +344,13 @@ async function DashboardBodyInner(user: Awaited<ReturnType<typeof requireUserOrR
             left: autoLeft,
             max: Math.max(autoMax, autoLeft),
             locked: autoLocked,
-            note: `Auto-apply credits: ${autoLeft} left this month${autoLocked ? ' \u00b7 unlock 5 free with a card check' : ''}`,
+            note: autoLocked
+              ? 'Unlock 5 free runs/month with a zero-charge card check, or upgrade anytime.'
+              : `${autoLeft} of ${Math.max(autoMax, autoLeft)} Agent Mode runs remaining this month`,
           },
           extraNote:
             (portfolioCount ?? 0) > 0
-              ? `${portfolioCount} portfolio${portfolioCount === 1 ? '' : 's'} \u00b7 view them from the Portfolios tab`
+              ? `${portfolioCount} published portfolio${portfolioCount === 1 ? '' : 's'} ready to share`
               : undefined,
         }}
         autoSubmit={{
