@@ -96,14 +96,14 @@ printf 'Tenancy OCID : %s\nRegion       : %s\n' "$TENANCY_ID" "$REGION"
 
 # 1.1 Verify existing jobiest-ai (E5) is RUNNING and untouched
 E5_JSON="$(oci compute instance get --region "$REGION" --instance-id "$E5_INSTANCE_ID")"
-E5_STATE="$(python3 -c 'import json,sys; d=json.loads(sys.stdin.read())["data"]; print(f"{d[\"display-name\"]}|{d[\"lifecycle-state\"]}|{d[\"shape\"]}|{d[\"availability-domain\"]}")' <<<"$E5_JSON")"
+E5_STATE="$(python3 -c 'import json,sys; d=json.loads(sys.stdin.read())["data"]; print("|".join("" if d.get(k) is None else str(d.get(k)) for k in ("display-name","lifecycle-state","shape","availability-domain")))' <<<"$E5_JSON")"
 IFS='|' read -r E5_NAME E5_LIFECYCLE E5_SHAPE E5_AD <<<"$E5_STATE"
 printf 'Existing E5  : %s | state=%s | shape=%s | ad=%s\n' "$E5_NAME" "$E5_LIFECYCLE" "$E5_SHAPE" "$E5_AD"
 [[ "$E5_LIFECYCLE" == "RUNNING" ]] || die "Expected jobiest-ai to be RUNNING, got $E5_LIFECYCLE."
 
 # 1.2 Verify Reserved Public IP 147.224.218.163 is untouched on E5
 RIP_JSON="$(oci network public-ip get --region "$REGION" --public-ip-id "$RESERVED_IP_ID")"
-RIP_INFO="$(python3 -c 'import json,sys; d=json.loads(sys.stdin.read())["data"]; print(f"{d[\"ip-address\"]}|{d[\"lifetime\"]}|{d[\"lifecycle-state\"]}|{d.get(\"assigned-entity-id\",\"\")}")' <<<"$RIP_JSON")"
+RIP_INFO="$(python3 -c 'import json,sys; d=json.loads(sys.stdin.read())["data"]; print("|".join("" if d.get(k) is None else str(d.get(k)) for k in ("ip-address","lifetime","lifecycle-state","assigned-entity-id")))' <<<"$RIP_JSON")"
 IFS='|' read -r RIP_ADDR RIP_LIFE RIP_STATE RIP_ASSIGNED <<<"$RIP_INFO"
 printf 'Reserved IP  : %s | lifetime=%s | state=%s | assigned=%s\n' "$RIP_ADDR" "$RIP_LIFE" "$RIP_STATE" "$RIP_ASSIGNED"
 [[ "$RIP_ADDR" == "147.224.218.163" && "$RIP_LIFE" == "RESERVED" && "$RIP_ASSIGNED" == "$E5_PRIVATE_IP_ID" ]] || \
@@ -112,7 +112,7 @@ printf 'Reserved IP  : %s | lifetime=%s | state=%s | assigned=%s\n' "$RIP_ADDR" 
 # 1.3 Verify Gate 2 Backup & Restore-Test Volume are AVAILABLE
 BKP_STATE="$(oci bv boot-volume-backup get --region "$REGION" --boot-volume-backup-id "$GATE2_BACKUP_ID" --query 'data."lifecycle-state"' --raw-output)"
 RVOL_INFO="$(oci bv boot-volume get --region "$REGION" --boot-volume-id "$GATE2_RESTORE_VOL_ID" --query 'data.{state:"lifecycle-state",ad:"availability-domain",size:"size-in-gbs"}')"
-RVOL_STATE="$(python3 -c 'import json,sys; d=json.loads(sys.stdin.read()); print(f"{d[\"state\"]}|{d[\"ad\"]}|{d[\"size\"]}")' <<<"$RVOL_INFO")"
+RVOL_STATE="$(python3 -c 'import json,sys; d=json.loads(sys.stdin.read()); print("|".join("" if d.get(k) is None else str(d.get(k)) for k in ("state","ad","size")))' <<<"$RVOL_INFO")"
 IFS='|' read -r RVOL_LIFECYCLE RVOL_AD RVOL_SIZE <<<"$RVOL_STATE"
 printf 'Gate 2 Backup: %s (state=%s)\n' "$GATE2_BACKUP_ID" "$BKP_STATE"
 printf 'Gate 2 RVol  : %s (state=%s, ad=%s, size=%sGB)\n' "$GATE2_RESTORE_VOL_ID" "$RVOL_LIFECYCLE" "$RVOL_AD" "$RVOL_SIZE"
@@ -126,7 +126,7 @@ items = json.loads(sys.stdin.read()).get("data", [])
 live = [x for x in items if x.get("lifecycle-state") in ("PROVISIONING", "RUNNING", "STARTING")]
 if live:
     i = live[0]
-    print(f"{i[\"id\"]}|{i[\"lifecycle-state\"]}|{i[\"availability-domain\"]}|{i[\"shape\"]}")
+    print("|".join("" if i.get(k) is None else str(i.get(k)) for k in ("id", "lifecycle-state", "availability-domain", "shape")))
 ' <<<"$EXISTING_A1_JSON")"
 
 # 1.5 Enumerate ADs (prioritizing RVOL_AD = AD-2 first so read-only attach needs 0 extra volumes)
@@ -198,7 +198,7 @@ import json, sys
 imgs = [x for x in json.loads(sys.stdin.read()).get("data", []) if "aarch64" in x.get("display-name", "").lower() and "minimal" not in x.get("display-name", "").lower()]
 if not imgs:
     sys.exit(1)
-print(f"{imgs[0][\"id\"]}|{imgs[0][\"display-name\"]}")
+print("|".join("" if imgs[0].get(k) is None else str(imgs[0].get(k)) for k in ("id", "display-name")))
 ' <<<"$IMG_JSON")" || die "No Canonical Ubuntu 24.04 aarch64 image found for VM.Standard.A1.Flex."
 IFS='|' read -r A1_IMAGE_ID A1_IMAGE_NAME <<<"$IMG_LINE"
 printf 'ARM64 Image  : %s (%s)\n' "$A1_IMAGE_NAME" "$A1_IMAGE_ID"
@@ -262,7 +262,7 @@ done
 [[ "$STATE" == "RUNNING" ]] || die "$A1_DISPLAY_NAME did not reach RUNNING within timeout."
 
 VNIC_JSON="$(oci compute instance list-vnics --region "$REGION" --instance-id "$A1_INSTANCE_ID")"
-VNIC_LINE="$(python3 -c 'import json,sys; v=json.loads(sys.stdin.read())["data"][0]; print(f"{v[\"id\"]}|{v[\"private-ip\"]}|{v.get(\"public-ip\",\"\")}")' <<<"$VNIC_JSON")"
+VNIC_LINE="$(python3 -c 'import json,sys; v=json.loads(sys.stdin.read())["data"][0]; print("|".join("" if v.get(k) is None else str(v.get(k)) for k in ("id","private-ip","public-ip")))' <<<"$VNIC_JSON")"
 IFS='|' read -r A1_VNIC_ID A1_PRIVATE_IP A1_PUBLIC_IP <<<"$VNIC_LINE"
 
 A1_BVA_JSON="$(oci compute boot-volume-attachment list --region "$REGION" --compartment-id "$TENANCY_ID" --availability-domain "$A1_AD" --instance-id "$A1_INSTANCE_ID")"
