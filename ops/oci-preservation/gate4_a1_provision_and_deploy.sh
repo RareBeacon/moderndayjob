@@ -479,7 +479,18 @@ for ad in "${ORDERED_ADS[@]}"; do
   AD_MEM_AVAIL["$ad"]="$MEM_AVAIL"
   printf 'Quota   [%s]: A1 OCPUs available=%s | A1 RAM available=%s GB\n' "$ad" "$OCPU_AVAIL" "$MEM_AVAIL"
 
-  if python3 -c '
+  AD_STORAGE_HEADROOM_OK=1
+  if [[ -z "$EXISTING_A1_LINE" && "$ad" != "$RVOL_AD" ]]; then
+    HAS_SEED_IN_AD="$(oci bv boot-volume list --region "$REGION" --compartment-id "$TENANCY_ID" --availability-domain "$ad" --all | \
+      python3 -c 'import json,sys; s=sys.stdin.read().strip(); d=[x for x in ((json.loads(s) if s else {}).get("data") or []) if x.get("display-name")=="jobiest-gate4-ro-seed" and x.get("lifecycle-state")=="AVAILABLE"]; print("1" if d else "0")')"
+    if [[ "$HAS_SEED_IN_AD" != "1" ]] && (( TOTAL_STORAGE_GB + 100 > 200 )); then
+      AD_STORAGE_HEADROOM_OK=0
+      printf 'StorageGuard [%s]: skipping cross-AD A1 placement (active=%dGB + 50GB A1 + 50GB cross-AD seed > 200GB Always Free ceiling; %s needs 0 extra seed storage).\n' \
+        "$ad" "$TOTAL_STORAGE_GB" "$RVOL_AD"
+    fi
+  fi
+
+  if (( AD_STORAGE_HEADROOM_OK == 1 )) && python3 -c '
 import sys
 try:
     sys.exit(0 if float(sys.argv[1]) >= 2.0 and float(sys.argv[2]) >= 12.0 else 1)
@@ -489,7 +500,7 @@ except Exception:
     ADS_2OCPU_ELIGIBLE+=("$ad")
   fi
 
-  if python3 -c '
+  if (( AD_STORAGE_HEADROOM_OK == 1 )) && python3 -c '
 import sys
 try:
     sys.exit(0 if float(sys.argv[1]) >= 1.0 and float(sys.argv[2]) >= 12.0 else 1)
@@ -609,7 +620,8 @@ else
   for reg_ad in "${ORDERED_ADS[@]}"; do
     FD_FILE="$TMP_DIR/fds_$(echo "$reg_ad" | tr -cd 'A-Za-z0-9_-').json"
     if ! oci iam fault-domain list --region "$REGION" --compartment-id "$TENANCY_ID" --availability-domain "$reg_ad" >"$FD_FILE" 2>"$TMP_DIR/fd_err.txt"; then
-      FD_ERR="$(tr '\r\n' ' ' <"$TMP_DIR/fd_err.txt" | head -c 260)"
+      cat "$TMP_DIR/fd_err.txt" "$FD_FILE" >"$TMP_DIR/fd_diag.txt" 2>/dev/null || true
+      FD_ERR="$(tr '\r\n' ' ' <"$TMP_DIR/fd_diag.txt" | head -c 260)"
       die "OCI fault-domain discovery API failed for $reg_ad: ${FD_ERR}. Refusing to assume fault domain names."
     fi
     if ! FDS_STR="$(python3 -c '
@@ -750,11 +762,13 @@ PY
       "$short_err" "$A1_DISPLAY_NAME"
 
     local recon_list_json recon_ids_str
-    if ! recon_list_json="$(oci compute instance list --region "$REGION" --compartment-id "$TENANCY_ID" --display-name "$A1_DISPLAY_NAME" --all 2>"$TMP_DIR/recon_list_err.txt")"; then
+    if ! oci compute instance list --region "$REGION" --compartment-id "$TENANCY_ID" --display-name "$A1_DISPLAY_NAME" --all >"$TMP_DIR/recon_list_out.json" 2>"$TMP_DIR/recon_list_err.txt"; then
+      cat "$TMP_DIR/recon_list_err.txt" "$TMP_DIR/recon_list_out.json" >"$TMP_DIR/recon_list_diag.txt" 2>/dev/null || true
       SLOT_LAST_STATUS["$slot_key"]="ambiguous_reconcile_query_failed"
       print_sweep_summary
-      die "Ambiguous launch outcome after error (${short_err}): reconciliation query failed ($(tr '\r\n' ' ' <"$TMP_DIR/recon_list_err.txt" | head -c 200)). Refusing further launch attempts."
+      die "Ambiguous launch outcome after error (${short_err}): reconciliation query failed ($(tr '\r\n' ' ' <"$TMP_DIR/recon_list_diag.txt" | head -c 200)). Refusing further launch attempts."
     fi
+    recon_list_json="$(cat "$TMP_DIR/recon_list_out.json")"
 
     if ! recon_ids_str="$(python3 -c '
 import json, sys
@@ -791,9 +805,10 @@ print(" ".join(live))
     local inst_json="" inst_check=""
     for _ in $(seq 1 30); do
       if ! oci compute instance get --region "$REGION" --instance-id "$recon_id" >"$TMP_DIR/recon_inst.json" 2>"$TMP_DIR/recon_get_err.txt"; then
+        cat "$TMP_DIR/recon_get_err.txt" "$TMP_DIR/recon_inst.json" >"$TMP_DIR/recon_get_diag.txt" 2>/dev/null || true
         SLOT_LAST_STATUS["$slot_key"]="ambiguous_instance_get_failed"
         print_sweep_summary
-        die "Ambiguous reconciliation: failed to inspect created instance $recon_id ($(tr '\r\n' ' ' <"$TMP_DIR/recon_get_err.txt" | head -c 200))."
+        die "Ambiguous reconciliation: failed to inspect created instance $recon_id ($(tr '\r\n' ' ' <"$TMP_DIR/recon_get_diag.txt" | head -c 200))."
       fi
       inst_check="$(python3 - "$TMP_DIR/recon_inst.json" "$expected_ad" "$expected_fd" "$expected_ocpus" <<'PY'
 import json, sys
@@ -862,10 +877,9 @@ PY
       UNIQUE_PROBED_SLOTS["$slot_key"]=1
       SLOT_ATTEMPTS["$slot_key"]=$(( ${SLOT_ATTEMPTS["$slot_key"]} + 1 ))
       TOTAL_LAUNCH_ATTEMPTS=$((TOTAL_LAUNCH_ATTEMPTS + 1))
-      RETRY_TOK="gate4-${SWEEP_NONCE}-r${round}-a${TOTAL_LAUNCH_ATTEMPTS}-2c"
 
       printf '  Trying 2 OCPU / 12 GB in %s / %s ... ' "$cand_ad" "$fd"
-      if LAUNCH_OUT="$(oci compute instance launch \
+      if oci compute instance launch \
         --region "$REGION" \
         --compartment-id "$TENANCY_ID" \
         --availability-domain "$cand_ad" \
@@ -879,7 +893,8 @@ PY
         --boot-volume-size-in-gbs 50 \
         --ssh-authorized-keys-file "$SSH_KEY_PUB" \
         --user-data-file "$TMP_DIR/a1_userdata.yaml" \
-        --opc-retry-token "$RETRY_TOK" 2>"$TMP_DIR/launch_err.txt")"; then
+        >"$TMP_DIR/launch_out.json" 2>"$TMP_DIR/launch_err.txt"; then
+        LAUNCH_OUT="$(cat "$TMP_DIR/launch_out.json")"
         A1_INSTANCE_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["data"]["id"])' <<<"$LAUNCH_OUT")"
         A1_AD="$cand_ad"
         A1_ALLOCATED_SHAPE_CFG="2 OCPU / 12 GB ($fd)"
@@ -887,11 +902,12 @@ PY
         printf 'SUCCESS! (%s)\n' "$A1_INSTANCE_ID"
         break 2
       else
-        if is_confirmed_out_of_host_capacity "$TMP_DIR/launch_err.txt"; then
+        cat "$TMP_DIR/launch_err.txt" "$TMP_DIR/launch_out.json" >"$TMP_DIR/launch_diag.txt" 2>/dev/null || true
+        if is_confirmed_out_of_host_capacity "$TMP_DIR/launch_diag.txt"; then
           SLOT_LAST_STATUS["$slot_key"]="out_of_host_capacity (2 OCPU / 12 GB)"
           printf 'out of host capacity\n'
         else
-          reconcile_non_capacity_launch_error "$cand_ad" "$fd" "2.0" "$slot_key" "$TMP_DIR/launch_err.txt"
+          reconcile_non_capacity_launch_error "$cand_ad" "$fd" "2.0" "$slot_key" "$TMP_DIR/launch_diag.txt"
           [[ -n "$A1_INSTANCE_ID" ]] && break 2
         fi
       fi
@@ -905,10 +921,9 @@ PY
         UNIQUE_PROBED_SLOTS["$slot_key"]=1
         SLOT_ATTEMPTS["$slot_key"]=$(( ${SLOT_ATTEMPTS["$slot_key"]} + 1 ))
         TOTAL_LAUNCH_ATTEMPTS=$((TOTAL_LAUNCH_ATTEMPTS + 1))
-        RETRY_TOK="gate4-${SWEEP_NONCE}-r${round}-a${TOTAL_LAUNCH_ATTEMPTS}-1c"
 
         printf '  Trying approved fallback 1 OCPU / 12 GB in %s / %s ... ' "$cand_ad" "$fd"
-        if LAUNCH_OUT="$(oci compute instance launch \
+        if oci compute instance launch \
           --region "$REGION" \
           --compartment-id "$TENANCY_ID" \
           --availability-domain "$cand_ad" \
@@ -922,7 +937,8 @@ PY
           --boot-volume-size-in-gbs 50 \
           --ssh-authorized-keys-file "$SSH_KEY_PUB" \
           --user-data-file "$TMP_DIR/a1_userdata.yaml" \
-          --opc-retry-token "$RETRY_TOK" 2>"$TMP_DIR/launch_err.txt")"; then
+          >"$TMP_DIR/launch_out.json" 2>"$TMP_DIR/launch_err.txt"; then
+          LAUNCH_OUT="$(cat "$TMP_DIR/launch_out.json")"
           A1_INSTANCE_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["data"]["id"])' <<<"$LAUNCH_OUT")"
           A1_AD="$cand_ad"
           A1_ALLOCATED_SHAPE_CFG="1 OCPU / 12 GB ($fd) [owner-approved fallback]"
@@ -930,11 +946,12 @@ PY
           printf 'SUCCESS! (%s)\n' "$A1_INSTANCE_ID"
           break 2
         else
-          if is_confirmed_out_of_host_capacity "$TMP_DIR/launch_err.txt"; then
+          cat "$TMP_DIR/launch_err.txt" "$TMP_DIR/launch_out.json" >"$TMP_DIR/launch_diag.txt" 2>/dev/null || true
+          if is_confirmed_out_of_host_capacity "$TMP_DIR/launch_diag.txt"; then
             SLOT_LAST_STATUS["$slot_key"]="out_of_host_capacity (1 OCPU / 12 GB)"
             printf 'out of host capacity\n'
           else
-            reconcile_non_capacity_launch_error "$cand_ad" "$fd" "1.0" "$slot_key" "$TMP_DIR/launch_err.txt"
+            reconcile_non_capacity_launch_error "$cand_ad" "$fd" "1.0" "$slot_key" "$TMP_DIR/launch_diag.txt"
             [[ -n "$A1_INSTANCE_ID" ]] && break 2
           fi
         fi
@@ -1146,14 +1163,16 @@ RECOVERY_VOL_TO_ATTACH=""
 if [[ "$A1_AD" == "$RVOL_AD" ]]; then
   printf 'A1 shares AD (%s) with retained restore-test volume — attaching %s STRICTLY READ-ONLY (--is-read-only true)...\n' \
     "$A1_AD" "$GATE2_RESTORE_VOL_ID"
-  if ! ATTACH_OUT="$(oci compute volume-attachment attach-paravirtualized-volume \
+  if ! oci compute volume-attachment attach-paravirtualized-volume \
     --region "$REGION" \
     --instance-id "$A1_INSTANCE_ID" \
     --volume-id "$GATE2_RESTORE_VOL_ID" \
-    --is-read-only true 2>"$TMP_DIR/attach_err.txt")"; then
-    ATTACH_ERR="$(tr '\r\n' ' ' <"$TMP_DIR/attach_err.txt" | head -c 320)"
+    --is-read-only true >"$TMP_DIR/attach_out.json" 2>"$TMP_DIR/attach_err.txt"; then
+    cat "$TMP_DIR/attach_err.txt" "$TMP_DIR/attach_out.json" >"$TMP_DIR/attach_diag.txt" 2>/dev/null || true
+    ATTACH_ERR="$(tr '\r\n' ' ' <"$TMP_DIR/attach_diag.txt" | head -c 320)"
     die "Read-only attachment (--is-read-only true) of retained Gate 2 recovery volume ($GATE2_RESTORE_VOL_ID) failed: ${ATTACH_ERR}. Refusing to attach writable."
   fi
+  ATTACH_OUT="$(cat "$TMP_DIR/attach_out.json")"
   ACTIVE_ATTACH_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["data"]["id"])' <<<"$ATTACH_OUT")"
   ACTIVE_ATTACH_VOL_ID="$GATE2_RESTORE_VOL_ID"
   REMOTE_RECOVERY_UNMOUNT_CONFIRMED="true"
@@ -1184,14 +1203,16 @@ else
       sleep 6
     done
   fi
-  if ! ATTACH_OUT="$(oci compute volume-attachment attach-paravirtualized-volume \
+  if ! oci compute volume-attachment attach-paravirtualized-volume \
     --region "$REGION" \
     --instance-id "$A1_INSTANCE_ID" \
     --volume-id "$EXISTING_BV_COPY" \
-    --is-read-only true 2>"$TMP_DIR/attach_err_cross.txt")"; then
-    ATTACH_ERR="$(tr '\r\n' ' ' <"$TMP_DIR/attach_err_cross.txt" | head -c 320)"
+    --is-read-only true >"$TMP_DIR/attach_out_cross.json" 2>"$TMP_DIR/attach_err_cross.txt"; then
+    cat "$TMP_DIR/attach_err_cross.txt" "$TMP_DIR/attach_out_cross.json" >"$TMP_DIR/attach_diag_cross.txt" 2>/dev/null || true
+    ATTACH_ERR="$(tr '\r\n' ' ' <"$TMP_DIR/attach_diag_cross.txt" | head -c 320)"
     die "Read-only attachment (--is-read-only true) of cross-AD recovery volume ($EXISTING_BV_COPY) failed: ${ATTACH_ERR}. Refusing to attach writable."
   fi
+  ATTACH_OUT="$(cat "$TMP_DIR/attach_out_cross.json")"
   ACTIVE_ATTACH_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["data"]["id"])' <<<"$ATTACH_OUT")"
   ACTIVE_ATTACH_VOL_ID="$EXISTING_BV_COPY"
   REMOTE_RECOVERY_UNMOUNT_CONFIRMED="true"
