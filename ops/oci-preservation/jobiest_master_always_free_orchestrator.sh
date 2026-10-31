@@ -37,8 +37,8 @@ REPO_RAW_BASE="https://raw.githubusercontent.com/RareBeacon/moderndayjob"
 PINNED_GATE0_COMMIT="298bbf055bdaf27d7bca0f4b48fd8abffc369de7"
 PINNED_GATE0_SHA256="ceb930cc75642091000e0074bf37e23b4d2781608b17b11f76b0c08341dd82ce"
 
-PINNED_GATE4_COMMIT="34a70d1b95e2043ea892c70f2c8ae132b1c37d0a"
-PINNED_GATE4_SHA256="a5c32f6e54feae7afc0005fe0fc57a8326a63eeeeced849390c4f8a985947ce7"
+PINNED_GATE4_COMMIT="3e37d93c37af704fc0b19c6f8692708cff91a83c"
+PINNED_GATE4_SHA256="7486f6e22e1133d1e9f4e52e152edf68c78a19e713c74838b8ca6f284d66ef76"
 
 APP_COMMIT_SHA="dc74ef8e0d24a560abe360d84dacfc1663ed2e89"
 MAILU_VERSION="2024.06.67"
@@ -429,13 +429,35 @@ Stage 1 Operation Disclosure (Requires Approval A + Approval B):
                  auth guards, Ollama READY, and navigationOnly=true E2E PASS.
 EOF
 
+  PREAPPROVED_STAGE2_C=0
   STAGE1_CHOICE=""
-  prompt_tty "Enter APPROVE_A_B to run Stage 1, S to skip to Stage 2 (Mail), or Q to stop:" STAGE1_CHOICE
+  while true; do
+    prompt_tty "Enter APPROVE_A_B to run Stage 1, S to skip to Stage 2 (Mail), or Q to stop:" STAGE1_CHOICE
+    case "$STAGE1_CHOICE" in
+      APPROVE_A_B|approve_a_b)
+        STAGE1_CHOICE="APPROVE_A_B"
+        break
+        ;;
+      APPROVE_C|approve_c)
+        STAGE1_CHOICE="S"
+        PREAPPROVED_STAGE2_C=1
+        break
+        ;;
+      S|s)
+        STAGE1_CHOICE="S"
+        break
+        ;;
+      Q|q)
+        printf -- 'Stopped cleanly after Stage 0 Read-Only Discovery (zero mutations).\n'
+        exit 0
+        ;;
+      *)
+        printf -- 'Unrecognized selection "%s" — please enter APPROVE_A_B, S, or Q.\n' "$STAGE1_CHOICE" >/dev/tty
+        ;;
+    esac
+  done
 
-  if [[ "$STAGE1_CHOICE" == "Q" || "$STAGE1_CHOICE" == "q" ]]; then
-    printf -- 'Stopped cleanly after Stage 0 Read-Only Discovery (zero mutations).\n'
-    exit 0
-  elif [[ "$STAGE1_CHOICE" == "APPROVE_A_B" ]]; then
+  if [[ "$STAGE1_CHOICE" == "APPROVE_A_B" ]]; then
     GATE4_SCRIPT="$TMP_DIR/gate4_a1_provision_and_deploy.sh"
     fetch_and_verify_script "ops/oci-preservation/gate4_a1_provision_and_deploy.sh" "$PINNED_GATE4_COMMIT" "$PINNED_GATE4_SHA256" "$GATE4_SCRIPT"
 
@@ -470,15 +492,35 @@ sudo chmod 644 /etc/cron.d/jobiest-a1-keepwarm"
 
       printf -- '\n[Stage 1 Notice] gate4 exited with code %d (typically transient OCI ARM host capacity in %s).\n' "$G4_RC" "$REGION"
       RETRY_ANS=""
-      prompt_tty "Enter R to run another ${A1_MAX_RETRY_ROUNDS}-round A1 sweep now, P to proceed to Stage 2 (Mail VM on x86_64), or Q to quit:" RETRY_ANS
-      case "$RETRY_ANS" in
-        R|r) continue ;;
-        P|p) break ;;
-        *) exit "$G4_RC" ;;
-      esac
+      while true; do
+        prompt_tty "Enter R to run another ${A1_MAX_RETRY_ROUNDS}-round A1 sweep now, P (or APPROVE_C) to proceed to Stage 2 (Mail VM on x86_64), or Q to quit:" RETRY_ANS
+        case "$RETRY_ANS" in
+          R|r)
+            RETRY_ACTION="R"
+            break
+            ;;
+          P|p)
+            RETRY_ACTION="P"
+            break
+            ;;
+          APPROVE_C|approve_c)
+            RETRY_ACTION="P"
+            PREAPPROVED_STAGE2_C=1
+            break
+            ;;
+          Q|q)
+            exit "$G4_RC"
+            ;;
+          *)
+            printf -- 'Unrecognized selection "%s" — please enter R, P, APPROVE_C, or Q.\n' "$RETRY_ANS" >/dev/tty
+            ;;
+        esac
+      done
+      [[ "$RETRY_ACTION" == "R" ]] && continue
+      break
     done
   else
-    printf -- 'Skipped Stage 1 per operator selection; proceeding to Stage 2 prompt.\n'
+    printf -- 'Skipped Stage 1 per operator selection; proceeding to Stage 2.\n'
   fi
 fi
 
@@ -515,10 +557,30 @@ Stage 2 Operation Disclosure (Requires Approval C):
 EOF
 
 STAGE2_CHOICE=""
-prompt_tty "Enter APPROVE_C to deploy/verify ${MAIL_DISPLAY_NAME}, S to skip Stage 2, or Q to quit:" STAGE2_CHOICE
-if [[ "$STAGE2_CHOICE" == "Q" || "$STAGE2_CHOICE" == "q" ]]; then
-  printf -- 'Stopped cleanly before Stage 2.\n'
-  exit 0
+if (( ${PREAPPROVED_STAGE2_C:-0} == 1 )); then
+  STAGE2_CHOICE="APPROVE_C"
+  printf -- 'APPROVE_C already confirmed by operator — proceeding with Stage 2.\n'
+else
+  while true; do
+    prompt_tty "Enter APPROVE_C to deploy/verify ${MAIL_DISPLAY_NAME}, S to skip Stage 2, or Q to quit:" STAGE2_CHOICE
+    case "$STAGE2_CHOICE" in
+      APPROVE_C|approve_c)
+        STAGE2_CHOICE="APPROVE_C"
+        break
+        ;;
+      S|s)
+        STAGE2_CHOICE="S"
+        break
+        ;;
+      Q|q)
+        printf -- 'Stopped cleanly before Stage 2.\n'
+        exit 0
+        ;;
+      *)
+        printf -- 'Unrecognized selection "%s" — please enter APPROVE_C, S, or Q.\n' "$STAGE2_CHOICE" >/dev/tty
+        ;;
+    esac
+  done
 fi
 
 MAIL_PUBLIC_IP=""
@@ -721,9 +783,9 @@ PY
 ) || die "Empty fault-domain list in $micro_ad"
 
       for mfd in "${MICRO_FDS[@]}"; do
-        RETRY_TOK="jobiestmail$(openssl rand -hex 10)"
         LAUNCH_OUT="$TMP_DIR/mail_launch_out.json"
         LAUNCH_ERR="$TMP_DIR/mail_launch_err.txt"
+        LAUNCH_DIAG="$TMP_DIR/mail_launch_diag.txt"
         printf -- '  Launching %s (VM.Standard.E2.1.Micro, 50 GB) in %s / %s ... ' "$MAIL_DISPLAY_NAME" "$micro_ad" "$mfd"
         if oci compute instance launch \
           --region "$REGION" \
@@ -738,7 +800,7 @@ PY
           --nsg-ids "[\"${MAIL_NSG_ID}\"]" \
           --boot-volume-size-in-gbs 50 \
           --ssh-authorized-keys-file "$MAIL_SSH_PUB" \
-          --opc-retry-token "$RETRY_TOK" >"$LAUNCH_OUT" 2>"$LAUNCH_ERR"; then
+          >"$LAUNCH_OUT" 2>"$LAUNCH_ERR"; then
           MAIL_INSTANCE_ID="$(python3 - "$LAUNCH_OUT" <<'PY'
 import json, sys
 print(json.loads(open(sys.argv[1], "r", encoding="utf-8").read())["data"]["id"])
@@ -747,14 +809,15 @@ PY
           printf -- 'SUCCESS (%s)\n' "$MAIL_INSTANCE_ID"
           break 2
         else
-          if grep -qi "Out of host capacity" "$LAUNCH_ERR" 2>/dev/null; then
+          cat "$LAUNCH_ERR" "$LAUNCH_OUT" >"$LAUNCH_DIAG" 2>/dev/null || true
+          if grep -qi "ServiceError" "$LAUNCH_DIAG" 2>/dev/null && grep -qi "Out of host capacity" "$LAUNCH_DIAG" 2>/dev/null; then
             printf -- 'out of host capacity in %s/%s; trying next fault domain...\n' "$micro_ad" "$mfd"
           else
             # Reconcile before any further attempt
             RECON_MAIL="$(oci compute instance list --region "$REGION" --compartment-id "$TENANCY_ID" --display-name "$MAIL_DISPLAY_NAME" --all | \
               python3 -c 'import json,sys; s=sys.stdin.read().strip(); live=[x for x in ((json.loads(s) if s else {}).get("data") or []) if x.get("lifecycle-state") in ("PROVISIONING","RUNNING","STARTING")]; print(live[0]["id"] if len(live)==1 else ("MULTI" if len(live)>1 else ""))')"
             if [[ "$RECON_MAIL" == "MULTI" || -z "$RECON_MAIL" ]]; then
-              die "Non-capacity error launching $MAIL_DISPLAY_NAME: $(tr '\r\n' ' ' <"$LAUNCH_ERR" | head -c 300)"
+              die "Non-capacity error launching $MAIL_DISPLAY_NAME: $(tr '\r\n' ' ' <"$LAUNCH_DIAG" | head -c 300)"
             fi
             MAIL_INSTANCE_ID="$RECON_MAIL"
             printf -- 'adopted reconciled instance (%s)\n' "$MAIL_INSTANCE_ID"
@@ -1599,11 +1662,22 @@ Stage 3 Operation Disclosure (Requires Explicit Approval D):
 EOF
 
 CUTOVER_ANS=""
-prompt_tty "Enter APPROVE_D_CUTOVER to execute atomic production cutover now, or L to leave ${RESERVED_IP_EXPECTED} on jobiest-ai:" CUTOVER_ANS
-if [[ "$CUTOVER_ANS" != "APPROVE_D_CUTOVER" ]]; then
-  printf -- 'Left Reserved IP %s untouched on jobiest-ai (E5). Re-run anytime when ready for cutover.\n' "$RESERVED_IP_EXPECTED"
-  exit 0
-fi
+while true; do
+  prompt_tty "Enter APPROVE_D_CUTOVER to execute atomic production cutover now, or L to leave ${RESERVED_IP_EXPECTED} on jobiest-ai:" CUTOVER_ANS
+  case "$CUTOVER_ANS" in
+    APPROVE_D_CUTOVER|approve_d_cutover)
+      CUTOVER_ANS="APPROVE_D_CUTOVER"
+      break
+      ;;
+    L|l|Q|q)
+      printf -- 'Left Reserved IP %s untouched on jobiest-ai (E5). Re-run anytime when ready for cutover.\n' "$RESERVED_IP_EXPECTED"
+      exit 0
+      ;;
+    *)
+      printf -- 'Unrecognized selection "%s" — please enter APPROVE_D_CUTOVER or L.\n' "$CUTOVER_ANS" >/dev/tty
+      ;;
+  esac
+done
 
 [[ -f "$VAULT_KEY_PRIV" && -f "$A1_SSH_PRIV" && -f "$A1_KNOWN_HOSTS" ]] || \
   die "Missing local SSH or vault key files required for Stage 3 cutover."
