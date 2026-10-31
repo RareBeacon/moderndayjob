@@ -129,17 +129,18 @@ export default function Home() {
   // since middleware is not allowed to run on '/' per homepage routing contract
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    if (params.get('code')) {
+      window.location.replace(`/auth/callback${window.location.search}`);
+      return;
+    }
     const errorCode = params.get('error_code');
     const error = params.get('error');
-    if (errorCode === 'flow_state_already_used' || error === 'invalid_request') {
-      // Check if we have a session despite error (race condition where code was already exchanged)
+    if (errorCode === 'flow_state_already_used' || error === 'invalid_request' || error) {
       supabaseBrowser().auth.getSession().then(({ data }) => {
         if (data?.session) {
-          // Already authenticated - go to callback to complete flow
           window.location.href = '/auth/callback';
         } else {
-          // No session - redirect to login with retry message
-          window.location.href = '/login?error=oauth_retry';
+          window.location.href = `/login?error=${error === 'access_denied' ? 'oauth_cancelled' : 'oauth_retry'}`;
         }
       }).catch(() => {
         window.location.href = '/login?error=oauth_retry';

@@ -26,6 +26,14 @@ export default function DashboardError({ error, reset }: { error: Error & { dige
   const isTransient = /network|timeout|fetch|load failed/i.test(error.message ?? '');
   const showDetails = process.env.NODE_ENV !== 'production' || true; // temporary diagnostic: always show
 
+  function signOut() {
+    fetch('/api/auth/session', { method: 'DELETE' })
+      .catch(() => {})
+      .finally(() => {
+        window.location.href = '/login';
+      });
+  }
+
   return (
     <div style={{ minHeight: '60vh', display: 'grid', placeItems: 'center', padding: 24 }}>
       <div style={{ textAlign: 'center', maxWidth: 520 }}>
@@ -45,6 +53,7 @@ export default function DashboardError({ error, reset }: { error: Error & { dige
             <button onClick={() => reset()} style={{ background: '#d7f94b', color: '#111d35', padding: '10px 18px', borderRadius: 999, border: 0, fontWeight: 600, cursor: 'pointer' }}>Try again</button>
           )}
           <a href="/" style={{ display: 'inline-block', border: '1px solid #e5e7eb', padding: '10px 18px', borderRadius: 999, textDecoration: 'none', color: '#374151' }}>Back home</a>
+          <button type="button" onClick={signOut} style={{ background: 'transparent', border: '1px solid #e5e7eb', padding: '10px 18px', borderRadius: 999, color: '#374151', cursor: 'pointer' }}>Sign out</button>
           <a href="/support" style={{ display: 'inline-block', color: '#6b7280', padding: '10px 18px', textDecoration: 'underline' }}>Contact support</a>
         </div>
         <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 16 }}>If this keeps happening, contact support with the time and what you clicked.</p>

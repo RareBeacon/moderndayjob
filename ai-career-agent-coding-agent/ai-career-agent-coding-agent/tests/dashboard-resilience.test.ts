@@ -78,4 +78,9 @@ describe('authed pages degrade instead of crashing', () => {
     expect(boardlinks).toContain("typeof v === 'string'");
     expect(boardlinks).toContain('Array.isArray(values)');
   });
+
+  it('DashboardView declares use client so framer-motion hooks never throw in RSC render', () => {
+    const dashboardView = readFileSync('components/dashboard/DashboardView.tsx', 'utf8');
+    expect(dashboardView.trimStart().startsWith("'use client';")).toBe(true);
+  });
 });

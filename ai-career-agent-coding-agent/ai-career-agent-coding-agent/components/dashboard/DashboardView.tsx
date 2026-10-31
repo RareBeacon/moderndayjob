@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Icon } from '@/components/icons/icons';
