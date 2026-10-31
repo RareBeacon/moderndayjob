@@ -44,8 +44,8 @@ APP_COMMIT_SHA="2ba2df52f950253df8ea752cd554fa4b93b8a04d"
 
 A1_DISPLAY_NAME="jobiest-a1"
 SSH_KEY_DIR="$HOME/.ssh"
-SSH_KEY_PRIV="$SSH_KEY_DIR/jobiest_a1_ed25519"
-SSH_KEY_PUB="$SSH_KEY_DIR/jobiest_a1_ed25519.pub"
+SSH_KEY_PRIV="$SSH_KEY_DIR/jobiest_a1_rsa"
+SSH_KEY_PUB="$SSH_KEY_DIR/jobiest_a1_rsa.pub"
 
 TMP_DIR="$(mktemp -d /tmp/jobiest-gate4.XXXXXX)"
 chmod 700 "$TMP_DIR"
@@ -131,17 +131,18 @@ if live:
 ' <<<"$EXISTING_A1_JSON")"
 
 # 1.5 Enumerate ADs (prioritizing RVOL_AD = AD-2 first so read-only attach needs 0 extra volumes)
-ADS_JSON="$(oci iam availability-domain list --region "$REGION" --compartment-id "$TENANCY_ID")"
-mapfile -t ORDERED_ADS < <(python3 - "$RVOL_AD" <<<"$ADS_JSON" <<'PY'
+oci iam availability-domain list --region "$REGION" --compartment-id "$TENANCY_ID" >"$TMP_DIR/ads.json"
+mapfile -t ORDERED_ADS < <(python3 - "$TMP_DIR/ads.json" "$RVOL_AD" <<'PY'
 import json, sys
-preferred = sys.argv[1]
-s = sys.stdin.read().strip()
+s = open(sys.argv[1], "r", encoding="utf-8").read().strip()
+preferred = sys.argv[2]
 ads = [x["name"] for x in ((json.loads(s) if s else {}).get("data") or [])]
 ordered = ([preferred] if preferred in ads else []) + [a for a in ads if a != preferred]
 for a in ordered:
     print(a)
 PY
 )
+[[ "${#ORDERED_ADS[@]}" -gt 0 ]] || die "Could not enumerate any Availability Domains in $REGION."
 
 # 1.6 Live Block + Boot Volume Storage Audit across all ADs (<= 200 GB Always Free ceiling)
 TOTAL_STORAGE_GB=0
@@ -164,10 +165,10 @@ else
 fi
 
 # 1.7 Dynamically discover A1 Compute limit names & per-AD availability
-LIMITS_JSON="$(oci limits value list --region "$REGION" --compartment-id "$TENANCY_ID" --service-name compute --all)"
-python3 - <<<"$LIMITS_JSON" <<'PY'
+oci limits value list --region "$REGION" --compartment-id "$TENANCY_ID" --service-name compute --all >"$TMP_DIR/limits.json"
+python3 - "$TMP_DIR/limits.json" <<'PY'
 import json, sys
-s = sys.stdin.read().strip()
+s = open(sys.argv[1], "r", encoding="utf-8").read().strip()
 rows = [x for x in ((json.loads(s) if s else {}).get("data") or []) if "a1" in x.get("name", "").lower()]
 for r in rows:
     print("LimitDef: name=%s scope=%s ad=%s limit=%s" % (r.get("name"), r.get("scope-type"), r.get("availability-domain"), r.get("value")))
@@ -221,10 +222,11 @@ banner "PHASE 2 — PROVISION INDEPENDENT VM.Standard.A1.Flex (2 OCPU / 12 GB RA
 mkdir -p "$SSH_KEY_DIR"
 chmod 700 "$SSH_KEY_DIR"
 if [[ ! -f "$SSH_KEY_PRIV" || ! -f "$SSH_KEY_PUB" ]]; then
-  ssh-keygen -t ed25519 -N "" -C "jobiest-a1-gate4" -f "$SSH_KEY_PRIV" >/dev/null
+  rm -f "$SSH_KEY_PRIV" "$SSH_KEY_PUB"
+  ssh-keygen -t rsa -b 4096 -N "" -C "jobiest-a1-gate4" -f "$SSH_KEY_PRIV" >/dev/null
   chmod 600 "$SSH_KEY_PRIV"
   chmod 644 "$SSH_KEY_PUB"
-  printf 'Generated new persistent SSH keypair: %s\n' "$SSH_KEY_PRIV"
+  printf 'Generated new FIPS-compliant RSA-4096 SSH keypair: %s\n' "$SSH_KEY_PRIV"
 else
   chmod 600 "$SSH_KEY_PRIV"
   printf 'Reusing existing SSH keypair: %s\n' "$SSH_KEY_PRIV"
@@ -236,27 +238,30 @@ if [[ -n "$EXISTING_A1_LINE" ]]; then
   IFS='|' read -r A1_INSTANCE_ID A1_STATE A1_AD A1_SHAPE <<<"$EXISTING_A1_LINE"
   printf 'Found existing %s: id=%s state=%s ad=%s shape=%s\n' "$A1_DISPLAY_NAME" "$A1_INSTANCE_ID" "$A1_STATE" "$A1_AD" "$A1_SHAPE"
 else
-  for cand_ad in "${CANDIDATE_ADS[@]}"; do
-    printf 'Attempting launch of %s (VM.Standard.A1.Flex 2 OCPU / 12 GB / 50 GB) in %s...\n' "$A1_DISPLAY_NAME" "$cand_ad"
-    if LAUNCH_OUT="$(oci compute instance launch \
-      --region "$REGION" \
-      --compartment-id "$TENANCY_ID" \
-      --availability-domain "$cand_ad" \
-      --display-name "$A1_DISPLAY_NAME" \
-      --shape "VM.Standard.A1.Flex" \
-      --shape-config '{"ocpus": 2.0, "memoryInGBs": 12.0}' \
-      --image-id "$A1_IMAGE_ID" \
-      --subnet-id "$SUBNET_ID" \
-      --assign-public-ip true \
-      --boot-volume-size-in-gbs 50 \
-      --ssh-authorized-keys-file "$SSH_KEY_PUB" 2>"$TMP_DIR/launch_err.txt")"; then
-      A1_INSTANCE_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["data"]["id"])' <<<"$LAUNCH_OUT")"
-      A1_AD="$cand_ad"
-      printf 'Launched %s in %s: %s\n' "$A1_DISPLAY_NAME" "$A1_AD" "$A1_INSTANCE_ID"
-      break
-    else
-      printf '  Launch attempt in %s failed: %s\n' "$cand_ad" "$(tr '\r\n' ' ' <"$TMP_DIR/launch_err.txt" | head -c 260)"
-    fi
+  for attempt in 1 2; do
+    for cand_ad in "${CANDIDATE_ADS[@]}"; do
+      printf 'Attempting launch of %s (VM.Standard.A1.Flex 2 OCPU / 12 GB / 50 GB) in %s (pass %d)...\n' "$A1_DISPLAY_NAME" "$cand_ad" "$attempt"
+      if LAUNCH_OUT="$(oci compute instance launch \
+        --region "$REGION" \
+        --compartment-id "$TENANCY_ID" \
+        --availability-domain "$cand_ad" \
+        --display-name "$A1_DISPLAY_NAME" \
+        --shape "VM.Standard.A1.Flex" \
+        --shape-config '{"ocpus": 2.0, "memoryInGBs": 12.0}' \
+        --image-id "$A1_IMAGE_ID" \
+        --subnet-id "$SUBNET_ID" \
+        --assign-public-ip true \
+        --boot-volume-size-in-gbs 50 \
+        --ssh-authorized-keys-file "$SSH_KEY_PUB" 2>"$TMP_DIR/launch_err.txt")"; then
+        A1_INSTANCE_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["data"]["id"])' <<<"$LAUNCH_OUT")"
+        A1_AD="$cand_ad"
+        printf 'Launched %s in %s: %s\n' "$A1_DISPLAY_NAME" "$A1_AD" "$A1_INSTANCE_ID"
+        break 2
+      else
+        printf '  Launch attempt in %s failed: %s\n' "$cand_ad" "$(tr '\r\n' ' ' <"$TMP_DIR/launch_err.txt" | head -c 260)"
+      fi
+    done
+    sleep 4
   done
   [[ -n "$A1_INSTANCE_ID" ]] || die "Could not launch VM.Standard.A1.Flex in any AD (transient OCI ARM host capacity). Existing E5 remains 100% untouched."
 fi
@@ -283,7 +288,7 @@ printf 'A1 Instance  : %s\nA1 AD        : %s\nA1 VNIC      : %s\nA1 Private IP: 
 
 [[ -n "$A1_PUBLIC_IP" ]] || die "No ephemeral public IP found on jobiest-a1 VNIC."
 
-SSH_OPTS=(-i "$SSH_KEY_PRIV" -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$SSH_KEY_DIR/known_hosts_gate4" -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=6)
+SSH_OPTS=(-i "$SSH_KEY_PRIV" -o StrictHostKeyChecking=no -o UserKnownHostsFile="$SSH_KEY_DIR/known_hosts_gate4" -o LogLevel=ERROR -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=6)
 
 printf 'Waiting for SSH daemon on ubuntu@%s...\n' "$A1_PUBLIC_IP"
 SSH_READY=0
@@ -577,8 +582,11 @@ chmod 600 "$NEW_OCI_DIR/.env"
 echo "Copied .env disk-to-disk to $NEW_OCI_DIR/.env (mode 600; zero secret values printed)."
 
 echo "=== SEEDING DOCKER NAMED VOLUMES (oci_caddy_data, oci_caddy_config, oci_ollama) ==="
-for v in oci_caddy_data oci_caddy_config oci_ollama; do
-  sudo docker volume create "$v" >/dev/null
+for base_vol in caddy_data caddy_config ollama; do
+  sudo docker volume create \
+    --label com.docker.compose.project=oci \
+    --label "com.docker.compose.volume=${base_vol}" \
+    "oci_${base_vol}" >/dev/null
 done
 
 sudo cp -a "$CADDY_DATA_SRC/." /var/lib/docker/volumes/oci_caddy_data/_data/
@@ -653,8 +661,15 @@ echo "Building native ARM64 images and starting oci stack..."
 sudo docker compose -p oci up -d --build
 
 echo "Waiting for containers to stabilize..."
-sleep 8
+sleep 10
 sudo docker compose -p oci ps
+
+for m in qwen2.5:7b llama3.2:3b; do
+  if ! sudo docker compose -p oci exec -T ollama ollama list | awk 'NR>1{print $1}' | grep -Fxq "$m"; then
+    echo "Ensuring model $m is pulled in ollama..."
+    sudo docker compose -p oci exec -T ollama ollama pull "$m"
+  fi
+done
 
 echo "=== ARM64 IMAGE & RUNTIME VERIFICATION ==="
 for img in $(sudo docker compose -p oci images -q | sort -u); do
