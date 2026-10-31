@@ -42,14 +42,18 @@ export async function GET(request: NextRequest) {
   if (!rl.allowed) {
     const rateUrl = new URL(from, origin);
     rateUrl.searchParams.set('error', 'rate_limited');
-    return NextResponse.redirect(rateUrl, 302);
+    const rateRes = NextResponse.redirect(rateUrl, 302);
+    rateRes.headers.set('Cache-Control', 'no-store');
+    return rateRes;
   }
 
   const provider = rawProvider === 'google' || rawProvider === 'linkedin_oidc' ? rawProvider : null;
   if (!provider) {
     const errUrl = new URL(from, origin);
     errUrl.searchParams.set('error', 'oauth_failed');
-    return NextResponse.redirect(errUrl, 302);
+    const errRes = NextResponse.redirect(errUrl, 302);
+    errRes.headers.set('Cache-Control', 'no-store');
+    return errRes;
   }
 
   const secure = origin.startsWith('https://');
@@ -83,7 +87,9 @@ export async function GET(request: NextRequest) {
     const errUrl = new URL(from, origin);
     errUrl.searchParams.set('error', unavailable ? 'provider_disabled' : 'oauth_failed');
     errUrl.searchParams.set('provider', provider === 'linkedin_oidc' ? 'linkedin' : 'google');
-    return NextResponse.redirect(errUrl, 302);
+    const errRes = NextResponse.redirect(errUrl, 302);
+    errRes.headers.set('Cache-Control', 'no-store');
+    return errRes;
   }
 
   const res = NextResponse.redirect(data.url, 302);
