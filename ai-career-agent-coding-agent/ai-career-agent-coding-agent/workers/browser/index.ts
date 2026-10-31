@@ -1,155 +1,16 @@
-import http from 'node:http';
-import os from 'node:os';
-import fs from 'node:fs/promises';
-import crypto from 'node:crypto';
-import { chromium } from 'playwright';
-import { assertSafeNavigation } from '../../lib/agent/ssrf';
-import { detectApplyAdapter } from '../../lib/apply/registry';
-import { runApply } from '../../lib/apply/engine';
-import { isAuthorizedHeader } from './auth';
-import type { ApplyCandidate, ApplyOutcome, ApplyPage } from '../../lib/apply/types';
+import { createBrowserWorkerServer } from './server';
 
 /**
- * Isolated browser worker (Phase 8). Runs ONLY on the dedicated Render browser
- * service (BROWSER_WORKER_URL), never inside the Vercel/web runtime. No
- * database master credentials live here; it receives a pre-built candidate
- * payload over HTTP and returns an ApplyOutcome.
- *
- * Security (SECURITY_ARCHITECTURE §Browser automation):
- *  - every navigation is SSRF-checked BEFORE the request AND re-checked per
- *    request via page.route (redirects can't slip past the guard);
- *  - a fresh, isolated context per submission; no cookies/storage shared
- *    between users;
- *  - the CV is materialised from a signed URL into a temp file and removed
- *    after the run.
+ * Isolated browser worker entrypoint (Phase 8).
+ * Runs ONLY on the isolated worker hosts (Oracle Always Free primary / Render
+ * standby), never inside the Vercel/web runtime. No database credentials live
+ * here; it receives a pre-built candidate payload over HTTP and returns an
+ * ApplyOutcome (or HTTP 503 on genuine pre-submit browser launch/crash errors
+ * so failover can safely route to a healthy worker).
  */
 
-// Render injects PORT for web services; WORKER_PORT remains for local dev.
 const PORT = Number(process.env.PORT ?? process.env.WORKER_PORT ?? 8082);
-
-/** Bind a Playwright page to the fakeable ApplyPage contract. */
-function bindPage(page: import('playwright').Page): ApplyPage {
-  return {
-    url: () => page.url(),
-    title: async () => await page.title(),
-    content: async () => await page.content(),
-    has: async (sel) => (await page.locator(sel).count()) > 0,
-    fill: async (sel, val) => { await page.locator(sel).first().fill(val); },
-    check: async (sel) => { await page.locator(sel).first().check(); },
-    click: async (sel) => { await page.locator(sel).first().click({ timeout: 15_000 }); },
-    setInputFiles: async (sel, files) => { await page.locator(sel).first().setInputFiles(files); },
-    selectOption: async (sel, val) => { await page.locator(sel).first().selectOption(val); },
-    goto: async (url) => { await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 }); },
-  };
-}
-
-async function materializeCv(url: string | null): Promise<string | null> {
-  if (!url) return null;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const buf = Buffer.from(await res.arrayBuffer());
-    const path = `${os.tmpdir()}/jobiest-cv-${crypto.randomUUID()}.pdf`;
-    await fs.writeFile(path, buf);
-    return path;
-  } catch {
-    return null;
-  }
-}
-
-interface SubmitBody {
-  jobUrl: string;
-  allowedDomains: string[];
-  candidate: ApplyCandidate;
-}
-
-async function handleSubmit(body: SubmitBody): Promise<ApplyOutcome> {
-  // Re-verify the job URL before any browser work.
-  await assertSafeNavigation(body.jobUrl, body.allowedDomains);
-
-  const adapter = detectApplyAdapter(body.jobUrl);
-  if (!adapter) {
-    return {
-      outcome: 'STOP',
-      code: 'UNSUPPORTED_PLATFORM',
-      message: 'This employer platform is not supported for automatic submission.',
-    };
-  }
-
-  const cvPath = await materializeCv(body.candidate.cvDownloadUrl);
-  const candidate: ApplyCandidate = { ...body.candidate, cvPath: cvPath ?? body.candidate.cvPath };
-
-  // Container hardening: the worker runs in the official Playwright Docker
-  // image on Render (free plan). Docker's default seccomp profile blocks the
-  // Chromium namespace sandbox, so Chromium must run with --no-sandbox there;
-  // /dev/shm is tiny in containers, so route shared memory through /tmp.
-  // (Blast radius is still contained: non-root user, per-request SSRF re-check,
-  // throwaway context, no secrets/DB creds in this image.)
-  const browser = await chromium.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-  });
-  try {
-    const context = await browser.newContext(); // isolated: no shared cookies/storage
-    const page = await context.newPage();
-
-    // Per-request SSRF re-check: abort any navigation/request that fails.
-    await page.route('**/*', async (route) => {
-      const request = route.request();
-      if (request.isNavigationRequest()) {
-        try {
-          await assertSafeNavigation(request.url(), body.allowedDomains);
-          return route.continue();
-        } catch {
-          return route.abort();
-        }
-      }
-      return route.continue();
-    });
-
-    return await runApply(bindPage(page), candidate, adapter);
-  } finally {
-    await browser.close();
-    if (cvPath) await fs.rm(cvPath, { force: true }).catch(() => {});
-  }
-}
-
-const server = http.createServer(async (req, res) => {
-  if (req.url === '/healthz') {
-    res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, worker: 'browser', at: new Date().toISOString() }));
-    return;
-  }
-  if (req.method === 'POST' && req.url === '/submit') {
-    // Shared-secret gate (fail closed): without a matching BROWSER_WORKER_SECRET
-    // nothing may ask this worker to browse. Timing-safe compare.
-    if (!isAuthorizedHeader(req.headers.authorization, process.env.BROWSER_WORKER_SECRET)) {
-      res.writeHead(401, { 'content-type': 'application/json' });
-      res.end(JSON.stringify({ outcome: 'STOP', code: 'POLICY_RESTRICTED', message: 'Unauthorized: missing or invalid worker secret.' }));
-      return;
-    }
-    try {
-      const chunks: Buffer[] = [];
-      for await (const c of req) chunks.push(c as Buffer);
-      const body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as SubmitBody;
-      if (!body.jobUrl || !body.candidate || !Array.isArray(body.allowedDomains)) {
-        res.writeHead(400, { 'content-type': 'application/json' });
-        res.end(JSON.stringify({ outcome: 'STOP', code: 'POLICY_RESTRICTED', message: 'Invalid submit payload.' }));
-        return;
-      }
-      const outcome = await handleSubmit(body);
-      res.writeHead(200, { 'content-type': 'application/json' });
-      res.end(JSON.stringify(outcome));
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'BROWSER_ERROR';
-      const code = ['SSRF_BLOCKED', 'DOMAIN_NOT_ALLOWLISTED', 'UNSUPPORTED_URL_SCHEME'].includes(message) ? 'POLICY_RESTRICTED' : 'POLICY_RESTRICTED';
-      res.writeHead(200, { 'content-type': 'application/json' });
-      res.end(JSON.stringify({ outcome: 'STOP', code, message }));
-    }
-    return;
-  }
-  res.writeHead(404).end();
-});
+const server = createBrowserWorkerServer();
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(JSON.stringify({ event: 'browser_worker_online', port: PORT }));

@@ -30,6 +30,8 @@ export const DEFAULT_ALLOWED_DOMAINS = [
   'job-boards.greenhouse.io',
   'lever.co',
   'jobs.lever.co',
+  'jobs.ashbyhq.com',
+  'apply.workable.com',
 ];
 
 const JSON_HEADERS = { 'content-type': 'application/json' };
