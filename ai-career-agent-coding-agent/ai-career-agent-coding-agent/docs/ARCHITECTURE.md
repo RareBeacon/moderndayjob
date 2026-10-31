@@ -1,5 +1,7 @@
 # AI Career Agent, Architecture
 
+> **Canonical Reference**: See [`../ARCHITECTURE.md`](../ARCHITECTURE.md) and [`../AUTHENTICATION.md`](../AUTHENTICATION.md) at the application root for the current 15-domain production architecture map (Next.js 15.5.28, 58 RLS tables, 30m/7d session registry, PKCE OAuth, and dual-ledger entitlements).
+
 ## 1. System Overview
 
 The system is a multi-tenant SaaS-style web application with an asynchronous agent pipeline.

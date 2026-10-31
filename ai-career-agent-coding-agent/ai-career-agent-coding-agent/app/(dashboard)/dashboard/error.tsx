@@ -24,7 +24,7 @@ export default function DashboardError({ error, reset }: { error: Error & { dige
 
   const isSession = /SESSION_|UNAUTHENTICATED|NO_APP_SESSION/i.test(error.message ?? '');
   const isTransient = /network|timeout|fetch|load failed/i.test(error.message ?? '');
-  const showDetails = process.env.NODE_ENV !== 'production' || true; // temporary diagnostic: always show
+  const showDetails = process.env.NODE_ENV !== 'production';
 
   function signOut() {
     fetch('/api/auth/session', { method: 'DELETE' })
@@ -56,10 +56,13 @@ export default function DashboardError({ error, reset }: { error: Error & { dige
           <button type="button" onClick={signOut} style={{ background: 'transparent', border: '1px solid #e5e7eb', padding: '10px 18px', borderRadius: 999, color: '#374151', cursor: 'pointer' }}>Sign out</button>
           <a href="/support" style={{ display: 'inline-block', color: '#6b7280', padding: '10px 18px', textDecoration: 'underline' }}>Contact support</a>
         </div>
-        <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 16 }}>If this keeps happening, contact support with the time and what you clicked.</p>
+        <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 16 }}>
+          If this keeps happening, contact support with the time and what you clicked.
+          {error.digest ? ` Reference: ${String(error.digest).slice(0, 32)}` : ''}
+        </p>
         {showDetails && (
           <details style={{ marginTop: 16, textAlign: 'left', background: '#f9fafb', padding: 12, borderRadius: 8, fontSize: 12, color: '#374151', wordBreak: 'break-word' }}>
-            <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Technical details (for support)</summary>
+            <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Technical details (development only)</summary>
             <div style={{ marginTop: 8, whiteSpace: 'pre-wrap' }}>{String(error.message).slice(0, 800) || 'No message'}{error.digest ? `\nDigest: ${error.digest}` : ''}</div>
           </details>
         )}
