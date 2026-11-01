@@ -12,7 +12,7 @@ import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
 const addBody = z.object({
   userId: z.guid(),
-  provider: z.enum(['openrouter', 'huggingface']),
+  provider: z.enum(['openrouter', 'huggingface', 'qwencloud', 'dashscope']),
   apiKey: z.string().min(10).max(500),
   model: z.string().min(1).max(200),
   baseUrl: z.string().trim().url().max(300),

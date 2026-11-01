@@ -3,6 +3,7 @@ import { env } from '@/lib/env';
 import { decryptSecret } from '@packages/security/crypto';
 import { AIGateway, AIGatewayError } from '@packages/ai/gateway';
 import { OpenAICompatProvider, OllamaProvider, httpChat } from '@packages/ai/providers';
+import { buildQwenTierProviders, type QwenWorkloadTier } from '@packages/ai/qwen';
 import type { AIProvider, AIMessage, ChatResponse, UsageMeter } from '@packages/ai/types';
 import { consumeCredit, CreditExhaustedError, ledgerEnabled, releaseCredit, reserveCredit } from '@/lib/credits';
 import { assertPublicHttpsUrl } from '@/lib/agent/egress';
@@ -60,6 +61,35 @@ function buildOllamaProviders(basePriority = 0): AIProvider[] {
 /** True when the Cloudflare Workers AI fallback is configured. */
 export function cloudflareConfigured(): boolean {
   return env.CLOUDFLARE_ACCOUNT_ID.trim().length > 0 && env.CLOUDFLARE_API_TOKEN.trim().length > 0;
+}
+
+/** Active Alibaba QwenCloud / DashScope API key, if configured. */
+export function qwenApiKey(): string {
+  return (env.QWENCLOUD_API_KEY || env.DASHSCOPE_API_KEY).trim();
+}
+
+/** True when Alibaba Model Studio / QwenCloud is configured via env. */
+export function qwenConfigured(): boolean {
+  return qwenApiKey().length > 0;
+}
+
+export function buildQwenPlatformProviders(
+  tier: QwenWorkloadTier,
+  basePriority = 0,
+): AIProvider[] {
+  const key = qwenApiKey();
+  if (!key) return [];
+  return buildQwenTierProviders({
+    apiKey: key,
+    explicitBaseUrl: env.DASHSCOPE_BASE_URL,
+    tier,
+    basePriority,
+    modelOverrides: {
+      flagship: env.QWEN_FLAGSHIP_MODEL,
+      standard: env.QWEN_STANDARD_MODEL,
+      fast: env.QWEN_FAST_MODEL,
+    },
+  });
 }
 
 /**
@@ -188,7 +218,10 @@ function boundProviders(providers: AIProvider[]): AIProvider[] {
  * Every base URL (env Ollama AND user-supplied credentials) passes the
  * egress guard (B-223): a private/loopback/metadata target fails closed.
  */
-export async function buildGatewayForUser(userId: string): Promise<AIGateway> {
+export async function buildGatewayForUser(
+  userId: string,
+  opts?: { tier?: QwenWorkloadTier },
+): Promise<AIGateway> {
   const { data: creds, error } = await supabaseAdmin
     .from('ai_credentials')
     .select('provider, model, base_url, ciphertext, key_version')
@@ -203,6 +236,7 @@ export async function buildGatewayForUser(userId: string): Promise<AIGateway> {
   if (
     (!creds || creds.length === 0) &&
     ollama.length === 0 &&
+    !qwenConfigured() &&
     !cloudflareConfigured() &&
     !env.OPENROUTER_API_KEY
   ) {
@@ -212,6 +246,15 @@ export async function buildGatewayForUser(userId: string): Promise<AIGateway> {
   const providers: AIProvider[] = [...ollama];
   let priority = ollama.length;
   let skipped = 0;
+
+  // Alibaba Cloud Model Studio / QwenCloud multi-model cascade: routes each
+  // workload tier to its optimal Qwen model pool (`qwen3.8-max`, `qwen3.7-plus`,
+  // `qwen3.8-flash`) and cascades automatically if any free quota is exhausted.
+  if (qwenConfigured()) {
+    const qwenProviders = buildQwenPlatformProviders(opts?.tier ?? 'standard', priority);
+    providers.push(...qwenProviders);
+    priority += qwenProviders.length;
+  }
 
   // Cloudflare Workers AI platform fallback: serves inference when the
   // self-hosted Ollama VM is unavailable, ahead of the OpenRouter disaster
@@ -292,6 +335,9 @@ export async function buildGatewayForUser(userId: string): Promise<AIGateway> {
  */
 export function buildSupportGateway(): AIGateway {
   const providers: AIProvider[] = [];
+  if (qwenConfigured()) {
+    providers.push(...buildQwenPlatformProviders('fast', providers.length));
+  }
   if (cloudflareConfigured()) {
     providers.push(
       new OpenAICompatProvider(
@@ -300,7 +346,7 @@ export function buildSupportGateway(): AIGateway {
           model: env.CLOUDFLARE_MODEL,
           baseUrl: cloudflareBaseUrl(),
           apiKey: env.CLOUDFLARE_API_TOKEN,
-          priority: 0,
+          priority: providers.length,
         },
         httpChat,
       ),

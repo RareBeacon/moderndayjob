@@ -69,7 +69,7 @@ export async function POST(req: Request) {
 
   let gen;
   try {
-    const gateway = await buildGatewayForUser(user.id).catch(() => undefined);
+    const gateway = await buildGatewayForUser(user.id, { tier: 'flagship' }).catch(() => undefined);
     gen = await generateDocument({
       kind: 'CV',
       profile: generationProfile,

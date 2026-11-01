@@ -221,6 +221,7 @@ describe('bundle secret scan (B-003) — runs when .next/static exists (post-bui
       /sk_test/,
       /sk-ant/,
       /sk-proj/,
+      /sk-ws-/,
       /service_role/i,
       /SUPABASE_SERVICE/,
       /-----BEGIN/,

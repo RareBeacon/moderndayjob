@@ -36,7 +36,7 @@ const SECRET_PATTERNS: RegExp[] = [
   /(authorization)\s*[:=]\s*bearer\s+[^\s"',]+/gi,
   /(password|secret|token|api[_-]?key|service[_-]?role)\s*[:=]\s*[^\s"',]+/gi,
   /eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g,
-  /\bsk-[A-Za-z0-9_-]{16,}\b/g,
+  /\bsk-[A-Za-z0-9._-]{16,}\b/g,
 ];
 
 const MAX_META_STRING = 500;

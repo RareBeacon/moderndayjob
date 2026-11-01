@@ -4,7 +4,8 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { env } from '@/lib/env';
 import { auditEvent } from '@/lib/audit';
 import { notifyUser } from '@/lib/notifications/dispatch';
-import { buildSupportGateway } from '@/lib/ai/server';
+import { buildSupportGateway, qwenApiKey, qwenConfigured } from '@/lib/ai/server';
+import { transcribeWithQwenAsr } from '@packages/ai/qwen';
 import { defangUntrustedText, wrapUntrusted } from '@/lib/ai/injection';
 import { verifyDocument } from '@/lib/truthfulness/verify';
 import type { TruthfulProfile } from '@/lib/truthfulness/types';
@@ -1473,6 +1474,19 @@ export async function transcribeAudioChunk(bytes: Buffer): Promise<{
   confidence: number;
   provider: string;
 }> {
+  if (qwenConfigured()) {
+    const qwenAsr = await transcribeWithQwenAsr({
+      apiKey: qwenApiKey(),
+      audioBytes: bytes,
+      mimeType: 'audio/webm',
+      explicitBaseUrl: env.DASHSCOPE_BASE_URL,
+      model: env.QWEN_ASR_MODEL,
+    });
+    if (qwenAsr && qwenAsr.transcript) {
+      return qwenAsr;
+    }
+  }
+
   if (env.CLOUDFLARE_ACCOUNT_ID.trim() && env.CLOUDFLARE_API_TOKEN.trim()) {
     try {
       const res = await fetch(

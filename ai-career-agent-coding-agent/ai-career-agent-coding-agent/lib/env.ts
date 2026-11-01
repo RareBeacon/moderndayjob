@@ -28,6 +28,16 @@ const schema = z.object({
   CLOUDFLARE_ACCOUNT_ID: z.string().default(''),
   CLOUDFLARE_API_TOKEN: z.string().default(''),
   CLOUDFLARE_MODEL: z.string().default('@cf/openai/gpt-oss-120b'),
+  // Alibaba Cloud Model Studio / QwenCloud (OpenAI-compatible multi-model tiering):
+  // Accepts either QWENCLOUD_API_KEY (`sk-ws-...` / `sk-...`) or DASHSCOPE_API_KEY.
+  // Empty by default so existing deployments and unit tests remain unchanged.
+  QWENCLOUD_API_KEY: z.string().default(''),
+  DASHSCOPE_API_KEY: z.string().default(''),
+  DASHSCOPE_BASE_URL: z.string().default(''),
+  QWEN_FLAGSHIP_MODEL: z.string().default('qwen3.8-max'),
+  QWEN_STANDARD_MODEL: z.string().default('qwen3.7-plus'),
+  QWEN_FAST_MODEL: z.string().default('qwen3.8-flash'),
+  QWEN_ASR_MODEL: z.string().default('qwen3-asr-flash'),
   // Max concurrent AI provider calls per server instance. Extra requests
   // queue instead of overloading the model host (see lib/ai/server.ts).
   AI_MAX_CONCURRENCY: z.coerce.number().int().min(1).max(128).default(8),
@@ -78,6 +88,13 @@ function parseEnv(): z.infer<typeof schema> {
   CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID,
   CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN,
   CLOUDFLARE_MODEL: process.env.CLOUDFLARE_MODEL,
+  QWENCLOUD_API_KEY: process.env.QWENCLOUD_API_KEY,
+  DASHSCOPE_API_KEY: process.env.DASHSCOPE_API_KEY,
+  DASHSCOPE_BASE_URL: process.env.DASHSCOPE_BASE_URL,
+  QWEN_FLAGSHIP_MODEL: process.env.QWEN_FLAGSHIP_MODEL,
+  QWEN_STANDARD_MODEL: process.env.QWEN_STANDARD_MODEL,
+  QWEN_FAST_MODEL: process.env.QWEN_FAST_MODEL,
+  QWEN_ASR_MODEL: process.env.QWEN_ASR_MODEL,
   AI_MAX_CONCURRENCY: process.env.AI_MAX_CONCURRENCY,
   RESEND_API_KEY: process.env.RESEND_API_KEY,
   RESEND_FROM: process.env.RESEND_FROM,

@@ -2,7 +2,13 @@ import { env } from '@/lib/env';
 import { AIGateway } from '@packages/ai/gateway';
 import { OllamaProvider, OpenAICompatProvider, httpChat } from '@packages/ai/providers';
 import type { AIProvider, AITask } from '@packages/ai/types';
-import { buildSupportGateway, cloudflareConfigured, ollamaConfigured } from '@/lib/ai/server';
+import {
+  buildQwenPlatformProviders,
+  buildSupportGateway,
+  cloudflareConfigured,
+  ollamaConfigured,
+  qwenConfigured,
+} from '@/lib/ai/server';
 import { contentHash, recordGenerationUsage } from '@/lib/ai/usage';
 
 export type IntelligenceModelTier = 'FAST_EXTRACTION' | 'STRONG_REASONING';
@@ -34,6 +40,11 @@ const COST_PER_MILLION_TOKENS_USD: Record<string, { input: number; output: numbe
   ollama: { input: 0, output: 0 },
   'ollama-fallback': { input: 0, output: 0 },
   'deterministic-rubric-engine': { input: 0, output: 0 },
+  'qwen-qwen3.8-max': { input: 2.0, output: 6.0 },
+  'qwen-qwen3.7-plus': { input: 0.4, output: 1.2 },
+  'qwen-qwen3.8-flash': { input: 0.05, output: 0.2 },
+  'qwen-deepseek-v4-pro-0813': { input: 0.55, output: 2.19 },
+  'qwen-deepseek-v4.1-flash': { input: 0.07, output: 0.28 },
   'cloudflare-support': { input: 0.05, output: 0.15 },
   'openrouter-platform': { input: 0.25, output: 0.85 },
   'openrouter-support': { input: 0.25, output: 0.85 },
@@ -65,6 +76,9 @@ export function buildTieredIntelligenceGateway(tier: IntelligenceModelTier): AIG
   if (tier === 'FAST_EXTRACTION') {
     try {
       const providers: AIProvider[] = [];
+      if (qwenConfigured()) {
+        providers.push(...buildQwenPlatformProviders('fast', providers.length));
+      }
       if (ollamaConfigured() && env.OLLAMA_FALLBACK_MODEL) {
         providers.push(
           new OllamaProvider({
@@ -72,7 +86,7 @@ export function buildTieredIntelligenceGateway(tier: IntelligenceModelTier): AIG
             model: env.OLLAMA_FALLBACK_MODEL,
             baseUrl: env.OLLAMA_BASE_URL,
             apiKey: env.OLLAMA_API_KEY,
-            priority: 0,
+            priority: providers.length,
           }),
         );
       }
@@ -111,6 +125,9 @@ export function buildTieredIntelligenceGateway(tier: IntelligenceModelTier): AIG
 
   try {
     const providers: AIProvider[] = [];
+    if (qwenConfigured()) {
+      providers.push(...buildQwenPlatformProviders('flagship', providers.length));
+    }
     if (ollamaConfigured()) {
       providers.push(
         new OllamaProvider({
@@ -118,7 +135,7 @@ export function buildTieredIntelligenceGateway(tier: IntelligenceModelTier): AIG
           model: env.OLLAMA_MODEL,
           baseUrl: env.OLLAMA_BASE_URL,
           apiKey: env.OLLAMA_API_KEY,
-          priority: 0,
+          priority: providers.length,
         }),
       );
     }
