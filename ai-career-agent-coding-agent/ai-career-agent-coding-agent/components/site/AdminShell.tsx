@@ -6,9 +6,11 @@ import type { ReactNode } from 'react';
    Denser than the user app: ruled data tables, tracked uppercase
    overlines, no marketing ornament. §6.10 of the UI/UX plan. */
 
-
 const NAV = [
+  { href: '/admin', key: 'overview', label: 'Control Centre' },
   { href: '/admin/users', key: 'users', label: 'Users' },
+  { href: '/admin/programme', key: 'programme', label: 'Founding & Partners CRM' },
+  { href: '/admin/team', key: 'team', label: 'Admin Team & RBAC' },
   { href: '/admin/talent-pool', key: 'talent-pool', label: 'Talent Pool' },
   { href: '/admin/employers', key: 'employers', label: 'Employers' },
   { href: '/admin/radar', key: 'radar', label: 'Opportunity Radar' },

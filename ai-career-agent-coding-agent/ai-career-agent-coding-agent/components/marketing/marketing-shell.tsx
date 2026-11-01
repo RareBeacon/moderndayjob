@@ -98,6 +98,7 @@ export function MarketingShell({
               <Link href="/how-it-works">How it works</Link>
               <Link href="/tools">Free tools</Link>
               <Link href="/pricing">Pricing</Link>
+              <Link href="/apply">Founding Team &amp; Partners</Link>
               <Link href="/blog">Blog</Link>
               <Link href="/about">About</Link>
             </div>

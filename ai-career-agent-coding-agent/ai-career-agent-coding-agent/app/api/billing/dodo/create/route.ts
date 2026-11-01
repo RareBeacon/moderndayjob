@@ -7,7 +7,7 @@ import { SITE_URL } from '@/lib/site';
 import { z } from 'zod';
 
 const body = z.object({
-  plan: z.enum(['BASIC', 'PREMIUM', 'MAX']),
+  plan: z.enum(['BASIC', 'PREMIUM', 'ULTRA', 'MAX']).transform((p): 'BASIC' | 'PREMIUM' | 'ULTRA' => (p === 'MAX' ? 'ULTRA' : p)),
   couponCode: z.string().trim().max(32).optional(),
 });
 

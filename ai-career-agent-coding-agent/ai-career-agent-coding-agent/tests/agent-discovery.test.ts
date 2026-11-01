@@ -259,8 +259,9 @@ describe('runDiscoveryForUser', () => {
     // advanced to AWAITING_APPROVAL + audit events
     expect(m.calls.appUpdates[0]).toMatchObject({ status: 'AWAITING_APPROVAL' });
     expect(m.calls.events.map((e) => e.event)).toEqual(['DISCOVERED', 'PREPARED']);
-    // PREMIUM: daily meter incremented; no auto task; one review email
-    expect(m.calls.meterWrites.some((w) => w.table === 'usage_daily' && w.values.applications_used === 1)).toBe(true);
+    // Rule #7: discovery prepares AWAITING_APPROVAL without prematurely deducting monthly application quota;
+    // quota is consumed only when an application reaches confirmed SUBMITTED status.
+    expect(m.calls.meterWrites.some((w) => w.table === 'usage_daily' && w.values.applications_used === 1)).toBe(false);
     expect(m.calls.insertedTasks).toHaveLength(0);
     expect(m.calls.foundEmails).toBe(1);
   });
@@ -327,11 +328,11 @@ describe('runDiscoveryForUser', () => {
     expect(outcome.created).toBe(1);
   });
 
-  it('meters the BASIC lifetime counter instead of the daily one', async () => {
+  it('does not prematurely deduct BASIC application quota during discovery before submission', async () => {
     (m.state.entitlement as Record<string, unknown>).plan = 'BASIC';
     const fetchImpl = fakeFetch([{ id: 1, title: 'Graphics Designer' }]);
     await runDiscoveryForUser('u1', 'u1@example.com', { fetchImpl, isSubmittable: isGh });
-    expect(m.calls.meterWrites.some((w) => w.table === 'usage_lifetime' && w.values.auto_apply_used === 1)).toBe(true);
+    expect(m.calls.meterWrites.some((w) => w.table === 'usage_lifetime' && w.values.auto_apply_used === 1)).toBe(false);
     expect(m.calls.meterWrites.some((w) => w.table === 'usage_daily')).toBe(false);
   });
 });

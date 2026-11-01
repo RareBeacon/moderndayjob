@@ -212,7 +212,9 @@ async function loadUserContext(db: SupabaseClient, userId: string, email: string
     return { skipped: 'NOT_ENTITLED' };
   }
   if (!entitlement || entitlement.account_status !== 'ACTIVE' || !entitlement.automation_enabled) return { skipped: 'NOT_ENTITLED' };
-  if (Number(entitlement.applications_remaining) <= 0) return { skipped: 'QUOTA_EXHAUSTED' };
+  const isUnlimited = Boolean(entitlement.applications_unlimited) || entitlement.plan === 'ULTRA';
+  const effectiveRemaining = isUnlimited ? 9999 : Number(entitlement.applications_remaining);
+  if (effectiveRemaining <= 0) return { skipped: 'QUOTA_EXHAUSTED' };
 
   const [prefsRes, profRes] = await Promise.all([
     db.from('job_preferences').select('active,application_mode,daily_target,remote_types,locations,employment_types,salary_min,currency,discovered_at').eq('user_id', userId).maybeSingle(),
@@ -246,7 +248,7 @@ async function loadUserContext(db: SupabaseClient, userId: string, email: string
       locations: prefs.locations ?? [],
       salaryMin: prefs.salary_min ?? null,
       currency: prefs.currency ?? 'NGN',
-      applicationsRemaining: Number(entitlement.applications_remaining),
+      applicationsRemaining: effectiveRemaining,
     },
   };
 }
@@ -361,28 +363,6 @@ async function createDiscoveredApplication(deps: DiscoveryDeps, user: DiscoveryU
   return { result: 'created', applicationId: app.id, jobId: jobRow.id };
 }
 
-/** Meter one agent run against the plan quota (same counters the
- *  entitlement view reads: usage_lifetime for Basic, usage_daily for
- *  Premium/Max). Best-effort: never fails the discovery. */
-async function meterApplication(deps: DiscoveryDeps, user: DiscoveryUserContext, today: string): Promise<void> {
-  const { db } = deps;
-  try {
-    if (user.plan === 'BASIC') {
-      await db.from('usage_lifetime').upsert({ user_id: user.userId }, { onConflict: 'user_id', ignoreDuplicates: true });
-      const { data } = await db.from('usage_lifetime').select('auto_apply_used').eq('user_id', user.userId).maybeSingle();
-      const used = (data as { auto_apply_used?: number } | null)?.auto_apply_used ?? 0;
-      await db.from('usage_lifetime').update({ auto_apply_used: used + 1 }).eq('user_id', user.userId);
-    } else {
-      await db.from('usage_daily').upsert({ user_id: user.userId, day: today }, { onConflict: 'user_id,day', ignoreDuplicates: true });
-      const { data } = await db.from('usage_daily').select('applications_used').eq('user_id', user.userId).eq('day', today).maybeSingle();
-      const used = (data as { applications_used?: number } | null)?.applications_used ?? 0;
-      await db.from('usage_daily').update({ applications_used: used + 1 }).eq('user_id', user.userId).eq('day', today);
-    }
-  } catch {
-    /* metering is best-effort */
-  }
-}
-
 async function enqueueAutoSubmit(deps: DiscoveryDeps, user: DiscoveryUserContext, applicationId: string, jobId: string): Promise<void> {
   const { db } = deps;
   const { data: existing } = await db.from('agent_tasks').select('id').eq('user_id', user.userId).eq('application_id', applicationId).eq('type', 'APPLICATION').in('status', ['QUEUED', 'RUNNING']).maybeSingle();
@@ -394,7 +374,7 @@ async function enqueueAutoSubmit(deps: DiscoveryDeps, user: DiscoveryUserContext
    Public API
    ========================================================================== */
 
-async function discoverForUser(deps: DiscoveryDeps, user: DiscoveryUserContext, listings: NormalizedJob[], today: string): Promise<DiscoveryOutcome> {
+async function discoverForUser(deps: DiscoveryDeps, user: DiscoveryUserContext, listings: NormalizedJob[]): Promise<DiscoveryOutcome> {
   const outcome: DiscoveryOutcome = { userId: user.userId, scanned: listings.length, matched: 0, created: 0, crafted: 0, autoSubmittedQueued: 0, errors: [] };
   const budget = Math.max(0, Math.min(user.dailyTarget, user.applicationsRemaining, MAX_PER_USER_PER_RUN));
   if (budget <= 0) {
@@ -417,7 +397,8 @@ async function discoverForUser(deps: DiscoveryDeps, user: DiscoveryUserContext, 
       if (created.result === 'created' && created.applicationId) {
         outcome.created++;
         outcome.crafted++;
-        await meterApplication(deps, user, today);
+        // Application quota is metered strictly on confirmed SUBMITTED outcomes
+        // via credit_reserve/credit_consume in lib/apply/task.ts (never on drafts).
         if (user.applicationMode === 'auto') {
           await enqueueAutoSubmit(deps, user, created.applicationId, created.jobId ?? '');
           outcome.autoSubmittedQueued++;
@@ -437,7 +418,6 @@ async function discoverForUser(deps: DiscoveryDeps, user: DiscoveryUserContext, 
 export async function runDiscoveryForUser(userId: string, email: string | undefined, partial: Partial<DiscoveryDeps> = {}): Promise<DiscoveryOutcome> {
   const deps = defaultDeps(partial);
   const now = new Date();
-  const today = now.toISOString().slice(0, 10);
 
   const loaded = await loadUserContext(deps.db, userId, email, now);
   if (loaded.skipped || !loaded.user) {
@@ -449,7 +429,7 @@ export async function runDiscoveryForUser(userId: string, email: string | undefi
     return { userId, skipped: 'NO_SOURCES', scanned: 0, matched: 0, created: 0, crafted: 0, autoSubmittedQueued: 0, errors: [] };
   }
 
-  const outcome = await discoverForUser(deps, loaded.user, listings, today);
+  const outcome = await discoverForUser(deps, loaded.user, listings);
   await markDiscovered(deps, userId);
   await maybeNotify(deps, loaded.user, loaded.email ?? '', outcome);
   return outcome;
@@ -461,20 +441,19 @@ export async function runDiscoveryForUser(userId: string, email: string | undefi
 export async function runDiscoveryStage(partial: Partial<DiscoveryDeps> = {}): Promise<DiscoveryStageReport> {
   const deps = defaultDeps(partial);
   const now = new Date();
-  const today = now.toISOString().slice(0, 10);
   const report: DiscoveryStageReport = { usersConsidered: 0, usersRun: 0, applicationsCreated: 0, sources: [], outcomes: [] };
 
   const [subsRes, scheduledRes, activatedRes] = await Promise.all([
     deps.db
       .from('subscriptions')
       .select('user_id,plan,status,current_period_end')
-      .in('plan', ['BASIC', 'PREMIUM', 'MAX'])
-      .in('status', ['ACTIVE_BASIC', 'ACTIVE_PREMIUM', 'ACTIVE_MAX'])
+      .in('plan', ['BASIC', 'PREMIUM', 'ULTRA', 'MAX'])
+      .in('status', ['ACTIVE_BASIC', 'ACTIVE_PREMIUM', 'ACTIVE_ULTRA', 'ACTIVE_MAX'])
       .order('current_period_end', { ascending: false }),
     deps.db
       .from('scheduled_plan_changes')
       .select('user_id,activate_at')
-      .in('plan', ['BASIC', 'PREMIUM', 'MAX'])
+      .in('plan', ['BASIC', 'PREMIUM', 'ULTRA', 'MAX'])
       .eq('status', 'SCHEDULED'),
     deps.db
       .from('auto_apply_activations')
@@ -511,7 +490,7 @@ export async function runDiscoveryStage(partial: Partial<DiscoveryDeps> = {}): P
       continue;
     }
     report.usersRun++;
-    const outcome = await discoverForUser(deps, loaded.user, listings, today);
+    const outcome = await discoverForUser(deps, loaded.user, listings);
     report.applicationsCreated += outcome.created;
     report.outcomes.push(outcome);
     await markDiscovered(deps, userId);

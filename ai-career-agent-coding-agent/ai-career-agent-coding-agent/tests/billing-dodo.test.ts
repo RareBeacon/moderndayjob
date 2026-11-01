@@ -206,13 +206,13 @@ describe('POST /api/billing/dodo/webhook', () => {
     );
   });
 
-  it('maps $14.99 to the MAX plan', async () => {
+  it('maps $14.99 to the ULTRA plan', async () => {
     stubPayment({ payment_id: 'pay_max', status: 'succeeded', total_amount: 1499, currency: 'USD', customer: { email: 'm@example.com' } });
     const body = { type: 'payment.succeeded', data: { payment_id: 'pay_max', total_amount: 1499, currency: 'USD' } };
     const raw = JSON.stringify(body);
     const res = await webhookPOST(webhookReq(body, sign(raw)));
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, plan: 'MAX' });
+    expect(await res.json()).toEqual({ ok: true, plan: 'ULTRA' });
   });
 
   it('refuses an amount below every plan', async () => {

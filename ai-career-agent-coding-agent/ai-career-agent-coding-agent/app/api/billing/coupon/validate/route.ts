@@ -17,7 +17,7 @@ import { validateCouponForUser } from '@/lib/billing/coupons';
 
 const body = z.object({
   code: z.string().trim().min(3).max(32),
-  plan: z.enum(['BASIC', 'PREMIUM', 'MAX']),
+  plan: z.enum(['BASIC', 'PREMIUM', 'ULTRA', 'MAX']).transform((p): 'BASIC' | 'PREMIUM' | 'ULTRA' => (p === 'MAX' ? 'ULTRA' : p)),
 });
 
 export async function POST(req: Request) {

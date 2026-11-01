@@ -119,11 +119,14 @@ describe('endpoint guard (B-024: deny-by-default route registry)', () => {
     '/api/client-error', // anonymous-safe: rate-limited, bounded, writes to audit_logs only
     '/api/billing/providers', // provider availability booleans only; no secrets, no user data; rate-limited + cacheable
     '/api/geo', // visitor country only (mirror of the public x-vercel-ip-country edge header); rate-limited, no data access
+    '/api/founding-programme/apply', // public Founding Team & Strategic Partnerships intake for jobiest.com/apply; rate-limited, Zod-validated, honeypot-protected
   ]);
 
   const AUTH_MARKERS = [
     'requireUser',
     'requireAdminUser',
+    'requireAdminPermission',
+    'requireOwnerAdmin',
     'admin_users',
     'getUser',
     'CRON_SECRET',

@@ -39,7 +39,8 @@ export async function portfolioLimitFor(userId: string): Promise<number> {
     .eq('user_id', userId)
     .maybeSingle();
   const live = sub && sub.current_period_end && new Date(sub.current_period_end).getTime() > Date.now();
-  const planCode = (live ? (sub as { plan?: string }).plan : 'FREE') ?? 'FREE';
+  const rawPlan = (live ? (sub as { plan?: string }).plan : 'FREE') ?? 'FREE';
+  const planCode = rawPlan === 'MAX' ? 'ULTRA' : rawPlan;
   const { data: plan } = await supabaseAdmin
     .from('subscription_plans')
     .select('portfolio_limit')

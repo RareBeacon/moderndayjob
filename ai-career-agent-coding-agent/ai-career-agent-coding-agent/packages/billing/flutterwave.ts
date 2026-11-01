@@ -1,7 +1,7 @@
 /* Flutterwave billing; Standard (v3) integration.
    Auth: Bearer FLW_SECRET_KEY. Webhook secret: FLW_SECRET_HASH.
-   - createFlutterwaveTransaction → hosted checkout link
-   - verifyFlutterwaveTransaction → re-check a transaction server-side
+   - createFlutterwaveTransaction -> hosted checkout link
+   - verifyFlutterwaveTransaction -> re-check a transaction server-side
    The actual plan upgrade is performed by the DB function
    apply_verified_payment(...) (idempotent), invoked from the webhook.
    No client ever authorizes a plan; server is the single source of truth. */
@@ -26,10 +26,6 @@ export type FlwPaymentInput = {
 
 export type FlwCreateResult = { link: string };
 
-/** Best-effort read of Flutterwave's error body so failures are diagnosable
- *  (e.g. account-not-activated vs invalid redirect_url vs bad key). The 400
- *  "One or more required parameters missing" is generic; the field-level
- *  reasons live in the `errors[]` array, so surface those too. */
 async function readFlwError(res: Response): Promise<string> {
   try {
     const body = (await res.clone().json()) as {
@@ -68,14 +64,12 @@ export async function createFlutterwaveTransaction(input: FlwPaymentInput): Prom
     cache: 'no-store',
   });
   if (!res.ok) {
-    // Masked echo of what was sent, so provider rejections are diagnosable
-    // (which required field was missing / mistyped) without leaking PII.
     const sent = `amount=${input.amount}(${typeof input.amount}) currency=${input.currency ?? 'NGN'} redirect=${input.redirect_url} email=${input.customer.email ? 'present' : 'MISSING'} tx_ref=${input.tx_ref}`;
     throw new Error(`FLW_CREATE_FAILED:${res.status}${await readFlwError(res)} [sent: ${sent}]`);
   }
   const data = (await res.json()) as { status?: string; data?: { link?: string } };
   if (data.status !== 'success' || !data.data?.link) throw new Error('FLW_NO_CHECKOUT_LINK');
-  return { link: data.data.link };
+  return { link: data.data?.link };
 }
 
 export type FlwVerifyResult = {
@@ -102,33 +96,22 @@ export async function verifyFlutterwaveTransaction(transactionId: string | numbe
 /* Known plan amounts in NGN naira (must match subscription_plans.amount and
    the apply_verified_payment threshold). Used to guard the webhook against
    under-payment before granting a plan. */
-export const PLAN_AMOUNTS_NGN = { BASIC: 5000, PREMIUM: 10000, MAX: 20000 } as const;
+export const PLAN_AMOUNTS_NGN = { BASIC: 5000, PREMIUM: 10000, ULTRA: 20000 } as const;
 /* USD list prices for visitors from outside Nigeria (must match
    subscription_plans.amount_usd and the apply_verified_payment USD branch). */
-export const PLAN_AMOUNTS_USD = { BASIC: 3.99, PREMIUM: 7.99, MAX: 14.99 } as const;
-export type PaidPlan = 'BASIC' | 'PREMIUM' | 'MAX';
+export const PLAN_AMOUNTS_USD = { BASIC: 3.99, PREMIUM: 7.99, ULTRA: 14.99 } as const;
+export type PaidPlan = 'BASIC' | 'PREMIUM' | 'ULTRA';
 
-/* Maps a paid amount to the highest plan it fully covers, or null when it
-   cannot cover even BASIC. Exact match is NOT required: providers add an
-   FX markup for international cards (observed live 2026-09-21: a NGN 5,000
-   checkout settled as NGN 5,177.67), and a customer who paid the plan price
-   plus markup must still get their plan. The thresholds mirror the >= logic
-   already used inside apply_verified_payment, so the guard and the grant
-   agree; only amounts below the BASIC price are rejected. */
 export function planForAmount(amount: number): PaidPlan | null {
-  if (amount >= PLAN_AMOUNTS_NGN.MAX) return 'MAX';
+  if (amount >= PLAN_AMOUNTS_NGN.ULTRA) return 'ULTRA';
   if (amount >= PLAN_AMOUNTS_NGN.PREMIUM) return 'PREMIUM';
   if (amount >= PLAN_AMOUNTS_NGN.BASIC) return 'BASIC';
   return null;
 }
 
-/* Currency-aware guard for the Paystack path (NGN or USD charges). NGN keeps
-   the legacy behavior; USD uses the dollar thresholds. Unknown currencies
-   are rejected (null) so the webhook never grants a plan for money we did
-   not intend to collect. */
 export function planForAmountIn(currency: string, amount: number): PaidPlan | null {
   if (currency === 'USD') {
-    if (amount >= PLAN_AMOUNTS_USD.MAX) return 'MAX';
+    if (amount >= PLAN_AMOUNTS_USD.ULTRA) return 'ULTRA';
     if (amount >= PLAN_AMOUNTS_USD.PREMIUM) return 'PREMIUM';
     if (amount >= PLAN_AMOUNTS_USD.BASIC) return 'BASIC';
     return null;
@@ -137,9 +120,6 @@ export function planForAmountIn(currency: string, amount: number): PaidPlan | nu
   return null;
 }
 
-/** Reconciliation path (missed webhooks): look up a transaction by tx_ref.
- *  GET /transactions?tx_ref=... returns the provider's own record; callers
- *  must still re-verify by id before granting anything. */
 export async function findFlutterwaveTransactionByRef(
   txRef: string,
 ): Promise<{ id: number; tx_ref: string; status: string } | null> {

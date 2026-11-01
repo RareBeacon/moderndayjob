@@ -197,8 +197,8 @@ export function JobletFaq() {
               <div className="jl-price">₦5,000<small> /month</small></div>
               <ul>
                 <li><Tick />Everything in Free</li>
+                <li><Tick />30 successful applications / month</li>
                 <li><Tick />3 AI generations per day</li>
-                <li><Tick />2 agent-mode trial applications</li>
                 <li><Tick />50 tool uses per day</li>
               </ul>
               <Link className="jl-btn-outline jl-plan-cta" href="/signup" style={{ textAlign: 'center' }}>Choose Basic</Link>
@@ -208,22 +208,22 @@ export function JobletFaq() {
               <div className="jl-price">₦10,000<small> /month</small></div>
               <ul>
                 <li><Tick />Everything in Basic</li>
+                <li><Tick />50 successful applications / month</li>
                 <li><Tick />10 AI generations per day</li>
-                <li><Tick />10 auto-apply slots per day</li>
                 <li><Tick />Unlimited career tools</li>
               </ul>
               <Link className="jl-btn-solid jl-plan-cta" href="/signup" style={{ textAlign: 'center' }}>Choose Premium</Link>
             </div>
             <div className="jl-plan" data-animate data-animate-delay="210">
-              <h3>Max</h3>
+              <h3>Ultra</h3>
               <div className="jl-price">₦20,000<small> /month</small></div>
               <ul>
                 <li><Tick />Everything in Premium</li>
+                <li><Tick />Unlimited applications / month</li>
                 <li><Tick />20 AI generations per day</li>
-                <li><Tick />20 auto-apply slots per day</li>
                 <li><Tick />Human-reviewed applications</li>
               </ul>
-              <Link className="jl-btn-outline jl-plan-cta" href="/signup" style={{ textAlign: 'center' }}>Choose Max</Link>
+              <Link className="jl-btn-outline jl-plan-cta" href="/signup" style={{ textAlign: 'center' }}>Choose Ultra</Link>
             </div>
           </div>
           <p className="jl-trial-note" data-animate data-animate-delay="240">Start free with no card. Upgrade only when the workflow is worth it.</p>

@@ -185,7 +185,7 @@ describe('createCheckoutQuote', () => {
 
   it('coupon-less checkouts still get a quote (full price)', async () => {
     m.quoteInsert.mockResolvedValue({ error: null });
-    const q = await createCheckoutQuote({ reference: 'pstk_u1_3', userId: '11111111-1111-1111-1111-111111111111', plan: 'MAX', currency: 'NGN', originalAmount: 20000 });
+    const q = await createCheckoutQuote({ reference: 'pstk_u1_3', userId: '11111111-1111-1111-1111-111111111111', plan: 'ULTRA', currency: 'NGN', originalAmount: 20000 });
     expect(q.finalAmount).toBe(20000);
     expect(q.discountAmount).toBe(0);
     expect(q.couponCode).toBeNull();

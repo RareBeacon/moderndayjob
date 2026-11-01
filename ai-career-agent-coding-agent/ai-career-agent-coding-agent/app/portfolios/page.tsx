@@ -134,7 +134,7 @@ export default function PortfoliosPage() {
         <h1>Your work, on one public page</h1>
         <p>
           Build a portfolio page and share it with a link. Your plan sets how many portfolios you can have (Free 1, Basic 5,
-          Premium 10, Max 26). Creating, editing and downloading never uses an AI credit.
+          Premium 10, Ultra 26). Creating, editing and downloading never uses an AI credit.
         </p>
         {message && (
           <p className="form-status" role="status">

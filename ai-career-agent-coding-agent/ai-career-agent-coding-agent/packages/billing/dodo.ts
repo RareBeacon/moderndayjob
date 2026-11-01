@@ -34,21 +34,30 @@ function dodoApiBase(): string {
     : 'https://test.dodopayments.com';
 }
 
-export type DodoPlan = 'BASIC' | 'PREMIUM' | 'MAX';
+export type DodoPlan = 'BASIC' | 'PREMIUM' | 'ULTRA';
 
 export function dodoConfigured(): boolean {
   return Boolean(process.env.DODO_PAYMENTS_API_KEY);
 }
 
-/** The dashboard product id configured for each plan (env-mapped). */
-export function dodoProductIdForPlan(plan: DodoPlan): string | null {
-  const key = `DODO_PRODUCT_${plan}`;
-  return process.env[key] ?? null;
+/** The dashboard product id configured for each plan (env-mapped; ULTRA falls back to legacy DODO_PRODUCT_MAX if unset). */
+export function dodoProductIdForPlan(plan: DodoPlan | 'MAX'): string | null {
+  const normalized: DodoPlan = plan === 'MAX' ? 'ULTRA' : plan;
+  if (normalized === 'ULTRA') {
+    return process.env.DODO_PRODUCT_ULTRA ?? process.env.DODO_PRODUCT_MAX ?? null;
+  }
+  return process.env[`DODO_PRODUCT_${normalized}`] ?? null;
 }
 
 /** Reverse map: a dashboard product id -> the plan it grants. */
 export function dodoPlanForProductId(productId: string): DodoPlan | null {
-  for (const plan of ['BASIC', 'PREMIUM', 'MAX'] as const) {
+  if (
+    (process.env.DODO_PRODUCT_ULTRA && process.env.DODO_PRODUCT_ULTRA === productId) ||
+    (process.env.DODO_PRODUCT_MAX && process.env.DODO_PRODUCT_MAX === productId)
+  ) {
+    return 'ULTRA';
+  }
+  for (const plan of ['BASIC', 'PREMIUM'] as const) {
     if (process.env[`DODO_PRODUCT_${plan}`] === productId) return plan;
   }
   return null;

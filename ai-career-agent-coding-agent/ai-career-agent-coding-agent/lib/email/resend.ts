@@ -371,3 +371,103 @@ export async function sendPlanChangeEmail(to: string, input: PlanChangeEmailInpu
   const text = `Hello ${first},\n\n${line}\n\nOpen your plan: ${SITE_URL}/billing\n\nIf you did not expect this change, just reply to this email and we will sort it out.\n\nJobiest support`;
   return sendEmail({ to, subject: input.mode === 'cancelled' ? 'Your Jobiest plan has changed' : `You are now on Jobiest ${plan}`, html, text, replyTo: 'support@jobiest.com' });
 }
+
+export interface PaymentReceiptEmailInput {
+  firstName?: string;
+  planName: string;
+  amountFormatted: string;
+  reference: string;
+  provider: string;
+  periodEnd?: string | null;
+}
+
+/** Verified payment receipt email (sent best-effort after server-side payment verification). */
+export async function sendPaymentReceiptEmail(to: string, input: PaymentReceiptEmailInput): Promise<SendEmailResult> {
+  const first = input.firstName?.trim() || 'there';
+  const html = composeEmail(
+    [
+      emailHero('Payment confirmed'),
+      emailHeading(`Hello ${escapeHtmlEmail(first)},`),
+      emailParagraph(`Thank you for upgrading to <strong>Jobiest ${escapeHtmlEmail(input.planName)}</strong>. Your payment has been verified and your plan benefits are active immediately.`),
+      emailInfoCard('Payment receipt', [
+        `<strong>Plan:</strong> Jobiest ${escapeHtmlEmail(input.planName)}`,
+        `<strong>Amount paid:</strong> ${escapeHtmlEmail(input.amountFormatted)}`,
+        `<strong>Reference:</strong> ${escapeHtmlEmail(input.reference)}`,
+        `<strong>Provider:</strong> ${escapeHtmlEmail(input.provider)}`,
+        ...(input.periodEnd ? [`<strong>Active through:</strong> ${escapeHtmlEmail(input.periodEnd)}`] : []),
+      ]),
+      emailButton('View my subscription', `${SITE_URL}/billing`),
+      emailParagraph('If you have any billing questions, reply to this email or contact support@jobiest.com.', { muted: true }),
+    ],
+    `Receipt for your Jobiest ${input.planName} subscription`,
+  );
+  const text = [
+    `Hello ${first},`,
+    '',
+    `Thank you for upgrading to Jobiest ${input.planName}. Your payment has been verified and your plan benefits are active immediately.`,
+    '',
+    `Plan: Jobiest ${input.planName}`,
+    `Amount paid: ${input.amountFormatted}`,
+    `Reference: ${input.reference}`,
+    `Provider: ${input.provider}`,
+    ...(input.periodEnd ? [`Active through: ${input.periodEnd}`] : []),
+    '',
+    `Manage your subscription: ${SITE_URL}/billing`,
+    '',
+    'If you have any billing questions, contact support@jobiest.com.',
+  ].join('\n');
+  return sendEmail({
+    to,
+    subject: `Your Jobiest ${input.planName} payment receipt`,
+    html,
+    text,
+    replyTo: 'support@jobiest.com',
+  });
+}
+
+export interface AdminSecurityAlertEmailInput {
+  action: string;
+  actorEmail?: string | null;
+  targetSummary: string;
+  reason?: string | null;
+  occurredAt?: string;
+}
+
+/** High-sensitivity administrative or security alert for the Owner account. */
+export async function sendAdminSecurityAlertEmail(to: string, input: AdminSecurityAlertEmailInput): Promise<SendEmailResult> {
+  const when = input.occurredAt ?? new Date().toISOString();
+  const html = composeEmail(
+    [
+      emailHero('Admin security notice'),
+      emailHeading('Sensitive administrative action recorded'),
+      emailParagraph('A privileged action was executed in the Jobiest Admin Control Centre:'),
+      emailInfoCard('Audit summary', [
+        `<strong>Action:</strong> ${escapeHtmlEmail(input.action)}`,
+        ...(input.actorEmail ? [`<strong>Actor:</strong> ${escapeHtmlEmail(input.actorEmail)}`] : []),
+        `<strong>Target:</strong> ${escapeHtmlEmail(input.targetSummary)}`,
+        ...(input.reason ? [`<strong>Reason:</strong> ${escapeHtmlEmail(input.reason)}`] : []),
+        `<strong>Timestamp (UTC):</strong> ${escapeHtmlEmail(when)}`,
+      ]),
+      emailButton('Open Admin Security', `${SITE_URL}/admin/security`),
+    ],
+    `Jobiest Admin Alert: ${input.action}`,
+  );
+  const text = [
+    'Sensitive administrative action recorded in Jobiest Admin Control Centre:',
+    '',
+    `Action: ${input.action}`,
+    ...(input.actorEmail ? [`Actor: ${input.actorEmail}`] : []),
+    `Target: ${input.targetSummary}`,
+    ...(input.reason ? [`Reason: ${input.reason}`] : []),
+    `Timestamp (UTC): ${when}`,
+    '',
+    `Review audit trail: ${SITE_URL}/admin/security`,
+  ].join('\n');
+  return sendEmail({
+    to,
+    subject: `[Jobiest Security] ${input.action}`,
+    html,
+    text,
+    replyTo: 'support@jobiest.com',
+  });
+}

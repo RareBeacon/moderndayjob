@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     // Quote-first (coupon-aware): the granted plan and expected amount come
     // from the server-trusted quote when one exists; thresholds only apply to
     // references created before the quote system (or without a quote row).
-    let plan: 'BASIC' | 'PREMIUM' | 'MAX' | null = null;
+    let plan: 'BASIC' | 'PREMIUM' | 'ULTRA' | null = null;
     try {
       plan = await applyQuotedPayment({
         reference,

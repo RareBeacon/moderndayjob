@@ -216,10 +216,10 @@ describe('webhook: re-verification and guards', () => {
     );
   });
 
-  it('maps a ₦20,000 charge (2,000,000 kobo) to the MAX plan', async () => {
+  it('maps a ₦20,000 charge (2,000,000 kobo) to the ULTRA plan', async () => {
     stubVerify({ status: 'success', amount: 2_000_000, currency: 'NGN', reference: REF, customer: { email: 'a@b.co' } });
     const res = await webhookPOST(req(chargeSuccess, sign(JSON.stringify(chargeSuccess))));
-    expect(await res.json()).toEqual({ ok: true, plan: 'MAX' });
+    expect(await res.json()).toEqual({ ok: true, plan: 'ULTRA' });
   });
 
   it('does not trust a success payload the server re-check disagrees with', async () => {
@@ -415,7 +415,7 @@ describe('planForAmount stays the shared plan guard', () => {
   it('maps exact plan amounts and any amount fully covering a plan', () => {
     expect(planForAmount(5000)).toBe('BASIC');
     expect(planForAmount(10000)).toBe('PREMIUM');
-    expect(planForAmount(20000)).toBe('MAX');
+    expect(planForAmount(20000)).toBe('ULTRA');
     expect(planForAmount(5177.67)).toBe('BASIC'); // FX-markup over-payment
     expect(planForAmount(7000)).toBe('BASIC');
     expect(planForAmount(4999)).toBeNull(); // under-payment still refused

@@ -53,7 +53,7 @@ export async function POST(req: Request) {
     }
 
     // Quote-first (coupon-aware), then the legacy threshold path.
-    let plan: 'BASIC' | 'PREMIUM' | 'MAX' | null = null;
+    let plan: 'BASIC' | 'PREMIUM' | 'ULTRA' | null = null;
     try {
       plan = await applyQuotedPayment({
         reference: txRef,

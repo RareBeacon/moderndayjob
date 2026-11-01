@@ -10,7 +10,7 @@ import {
   type QwenWorkloadTier,
 } from '@packages/ai/qwen';
 import type { AIProvider, AIMessage, ChatResponse, UsageMeter } from '@packages/ai/types';
-import { consumeCredit, CreditExhaustedError, ledgerEnabled, releaseCredit, reserveCredit } from '@/lib/credits';
+import { consumeCredit, CreditExhaustedError, ensurePeriodGrants, ledgerEnabled, releaseCredit, reserveCredit } from '@/lib/credits';
 import { assertPublicHttpsUrl } from '@/lib/agent/egress';
 
 /** Thrown when the user has no active AI credential configured. */
@@ -515,6 +515,21 @@ export function createUsageMeter(userId: string): UsageMeter {
         try {
           await reserveCredit(userId, 'DOCUMENT', ledgerRef);
         } catch (err) {
+          if (err instanceof CreditExhaustedError) {
+            const granted = await ensurePeriodGrants(userId).catch(() => 0);
+            if (typeof granted === 'number' && granted > 0) {
+              try {
+                await reserveCredit(userId, 'DOCUMENT', ledgerRef);
+                return;
+              } catch (retryErr) {
+                await legacyRefund();
+                if (retryErr instanceof CreditExhaustedError) {
+                  throw new AIGatewayError('AI_QUOTA_EXHAUSTED', 'Document credit limit reached for your plan.');
+                }
+                throw retryErr;
+              }
+            }
+          }
           await legacyRefund();
           if (err instanceof CreditExhaustedError) {
             throw new AIGatewayError('AI_QUOTA_EXHAUSTED', 'Document credit limit reached for your plan.');

@@ -24,7 +24,7 @@ import { supabaseAdmin } from '@/lib/supabase';
  */
 
 export type CouponDiscountType = 'PERCENTAGE' | 'FIXED_AMOUNT';
-export type PaidPlanCode = 'BASIC' | 'PREMIUM' | 'MAX';
+export type PaidPlanCode = 'BASIC' | 'PREMIUM' | 'ULTRA';
 
 export interface CouponRow {
   id: string;
@@ -125,8 +125,11 @@ export function evaluateCoupon(coupon: CouponRow, input: EvaluateCouponInput): C
     return { ok: false, code: 'PER_USER_LIMIT', message: COUPON_MESSAGES.PER_USER_LIMIT };
   }
 
-  const plans = coupon.applicable_plans ?? [];
-  if (!plans.includes(input.plan)) {
+  const plans = (coupon.applicable_plans ?? []).map((p) =>
+    String(p ?? '').trim().toUpperCase() === 'MAX' ? 'ULTRA' : String(p ?? '').trim().toUpperCase(),
+  );
+  const targetPlan = String(input.plan ?? '').trim().toUpperCase() === 'MAX' ? 'ULTRA' : input.plan;
+  if (!plans.includes(targetPlan)) {
     return { ok: false, code: 'PLAN_NOT_ELIGIBLE', message: COUPON_MESSAGES.PLAN_NOT_ELIGIBLE };
   }
 
