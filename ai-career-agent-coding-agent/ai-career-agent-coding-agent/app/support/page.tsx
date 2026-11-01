@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getUser } from '@/lib/auth';
+import { getOptionalUser } from '@/lib/auth';
 import { MarketingShell } from '@/components/marketing/marketing-shell';
 import { SupportForm } from '@/components/support/SupportForm';
 import { marketingMetadata } from '@/components/marketing/metadata';
@@ -28,7 +28,7 @@ const CATEGORIES = [
  * works logged-out too, because login trouble is a support category.
  */
 export default async function SupportPage() {
-  const user = await getUser();
+  const user = await getOptionalUser();
   return (
     <MarketingShell activePath="/support" authenticated={!!user}>
       <main className={styles.page} id="main">

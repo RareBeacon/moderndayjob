@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getUser } from '@/lib/auth';
+import { getOptionalUser } from '@/lib/auth';
 import { softwareAppJsonLd, faqJsonLd, jsonLdTag } from '@/lib/seo';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { CoverLetterTool } from '@/components/freetools/CoverLetterTool';
@@ -25,7 +25,7 @@ const TRUTH_POINTS = [
 ];
 
 export default async function FreeCoverLetterPage() {
-  const user = await getUser();
+  const user = await getOptionalUser();
   return (
     <FreeToolShell
       title="Cover Letter Writer"

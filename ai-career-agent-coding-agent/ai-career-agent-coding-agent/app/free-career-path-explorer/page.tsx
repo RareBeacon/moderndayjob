@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getUser } from '@/lib/auth';
+import { getOptionalUser } from '@/lib/auth';
 import { softwareAppJsonLd, faqJsonLd, jsonLdTag } from '@/lib/seo';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { CareerPathsTool } from '@/components/freetools/CareerPathsTool';
@@ -25,7 +25,7 @@ const STEPS = [
 ];
 
 export default async function FreeCareerPathsPage() {
-  const user = await getUser();
+  const user = await getOptionalUser();
   return (
     <FreeToolShell
       title="Career Path Explorer"

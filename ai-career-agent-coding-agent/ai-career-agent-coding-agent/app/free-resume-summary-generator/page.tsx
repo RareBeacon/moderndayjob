@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getUser } from '@/lib/auth';
+import { getOptionalUser } from '@/lib/auth';
 import { softwareAppJsonLd, faqJsonLd, jsonLdTag } from '@/lib/seo';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { ResumeSummaryTool } from '@/components/freetools/ResumeSummaryTool';
@@ -25,7 +25,7 @@ const TRUTH_POINTS = [
 ];
 
 export default async function FreeResumeSummaryPage() {
-  const user = await getUser();
+  const user = await getOptionalUser();
   return (
     <FreeToolShell
       title="Resume Summary Generator"

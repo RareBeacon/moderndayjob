@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getUser } from '@/lib/auth';
+import { getOptionalUser } from '@/lib/auth';
 import { softwareAppJsonLd, faqJsonLd, jsonLdTag } from '@/lib/seo';
 import { FreeToolShell, RelatedTools } from '@/components/site/FreeToolShell';
 import { SkillsMatcherTool } from '@/components/freetools/SkillsMatcherTool';
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 };
 
 export default async function FreeSkillsMatcherPage() {
-  const user = await getUser();
+  const user = await getOptionalUser();
   return (
     <FreeToolShell
       title="Skills Matcher"

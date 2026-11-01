@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { MarketingShell } from '@/components/marketing/marketing-shell';
-import { getUser } from '@/lib/auth';
+import { getOptionalUser } from '@/lib/auth';
 import styles from '../../marketing.module.css';
 
 /**
@@ -113,7 +113,7 @@ const STEPS: Array<{
 ];
 
 export default async function GettingStartedPage() {
-  const user = await getUser();
+  const user = await getOptionalUser();
   return (
     <MarketingShell activePath="/help" authenticated={!!user}>
       <main className={styles.page} id="main">

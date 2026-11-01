@@ -131,13 +131,34 @@ async function DashboardBody(user: Awaited<ReturnType<typeof requireUserOrRedire
 }
 
 async function DashboardBodyInner(user: Awaited<ReturnType<typeof requireUserOrRedirect>>): Promise<import('react').ReactNode> {
-  // First batch: already has catches on entitlement/completeness; profiles guarded via maybeSingle
+  // Single parallel batch: EVERY query individually guarded so one table/RPC failure cannot crash dashboard
+  const safeCount = (p: PromiseLike<any>): Promise<{ count: number | null }> =>
+    Promise.resolve(p as Promise<any>).then(
+      (r) => ({ count: (r as any)?.count ?? null }),
+      () => ({ count: null }),
+    );
+  const safeData = (p: PromiseLike<any>): Promise<{ data: any }> =>
+    Promise.resolve(p as Promise<any>).then(
+      (r) => ({ data: (r as any)?.data ?? null }),
+      () => ({ data: null }),
+    );
+
   const [
     { data: profile },
     { data: career },
     { data: preferences },
     entitlement,
     completeness,
+    { count: applicationCount },
+    { count: inFlightCount },
+    { count: interviewCount },
+    { count: draftCount },
+    { data: drafts },
+    { data: pipelineCounts },
+    initialDocCredits,
+    initialAppCredits,
+    { data: activation },
+    { count: portfolioCount },
   ] = await Promise.all([
     supabaseAdmin.from('profiles').select('full_name,target_roles,account_status').eq('user_id', user.id).maybeSingle().then(
       (r) => r,
@@ -162,6 +183,16 @@ async function DashboardBodyInner(user: Awaited<ReturnType<typeof requireUserOrR
       tool_uses_remaining: null,
     })),
     getProfileCompleteness(user.id).catch(() => ({ percent: 0, next: [], checks: [] })),
+    safeCount(supabaseAdmin.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', user.id)),
+    safeCount(supabaseAdmin.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).in('status', ['SUBMITTED', 'INTERVIEW'])),
+    safeCount(supabaseAdmin.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'INTERVIEW')),
+    safeCount(supabaseAdmin.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'DRAFT')),
+    safeData(supabaseAdmin.from('applications').select('id,created_at,jobs(company,title,url)').eq('user_id', user.id).eq('status', 'DRAFT').order('created_at', { ascending: false }).limit(4)),
+    safeData(supabaseAdmin.from('applications').select('status').eq('user_id', user.id).limit(500)),
+    creditAvailable(user.id, 'DOCUMENT').catch(() => null),
+    creditAvailable(user.id, 'AUTO_APPLY').catch(() => null),
+    safeData(supabaseAdmin.from('auto_apply_activations').select('status, card_last4, bank').eq('user_id', user.id).maybeSingle()),
+    safeCount(supabaseAdmin.from('portfolios').select('*', { count: 'exact', head: true }).eq('user_id', user.id)),
   ]);
 
   const profileSafe = (profile as any) ?? { full_name: null, target_roles: null, account_status: 'ACTIVE' };
@@ -182,42 +213,6 @@ async function DashboardBodyInner(user: Awaited<ReturnType<typeof requireUserOrR
   }
 
   const autoMode = (preferences as any)?.application_mode === 'auto';
-
-  // Second batch: EVERY query individually guarded so one table/RPC failure cannot crash dashboard
-  const safeCount = (p: PromiseLike<any>): Promise<{ count: number | null }> =>
-    Promise.resolve(p as Promise<any>).then(
-      (r) => ({ count: (r as any)?.count ?? null }),
-      () => ({ count: null }),
-    );
-  const safeData = (p: PromiseLike<any>): Promise<{ data: any }> =>
-    Promise.resolve(p as Promise<any>).then(
-      (r) => ({ data: (r as any)?.data ?? null }),
-      () => ({ data: null }),
-    );
-
-  const [
-    { count: applicationCount },
-    { count: inFlightCount },
-    { count: interviewCount },
-    { count: draftCount },
-    { data: drafts },
-    { data: pipelineCounts },
-    initialDocCredits,
-    initialAppCredits,
-    { data: activation },
-    { count: portfolioCount },
-  ] = await Promise.all([
-    safeCount(supabaseAdmin.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', user.id)),
-    safeCount(supabaseAdmin.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).in('status', ['SUBMITTED', 'INTERVIEW'])),
-    safeCount(supabaseAdmin.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'INTERVIEW')),
-    safeCount(supabaseAdmin.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'DRAFT')),
-    safeData(supabaseAdmin.from('applications').select('id,created_at,jobs(company,title,url)').eq('user_id', user.id).eq('status', 'DRAFT').order('created_at', { ascending: false }).limit(4)),
-    safeData(supabaseAdmin.from('applications').select('status').eq('user_id', user.id).limit(500)),
-    creditAvailable(user.id, 'DOCUMENT').catch(() => null),
-    creditAvailable(user.id, 'AUTO_APPLY').catch(() => null),
-    safeData(supabaseAdmin.from('auto_apply_activations').select('status, card_last4, bank').eq('user_id', user.id).maybeSingle()),
-    safeCount(supabaseAdmin.from('portfolios').select('*', { count: 'exact', head: true }).eq('user_id', user.id)),
-  ]);
 
   let docCredits = initialDocCredits;
   let appCredits = initialAppCredits;
