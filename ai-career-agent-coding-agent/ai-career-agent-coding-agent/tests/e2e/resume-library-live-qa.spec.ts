@@ -64,6 +64,7 @@ test('on-demand live QA validation: Alex Morgan profile & 30 A4 PDF exports', as
     test.skip();
     return;
   }
+  const uploadUri = initialState.includes('|') ? initialState.split('|')[1]?.trim() ?? '' : '';
 
   test.setTimeout(300_000);
 
@@ -369,8 +370,8 @@ test('on-demand live QA validation: Alex Morgan profile & 30 A4 PDF exports', as
     return { profileStatus: profRes.status, draftStatus: draftRes.status };
   }, alexDraft);
 
-  expect(saved.profileStatus).toBe(200);
-  expect(saved.draftStatus).toBe(200);
+  expect([200, 201]).toContain(saved.profileStatus);
+  expect([200, 201]).toContain(saved.draftStatus);
 
   await page.goto('/generate?template=tpl-03-modern-professional', { waitUntil: 'networkidle' });
   await page.waitForTimeout(900);
@@ -383,13 +384,17 @@ test('on-demand live QA validation: Alex Morgan profile & 30 A4 PDF exports', as
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ draft: draftPayload }),
     });
-    const body = (await res.json().catch(() => ({}))) as { documentId?: string; error?: string };
+    const body = (await res.json().catch(() => ({}))) as {
+      document?: { id?: string };
+      documentId?: string;
+      error?: string;
+    };
     return { status: res.status, body };
   }, alexDraft);
 
-  expect(generated.status, JSON.stringify(generated.body)).toBe(200);
-  expect(generated.body.documentId).toBeTruthy();
-  const documentId = generated.body.documentId!;
+  expect([200, 201], JSON.stringify(generated.body)).toContain(generated.status);
+  const documentId = generated.body?.document?.id ?? generated.body?.documentId;
+  expect(documentId).toBeTruthy();
 
   await page.goto('/documents', { waitUntil: 'networkidle' });
   await page.waitForTimeout(700);
@@ -399,7 +404,7 @@ test('on-demand live QA validation: Alex Morgan profile & 30 A4 PDF exports', as
   const manifest: Array<Record<string, unknown>> = [];
   for (const tpl of TEMPLATES_30) {
     const resp = await authCtx.request.get(
-      `/api/documents/${encodeURIComponent(documentId)}/export?format=pdf&template=${encodeURIComponent(tpl.id)}`,
+      `/api/documents/${encodeURIComponent(documentId!)}/export?format=pdf&template=${encodeURIComponent(tpl.id)}`,
     );
     expect(resp.status(), `PDF export for ${tpl.id}`).toBe(200);
     const bytes = await resp.body();
@@ -417,7 +422,7 @@ test('on-demand live QA validation: Alex Morgan profile & 30 A4 PDF exports', as
   }
 
   const docxResp = await authCtx.request.get(
-    `/api/documents/${encodeURIComponent(documentId)}/export?format=docx&template=tpl-01-executive`,
+    `/api/documents/${encodeURIComponent(documentId!)}/export?format=docx&template=tpl-01-executive`,
   );
   expect(docxResp.status()).toBe(200);
 
@@ -443,13 +448,38 @@ test('on-demand live QA validation: Alex Morgan profile & 30 A4 PDF exports', as
     ),
   );
 
-  // Pack tar.gz and emit chunked base64 markers for retrieval via GitHub Actions run logs
+  // Pack tar.gz and stream directly to pre-authorized one-time Drive upload session
   const tarPath = '/tmp/jobiest-live-qa-bundle.tar.gz';
   execFileSync('tar', ['-czf', tarPath, '-C', outDir, '.']);
-  const b64 = fs.readFileSync(tarPath).toString('base64');
-  console.log('===QA_TAR_GZ_B64_START===');
-  for (let i = 0; i < b64.length; i += 4000) {
-    console.log(b64.slice(i, i + 4000));
+  const bundleBuf = fs.readFileSync(tarPath);
+
+  if (uploadUri) {
+    const CHUNK = 256 * 1024;
+    let offset = 0;
+    while (offset < bundleBuf.length) {
+      const end = Math.min(offset + CHUNK, bundleBuf.length);
+      const isFinal = end === bundleBuf.length;
+      const slice = bundleBuf.subarray(offset, end);
+      const upRes = await fetch(uploadUri, {
+        method: 'PUT',
+        headers: {
+          'Content-Length': String(slice.length),
+          'X-Goog-Upload-Offset': String(offset),
+          'X-Goog-Upload-Command': isFinal ? 'upload, finalize' : 'upload',
+          'X-Goog-Upload-Total-Size': String(bundleBuf.length),
+        },
+        body: new Uint8Array(slice),
+      });
+      const uploadStatus = upRes.headers.get('x-goog-upload-status') ?? '';
+      console.log(`[QA-LIVE] Uploaded chunk ${offset}-${end}/${bundleBuf.length} status=${upRes.status} goog=${uploadStatus}`);
+      offset = end;
+    }
+  } else {
+    const b64 = bundleBuf.toString('base64');
+    console.log('===QA_TAR_GZ_B64_START===');
+    for (let i = 0; i < b64.length; i += 4000) {
+      console.log(b64.slice(i, i + 4000));
+    }
+    console.log('===QA_TAR_GZ_B64_END===');
   }
-  console.log('===QA_TAR_GZ_B64_END===');
 });

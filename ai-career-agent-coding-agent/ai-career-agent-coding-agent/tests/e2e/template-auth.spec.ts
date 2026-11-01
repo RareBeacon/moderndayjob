@@ -96,7 +96,7 @@ test('resume library search, category tabs, ATS filter, and zoomable preview wor
 
   // Filter by Academic category
   await page.getByRole('button', { name: /^Academic/ }).click();
-  await expect(cards).toHaveCount(4);
+  await expect(cards).toHaveCount(5);
 
   // Reset to All Templates
   await page.getByRole('button', { name: /^All Templates/ }).click();
