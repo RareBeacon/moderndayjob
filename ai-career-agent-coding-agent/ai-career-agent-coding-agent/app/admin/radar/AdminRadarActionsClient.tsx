@@ -42,6 +42,40 @@ export function AdminRadarSweepAndExclusionClient({ disabled }: { disabled?: boo
     }
   }
 
+  async function triggerFullCycle() {
+    setBusy(true);
+    setStatusMsg('Running full Intelligence Network cycle (Scout, Promote, Poll, Alerts)...');
+    try {
+      const res = await fetch('/api/admin/radar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'run_autonomous_cycle', maxSources: 5 }),
+      });
+      const json = (await res.json()) as {
+        ok?: boolean;
+        cycle?: {
+          scoutedCandidatesQueued: number;
+          candidatesAutoPromoted: number;
+          atsSourcesPolled: number;
+          careerPagesPolled: number;
+          totalJobsUpserted: number;
+          alerts: { usersNotified: number };
+        };
+        error?: string;
+      };
+      if (!res.ok || !json.ok || !json.cycle) {
+        setStatusMsg(json.error ?? 'Network cycle failed.');
+      } else {
+        setStatusMsg(
+          `Cycle complete: queued ${json.cycle.scoutedCandidatesQueued} new sources, promoted ${json.cycle.candidatesAutoPromoted}, polled ${json.cycle.atsSourcesPolled + json.cycle.careerPagesPolled} sources (${json.cycle.totalJobsUpserted} openings), alerted ${json.cycle.alerts.usersNotified} subscribers.`,
+        );
+        router.refresh();
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function addExclusion(e: React.FormEvent) {
     e.preventDefault();
     if (!patternValue.trim()) return;
@@ -75,6 +109,9 @@ export function AdminRadarSweepAndExclusionClient({ disabled }: { disabled?: boo
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 18 }}>
         <button type="button" className="btn" disabled={busy || disabled} onClick={() => void triggerSweep()}>
           {busy ? 'Running...' : 'Run bounded Radar sweep'}
+        </button>
+        <button type="button" className="btn btn-ghost" disabled={busy || disabled} onClick={() => void triggerFullCycle()}>
+          {busy ? 'Running...' : 'Run full Network cycle'}
         </button>
         {statusMsg && (
           <span className="muted" style={{ fontSize: 13.5 }} role="status">

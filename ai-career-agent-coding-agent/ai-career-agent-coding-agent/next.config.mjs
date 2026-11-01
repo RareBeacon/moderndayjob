@@ -50,6 +50,7 @@ const noStoreSources = [
   '/mfa-verify',
   '/complete-account',
   '/dashboard/:path*',
+  '/opportunities/:path*',
   '/onboarding/:path*',
   '/profile/:path*',
   '/settings/:path*',
@@ -74,6 +75,7 @@ const noStoreSources = [
 const noIndexSources = [
   '/admin/:path*',
   '/dashboard/:path*',
+  '/opportunities/:path*',
   '/onboarding/:path*',
   '/profile/:path*',
   '/settings/:path*',

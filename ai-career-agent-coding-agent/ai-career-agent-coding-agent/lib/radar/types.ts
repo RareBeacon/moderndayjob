@@ -180,6 +180,12 @@ export interface RadarPostingInput {
   salaryMax?: number | null;
   salaryCurrency?: string | null;
   salaryPeriod?: SalaryPeriod | null;
+  visaSponsorship?: boolean | null;
+  skillsRequired?: string[];
+  skillsPreferred?: string[];
+  experienceYearsMin?: number | null;
+  experienceYearsMax?: number | null;
+  extractionMethod?: 'DETERMINISTIC' | 'HYBRID_DETERMINISTIC_AI' | 'AI_ASSISTED';
   postedAt?: string | null;
   updatedAt?: string | null;
   validThrough?: string | null;

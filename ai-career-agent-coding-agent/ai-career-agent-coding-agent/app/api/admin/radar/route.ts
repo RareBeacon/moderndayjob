@@ -9,12 +9,17 @@ import {
   isRadarSchemaMissingError,
   runBoundedRadarSweep,
 } from '@/lib/radar/sync/persistence';
+import { runAutonomousRadarCycle } from '@/lib/radar/pipeline/autonomous-orchestrator';
 
 export const dynamic = 'force-dynamic';
 
 const adminRadarActionSchema = z.discriminatedUnion('action', [
   z.object({
     action: z.literal('run_sweep'),
+    maxSources: z.number().int().min(1).max(10).optional(),
+  }),
+  z.object({
+    action: z.literal('run_autonomous_cycle'),
     maxSources: z.number().int().min(1).max(10).optional(),
   }),
   z.object({
@@ -93,6 +98,28 @@ export async function POST(req: Request) {
       },
     });
     return NextResponse.json({ ok: true, sweep });
+  }
+
+  if (body.action === 'run_autonomous_cycle') {
+    const cycle = await runAutonomousRadarCycle({
+      maxAtsSources: body.maxSources ?? 5,
+      maxCareerPages: 2,
+      enableNetworkScout: true,
+    });
+    await auditEvent({
+      userId: admin.id,
+      action: 'admin.radar.autonomous_cycle',
+      resource: 'radar_crawl_runs',
+      meta: {
+        scoutedCandidatesQueued: cycle.scoutedCandidatesQueued,
+        candidatesAutoPromoted: cycle.candidatesAutoPromoted,
+        atsSourcesPolled: cycle.atsSourcesPolled,
+        careerPagesPolled: cycle.careerPagesPolled,
+        totalJobsUpserted: cycle.totalJobsUpserted,
+        usersNotified: cycle.alerts.usersNotified,
+      },
+    });
+    return NextResponse.json({ ok: true, cycle });
   }
 
   if (body.action === 'add_exclusion') {

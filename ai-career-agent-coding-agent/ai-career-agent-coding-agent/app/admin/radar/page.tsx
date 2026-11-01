@@ -78,6 +78,18 @@ export default async function AdminRadarPage() {
             <div className="muted" style={{ fontSize: 12 }}>Scams Quarantined</div>
             <div style={{ fontSize: 24, fontWeight: 700 }}>{summary.scams_rejected_count}</div>
           </div>
+          <div style={{ padding: 14, border: '1px solid var(--line)', borderRadius: 8 }}>
+            <div className="muted" style={{ fontSize: 12 }}>Inspected External Forms</div>
+            <div style={{ fontSize: 24, fontWeight: 700 }}>{summary.inspected_forms_count}</div>
+          </div>
+          <div style={{ padding: 14, border: '1px solid var(--line)', borderRadius: 8 }}>
+            <div className="muted" style={{ fontSize: 12 }}>Assisted Prep Packs</div>
+            <div style={{ fontSize: 24, fontWeight: 700 }}>{summary.assisted_preparations_count}</div>
+          </div>
+          <div style={{ padding: 14, border: '1px solid var(--line)', borderRadius: 8 }}>
+            <div className="muted" style={{ fontSize: 12 }}>Alert Subscribers</div>
+            <div style={{ fontSize: 24, fontWeight: 700 }}>{summary.active_alert_subscribers_count}</div>
+          </div>
         </div>
       )}
 

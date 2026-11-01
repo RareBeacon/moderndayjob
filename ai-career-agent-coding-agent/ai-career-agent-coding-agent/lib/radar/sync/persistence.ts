@@ -615,6 +615,9 @@ export interface AdminRadarDashboardData {
     pending_source_candidates_count: number;
     scams_rejected_count: number;
     active_exclusions_count: number;
+    inspected_forms_count: number;
+    assisted_preparations_count: number;
+    active_alert_subscribers_count: number;
   };
   providerPolicies: Array<Record<string, unknown>>;
   recentRuns: Array<Record<string, unknown>>;
@@ -634,6 +637,9 @@ const EMPTY_SUMMARY: AdminRadarDashboardData['summary'] = {
   pending_source_candidates_count: 0,
   scams_rejected_count: 0,
   active_exclusions_count: 0,
+  inspected_forms_count: 0,
+  assisted_preparations_count: 0,
+  active_alert_subscribers_count: 0,
 };
 
 export async function getAdminRadarDashboardData(
