@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isSafeHttpUrl } from '@/lib/security/safe-url';
 
 /**
  * Application email validation.
@@ -47,7 +48,14 @@ export const profileSchema = z.object({
     .default([]),
   links: z
     .object({
-      portfolio: z.string().url().optional().or(z.literal('')),
+      portfolio: z
+        .string()
+        .trim()
+        .url()
+        .max(300)
+        .refine((v) => isSafeHttpUrl(v, 300), 'Only http:// and https:// URLs are allowed.')
+        .optional()
+        .or(z.literal('')),
     })
     .default({}),
   /**

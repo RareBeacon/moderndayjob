@@ -1,42 +1,30 @@
-import { requireUser } from '../../../../lib/auth';
-import { supabaseAdmin } from '../../../../lib/supabase';
-import { enforceRateLimit, requestIp } from '../../../../lib/rate-limit';
+import { requireAdminUser, adminErrorResponse } from '@/lib/admin';
+import { supabaseAdmin } from '@/lib/supabase';
+import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
-/** Resolve the admin and reject non-admins with FORBIDDEN (403), matching the
- *  other admin routes. requireUser() throws 'UNAUTHENTICATED' when there is
- *  no session, which is intentionally left to propagate (existing pattern). */
-async function admin() {
-  const u = await requireUser();
-  const { data: r } = await supabaseAdmin.from('admin_users').select('user_id').eq('user_id', u.id).maybeSingle();
-  if (!r) throw new Error('FORBIDDEN');
-  return u;
-}
+const MAX_OVERVIEW_ROWS = 1000;
 
-/** List all users through the admin_user_overview security view (RLS-gated). */
+/** List users through the email-free `admin_user_overview` security view.
+ *  Bounded to `MAX_OVERVIEW_ROWS` and never returns raw internal DB errors. */
 export async function GET(req: Request) {
   const rl = await enforceRateLimit(`admin:users:${requestIp(req)}`, 60, '1 m');
   if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
 
   try {
-    await admin();
-    const { data } = await supabaseAdmin
+    await requireAdminUser(req);
+    const ordered = supabaseAdmin
       .from('admin_user_overview')
       .select('*')
       .order('created_at', { ascending: false });
-    return Response.json(data ?? []);
+    const { data, error } =
+      typeof (ordered as unknown as { limit?: unknown }).limit === 'function'
+        ? await ordered.limit(MAX_OVERVIEW_ROWS)
+        : await ordered;
+    if (error) {
+      return Response.json({ error: 'ADMIN_USERS_LOAD_FAILED' }, { status: 500 });
+    }
+    return Response.json((data ?? []).slice(0, MAX_OVERVIEW_ROWS));
   } catch (error) {
-    if (error instanceof Error && error.message === 'FORBIDDEN') {
-      return Response.json({ error: 'FORBIDDEN' }, { status: 403 });
-    }
-    if (error instanceof Error && (error.message === 'UNAUTHENTICATED' || error.message.startsWith('SESSION_'))) {
-      return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
-    }
-    if (error instanceof Error && error.message === 'MFA_REQUIRED') {
-      return Response.json({ error: 'MFA_REQUIRED' }, { status: 401 });
-    }
-    if (error instanceof Error && error.message.startsWith('ACCOUNT_')) {
-      return Response.json({ error: error.message }, { status: 403 });
-    }
-    throw error;
+    return adminErrorResponse(error);
   }
 }

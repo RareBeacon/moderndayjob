@@ -6,10 +6,11 @@ import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { supabaseAdmin } from '@/lib/supabase';
 import { auditEvent } from '@/lib/audit';
 import { assertPublicHttpsUrl } from '@/lib/agent/egress';
+import { isSafeHttpUrl } from '@/lib/security/safe-url';
 import { AppActionError, prepareApplication } from '@/lib/applications/service';
 
 const body = z.object({
-  url: z.string().trim().url().max(2000),
+  url: z.string().trim().url().max(2000).refine((v) => isSafeHttpUrl(v, 2000), 'Only http:// and https:// URLs are allowed.'),
   title: z.string().trim().min(2).max(160),
   company: z.string().trim().min(2).max(120),
   location: z.string().trim().max(160).optional(),

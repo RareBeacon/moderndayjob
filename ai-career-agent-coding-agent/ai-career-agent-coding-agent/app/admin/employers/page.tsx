@@ -2,6 +2,7 @@ import { requireUserOrRedirect } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { AdminShell, AdminForbidden } from '@/components/site/AdminShell';
 import { listAdminEmployers } from '@/lib/talent-pool/admin-service';
+import { safeExternalHref } from '@/lib/security/safe-url';
 import { AdminEmployerActionsClient } from './AdminEmployerActionsClient';
 
 export const dynamic = 'force-dynamic';
@@ -67,9 +68,16 @@ export default async function AdminEmployersPage() {
               <tr key={org.id}>
                 <td>
                   <div><strong>{org.company_name}</strong></div>
-                  <a href={org.website_url} target="_blank" rel="noreferrer" className="inline-link ad-mono">
-                    {org.website_url}
-                  </a>
+                  {(() => {
+                    const safeHref = safeExternalHref(org.website_url);
+                    return safeHref ? (
+                      <a href={safeHref} target="_blank" rel="noopener noreferrer" className="inline-link ad-mono">
+                        {org.website_url}
+                      </a>
+                    ) : (
+                      <span className="ad-mono muted">{org.website_url || '-'}</span>
+                    );
+                  })()}
                 </td>
                 <td>{org.industry} · {org.company_location}</td>
                 <td className="ad-mono">{org.business_email}</td>

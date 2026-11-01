@@ -39,6 +39,7 @@ const securityHeaders = [
 
 /** Authenticated and account surfaces must never be cacheable (F-003). */
 const noStore = { key: 'Cache-Control', value: 'no-store, max-age=0' };
+const noIndex = { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' };
 
 const noStoreSources = [
   '/login',
@@ -61,6 +62,26 @@ const noStoreSources = [
   '/talent-pool/:path*',
   '/employer/:path*',
   '/admin/:path*',
+  '/api/admin/:path*',
+  '/api/credentials',
+  '/api/profile',
+  '/api/documents/:path*',
+  '/api/talent-pool/:path*',
+  '/api/employer/:path*',
+];
+
+const noIndexSources = [
+  '/admin/:path*',
+  '/dashboard/:path*',
+  '/onboarding/:path*',
+  '/profile/:path*',
+  '/settings/:path*',
+  '/documents/:path*',
+  '/applications/:path*',
+  '/billing/:path*',
+  '/talent-pool/:path*',
+  '/employer/:path*',
+  '/api/:path*',
 ];
 
 const interviewMediaPermissions = {
@@ -77,6 +98,7 @@ const nextConfig = {
       { source: '/(.*)', headers: securityHeaders },
       { source: '/talent-pool/interview/:path*', headers: [interviewMediaPermissions] },
       ...noStoreSources.map((source) => ({ source, headers: [noStore] })),
+      ...noIndexSources.map((source) => ({ source, headers: [noIndex] })),
     ];
   },
 };

@@ -1,127 +1,124 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { requireAdminUser, adminErrorResponse } from '@/lib/admin';
 import { supabaseAdmin } from '@/lib/supabase';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
-import { revokeAllUserSessions } from '@/lib/session';
+import { verifyRevealToken } from '@/lib/security/reveal';
+import { requireAuditEvent } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
-const KEEP_EMAILS = new Set([
-  'ogungboyeopeyemiphilip@gmail.com',
-  'ogungboyeopeyemi@gmail.com',
-]);
+const purgeBodySchema = z.object({
+  confirm: z.literal('PURGE_NON_ADMIN_USERS'),
+  revealToken: z.string().min(10).max(512),
+});
 
-function isKeepEmail(email: string | null | undefined): boolean {
-  if (!email) return false;
-  return KEEP_EMAILS.has(email.toLowerCase().trim());
+/**
+ * Destructive pre-launch reset endpoint.
+ *
+ * Security invariants:
+ *   1. Admin-only (`requireAdminUser(req)`).
+ *   2. Disabled in `NODE_ENV === 'production'` unless the explicit break-glass
+ *      env flag `ALLOW_DESTRUCTIVE_ADMIN_PURGE=true` is set.
+ *   3. `POST` requires BOTH `{ confirm: 'PURGE_NON_ADMIN_USERS' }` AND a fresh
+ *      5-minute password re-authentication token (`revealToken`).
+ *   4. Writes a fail-closed `ADMIN_MASS_USER_PURGE` audit log BEFORE deleting
+ *      any user row, and never touches `admin_users` accounts.
+ */
+async function collectTargets() {
+  const { data: admins, error: adminErr } = await supabaseAdmin.from('admin_users').select('user_id');
+  if (adminErr) throw new Error('ADMIN_LOOKUP_FAILED');
+  const adminIds = new Set((admins ?? []).map((r: { user_id: string }) => r.user_id));
+
+  const targets: { id: string }[] = [];
+  let page = 1;
+  for (;;) {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 200 });
+    if (error) throw new Error('AUTH_LIST_FAILED');
+    for (const u of data.users) {
+      if (!adminIds.has(u.id)) targets.push({ id: u.id });
+    }
+    if (data.users.length < 200) break;
+    page += 1;
+    if (page > 25) break;
+  }
+  return { keepAdmins: adminIds.size, targets };
 }
 
-async function handlePurge(req: NextRequest, forceDry: boolean) {
-  const rl = await enforceRateLimit(`admin:purge:${requestIp(req)}`, 10, '1 h', requestIp(req));
+export async function GET(request: Request) {
+  const rl = await enforceRateLimit(`admin:purge:${requestIp(request)}`, 10, '10 m');
   if (!rl.allowed) return NextResponse.json({ error: 'RATE_LIMITED' }, { status: 429 });
 
-  let adminUser;
   try {
-    adminUser = await requireAdminUser(req);
+    await requireAdminUser(request);
   } catch (error) {
     return adminErrorResponse(error);
   }
-  if (!isKeepEmail(adminUser.email)) {
-    return NextResponse.json({ error: 'FORBIDDEN', detail: 'Only the owner account can purge' }, { status: 403 });
-  }
 
-  const url = new URL(req.url);
-  const dry = forceDry || url.searchParams.get('dry') === '1';
-
-  if (!dry) {
-    const body = (await req.json().catch(() => ({}))) as { confirm?: string };
-    if (body.confirm !== 'PURGE_NON_ADMIN_USERS') {
-      return NextResponse.json(
-        { error: 'CONFIRMATION_REQUIRED', detail: 'Pass { "confirm": "PURGE_NON_ADMIN_USERS" } or ?dry=1' },
-        { status: 400 },
-      );
-    }
-  }
-
-  // Always preserve every admin_users row and the calling admin.
-  const { data: adminRows } = await supabaseAdmin.from('admin_users').select('user_id');
-  const protectedIds = new Set<string>([
-    adminUser.id,
-    ...((adminRows ?? []) as Array<{ user_id: string }>).map((r) => r.user_id),
-  ]);
-
-  let page = 1;
-  const allUsers: Array<{ id: string; email?: string }> = [];
   try {
-    let hasMore = true;
-    while (hasMore) {
-      const { data, error } = await (
-        supabaseAdmin.auth.admin as unknown as {
-          listUsers: (opts?: { page?: number; perPage?: number }) => Promise<{
-            data: { users: Array<{ id: string; email?: string }> };
-            error: unknown;
-          }>;
-        }
-      ).listUsers({ page, perPage: 100 });
-      if (error) throw error;
-      const users = data?.users ?? [];
-      allUsers.push(...users);
-      hasMore = users.length === 100;
-      page += 1;
-      if (allUsers.length > 5000) break;
-    }
-  } catch (e) {
-    return NextResponse.json({ error: 'LIST_FAILED', detail: String(e) }, { status: 500 });
-  }
-
-  const total = allUsers.length;
-  const shouldKeep = (u: { id: string; email?: string }) => protectedIds.has(u.id) || isKeepEmail(u.email);
-  const toDelete = allUsers.filter((u) => !shouldKeep(u));
-  const toKeep = allUsers.filter((u) => shouldKeep(u));
-
-  if (dry) {
+    const { keepAdmins, targets } = await collectTargets();
     return NextResponse.json({
-      dry: true,
-      total,
-      keepCount: toKeep.length,
-      toDeleteCount: toDelete.length,
+      dryRun: true,
+      enabledInEnvironment:
+        process.env.NODE_ENV !== 'production' || process.env.ALLOW_DESTRUCTIVE_ADMIN_PURGE === 'true',
+      keepAdmins,
+      wouldDelete: targets.length,
     });
+  } catch {
+    return NextResponse.json({ error: 'PURGE_DRY_RUN_FAILED' }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  const rl = await enforceRateLimit(`admin:purge:exec:${requestIp(request)}`, 3, '1 h');
+  if (!rl.allowed) return NextResponse.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
+  let admin;
+  try {
+    admin = await requireAdminUser(request);
+  } catch (error) {
+    return adminErrorResponse(error);
   }
 
-  const deleted: string[] = [];
-  const failed: Array<{ id: string; error: string }> = [];
-  for (const u of toDelete) {
-    try {
-      await revokeAllUserSessions(u.id).catch(() => {});
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DESTRUCTIVE_ADMIN_PURGE !== 'true') {
+    return NextResponse.json(
+      { error: 'PURGE_DISABLED_IN_PRODUCTION' },
+      { status: 403 },
+    );
+  }
+
+  const parsed = purgeBodySchema.safeParse(await request.json().catch(() => ({})));
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'CONFIRMATION_AND_REAUTH_REQUIRED' },
+      { status: 400 },
+    );
+  }
+
+  if (!verifyRevealToken(parsed.data.revealToken, admin.id)) {
+    return NextResponse.json({ error: 'REAUTH_REQUIRED' }, { status: 403 });
+  }
+
+  try {
+    const { keepAdmins, targets } = await collectTargets();
+
+    await requireAuditEvent({
+      action: 'ADMIN_MASS_USER_PURGE',
+      resource: 'auth.users',
+      userId: admin.id,
+      outcome: 'allow',
+      meta: { keepAdmins, targetCount: targets.length },
+    });
+
+    let deleted = 0;
+    let failedCount = 0;
+    for (const u of targets) {
       const { error } = await supabaseAdmin.auth.admin.deleteUser(u.id);
-      if (error) throw error;
-      deleted.push(u.id);
-    } catch (e) {
-      failed.push({ id: u.id, error: String(e) });
+      if (error) failedCount += 1;
+      else deleted += 1;
     }
+    return NextResponse.json({ ok: failedCount === 0, keepAdmins, deleted, failedCount });
+  } catch {
+    return NextResponse.json({ error: 'PURGE_EXECUTION_FAILED' }, { status: 500 });
   }
-
-  await supabaseAdmin.from('admin_actions').insert({
-    admin_user_id: adminUser.id,
-    target_user_id: adminUser.id,
-    action: 'PURGE_NON_ADMIN_USERS',
-  });
-
-  return NextResponse.json({
-    ok: true,
-    total,
-    kept: toKeep.length,
-    deleted: deleted.length,
-    failed: failed.length,
-    failedDetails: failed,
-  });
-}
-
-export async function POST(req: NextRequest) {
-  return handlePurge(req, false);
-}
-
-export async function GET(req: NextRequest) {
-  // GET is strictly read-only dry-run and never mutates users.
-  return handlePurge(req, true);
 }

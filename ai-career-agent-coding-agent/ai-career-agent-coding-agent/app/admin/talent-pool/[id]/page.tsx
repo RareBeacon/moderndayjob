@@ -5,6 +5,7 @@ import { requireUserOrRedirect } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { AdminShell, AdminForbidden } from '@/components/site/AdminShell';
 import { getAdminTalentApplicationDetail } from '@/lib/talent-pool/admin-service';
+import { maskEmailAddress } from '@/lib/security/safe-url';
 import { AdminReviewDecisionClient } from './AdminReviewDecisionClient';
 
 export const dynamic = 'force-dynamic';
@@ -104,7 +105,9 @@ export default async function AdminTalentApplicationReviewPage({
       <h1 className="ad-h1">{String(profile.full_name ?? 'Candidate Application')}</h1>
       <p className="ad-lede">
         Application <code>{String(app.id)}</code> · Status: <strong>{String(app.status)}</strong> · Route:{' '}
-        <strong>{String(app.assessment_route)}</strong> · Email: {String(profile.email ?? '-')}
+        <strong>{String(app.assessment_route)}</strong> · Email:{' '}
+        <span className="ad-mono">{maskEmailAddress(profile.email ? String(profile.email) : null)}</span>{' '}
+        (<Link className="inline-link" href={`/admin/users/${String(app.user_id)}`}>account &amp; reveal</Link>)
       </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginBottom: 22 }}>

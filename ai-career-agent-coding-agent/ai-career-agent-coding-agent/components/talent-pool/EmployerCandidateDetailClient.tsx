@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import type { getAuthorizedCandidateDetailForEmployer } from '@/lib/talent-pool/recruiter-service';
+import { safeExternalHref } from '@/lib/security/safe-url';
 import styles from './talent-pool.module.css';
 
 const PIPELINE_STAGES = [
@@ -239,18 +240,21 @@ export function EmployerCandidateDetailClient({
               <strong>{String(edu.qualification || '')}</strong> · {String(edu.institution || '')}
             </div>
           ))}
-          {candidate.portfolio_url && (
-            <div className={styles.tagRow} style={{ marginTop: 10 }}>
-              <a
-                href={candidate.portfolio_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.tag}
-              >
-                Portfolio Website
-              </a>
-            </div>
-          )}
+          {(() => {
+            const safePortfolio = safeExternalHref(candidate.portfolio_url);
+            return safePortfolio ? (
+              <div className={styles.tagRow} style={{ marginTop: 10 }}>
+                <a
+                  href={safePortfolio}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.tag}
+                >
+                  Portfolio Website
+                </a>
+              </div>
+            ) : null;
+          })()}
         </section>
 
         <section className={styles.card}>

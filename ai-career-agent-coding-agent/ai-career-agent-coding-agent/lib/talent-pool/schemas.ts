@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isSafeHttpUrl } from '@/lib/security/safe-url';
 import {
   ASSESSMENT_ROUTES,
   AVAILABILITY_OPTIONS,
@@ -7,6 +8,22 @@ import {
   SENIORITY_LEVELS,
   SUPPORTED_CURRENCIES,
 } from './constants';
+
+const safeOptionalUrl300 = z
+  .string()
+  .trim()
+  .url()
+  .max(300)
+  .refine((v) => isSafeHttpUrl(v, 300), 'Only http:// and https:// URLs are allowed.')
+  .optional()
+  .or(z.literal(''));
+
+const safeRequiredUrl300 = z
+  .string()
+  .trim()
+  .url()
+  .max(300)
+  .refine((v) => isSafeHttpUrl(v, 300), 'Only http:// and https:// URLs are allowed.');
 
 const seniorityCodes = SENIORITY_LEVELS.map((s) => s.code) as [
   (typeof SENIORITY_LEVELS)[number]['code'],
@@ -22,7 +39,7 @@ export const certificationItemSchema = z.object({
   name: z.string().trim().min(2).max(160),
   issuer: z.string().trim().min(2).max(160),
   year: z.string().trim().max(12).optional(),
-  credentialUrl: z.string().trim().url().max(300).optional().or(z.literal('')),
+  credentialUrl: safeOptionalUrl300,
 });
 
 export const experienceItemSchema = z.object({
@@ -39,7 +56,7 @@ export const educationItemSchema = z.object({
 export const projectItemSchema = z.object({
   name: z.string().trim().min(1).max(140),
   description: z.string().trim().max(1200).optional(),
-  url: z.string().trim().url().max(300).optional().or(z.literal('')),
+  url: safeOptionalUrl300,
 });
 
 export const talentIntakeUpdateSchema = z
@@ -61,7 +78,7 @@ export const talentIntakeUpdateSchema = z
     technical_competencies: z.array(z.string().trim().min(1).max(80)).min(1).max(30),
     certifications: z.array(certificationItemSchema).max(20).default([]),
     relevant_qualifications: z.array(z.string().trim().min(2).max(160)).max(20).default([]),
-    portfolio_url: z.string().trim().url().max(300).optional().or(z.literal('')),
+    portfolio_url: safeOptionalUrl300,
     employment_types: z.array(z.string().trim().min(2).max(40)).min(1).max(6),
     remote_types: z.array(z.enum(['REMOTE', 'HYBRID', 'ONSITE'])).min(1).max(3),
     salary_currency: z.enum(SUPPORTED_CURRENCIES).default('USD'),
@@ -190,7 +207,7 @@ export const adminDecisionSchema = z
 
 export const employerRegistrationSchema = z.object({
   company_name: z.string().trim().min(2).max(140),
-  website_url: z.string().trim().url().max(300),
+  website_url: safeRequiredUrl300,
   company_description: z.string().trim().min(20).max(2500),
   industry: z.string().trim().min(2).max(100),
   company_location: z.string().trim().min(2).max(140),

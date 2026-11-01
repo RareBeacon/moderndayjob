@@ -1,44 +1,53 @@
-import { requireUser } from '@/lib/auth';
-import { supabaseAdmin } from '@/lib/supabase';
-import { revokeAllUserSessions } from '@/lib/session';
 import { z } from 'zod';
+import { requireAdminUser, adminErrorResponse, isPeerAdminTarget } from '@/lib/admin';
+import { supabaseAdmin } from '@/lib/supabase';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
-/* Admin-only account termination: sets TERMINATED, cancels queued/running
- * agent work, revokes live sessions, and writes an audited admin action. */
-const body = z.object({ userId: z.guid(), relatedUserIds: z.array(z.guid()).default([]) });
+/**
+ * Account termination. Admin-only, self- and peer-admin-protected, audited.
+ * Marks profiles TERMINATED, cancels queued/running agent tasks, and revokes
+ * live Supabase Auth sessions for every affected user.
+ */
+const bodySchema = z.object({
+  userId: z.guid(),
+  relatedUserIds: z.array(z.guid()).max(20).optional(),
+});
 
 export async function POST(req: Request) {
-  const rl = await enforceRateLimit(`admin:users:terminate:${requestIp(req)}`, 60, '1 m');
+  const rl = await enforceRateLimit(`admin:users:terminate:${requestIp(req)}`, 30, '1 m');
   if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
 
   try {
-    const admin = await requireUser({ req }).catch(() => null);
-    if (!admin) return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
-    const { data: a } = await supabaseAdmin
-      .from('admin_users')
-      .select('user_id')
-      .eq('user_id', admin.id)
-      .maybeSingle();
-    if (!a) return Response.json({ error: 'FORBIDDEN' }, { status: 403 });
+    const admin = await requireAdminUser(req);
+    const parsed = bodySchema.safeParse(await req.json().catch(() => ({})));
+    if (!parsed.success) return Response.json({ error: 'INVALID_BODY' }, { status: 400 });
+    const { userId, relatedUserIds = [] } = parsed.data;
 
-    const b = body.parse(await req.json());
-    const ids = [b.userId, ...b.relatedUserIds];
-    if (ids.includes(admin.id)) {
-      return Response.json({ error: 'CANNOT_TERMINATE_SELF' }, { status: 400 });
+    const targets = Array.from(new Set([userId, ...relatedUserIds]));
+    if (targets.includes(admin.id)) {
+      return Response.json({ error: 'CANNOT_TERMINATE_SELF' }, { status: 409 });
+    }
+    if (await isPeerAdminTarget(targets)) {
+      return Response.json({ error: 'CANNOT_MODIFY_ADMIN_ACCOUNT' }, { status: 409 });
     }
 
-    await supabaseAdmin.from('profiles').update({ account_status: 'TERMINATED' }).in('user_id', ids);
+    const { error } = await supabaseAdmin
+      .from('profiles')
+      .update({ account_status: 'TERMINATED' })
+      .in('user_id', targets);
+    if (error) return Response.json({ error: 'TERMINATE_FAILED' }, { status: 409 });
+
     await supabaseAdmin
       .from('agent_tasks')
       .update({ status: 'CANCELLED' })
-      .in('user_id', ids)
-      .in('status', ['QUEUED', 'RUNNING']);
+      .in('user_id', targets)
+      .in('status', ['PENDING', 'RUNNING']);
 
-    // Revoke every live session so termination takes effect immediately.
-    for (const id of ids) {
-      await supabaseAdmin.auth.admin.signOut(id, 'global').catch(() => undefined);
-      await revokeAllUserSessions(id).catch(() => undefined);
+    await Promise.allSettled(
+      targets.map((id) => supabaseAdmin.auth.admin.signOut(id, 'global')),
+    );
+
+    for (const id of targets) {
       await supabaseAdmin.from('admin_actions').insert({
         admin_user_id: admin.id,
         target_user_id: id,
@@ -46,11 +55,8 @@ export async function POST(req: Request) {
       });
     }
 
-    return Response.json({ ok: true, terminated: ids });
+    return Response.json({ ok: true, terminated: targets });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'INTERNAL';
-    if (message === 'FORBIDDEN') return Response.json({ error: 'FORBIDDEN' }, { status: 403 });
-    if (error instanceof z.ZodError) return Response.json({ error: 'BAD_REQUEST' }, { status: 400 });
-    return Response.json({ error: message }, { status: 409 });
+    return adminErrorResponse(error);
   }
 }

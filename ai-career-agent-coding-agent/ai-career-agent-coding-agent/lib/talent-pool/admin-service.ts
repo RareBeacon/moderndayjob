@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import { requireAuditEvent } from '@/lib/audit';
+import { maskEmailAddress } from '@/lib/security/safe-url';
 import { notifyUser } from '@/lib/notifications/dispatch';
 import type { z } from 'zod';
 import {
@@ -99,7 +100,7 @@ export async function listAdminTalentApplications(
     return {
       ...r,
       candidate_name: prof?.full_name ?? 'Unnamed candidate',
-      candidate_email: prof?.email ?? null,
+      candidate_email: prof?.email ? maskEmailAddress(prof.email) : null,
       interview_session: sess,
     };
   });
@@ -223,9 +224,18 @@ export async function getAdminTalentApplicationDetail(adminUserId: string, appli
     recordings = rRes.data ?? [];
   }
 
+  const rawProfile = (profileRes.data ?? null) as Record<string, unknown> | null;
+  const safeProfile = rawProfile
+    ? {
+        ...rawProfile,
+        email: rawProfile.email ? maskEmailAddress(String(rawProfile.email)) : null,
+        phone: rawProfile.phone ? '***' : null,
+      }
+    : null;
+
   return {
     application: app,
-    profile: profileRes.data,
+    profile: safeProfile,
     career: careerRes.data,
     talentProfile: tpProfileRes.data,
     snapshot: snapshotRes.data,

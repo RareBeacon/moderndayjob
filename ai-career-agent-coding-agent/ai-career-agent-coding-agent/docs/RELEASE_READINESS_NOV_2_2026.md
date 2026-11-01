@@ -3,8 +3,9 @@
 - **Repository**: `RareBeacon/moderndayjob` (`ai-career-agent-coding-agent/ai-career-agent-coding-agent`)
 - **Working Branch**: `arena/18473c9c-moderndayjob` (staged; `main` untouched pending explicit Production Authorization Gate approval)
 - **Verification Timestamp**: `2026-11-01` (`Africa/Lagos`)
-- **Automated Test Suite**: `112/112` Vitest suites passed (`1,094` tests passed, `0` failed)
+- **Automated Test Suite**: `113/113` Vitest suites passed (`1,103` tests passed, `0` failed)
 - **Typecheck & Production Build**: `tsc --noEmit` exit `0`; `next build` (`Next.js 15.5.28`) compiled `145/145` routes cleanly (`0` production `npm audit --omit=dev` vulnerabilities)
+- **Cybersecurity, User Data & Admin Panel Audit**: Completed in `docs/CYBERSECURITY_USERDATA_ADMIN_AUDIT.md` (`8/8` findings remediated: `SEC-P1-001` through `SEC-P1-006`, `SEC-P2-001`, `SEC-P2-002`)
 
 ---
 
@@ -21,14 +22,15 @@
 
 ---
 
-## 2. Database Migration & Rollback Readiness (`047..051`)
+## 2. Database Migration & Rollback Readiness (`047..052`)
 
-- **Pending New Talent Pool Migrations for Production**:
+- **Pending New Migrations for Production**:
   1. `047_talent_pool_applications.sql`
   2. `048_talent_pool_interviews_and_assessments.sql`
   3. `049_talent_pool_admin_and_employers.sql`
   4. `050_talent_pool_storage_buckets.sql`
   5. `051_talent_rag_and_langgraph_checkpoints.sql` (`pgvector`, `talent_rag_documents`, `talent_rag_chunks`, `match_talent_rag_chunks`, `talent_assessment_contexts`, `talent_interview_blueprints`, `talent_workflow_checkpoints`)
+  6. `052_cybersecurity_admin_and_userdata_hardening.sql` (locks down `public.ai_credentials` against direct PostgREST `ciphertext` reads, adds `employer_organizations_website_url_http_chk`, and re-asserts admin/audit RLS revocations)
 - **Safety Guarantees**:
   - Additive-only (`CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`); zero `DROP TABLE` or destructive column mutations on existing Jobiest tables.
   - Row-Level Security (`ENABLE ROW LEVEL SECURITY`) enabled on 100% of tables, `SET search_path = public` on `SECURITY DEFINER` RPCs, zero `USING (true)` policies (`tests/security-baseline.test.ts` `10/10` pass).
