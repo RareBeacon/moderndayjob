@@ -5,7 +5,7 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 
 const HANDSHAKE_URL =
-  'https://drive.google.com/uc?id=1GgUde05PG3yurrTStljsRSKDsGv2SGfZ&export=download';
+  'https://drive.google.com/uc?id=1-5Omh6xF7eRWltlMYNMfS8llEUHycmsF&export=download';
 
 const TEMPLATES_30 = [
   { code: '01', id: 'tpl-01-executive', folder: '01-Executive', file: 'Executive-Resume.pdf' },
