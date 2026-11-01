@@ -40,13 +40,14 @@ Verified directly against `https://jobiest.com/api/health?verify_qwen=1`:
 
 ---
 
-## 3. Final Owner Action Items (External Consoles Only)
+## 3. Production Database Activation & Post-Cutover Hygiene
 
-1. **Apply Additive Supabase Migrations (`047` -> `052`) When Opening Talent Pool**:
-   - Take a quick database snapshot in Supabase Dashboard.
-   - Open **Supabase SQL Editor** and paste the single consolidated bundle:
-     `ai-career-agent-coding-agent/ai-career-agent-coding-agent/supabase/release-bundles/047_to_052_nov2_launch.sql`
-     *(contains `047_talent_pool_applications.sql`, `048_talent_interviews_and_assessments.sql`, `049_employer_and_recruiter_platform.sql`, `050_talent_interactions_and_messaging.sql`, `051_talent_rag_and_langgraph_checkpoints.sql`, and `052_cybersecurity_admin_and_userdata_hardening.sql` in exact order; rollback script at `supabase/rollbacks/047_to_050_talent_pool.down.sql`).*
+1. **Additive Supabase Migrations (`047` -> `052`) - APPLIED & VERIFIED IN PRODUCTION**:
+   - Executed `047_to_052_nov2_launch.sql` on Supabase Production (`main PRODUCTION`), returning:
+     - `talent_and_employer_tables_ready`: **`30`**
+     - `rag_vector_rpc_ready`: **`true`** (`match_talent_rag_chunks` + `pgvector`)
+     - `private_recordings_bucket_ready`: **`true`** (`talent-recordings`, `public = false`)
+     - `ai_credentials_ciphertext_locked_down`: **`true`** (`ai_credentials_self` policy dropped)
 2. **Token Hygiene Check**:
    - Confirm the earlier `vcp_...` Vercel personal token shared in chat is revoked in `https://vercel.com/account/tokens` (and rotate any API key previously pasted in chat at your convenience, updating `QWENCLOUD_API_KEY` in Vercel if rotated).
 3. **OCI Always-Free Preservation (Optional / Post-Launch)**:
@@ -56,5 +57,5 @@ Verified directly against `https://jobiest.com/api/health?verify_qwen=1`:
 
 ## 4. Final Launch Verdict (Nov 2, 2026)
 
-- **Jobiest Core Platform + Qwen3.8-Max / 3.7-Plus / 3.8-Flash AI Stack**: **LIVE & VERIFIED IN PRODUCTION (`https://jobiest.com`, commit `1501d2ad`)**
-- **Jobiest Talent Pool & Employer Marketplace**: **CODE LIVE IN PRODUCTION; UNLOCKS IMMEDIATELY UPON RUNNING `047_to_052_nov2_launch.sql` IN SUPABASE**
+- **Jobiest Core Platform + Qwen3.8-Max / 3.7-Plus / 3.8-Flash AI Stack**: **LIVE & VERIFIED IN PRODUCTION (`https://jobiest.com`)**
+- **Jobiest Talent Pool, Employer Marketplace & `052` Security Hardening**: **100% LIVE IN PRODUCTION (`30` tables, `pgvector` RAG, private recordings bucket, and `ai_credentials` RLS lockdown active)**
