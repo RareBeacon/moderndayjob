@@ -76,9 +76,33 @@ test('pricing page renders and compare table is swipeable, not page-overflowing'
   expect(overflow).toBeLessThanOrEqual(0);
 });
 
-test('health endpoint is up', async ({ request }) => {
+test('health endpoint is up and live AI assistant responds when Qwen is configured', async ({ request }) => {
   const res = await request.get('/api/health');
   expect(res.ok()).toBeTruthy();
+  const body = (await res.json()) as {
+    ok?: boolean;
+    checks?: { qwen?: string };
+    ai?: { qwenConfigured?: boolean; envVarsPresent?: string[] };
+  };
+  expect(body.ok).toBe(true);
+  if (body.checks?.qwen === 'configured') {
+    expect(Array.isArray(body.ai?.envVarsPresent)).toBe(true);
+    expect((body.ai?.envVarsPresent ?? []).length).toBeGreaterThan(0);
+
+    const chatRes = await request.post('/api/support/chat', {
+      data: {
+        message: 'How does Jobiest tailor a resume to a target job description?',
+        route: '/pricing',
+      },
+    });
+    expect(chatRes.status()).toBe(200);
+    const chatBody = (await chatRes.json()) as {
+      answer?: string;
+      escalateReason?: string | null;
+    };
+    expect(typeof chatBody.answer).toBe('string');
+    expect((chatBody.answer ?? '').trim().length).toBeGreaterThan(20);
+  }
 });
 
 const E2E_EMAIL = process.env.E2E_EMAIL;

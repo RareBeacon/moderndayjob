@@ -3,7 +3,12 @@ import { env } from '@/lib/env';
 import { decryptSecret } from '@packages/security/crypto';
 import { AIGateway, AIGatewayError } from '@packages/ai/gateway';
 import { OpenAICompatProvider, OllamaProvider, httpChat } from '@packages/ai/providers';
-import { buildQwenTierProviders, type QwenWorkloadTier } from '@packages/ai/qwen';
+import {
+  buildQwenTierProviders,
+  createQwenChatTransport,
+  getResolvedQwenEndpointHost,
+  type QwenWorkloadTier,
+} from '@packages/ai/qwen';
 import type { AIProvider, AIMessage, ChatResponse, UsageMeter } from '@packages/ai/types';
 import { consumeCredit, CreditExhaustedError, ledgerEnabled, releaseCredit, reserveCredit } from '@/lib/credits';
 import { assertPublicHttpsUrl } from '@/lib/agent/egress';
@@ -63,9 +68,61 @@ export function cloudflareConfigured(): boolean {
   return env.CLOUDFLARE_ACCOUNT_ID.trim().length > 0 && env.CLOUDFLARE_API_TOKEN.trim().length > 0;
 }
 
+const QWEN_ALLOWED_ENV_NAMES = [
+  'QWENCLOUD_API_KEY',
+  'DASHSCOPE_API_KEY',
+  'QWEN_API_KEY',
+  'QWENCLOUD_BASE_URL',
+  'DASHSCOPE_BASE_URL',
+  'QWEN_BASE_URL',
+  'QWEN_MODEL_FLAGSHIP',
+  'QWEN_FLAGSHIP_MODEL',
+  'QWEN_MODEL_STANDARD',
+  'QWEN_STANDARD_MODEL',
+  'QWEN_MODEL_FAST',
+  'QWEN_FAST_MODEL',
+  'QWEN_MODEL_ASR',
+  'QWEN_ASR_MODEL',
+] as const;
+
 /** Active Alibaba QwenCloud / DashScope API key, if configured. */
 export function qwenApiKey(): string {
-  return (env.QWENCLOUD_API_KEY || env.DASHSCOPE_API_KEY).trim();
+  return (env.QWENCLOUD_API_KEY || env.DASHSCOPE_API_KEY || env.QWEN_API_KEY).trim();
+}
+
+/** Explicit QwenCloud / DashScope base URL override, if configured. */
+export function qwenBaseUrl(): string {
+  return (env.QWENCLOUD_BASE_URL || env.DASHSCOPE_BASE_URL || env.QWEN_BASE_URL).trim();
+}
+
+/** Resolved Qwen model IDs across flagship, standard, fast, and ASR tiers. */
+export function qwenModelConfig(): {
+  flagship: string;
+  standard: string;
+  fast: string;
+  asr: string;
+} {
+  return {
+    flagship: (env.QWEN_MODEL_FLAGSHIP || env.QWEN_FLAGSHIP_MODEL || 'qwen3.8-max').trim(),
+    standard: (env.QWEN_MODEL_STANDARD || env.QWEN_STANDARD_MODEL || 'qwen3.7-plus').trim(),
+    fast: (env.QWEN_MODEL_FAST || env.QWEN_FAST_MODEL || 'qwen3.8-flash').trim(),
+    asr: (env.QWEN_MODEL_ASR || env.QWEN_ASR_MODEL || 'qwen3-asr-flash').trim(),
+  };
+}
+
+/**
+ * Returns ONLY the allowlisted Qwen environment variable NAMES (never values)
+ * that are currently non-empty in `process.env`.
+ */
+export function qwenEnvVarsPresent(): string[] {
+  return QWEN_ALLOWED_ENV_NAMES.filter((name) => Boolean(process.env[name]?.trim()));
+}
+
+/** Active Qwen endpoint hostname (e.g. `maas.qwencloudapi.com`) without secrets. */
+export function qwenEndpointHost(): string | null {
+  const key = qwenApiKey();
+  if (!key) return null;
+  return getResolvedQwenEndpointHost(key, qwenBaseUrl());
 }
 
 /** True when Alibaba Model Studio / QwenCloud is configured via env. */
@@ -79,15 +136,16 @@ export function buildQwenPlatformProviders(
 ): AIProvider[] {
   const key = qwenApiKey();
   if (!key) return [];
+  const models = qwenModelConfig();
   return buildQwenTierProviders({
     apiKey: key,
-    explicitBaseUrl: env.DASHSCOPE_BASE_URL,
+    explicitBaseUrl: qwenBaseUrl(),
     tier,
     basePriority,
     modelOverrides: {
-      flagship: env.QWEN_FLAGSHIP_MODEL,
-      standard: env.QWEN_STANDARD_MODEL,
-      fast: env.QWEN_FAST_MODEL,
+      flagship: models.flagship,
+      standard: models.standard,
+      fast: models.fast,
     },
   });
 }
@@ -243,17 +301,23 @@ export async function buildGatewayForUser(
     throw new AICredentialMissingError();
   }
 
-  const providers: AIProvider[] = [...ollama];
-  let priority = ollama.length;
+  const providers: AIProvider[] = [];
+  let priority = 0;
   let skipped = 0;
 
-  // Alibaba Cloud Model Studio / QwenCloud multi-model cascade: routes each
-  // workload tier to its optimal Qwen model pool (`qwen3.8-max`, `qwen3.7-plus`,
-  // `qwen3.8-flash`) and cascades automatically if any free quota is exhausted.
+  // Alibaba Cloud Model Studio / QwenCloud multi-model cascade runs FIRST when
+  // configured so flagship (`qwen3.8-max`), standard (`qwen3.7-plus`), and fast
+  // (`qwen3.8-flash`) tiers outperform slow 7B self-hosted fallbacks while
+  // keeping Ollama, Cloudflare, and OpenRouter intact behind them.
   if (qwenConfigured()) {
     const qwenProviders = buildQwenPlatformProviders(opts?.tier ?? 'standard', priority);
     providers.push(...qwenProviders);
     priority += qwenProviders.length;
+  }
+
+  for (const p of buildOllamaProviders(priority)) {
+    providers.push(p);
+    priority += 1;
   }
 
   // Cloudflare Workers AI platform fallback: serves inference when the
@@ -300,6 +364,7 @@ export async function buildGatewayForUser(
       continue;
     }
     const apiKey = decryptSecret(c.ciphertext);
+    const isQwenCred = c.provider === 'qwencloud' || c.provider === 'dashscope';
     providers.push(
       new OpenAICompatProvider(
         {
@@ -309,7 +374,12 @@ export async function buildGatewayForUser(
           apiKey,
           priority: priority++,
         },
-        httpChat,
+        isQwenCred
+          ? createQwenChatTransport({
+              endpoints: [c.base_url],
+              reasoningMode: opts?.tier === 'flagship' ? 'low' : 'off',
+            })
+          : httpChat,
       ),
     );
   }
@@ -318,6 +388,7 @@ export async function buildGatewayForUser(
     skipped > 0 &&
     providers.length === ollama.length &&
     skipped === (creds?.length ?? 0) &&
+    !qwenConfigured() &&
     !cloudflareConfigured() &&
     !env.OPENROUTER_API_KEY
   ) {
