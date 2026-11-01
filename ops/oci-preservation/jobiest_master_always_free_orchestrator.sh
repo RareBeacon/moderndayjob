@@ -37,10 +37,10 @@ REPO_RAW_BASE="https://raw.githubusercontent.com/RareBeacon/moderndayjob"
 PINNED_GATE0_COMMIT="298bbf055bdaf27d7bca0f4b48fd8abffc369de7"
 PINNED_GATE0_SHA256="ceb930cc75642091000e0074bf37e23b4d2781608b17b11f76b0c08341dd82ce"
 
-PINNED_GATE4_COMMIT="1d0cb7c5e49deb8d7d2de6c957f080e428acec1f"
-PINNED_GATE4_SHA256="4a43a7d88c2be73ec85826cd2d19848eb72629bd79ae4d31c6b9f4b3d8cd3a02"
+PINNED_GATE4_COMMIT="96f832c317760a859338236778f7512d2c79d977"
+PINNED_GATE4_SHA256="1d94a2f18837ae6f05448b2cfaa45e8aa4fee8aa809240256ce5429b8775c513"
 
-APP_COMMIT_SHA="dc74ef8e0d24a560abe360d84dacfc1663ed2e89"
+APP_COMMIT_SHA="ecda13abaf77778c9c022056a6ab34b70b23939f"
 MAILU_VERSION="2024.06.67"
 PRIMARY_MAIL_DOMAIN="jobiest.com"
 
@@ -62,8 +62,10 @@ MAIL_DISPLAY_NAME="jobiest-mail"
 MAIL_NSG_NAME="jobiest-mail-nsg"
 
 A1_MAX_RETRY_ROUNDS="${A1_MAX_RETRY_ROUNDS:-60}"
-A1_RETRY_SLEEP_SEC="${A1_RETRY_SLEEP_SEC:-45}"
+A1_RETRY_SLEEP_SEC="${A1_RETRY_SLEEP_SEC:-95}"
 ALLOW_1OCPU_FALLBACK="${ALLOW_1OCPU_FALLBACK:-false}"
+PREFER_UNPINNED_FD="${PREFER_UNPINNED_FD:-true}"
+WATCH_HUNTER_LIVE="${WATCH_HUNTER_LIVE:-false}"
 ALLOW_BROAD_SSH_CIDR="${ALLOW_BROAD_SSH_CIDR:-false}"
 TRUSTED_SSH_CIDRS="${TRUSTED_SSH_CIDRS:-}"
 SINGLE_CLICK_ALL="${SINGLE_CLICK_ALL:-false}"
@@ -545,6 +547,7 @@ EOF
       A1_MAX_RETRY_ROUNDS="$EFFECTIVE_A1_ROUNDS" \
       A1_RETRY_SLEEP_SEC="$EFFECTIVE_A1_SLEEP" \
       ALLOW_1OCPU_FALLBACK="$ALLOW_1OCPU_FALLBACK" \
+      PREFER_UNPINNED_FD="$PREFER_UNPINNED_FD" \
       TRUSTED_SSH_CIDRS="${VALIDATED_SSH_CIDRS_STR} 10.0.1.0/24" \
       bash "$GATE4_SCRIPT"
       G4_RC=$?
@@ -1811,8 +1814,10 @@ if [[ -z "$A1_CUTOVER_ID" ]]; then
       setsid nohup env \
         SINGLE_CLICK_ALL="true" \
         BACKGROUND_A1_HUNTER="true" \
+        ALLOW_1OCPU_FALLBACK="$ALLOW_1OCPU_FALLBACK" \
+        PREFER_UNPINNED_FD="$PREFER_UNPINNED_FD" \
         A1_MAX_RETRY_ROUNDS="360" \
-        A1_RETRY_SLEEP_SEC="45" \
+        A1_RETRY_SLEEP_SEC="95" \
         TRUSTED_SSH_CIDRS="$VALIDATED_SSH_CIDRS_STR" \
         bash "$HUNTER_RUNNER" </dev/null >>"$HUNTER_LOG" 2>&1 &
       NEW_HUNTER_PID=$!
@@ -1821,13 +1826,39 @@ if [[ -z "$A1_CUTOVER_ID" ]]; then
       printf -- 'SINGLE-CLICK AUTO-HUNTER ACTIVE (PID %s -> %s)\n' "$NEW_HUNTER_PID" "$HUNTER_LOG"
       printf -- '==============================================================================\n'
       printf -- '  1. Pre-Staged Ready : NSG %s + RSA-4096 SSH + JBV1 256-bit vault key verified.\n' "$MAIL_NSG_NAME"
-      printf -- '  2. Fast 9-Slot Sweep: PID %s probes all 9 Ampere slots in ~14s every 45s (--no-retry).\n' "$NEW_HUNTER_PID"
+      printf -- '  2. Smart AD Sweep   : PID %s probes AD-wide scheduler (all 9 FDs, rotated ADs, 1-OCPU=%s)\n' "$NEW_HUNTER_PID" "$ALLOW_1OCPU_FALLBACK"
+      printf -- '                        with 95s+jitter adaptive pacing (zero 429 penalty).\n'
       printf -- '  3. Full Auto-Finish : The moment OCI frees an ARM slot, PID %s will automatically:\n' "$NEW_HUNTER_PID"
-      printf -- '       - Provision %s (2 OCPU / 12 GB) + JBV1 encrypted recovery vault\n' "$A1_DISPLAY_NAME"
+      printf -- '       - Provision %s + JBV1 encrypted recovery vault\n' "$A1_DISPLAY_NAME"
       printf -- '       - Cut over %s (%s) with <3s auto-rollback safety\n' "$RESERVED_IP_EXPECTED" "{worker,api,ai}.jobiest.com"
       printf -- '       - Deploy @%s Mailu %s Webmail/IMAP/SMTP + save passwords to %s\n' "$PRIMARY_MAIL_DOMAIN" "$MAILU_VERSION" "$MAIL_LOCAL_CREDS"
       printf -- '  4. Watch Live Log   : tail -f %s\n' "$HUNTER_LOG"
       printf -- '==============================================================================\n'
+    fi
+    ACTIVE_WATCH_PID="$(cat "$HUNTER_PID_FILE" 2>/dev/null || true)"
+    if [[ "$WATCH_HUNTER_LIVE" == "true" && -n "$ACTIVE_WATCH_PID" ]]; then
+      printf -- '\n[Live Cloud Shell Keep-Alive Active] Streaming %s (60s anti-idle heartbeat; type Q + Enter anytime to detach viewer while hunter keeps running)...\n' "$HUNTER_LOG"
+      tail -n 25 -f "$HUNTER_LOG" &
+      TAIL_VIEW_PID=$!
+      while kill -0 "$ACTIVE_WATCH_PID" 2>/dev/null; do
+        if [[ -r /dev/tty ]]; then
+          WATCH_KEY=""
+          if IFS= read -r -t 60 WATCH_KEY </dev/tty; then
+            if [[ "$WATCH_KEY" == "Q" || "$WATCH_KEY" == "q" ]]; then
+              kill "$TAIL_VIEW_PID" 2>/dev/null || true
+              printf -- '\nDetached live viewer cleanly; background hunter PID %s is still running!\n' "$ACTIVE_WATCH_PID"
+              exit 0
+            fi
+          else
+            printf -- '[Keep-Alive %s] Background hunter PID %s active — waiting for free Ampere host in %s...\n' \
+              "$(date -u '+%H:%M:%SZ')" "$ACTIVE_WATCH_PID" "$REGION"
+          fi
+        else
+          sleep 60
+        fi
+      done
+      kill "$TAIL_VIEW_PID" 2>/dev/null || true
+      printf -- '\n[Auto-Hunter PID %s finished!]\n' "$ACTIVE_WATCH_PID"
     fi
     exit 0
   fi
