@@ -79,11 +79,29 @@ describe('branded email requirements', () => {
     expect(mail.text).toContain('successfully setup 2FA security on your account');
   });
 
-  it('signup verification carries the 6-digit code and the one-click link', async () => {
+  it('signup verification carries the contiguous 6-digit code, one-click link, and enterprise OTP layout', async () => {
     await sendSignupVerificationEmail('ada@example.com', '123456', 'https://jobiest.com/verify-email?email=ada%40example.com&code=123456', 'Ada');
     const mail = SENT[0];
+    expect(mail.subject).toBe('Verification Code from Jobiest');
+    expect(mail.html).toContain('Please enter the code to verify your account.');
     expect(mail.html).toContain('123456');
     expect(mail.html).toContain('https://jobiest.com/verify-email?email=ada%40example.com&amp;code=123456');
-    expect(mail.subject).toMatch(/verify your email/i);
+    expect(mail.html).toContain('Please do not reply directly to this email.');
+    expect(mail.html).toContain('This is a system message and do not reply');
+    expect(mail.html).toContain('Follow Jobiest on');
+  });
+
+  it('OAuth verification code formats masked recipient email and contiguous OTP for Gmail smart copy', async () => {
+    await sendEmailVerificationCode('ogungboyeopeyemiphilip@gmail.com', '455259', 'Philip');
+    const mail = SENT[0];
+    expect(mail.subject).toBe('Verification Code from Jobiest');
+    expect(mail.text).toContain('Dear ogu****yeopeyemiphilip@gmail.com:');
+    expect(mail.text).toContain('Please enter the code to verify your account.\n\n455259');
+    expect(mail.html).toContain('ogu****yeopeyemiphilip<span>@</span>gmail<span>.</span>com:');
+    expect(mail.html).toContain('455259');
+    expect(mail.html).toContain('Note:');
+    expect(mail.html).toContain('Please do not reply directly to this email.');
+    expect(mail.html).toContain('This is a system message and do not reply');
+    expect(mail.html).toContain('Follow Jobiest on');
   });
 });

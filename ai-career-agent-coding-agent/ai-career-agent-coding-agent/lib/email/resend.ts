@@ -3,15 +3,16 @@ import { SITE_URL } from '@/lib/site';
 import {
   BRAND,
   composeEmail,
+  composeVerificationCodeEmail,
   emailAlert,
   emailButton,
   emailButtonLinkHint,
-  emailCodeDisplay,
   emailHeading,
   emailHero,
   emailInfoCard,
   emailParagraph,
   escapeHtmlEmail,
+  maskEmailForVerificationGreeting,
 } from './templates';
 
 /** Transactional email client over the Resend REST API (server-side only).
@@ -67,47 +68,57 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   }
 }
 
-/** Google sign-up verification code (branded, digit cards). Never throws. */
-export async function sendEmailVerificationCode(to: string, code: string, firstName?: string): Promise<SendEmailResult> {
-  const name = firstName?.trim() || 'there';
-  const html = composeEmail(
-    [
-      emailHero('Verify your email'),
-      emailHeading('Confirm your email address'),
-      emailParagraph(`Hi ${escapeHtmlEmail(name)}, you signed in to Jobiest with Google. Enter this code to finish setting up your account:`),
-      emailCodeDisplay(code),
-      emailParagraph('The code expires in 10 minutes and can be used once.', { muted: true }),
-      emailAlert('If you did not expect this email, you can safely ignore it.'),
-    ],
-    'Your Jobiest verification code',
-  );
-  const text = `Your Jobiest verification code is ${code}. It expires in 10 minutes. If you did not expect this, ignore this email. If you have any issues or enquiry, you can reach out to us at support@jobiest.com`;
-  return sendEmail({ to, subject: 'Your Jobiest verification code', html, text });
+/** OAuth (Google / LinkedIn) sign-in verification code email. Never throws. */
+export async function sendEmailVerificationCode(to: string, code: string, _firstName?: string): Promise<SendEmailResult> {
+  const masked = maskEmailForVerificationGreeting(to);
+  const html = composeVerificationCodeEmail({ to, code });
+  const text = [
+    `Dear ${masked.plain}:`,
+    '',
+    'Please enter the code to verify your account.',
+    '',
+    code,
+    '',
+    'Note:',
+    'This verification code expires in 10 minutes and can be used once. After your account is verified, you can manage your career profile, login email address, phone number, and security settings. If you did not request a verification code, please ignore this email or change your account password to prevent unauthorized access to your account.',
+    '',
+    'Jobiest',
+    '----------------------------------------',
+    'Please do not reply directly to this email.',
+    'This is a system message and do not reply.',
+    'If you have any issues or enquiry, you can reach out to us at support@jobiest.com',
+  ].join('\n');
+  return sendEmail({ to, subject: 'Verification Code from Jobiest', html, text });
 }
 
-/** Signup email verification (branded: 6-digit code cards + one-click link). */
+/** Password signup email verification (6-digit code + one-click link). */
 export async function sendSignupVerificationEmail(
   to: string,
   code: string,
   verifyUrl: string,
-  firstName?: string,
+  _firstName?: string,
 ): Promise<SendEmailResult> {
-  const name = firstName?.trim() || 'there';
-  const html = composeEmail(
-    [
-      emailHero('Verify your email'),
-      emailHeading('Confirm your email address'),
-      emailParagraph(`Hi ${escapeHtmlEmail(name)}, welcome to Jobiest. Enter this code to verify your email address and activate your account:`),
-      emailCodeDisplay(code),
-      emailButton('Verify my email', verifyUrl),
-      emailButtonLinkHint(verifyUrl),
-      emailParagraph('The code expires in 10 minutes and can be used once.', { muted: true }),
-      emailAlert('If you did not create a Jobiest account, you can safely ignore this email.'),
-    ],
-    'Verify your email to activate your Jobiest account',
-  );
-  const text = `Welcome to Jobiest. Verify your email address with this code: ${code} (expires in 10 minutes). Or open: ${verifyUrl} If you did not create an account, ignore this email. If you have any issues or enquiry, you can reach out to us at support@jobiest.com`;
-  return sendEmail({ to, subject: 'Verify your email - Jobiest', html, text });
+  const masked = maskEmailForVerificationGreeting(to);
+  const html = composeVerificationCodeEmail({ to, code, verifyUrl });
+  const text = [
+    `Dear ${masked.plain}:`,
+    '',
+    'Please enter the code to verify your account.',
+    '',
+    code,
+    '',
+    `Or verify in one click: ${verifyUrl}`,
+    '',
+    'Note:',
+    'This verification code expires in 10 minutes and can be used once. After your account is verified, you can manage your career profile, login email address, phone number, and security settings. If you did not request a verification code, please ignore this email or change your account password to prevent unauthorized access to your account.',
+    '',
+    'Jobiest',
+    '----------------------------------------',
+    'Please do not reply directly to this email.',
+    'This is a system message and do not reply.',
+    'If you have any issues or enquiry, you can reach out to us at support@jobiest.com',
+  ].join('\n');
+  return sendEmail({ to, subject: 'Verification Code from Jobiest', html, text });
 }
 
 /** Welcome email (sent once, after the account is verified per product policy).
