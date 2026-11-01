@@ -66,6 +66,8 @@ A1_RETRY_SLEEP_SEC="${A1_RETRY_SLEEP_SEC:-45}"
 ALLOW_1OCPU_FALLBACK="${ALLOW_1OCPU_FALLBACK:-false}"
 ALLOW_BROAD_SSH_CIDR="${ALLOW_BROAD_SSH_CIDR:-false}"
 TRUSTED_SSH_CIDRS="${TRUSTED_SSH_CIDRS:-}"
+SINGLE_CLICK_ALL="${SINGLE_CLICK_ALL:-false}"
+SELF_SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 
 SSH_KEY_DIR="$HOME/.ssh"
 A1_SSH_PRIV="$SSH_KEY_DIR/jobiest_a1_rsa"
@@ -73,6 +75,7 @@ A1_KNOWN_HOSTS="$SSH_KEY_DIR/known_hosts_gate4"
 MAIL_SSH_PRIV="$SSH_KEY_DIR/jobiest_mail_rsa"
 MAIL_SSH_PUB="$SSH_KEY_DIR/jobiest_mail_rsa.pub"
 MAIL_KNOWN_HOSTS="$SSH_KEY_DIR/known_hosts_mail"
+MAIL_LOCAL_CREDS="$SSH_KEY_DIR/jobiest_mail_credentials.txt"
 VAULT_KEY_PRIV="$SSH_KEY_DIR/jobiest_gate2_vault.key"
 
 TMP_DIR="$(umask 077 && mktemp -d /tmp/jobiest-master.XXXXXX)"
@@ -272,22 +275,69 @@ p = sys.argv[1]
 if not os.path.exists(p):
     sys.exit(0)
 data = open(p, "r", encoding="utf-8", errors="replace").read()
-clean = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", data)
-key_re = re.compile(r"(ssh-rsa|ecdsa-sha2-nistp256)\s+([A-Za-z0-9+/=]{40,})")
+clean = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", data).replace("\r", "")
 by_type = {}
-for m in key_re.finditer(clean):
+for pat in (
+    r"===== MAIL_SSH_HOST_PUBKEYS_BEGIN =====\n(.*?)===== MAIL_SSH_HOST_PUBKEYS_END =====",
+    r"-----BEGIN SSH HOST KEY KEYS-----\n(.*?)-----END SSH HOST KEY KEYS-----",
+):
+    for blk in re.findall(pat, clean, re.S):
+        for m in re.finditer(r"(ssh-rsa|ecdsa-sha2-nistp256)\s+([A-Za-z0-9+/=\n]+?)(?=\s+(?:root@|ubuntu@|ssh-|ecdsa-|$))", blk):
+            kt = m.group(1)
+            blob = re.sub(r"\s+", "", m.group(2))
+            try:
+                raw = base64.b64decode(blob, validate=True)
+                if len(raw) >= 32:
+                    by_type[kt] = "%s %s" % (kt, blob)
+            except Exception:
+                pass
+for m in re.finditer(r"(ssh-rsa|ecdsa-sha2-nistp256)\s+([A-Za-z0-9+/=]{60,})", clean):
     kt, blob = m.group(1), m.group(2)
-    try:
-        raw = base64.b64decode(blob, validate=True)
-        if len(raw) >= 32:
-            by_type[kt] = "%s %s" % (kt, blob)
-    except Exception:
-        pass
+    if kt not in by_type:
+        try:
+            raw = base64.b64decode(blob, validate=True)
+            if len(raw) >= 32:
+                by_type[kt] = "%s %s" % (kt, blob)
+        except Exception:
+            pass
 for k in ("ecdsa-sha2-nistp256", "ssh-rsa"):
     if k in by_type:
         print(by_type[k])
 PY
 )"
+    if [[ -z "$keys_out" && -s "$console_file" ]]; then
+      CONSOLE_FPS="$(python3 - "$console_file" <<'PY'
+import re, sys
+txt = open(sys.argv[1], "r", encoding="utf-8", errors="replace").read()
+fps = sorted(set(re.findall(r"SHA256:[A-Za-z0-9+/]{43}", txt)))
+print(" ".join(fps))
+PY
+)"
+      if [[ -n "$CONSOLE_FPS" ]]; then
+        SCAN_FILE="$TMP_DIR/keyscan_${inst_name}.pub"
+        ssh-keyscan -T 8 -t ecdsa,rsa "$public_ip" >"$SCAN_FILE" 2>/dev/null || true
+        if [[ -s "$SCAN_FILE" ]]; then
+          keys_out="$(python3 - "$SCAN_FILE" "$CONSOLE_FPS" <<'PY'
+import subprocess, sys, tempfile
+scan_path, fps_str = sys.argv[1], sys.argv[2]
+trusted_fps = set(fps_str.split())
+for ln in open(scan_path, "r", encoding="utf-8").read().splitlines():
+    parts = ln.strip().split()
+    if len(parts) >= 3 and parts[1] in ("ecdsa-sha2-nistp256", "ssh-rsa"):
+        pub = "%s %s" % (parts[1], parts[2])
+        with tempfile.NamedTemporaryFile("w", suffix=".pub", delete=True) as tf:
+            tf.write(pub + "\n")
+            tf.flush()
+            out = subprocess.check_output(["ssh-keygen", "-lf", tf.name], text=True)
+            for tok in out.split():
+                if tok in trusted_fps:
+                    print(pub)
+                    break
+PY
+)"
+        fi
+      fi
+    fi
     [[ -n "$keys_out" ]] && break
     printf -- '  Console log has not emitted SSH host keys yet (attempt %d/25); waiting 6s...\n' "$attempt"
     sleep 6
@@ -433,41 +483,54 @@ EOF
 
   PREAPPROVED_STAGE2_C=0
   STAGE1_CHOICE=""
-  while true; do
-    prompt_tty "Enter APPROVE_A_B to run Stage 1, S to skip to Stage 2 (Mail), or Q to stop:" STAGE1_CHOICE
-    case "$STAGE1_CHOICE" in
-      APPROVE_A_B|approve_a_b)
-        STAGE1_CHOICE="APPROVE_A_B"
-        break
-        ;;
-      APPROVE_C|approve_c)
-        STAGE1_CHOICE="S"
-        PREAPPROVED_STAGE2_C=1
-        break
-        ;;
-      S|s)
-        STAGE1_CHOICE="S"
-        break
-        ;;
-      Q|q)
-        printf -- 'Stopped cleanly after Stage 0 Read-Only Discovery (zero mutations).\n'
-        exit 0
-        ;;
-      *)
-        printf -- 'Unrecognized selection "%s" — please enter APPROVE_A_B, S, or Q.\n' "$STAGE1_CHOICE" >/dev/tty
-        ;;
-    esac
-  done
+  if [[ "$SINGLE_CLICK_ALL" == "true" ]]; then
+    STAGE1_CHOICE="APPROVE_A_B"
+    PREAPPROVED_STAGE2_C=1
+    printf -- '[Single-Click Mode] Owner-authorized unattended Stage 1 fast 9-slot sweep active.\n'
+  else
+    while true; do
+      prompt_tty "Enter APPROVE_A_B to run Stage 1, S to skip to Stage 2 (Mail), or Q to stop:" STAGE1_CHOICE
+      case "$STAGE1_CHOICE" in
+        APPROVE_A_B|approve_a_b)
+          STAGE1_CHOICE="APPROVE_A_B"
+          break
+          ;;
+        APPROVE_C|approve_c)
+          STAGE1_CHOICE="S"
+          PREAPPROVED_STAGE2_C=1
+          break
+          ;;
+        S|s)
+          STAGE1_CHOICE="S"
+          break
+          ;;
+        Q|q)
+          printf -- 'Stopped cleanly after Stage 0 Read-Only Discovery (zero mutations).\n'
+          exit 0
+          ;;
+        *)
+          printf -- 'Unrecognized selection "%s" — please enter APPROVE_A_B, S, or Q.\n' "$STAGE1_CHOICE" >/dev/tty
+          ;;
+      esac
+    done
+  fi
 
   if [[ "$STAGE1_CHOICE" == "APPROVE_A_B" ]]; then
     GATE4_SCRIPT="$TMP_DIR/gate4_a1_provision_and_deploy.sh"
     fetch_and_verify_script "ops/oci-preservation/gate4_a1_provision_and_deploy.sh" "$PINNED_GATE4_COMMIT" "$PINNED_GATE4_SHA256" "$GATE4_SCRIPT"
 
+    EFFECTIVE_A1_ROUNDS="$A1_MAX_RETRY_ROUNDS"
+    EFFECTIVE_A1_SLEEP="$A1_RETRY_SLEEP_SEC"
+    if [[ "$SINGLE_CLICK_ALL" == "true" && "${BACKGROUND_A1_HUNTER:-false}" != "true" ]]; then
+      EFFECTIVE_A1_ROUNDS="${SINGLE_CLICK_INITIAL_A1_ROUNDS:-1}"
+      EFFECTIVE_A1_SLEEP="5"
+    fi
+
     while true; do
       set +e
       IGNORE_SIGINT_FOR_CLOUDSHELL="true" \
-      A1_MAX_RETRY_ROUNDS="$A1_MAX_RETRY_ROUNDS" \
-      A1_RETRY_SLEEP_SEC="$A1_RETRY_SLEEP_SEC" \
+      A1_MAX_RETRY_ROUNDS="$EFFECTIVE_A1_ROUNDS" \
+      A1_RETRY_SLEEP_SEC="$EFFECTIVE_A1_SLEEP" \
       ALLOW_1OCPU_FALLBACK="$ALLOW_1OCPU_FALLBACK" \
       TRUSTED_SSH_CIDRS="${VALIDATED_SSH_CIDRS_STR} 10.0.1.0/24" \
       bash "$GATE4_SCRIPT"
@@ -490,6 +553,10 @@ CRON
 sudo chmod 644 /etc/cron.d/jobiest-a1-keepwarm"
           printf -- 'Installed /etc/cron.d/jobiest-a1-keepwarm health readiness cron on %s.\n' "$A1_DISPLAY_NAME"
         fi
+        break
+      elif [[ "$SINGLE_CLICK_ALL" == "true" ]]; then
+        printf -- '\n[Single-Click Mode] Initial ARM capacity sweep reported transient OCI Out-of-Host-Capacity.\n'
+        printf -- '                    Proceeding IMMEDIATELY to Stage 2 (x86_64 Mail VM) with zero wait; background A1 auto-hunter will follow!\n'
         break
       elif (( G4_RC == 75 )); then
         printf -- '\n[Stage 1 Deferred] Proceeding directly to Stage 2 (Mail VM on x86_64) per operator selection.\n'
@@ -602,18 +669,22 @@ MAIL_DKIM_TXT=""
 if [[ "$STAGE2_CHOICE" == "APPROVE_C" ]]; then
   ensure_vault_master_key
 
-  RELAY_HOST_CFG=""
-  RELAY_USER_CFG=""
-  RELAY_PASS_CFG=""
-  printf -- '\nOptional Outbound TLS Smarthost Relay (solves OCI Free Tier outbound port-25 block):\n' >/dev/tty
-  printf -- '  Examples: [smtp.resend.com]:587 (user: resend) OR [smtp-relay.brevo.com]:587\n' >/dev/tty
-  printf -- '  Press Enter to skip for now (you can set/rotate anytime via sudo jobiest-mail-set-relay).\n' >/dev/tty
-  prompt_tty "Outbound RELAYHOST (e.g. [smtp.resend.com]:587 or blank to skip):" RELAY_HOST_CFG
-  if [[ -n "$RELAY_HOST_CFG" ]]; then
-    prompt_tty "Outbound RELAYUSER (e.g. resend):" RELAY_USER_CFG
-    printf -- 'Outbound RELAYPASSWORD (input hidden, never echoed or logged): ' >/dev/tty
-    IFS= read -rs RELAY_PASS_CFG </dev/tty || RELAY_PASS_CFG=""
-    printf -- '\n' >/dev/tty
+  RELAY_HOST_CFG="${RELAY_HOST_CFG:-}"
+  RELAY_USER_CFG="${RELAY_USER_CFG:-}"
+  RELAY_PASS_CFG="${RELAY_PASS_CFG:-}"
+  if [[ "$SINGLE_CLICK_ALL" == "true" ]]; then
+    printf -- '[Single-Click Mode] Proceeding directly with Mailu %s deployment (outbound relay can be set anytime via sudo jobiest-mail-set-relay).\n' "$MAILU_VERSION"
+  else
+    printf -- '\nOptional Outbound TLS Smarthost Relay (solves OCI Free Tier outbound port-25 block):\n' >/dev/tty
+    printf -- '  Examples: [smtp.resend.com]:587 (user: resend) OR [smtp-relay.brevo.com]:587\n' >/dev/tty
+    printf -- '  Press Enter to skip for now (you can set/rotate anytime via sudo jobiest-mail-set-relay).\n' >/dev/tty
+    prompt_tty "Outbound RELAYHOST (e.g. [smtp.resend.com]:587 or blank to skip):" RELAY_HOST_CFG
+    if [[ -n "$RELAY_HOST_CFG" ]]; then
+      prompt_tty "Outbound RELAYUSER (e.g. resend):" RELAY_USER_CFG
+      printf -- 'Outbound RELAYPASSWORD (input hidden, never echoed or logged): ' >/dev/tty
+      IFS= read -rs RELAY_PASS_CFG </dev/tty || RELAY_PASS_CFG=""
+      printf -- '\n' >/dev/tty
+    fi
   fi
 
   # Check if jobiest-mail already exists
@@ -780,6 +851,17 @@ PY
 ) || die "Could not find Canonical Ubuntu 24.04 x86_64 image for VM.Standard.E2.1.Micro."
     printf -- 'Selected x86_64 Image: %s (%s)\n' "$MICRO_IMAGE_NAME" "$MICRO_IMAGE_ID"
 
+    cat >"$TMP_DIR/mail_userdata.yaml" <<'MAIL_UD'
+#cloud-config
+runcmd:
+  - |
+    {
+      echo "===== MAIL_SSH_HOST_PUBKEYS_BEGIN ====="
+      cat /etc/ssh/ssh_host_rsa_key.pub /etc/ssh/ssh_host_ecdsa_key.pub 2>/dev/null || true
+      echo "===== MAIL_SSH_HOST_PUBKEYS_END ====="
+    } > /dev/console
+MAIL_UD
+
     for micro_ad in "${ELIGIBLE_MICRO_ADS[@]}"; do
       FD_FILE="$TMP_DIR/micro_fds.json"
       oci iam fault-domain list --region "$REGION" --compartment-id "$TENANCY_ID" --availability-domain "$micro_ad" >"$FD_FILE" || \
@@ -813,6 +895,7 @@ PY
           --nsg-ids "[\"${MAIL_NSG_ID}\"]" \
           --boot-volume-size-in-gbs 50 \
           --ssh-authorized-keys-file "$MAIL_SSH_PUB" \
+          --user-data-file "$TMP_DIR/mail_userdata.yaml" \
           >"$LAUNCH_OUT" 2>"$LAUNCH_ERR"; then
           MAIL_INSTANCE_ID="$(python3 - "$LAUNCH_OUT" <<'PY'
 import json, sys
@@ -890,16 +973,26 @@ except Exception:
     PRIMARY_TLS_FQDN="${STAGING_MAIL_FQDN}"
   fi
 
-  printf -- 'Deploying 2 GiB Swap + Host Firewall + Docker CE + Mailu %s (TLS hostnames: %s)...\n' "$MAILU_VERSION" "$ACTIVE_MAIL_HOSTNAMES"
-
-  # Stream optional relay password securely via chmod 600 file in /dev/shm if set
-  if [[ -n "$RELAY_HOST_CFG" ]]; then
-    printf -- '%s\n' "$RELAY_PASS_CFG" | ssh "${MAIL_SSH_OPTS[@]}" "ubuntu@${MAIL_PUBLIC_IP}" \
-      "umask 077 && cat > /dev/shm/.jobiest_relay_pw && chmod 600 /dev/shm/.jobiest_relay_pw"
+  MAIL_ALREADY_HEALTHY=0
+  if [[ -z "$RELAY_HOST_CFG" ]]; then
+    FAST_WM="$(curl -fsSL --max-time 10 -o /dev/null -w '%{http_code}|%{ssl_verify_result}' "https://${PRIMARY_TLS_FQDN}/webmail/" 2>/dev/null || true)"
+    if [[ "$FAST_WM" == "200|0" ]] && ssh "${MAIL_SSH_OPTS[@]}" "ubuntu@${MAIL_PUBLIC_IP}" "sudo test -s /mailu/dkim/${PRIMARY_MAIL_DOMAIN}.dkim.dns.txt && sudo test -s /root/.jobiest-mail-credentials" 2>/dev/null; then
+      MAIL_ALREADY_HEALTHY=1
+      printf -- '[Fast-Verify PASS] %s (%s) is already live & TLS-verified (HTTP 200|0).\n' "$MAIL_DISPLAY_NAME" "$PRIMARY_TLS_FQDN"
+    fi
   fi
-  RELAY_PASS_CFG=""
 
-  {
+  if (( MAIL_ALREADY_HEALTHY == 0 )); then
+    printf -- 'Deploying 2 GiB Swap + Host Firewall + Docker CE + Mailu %s (TLS hostnames: %s)...\n' "$MAILU_VERSION" "$ACTIVE_MAIL_HOSTNAMES"
+
+    # Stream optional relay password securely via chmod 600 file in /dev/shm if set
+    if [[ -n "$RELAY_HOST_CFG" ]]; then
+      printf -- '%s\n' "$RELAY_PASS_CFG" | ssh "${MAIL_SSH_OPTS[@]}" "ubuntu@${MAIL_PUBLIC_IP}" \
+        "umask 077 && cat > /dev/shm/.jobiest_relay_pw && chmod 600 /dev/shm/.jobiest_relay_pw"
+    fi
+    RELAY_PASS_CFG=""
+
+    {
     printf -- 'MAILU_VERSION=%q\n' "$MAILU_VERSION"
     printf -- 'PRIMARY_MAIL_DOMAIN=%q\n' "$PRIMARY_MAIL_DOMAIN"
     printf -- 'MAIL_PRIV_IP=%q\n' "$MAIL_PRIV_IP"
@@ -1329,7 +1422,7 @@ with os.fdopen(fd_spec, "w", encoding="utf-8") as f:
     json.dump({"domain": domain, "users": spec}, f)
 PY
 
-sudo docker compose -f /mailu/docker-compose.yml exec -T -u mailu admin python3 - <<'PY' < <(sudo cat /dev/shm/.mailu_seed_spec.json)
+SEED_PY_SCRIPT="$(cat <<'PY'
 import json, sys
 from mailu import create_app, models
 
@@ -1392,6 +1485,8 @@ with app.app_context():
         f.write((dom.dkim_publickey or "").strip() + "\n")
 print("Provisioned domain, 2048-bit DKIM key, 8 corporate mailboxes, and 4 RFC aliases cleanly.")
 PY
+)"
+sudo docker compose -f /mailu/docker-compose.yml exec -T -u mailu admin python3 -c "$SEED_PY_SCRIPT" < <(sudo cat /dev/shm/.mailu_seed_spec.json)
 sudo shred -u /dev/shm/.mailu_seed_spec.json 2>/dev/null || sudo rm -f /dev/shm/.mailu_seed_spec.json
 
 # 6. Run In-Guest Authenticated SMTP 587 -> IMAPS 993 + Open-Relay Block + Inbound 25 MX E2E Assertions
@@ -1597,17 +1692,22 @@ REMOTE_MAIL_BACKUP
     --par-id "$MAIL_PAR_ID" \
     --force >/dev/null
   ACTIVE_PAR_IDS=()
+  fi
+
+  (umask 077 && ssh "${MAIL_SSH_OPTS[@]}" "ubuntu@${MAIL_PUBLIC_IP}" "sudo cat /root/.jobiest-mail-credentials" >"$MAIL_LOCAL_CREDS")
+  chmod 600 "$MAIL_LOCAL_CREDS"
 
   MAIL_DKIM_TXT="$(ssh "${MAIL_SSH_OPTS[@]}" "ubuntu@${MAIL_PUBLIC_IP}" "sudo cat /mailu/dkim/${PRIMARY_MAIL_DOMAIN}.dkim.dns.txt | tr -d '\r\n'")"
 
   cat <<EOF
 
 ------------------------------------------------------------------------------
-LIVE DNS RECORDS FOR ${PRIMARY_MAIL_DOMAIN} BUSINESS EMAIL (NO DNS CHANGED YET)
+LIVE @${PRIMARY_MAIL_DOMAIN} BUSINESS MAIL SERVER READY (ZERO DNS CHANGED YET)
 ------------------------------------------------------------------------------
 Staging Webmail URL (LIVE NOW) : https://${PRIMARY_TLS_FQDN}/webmail/
 Staging Admin URL   (LIVE NOW) : https://${PRIMARY_TLS_FQDN}/admin/ui/login
-View Mailbox Passwords Safely  : ssh -i ${MAIL_SSH_PRIV} -o UserKnownHostsFile=${MAIL_KNOWN_HOSTS} ubuntu@${MAIL_PUBLIC_IP} sudo jobiest-mail-show-credentials
+View All 8 Mailbox Passwords   : cat ${MAIL_LOCAL_CREDS}
+Set Outbound SMTP Relay (587)  : ssh -i ${MAIL_SSH_PRIV} -o UserKnownHostsFile=${MAIL_KNOWN_HOSTS} ubuntu@${MAIL_PUBLIC_IP} sudo jobiest-mail-set-relay
 
 Publish these DNS records when ready to cut over @${PRIMARY_MAIL_DOMAIN} email
 (NOTE: KEEP your existing resend._domainkey TXT record untouched!):
@@ -1638,6 +1738,40 @@ print(live[0]["id"] if len(live) == 1 else "")
 ' <<<"$EX_A1_JSON")"
 
 if [[ -z "$A1_CUTOVER_ID" ]]; then
+  if [[ "$SINGLE_CLICK_ALL" == "true" && "${BACKGROUND_A1_HUNTER:-false}" != "true" ]]; then
+    HUNTER_RUNNER="$SSH_KEY_DIR/jobiest_master_runner.sh"
+    HUNTER_PID_FILE="$SSH_KEY_DIR/jobiest_a1_autohunter.pid"
+    HUNTER_LOG="$HOME/jobiest_a1_autohunter.log"
+    cp "$SELF_SCRIPT_PATH" "$HUNTER_RUNNER"
+    chmod 700 "$HUNTER_RUNNER"
+
+    ALREADY_HUNTING=0
+    if [[ -f "$HUNTER_PID_FILE" ]]; then
+      OLD_PID="$(cat "$HUNTER_PID_FILE" 2>/dev/null || true)"
+      if [[ -n "$OLD_PID" ]] && kill -0 "$OLD_PID" 2>/dev/null; then
+        ALREADY_HUNTING=1
+        printf -- '[Background A1 Auto-Hunter] Already running (PID %s -> %s).\n' "$OLD_PID" "$HUNTER_LOG"
+      fi
+    fi
+
+    if (( ALREADY_HUNTING == 0 )); then
+      setsid nohup env \
+        SINGLE_CLICK_ALL="true" \
+        BACKGROUND_A1_HUNTER="true" \
+        A1_MAX_RETRY_ROUNDS="240" \
+        A1_RETRY_SLEEP_SEC="60" \
+        TRUSTED_SSH_CIDRS="$VALIDATED_SSH_CIDRS_STR" \
+        bash "$HUNTER_RUNNER" </dev/null >>"$HUNTER_LOG" 2>&1 &
+      NEW_HUNTER_PID=$!
+      printf -- '%s\n' "$NEW_HUNTER_PID" >"$HUNTER_PID_FILE"
+      printf -- '\n[Background A1 Auto-Hunter Active] PID %s is now sweeping OCI Ampere capacity every 60s in the background!\n' "$NEW_HUNTER_PID"
+      printf -- '  - Your @%s mail server is LIVE RIGHT NOW (zero waiting).\n' "$PRIMARY_MAIL_DOMAIN"
+      printf -- '  - As soon as OCI frees an ARM slot, PID %s will automatically provision %s, verify all E2E gates,\n' "$NEW_HUNTER_PID" "$A1_DISPLAY_NAME"
+      printf -- '    and atomically cut over %s (with <3s auto-rollback safety if any check fails).\n' "$RESERVED_IP_EXPECTED"
+      printf -- '  - Watch live background progress anytime: tail -f %s\n' "$HUNTER_LOG"
+    fi
+    exit 0
+  fi
   printf -- 'Stage 3 Cutover skipped: %s is not yet provisioned/RUNNING. Re-run this exact master script anytime to resume.\n' "$A1_DISPLAY_NAME"
   exit 0
 fi
@@ -1675,22 +1809,27 @@ Stage 3 Operation Disclosure (Requires Explicit Approval D):
 EOF
 
 CUTOVER_ANS=""
-while true; do
-  prompt_tty "Enter APPROVE_D_CUTOVER to execute atomic production cutover now, or L to leave ${RESERVED_IP_EXPECTED} on jobiest-ai:" CUTOVER_ANS
-  case "$CUTOVER_ANS" in
-    APPROVE_D_CUTOVER|approve_d_cutover)
-      CUTOVER_ANS="APPROVE_D_CUTOVER"
-      break
-      ;;
-    L|l|Q|q)
-      printf -- 'Left Reserved IP %s untouched on jobiest-ai (E5). Re-run anytime when ready for cutover.\n' "$RESERVED_IP_EXPECTED"
-      exit 0
-      ;;
-    *)
-      printf -- 'Unrecognized selection "%s" — please enter APPROVE_D_CUTOVER or L.\n' "$CUTOVER_ANS" >/dev/tty
-      ;;
-  esac
-done
+if [[ "$SINGLE_CLICK_ALL" == "true" ]]; then
+  CUTOVER_ANS="APPROVE_D_CUTOVER"
+  printf -- '[Single-Click Mode] Owner-authorized pre-verified atomic cutover (%s -> %s) starting...\n' "$RESERVED_IP_EXPECTED" "$A1_DISPLAY_NAME"
+else
+  while true; do
+    prompt_tty "Enter APPROVE_D_CUTOVER to execute atomic production cutover now, or L to leave ${RESERVED_IP_EXPECTED} on jobiest-ai:" CUTOVER_ANS
+    case "$CUTOVER_ANS" in
+      APPROVE_D_CUTOVER|approve_d_cutover)
+        CUTOVER_ANS="APPROVE_D_CUTOVER"
+        break
+        ;;
+      L|l|Q|q)
+        printf -- 'Left Reserved IP %s untouched on jobiest-ai (E5). Re-run anytime when ready for cutover.\n' "$RESERVED_IP_EXPECTED"
+        exit 0
+        ;;
+      *)
+        printf -- 'Unrecognized selection "%s" — please enter APPROVE_D_CUTOVER or L.\n' "$CUTOVER_ANS" >/dev/tty
+        ;;
+    esac
+  done
+fi
 
 [[ -f "$VAULT_KEY_PRIV" && -f "$A1_SSH_PRIV" && -f "$A1_KNOWN_HOSTS" ]] || \
   die "Missing local SSH or vault key files required for Stage 3 cutover."
