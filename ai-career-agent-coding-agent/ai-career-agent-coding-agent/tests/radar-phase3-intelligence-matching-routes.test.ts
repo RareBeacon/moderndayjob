@@ -147,6 +147,7 @@ import {
   formatPgVectorLiteral,
   rankRadarOpportunitiesForCandidate,
 } from '@/lib/radar/matching/semantic-matcher';
+import { persistCanonicalizedRadarBatch } from '@/lib/radar/sync/persistence';
 import type { RadarJobRow } from '@/lib/radar/types';
 import { GET as getRadarOpportunities } from '@/app/api/radar/opportunities/route';
 import { GET as getAdminRadar, POST as postAdminRadar } from '@/app/api/admin/radar/route';
@@ -487,5 +488,80 @@ describe('Phase 3: Candidate & Admin Radar API Routes + Zero-Downtime Pre-Migrat
     expect(m056).toContain('revoke all on function public.get_radar_intelligence_summary() from public, anon, authenticated;');
     expect(bundle).toContain('BEGIN MIGRATION: 053_radar_core_employers_and_sources.sql');
     expect(bundle).toContain('BEGIN MIGRATION: 056_radar_phase3_first_party_sync_and_intelligence.sql');
+  });
+
+  it('omits generated column composite_confidence on radar_jobs upserts and rotates next_poll_at', async () => {
+    const upsertsByTable: Record<string, Record<string, unknown>[]> = {};
+    const updatesByTable: Record<string, Record<string, unknown>[]> = {};
+
+    const fakeDb = {
+      from: (table: string) => ({
+        upsert: (payload: Record<string, unknown>) => {
+          upsertsByTable[table] = upsertsByTable[table] ?? [];
+          upsertsByTable[table].push(payload);
+          if (table === 'radar_jobs') {
+            return {
+              select: () => ({
+                maybeSingle: async () => ({
+                  data: { id: '99999999-9999-4999-8999-999999999999', content_hash: 'e'.repeat(64) },
+                  error: null,
+                }),
+              }),
+            };
+          }
+          return Promise.resolve({ data: null, error: null });
+        },
+        insert: async () => ({ data: null, error: null }),
+        update: (payload: Record<string, unknown>) => {
+          updatesByTable[table] = updatesByTable[table] ?? [];
+          updatesByTable[table].push(payload);
+          return { eq: async () => ({ data: null, error: null }) };
+        },
+      }),
+    };
+
+    const res = await persistCanonicalizedRadarBatch({
+      sourceId: 'greenhouse:stripe',
+      durationMs: 145,
+      pollIntervalMinutes: 120,
+      db: fakeDb as never,
+      outcome: {
+        runOutcome: 'OK_COMPLETE',
+        compliance: {
+          allowed: true,
+          blockCode: null,
+          reason: 'Authorized public API',
+          policy: null,
+          robotsDecision: null,
+          effectiveCrawlDelaySeconds: 0,
+        },
+        httpStatus: 200,
+        bytesFetched: 2048,
+        etag: '"etag-1"',
+        lastModifiedHeader: null,
+        payloadHash: 'f'.repeat(64),
+        upsertedJobs: [sampleRadarJob()],
+        publicDtos: [],
+        evidenceRecords: [],
+        discoveredInfrastructure: [],
+        errorCode: null,
+      },
+    });
+
+    expect(res).toEqual({
+      migrationPending: false,
+      upsertedCount: 1,
+      bridgedCount: 1,
+      candidatesQueued: 0,
+    });
+    expect(upsertsByTable.radar_jobs[0]).not.toHaveProperty('composite_confidence');
+    expect(upsertsByTable.radar_job_sources).toHaveLength(1);
+    expect(upsertsByTable.radar_verification_evidence).toHaveLength(1);
+    expect(upsertsByTable.radar_job_embeddings).toHaveLength(1);
+    expect(upsertsByTable.jobs[0]).toMatchObject({
+      source: 'GREENHOUSE',
+      canonical_radar_job_id: '99999999-9999-4999-8999-999999999999',
+    });
+    expect(typeof updatesByTable.job_sources[0]?.next_poll_at).toBe('string');
   });
 });

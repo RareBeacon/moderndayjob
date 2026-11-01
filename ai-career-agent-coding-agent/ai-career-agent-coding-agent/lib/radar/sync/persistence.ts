@@ -11,6 +11,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import crypto from 'node:crypto';
 import { supabaseAdmin } from '@/lib/supabase';
 import { recordSourceOutcome } from '@/lib/jobsources/registry';
 import type { RadarAtsProvider } from '@/lib/radar/adapters/ats';
@@ -71,6 +72,7 @@ export async function persistCanonicalizedRadarBatch(params: {
   sourceId: string;
   outcome: PollAtsBoardOutcome;
   durationMs: number;
+  pollIntervalMinutes?: number;
   db?: SupabaseClient;
 }): Promise<PersistBatchResult> {
   const db = params.db ?? supabaseAdmin;
@@ -130,7 +132,6 @@ export async function persistCanonicalizedRadarBatch(params: {
           employer_legitimacy_score: job.employer_legitimacy_score,
           job_authenticity_score: job.job_authenticity_score,
           application_safety_score: job.application_safety_score,
-          composite_confidence: job.composite_confidence,
           verification_status: job.verification_status,
           risk_flags: job.risk_flags,
           lifecycle_status: job.lifecycle_status,
@@ -166,6 +167,44 @@ export async function persistCanonicalizedRadarBatch(params: {
     if (!radarJobId) continue;
     upsertedCount += 1;
 
+    const externalKey = job.external_requisition_id || job.canonical_fingerprint.slice(0, 32);
+
+    // 1b. Record source provenance (`radar_job_sources`) & deterministic attestation (`radar_verification_evidence`)
+    await db.from('radar_job_sources').upsert(
+      {
+        radar_job_id: radarJobId,
+        source_id: sourceId,
+        external_id: externalKey,
+        source_url: job.apply_url,
+        is_direct_employer_source: job.discovery_origin !== 'PUBLIC_AGGREGATOR_FEED',
+        attribution_text: job.attribution_text,
+        raw_payload_hash: job.content_hash,
+        missing_poll_streak: job.missing_poll_streak,
+        last_seen_at: job.last_seen_at,
+      },
+      { onConflict: 'source_id,external_id' },
+    );
+
+    if (job.verified_by_deterministic_evidence) {
+      const evidenceHash = crypto
+        .createHash('sha256')
+        .update(`${sourceId}:${externalKey}:OFFICIAL_ATS_PUBLIC_API_ATTESTATION`)
+        .digest('hex');
+      await db.from('radar_verification_evidence').upsert(
+        {
+          subject_type: 'JOB',
+          subject_id: radarJobId,
+          evidence_kind: 'OFFICIAL_ATS_PUBLIC_API_ATTESTATION',
+          is_deterministic: true,
+          direction: 'POSITIVE',
+          score_delta: 35,
+          evidence_summary: `Attested directly by authorized ${sourceId} public posting endpoint`,
+          evidence_hash: evidenceHash,
+        },
+        { onConflict: 'subject_type,subject_id,evidence_kind,evidence_hash', ignoreDuplicates: true },
+      );
+    }
+
     // 2. Upsert `vector(384)` semantic embedding for active non-quarantined jobs
     if (
       job.lifecycle_status === 'ACTIVE' &&
@@ -187,7 +226,6 @@ export async function persistCanonicalizedRadarBatch(params: {
       // 3. Bridge verified active jobs into `public.jobs` so existing Jobiest surfaces benefit
       if (job.verified_by_deterministic_evidence) {
         const providerUpper = sourceId.split(':')[0]?.toUpperCase() || 'RADAR';
-        const externalKey = job.external_requisition_id || job.canonical_fingerprint.slice(0, 32);
         const { error: bridgeErr } = await db.from('jobs').upsert(
           {
             source: providerUpper,
@@ -197,6 +235,8 @@ export async function persistCanonicalizedRadarBatch(params: {
             url: job.apply_url,
             description: job.description_clean,
             location: job.location_raw,
+            last_seen_at: job.last_seen_at,
+            content_hash: job.content_hash,
             canonical_radar_job_id: radarJobId,
             metadata: {
               workplaceType: job.workplace_type,
@@ -256,6 +296,7 @@ export async function persistCanonicalizedRadarBatch(params: {
     outcome.runOutcome === 'NOT_MODIFIED_304' ||
     outcome.runOutcome === 'UNCHANGED_HASH'
   ) {
+    const intervalMins = Math.max(15, params.pollIntervalMinutes ?? 240);
     await db
       .from('job_sources')
       .update({
@@ -266,6 +307,7 @@ export async function persistCanonicalizedRadarBatch(params: {
           outcome.runOutcome === 'OK_COMPLETE' ? outcome.upsertedJobs.length : undefined,
         last_complete_poll_at:
           outcome.runOutcome === 'OK_COMPLETE' ? new Date().toISOString() : undefined,
+        next_poll_at: new Date(Date.now() + intervalMins * 60_000).toISOString(),
         lease_token: null,
         lease_expires_at: null,
       })
@@ -386,6 +428,7 @@ export async function runBoundedRadarSweep(opts: {
     adapter: string;
     board: string;
     enabled: boolean;
+    poll_interval_minutes?: number | null;
     etag?: string | null;
     last_modified_header?: string | null;
     last_payload_hash?: string | null;
@@ -424,6 +467,7 @@ export async function runBoundedRadarSweep(opts: {
       sourceId: src.id,
       outcome: pollRes,
       durationMs: Date.now() - started,
+      pollIntervalMinutes: src.poll_interval_minutes ?? 240,
       db,
     });
 

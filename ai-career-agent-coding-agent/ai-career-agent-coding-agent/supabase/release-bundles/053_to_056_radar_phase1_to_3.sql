@@ -1,14 +1,13 @@
--- =============================================================================
--- Jobiest Global Opportunity Radar One-Paste Supabase SQL Bundle (053 -> 056)
--- Safe, idempotent, additive-only (IF NOT EXISTS / ON CONFLICT DO NOTHING).
--- Enforces RLS + REVOKE ALL FROM anon, authenticated on 100% of Radar tables,
--- standardizes vector(384) HNSW semantic job indexing, and wires automatic
--- First-Party Employer Portal -> Radar vacancy synchronization.
--- =============================================================================
+-- ============================================================================
+-- JOBIEST RADAR PHASE 1-3 RELEASE BUNDLE (053..056)
+-- Idempotent one-paste SQL bundle synchronized with individual migrations.
+-- ============================================================================
+begin;
 
--- -----------------------------------------------------------------------------
+-- ============================================================================
 -- BEGIN MIGRATION: 053_radar_core_employers_and_sources.sql
--- -----------------------------------------------------------------------------
+-- ============================================================================
+
 -- 053_radar_core_employers_and_sources.sql
 -- Jobiest Global Opportunity Radar (Phase 1):
 --   1. radar_provider_policies: provider-level legal/terms authorization gate
@@ -319,10 +318,10 @@ create index if not exists job_sources_due_poll_idx
 
 revoke all on public.job_sources from anon, authenticated;
 
-
--- -----------------------------------------------------------------------------
+-- ============================================================================
 -- BEGIN MIGRATION: 054_radar_jobs_forms_evidence_and_dedup.sql
--- -----------------------------------------------------------------------------
+-- ============================================================================
+
 -- 054_radar_jobs_forms_evidence_and_dedup.sql
 -- Jobiest Global Opportunity Radar (Phase 1):
 --   1. radar_jobs: canonical shared global opportunity index with:
@@ -670,10 +669,10 @@ create index if not exists jobs_canonical_radar_job_idx
   on public.jobs (canonical_radar_job_id)
   where canonical_radar_job_id is not null;
 
-
--- -----------------------------------------------------------------------------
+-- ============================================================================
 -- BEGIN MIGRATION: 055_radar_embeddings_runs_and_rpcs.sql
--- -----------------------------------------------------------------------------
+-- ============================================================================
+
 -- 055_radar_embeddings_runs_and_rpcs.sql
 -- Jobiest Global Opportunity Radar (Phase 1):
 --   1. radar_job_embeddings: vector(384) aligned with talent_rag_chunks (051).
@@ -888,10 +887,10 @@ $$;
 
 revoke all on function public.match_radar_jobs_for_embedding(vector, text[], integer, integer) from public, anon, authenticated;
 
-
--- -----------------------------------------------------------------------------
+-- ============================================================================
 -- BEGIN MIGRATION: 056_radar_phase3_first_party_sync_and_intelligence.sql
--- -----------------------------------------------------------------------------
+-- ============================================================================
+
 -- 056_radar_phase3_first_party_sync_and_intelligence.sql
 -- Jobiest Global Opportunity Radar - Phase 3:
 --   1. Register Phase 3 open intelligence providers (`hn_whoishiring`, `arbeitnow_api`,
@@ -937,6 +936,50 @@ values
    'Syndicated feed attribution: Jobicy', 'https://jobicy.com/jobs-rss-feed', '2026-11-01T00:00:00Z', 15, 360,
    'Keyless public remote jobs feed used with mandatory attribution and First-Mover lead-time benchmarking.')
 on conflict (provider_key) do nothing;
+
+-- Align `radar_exclusions.reason` and `job_sources_adapter_values` with Phase 3 admin & scout enums
+alter table public.radar_exclusions drop constraint if exists radar_exclusions_reason_check;
+alter table public.radar_exclusions
+  add constraint radar_exclusions_reason_check check (
+    reason in (
+      'ROBOTS_DISALLOW',
+      'ROBOTS_DISALLOWED',
+      'TOS_RESTRICTED',
+      'TERMS_OF_SERVICE_PROHIBITED',
+      'EMPLOYER_OPT_OUT',
+      'SCAM_CONFIRMED',
+      'CONFIRMED_SCAM_DOMAIN',
+      'LEGAL_TAKEDOWN',
+      'ADMIN_BLOCK'
+    )
+  );
+
+alter table public.job_sources drop constraint if exists job_sources_adapter_values;
+alter table public.job_sources
+  add constraint job_sources_adapter_values check (
+    adapter in (
+      'greenhouse',
+      'lever',
+      'lever_eu',
+      'ashby',
+      'workable',
+      'smartrecruiters',
+      'recruitee',
+      'personio',
+      'pinpoint',
+      'gem',
+      'polymer',
+      'breezy',
+      'teamtailor',
+      'jsonld_career',
+      'external_form',
+      'public_feed',
+      'hn_algolia',
+      'hn_whoishiring',
+      'arbeitnow_api',
+      'jobicy_api'
+    )
+  );
 
 
 -- 2. Core helper: sync one `recruitment_vacancies` row into `radar_employers` + `radar_jobs`
@@ -1120,7 +1163,6 @@ begin
     employer_legitimacy_score,
     job_authenticity_score,
     application_safety_score,
-    composite_confidence,
     verification_status,
     risk_flags,
     lifecycle_status,
@@ -1174,7 +1216,6 @@ begin
     96,
     98,
     98,
-    97,
     'VERIFIED_HIGH_TRUST',
     '{}'::text[],
     'ACTIVE',
@@ -1404,27 +1445,4 @@ $$;
 revoke all on function public.get_radar_intelligence_summary() from public, anon, authenticated;
 grant execute on function public.get_radar_intelligence_summary() to service_role;
 
-
--- -----------------------------------------------------------------------------
--- POST-MIGRATION PRODUCTION VERIFICATION SUMMARY
--- -----------------------------------------------------------------------------
-select
-  (select count(*) from information_schema.tables
-    where table_schema = 'public' and table_name like 'radar_%') as radar_tables_ready,
-  (select count(*) from pg_proc p
-    join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = 'public'
-      and p.proname in (
-        'claim_due_radar_sources',
-        'match_radar_jobs_for_embedding',
-        'sync_recruitment_vacancy_to_radar_by_id',
-        'get_radar_intelligence_summary'
-      )) as radar_rpcs_ready,
-  (select count(*) from pg_trigger
-    where tgname in (
-      'trg_sync_recruitment_vacancy_to_radar',
-      'trg_sync_employer_org_status_to_radar'
-    )) as first_party_triggers_ready,
-  (select count(*) from public.radar_provider_policies) as provider_policies_seeded,
-  not has_table_privilege('anon', 'public.radar_jobs', 'SELECT')
-    and not has_table_privilege('authenticated', 'public.radar_jobs', 'SELECT') as anon_authenticated_locked_down;
+commit;
