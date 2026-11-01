@@ -256,9 +256,16 @@ async function loadUserContext(db: SupabaseClient, userId: string, email: string
    ========================================================================== */
 
 async function collectListings(deps: DiscoveryDeps, now: Date): Promise<{ listings: NormalizedJob[]; sources: DiscoveryStageReport['sources'] }> {
-  // Only Greenhouse and Lever listings can be submitted by the autopilot
-  // today; Ashby boards stay in the registry for when an adapter exists.
-  const adapters = (await loadRegistryAdapters(deps.fetchImpl ?? defaultFetchImpl(), () => [] as SourceAdapter[])).filter((a) => a.id.startsWith('greenhouse:') || a.id.startsWith('lever:'));
+  // Include all registry boards backed by a live supported apply adapter
+  // (Greenhouse, Lever US/EU, Ashby, Workable; see lib/apply/registry.ts).
+  const adapters = (await loadRegistryAdapters(deps.fetchImpl ?? defaultFetchImpl(), () => [] as SourceAdapter[])).filter(
+    (a) =>
+      a.id.startsWith('greenhouse:') ||
+      a.id.startsWith('lever:') ||
+      a.id.startsWith('lever_eu:') ||
+      a.id.startsWith('ashby:') ||
+      a.id.startsWith('workable:'),
+  );
   const sources: DiscoveryStageReport['sources'] = [];
   if (adapters.length === 0) return { listings: [], sources };
 

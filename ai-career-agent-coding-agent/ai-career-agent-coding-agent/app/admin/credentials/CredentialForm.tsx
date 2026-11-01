@@ -109,8 +109,8 @@ export default function CredentialForm() {
               setModel(PROVIDER_DEFAULTS[p].model);
             }}
           >
-            <option value="qwencloud">Alibaba QwenCloud (sk-ws-)</option>
-            <option value="dashscope">Alibaba DashScope (sk-)</option>
+            <option value="qwencloud">Alibaba QwenCloud (Model Studio)</option>
+            <option value="dashscope">Alibaba DashScope (International)</option>
             <option value="openrouter">OpenRouter</option>
             <option value="huggingface">Hugging Face</option>
           </select>
@@ -119,7 +119,7 @@ export default function CredentialForm() {
           <label htmlFor="cf-key">API key</label>
           <input
             id="cf-key"
-            placeholder="sk-ws-... or sk-..."
+            placeholder="Enter provider API key"
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
