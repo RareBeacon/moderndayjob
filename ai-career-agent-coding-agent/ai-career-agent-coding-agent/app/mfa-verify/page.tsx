@@ -6,15 +6,16 @@ import { supabaseBrowser } from '@/lib/supabase-browser';
 import { AuthShell } from '@/components/site/AuthShell';
 
 /**
- * Second factor step of the real login flow. Reached when the password (or
- * Google) step succeeded but the session is still aal1 and the user has an
- * enrolled authenticator. The session is NOT usable for the app until this
- * completes: middleware routes aal1 sessions back here and requireUser
- * rejects aal1 API calls. Codes are verified by Supabase, never locally.
+ * Second factor step of the login flow. Supports:
+ *  1. Standard 6-digit TOTP authenticator verification via Supabase MFA.
+ *  2. Single-use backup recovery code verification via /api/auth/mfa/verify-recovery.
+ * An unverified aal1 session never gains access to protected pages or APIs.
  */
 export default function MfaVerifyPage() {
   const router = useRouter();
+  const [mode, setMode] = useState<'totp' | 'recovery'>('totp');
   const [code, setCode] = useState('');
+  const [recoveryCode, setRecoveryCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [ready, setReady] = useState(false);
@@ -34,7 +35,13 @@ export default function MfaVerifyPage() {
     })();
   }, [router]);
 
-  const verify = useCallback(async () => {
+  const finishRedirect = useCallback(() => {
+    const next = new URLSearchParams(window.location.search).get('next');
+    router.replace(next && next.startsWith('/') && !next.startsWith('//') && !next.includes('://') ? next : '/dashboard');
+    router.refresh();
+  }, [router]);
+
+  const verifyTotp = useCallback(async () => {
     if (!/^\d{6}$/.test(code)) {
       setError('Enter the 6-digit code from your authenticator app.');
       return;
@@ -69,13 +76,37 @@ export default function MfaVerifyPage() {
       try {
         await fetch('/api/auth/session', { method: 'POST' });
       } catch {}
-      const next = new URLSearchParams(window.location.search).get('next');
-      router.replace(next && next.startsWith('/') && !next.startsWith('//') && !next.includes('://') ? next : '/dashboard');
-      router.refresh();
+      finishRedirect();
     } finally {
       setBusy(false);
     }
-  }, [code, router]);
+  }, [code, finishRedirect]);
+
+  const verifyRecovery = useCallback(async () => {
+    if (recoveryCode.trim().length < 8) {
+      setError('Enter one of your single-use backup recovery codes.');
+      return;
+    }
+    setBusy(true);
+    setError('');
+    try {
+      const res = await fetch('/api/auth/mfa/verify-recovery', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code: recoveryCode.trim() }),
+      });
+      const out = await res.json();
+      if (!res.ok || !out.ok) {
+        setError(out.message ?? 'Invalid or already used backup recovery code.');
+        return;
+      }
+      finishRedirect();
+    } catch {
+      setError('Could not verify your recovery code right now. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  }, [recoveryCode, finishRedirect]);
 
   const useAnotherAccount = useCallback(async () => {
     await supabaseBrowser().auth.signOut().catch(() => {});
@@ -83,40 +114,89 @@ export default function MfaVerifyPage() {
   }, [router]);
 
   return (
-    <AuthShell title="Verify it's you" subtitle="Enter the 6-digit code from your authenticator app.">
+    <AuthShell
+      title="Verify it's you"
+      subtitle={
+        mode === 'totp'
+          ? 'Enter the 6-digit code from your authenticator app.'
+          : 'Enter one of your single-use backup recovery codes.'
+      }
+    >
       {error ? (
         <div className="auth-error" role="alert" style={{ marginTop: 16 }}>
           {error}
         </div>
       ) : null}
-      <form
-        className="auth-form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void verify();
-        }}
-        noValidate
-      >
-        <label>
-          Authenticator code
-          <input
-            className="verify-code-input"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            pattern="[0-9]*"
-            maxLength={6}
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            placeholder="000000"
-            disabled={!ready}
-            autoFocus
-          />
-        </label>
-        <button type="submit" className="btn btn-block" disabled={busy || !ready}>
-          {busy ? 'Verifying…' : 'Verify'}
+
+      {mode === 'totp' ? (
+        <form
+          className="auth-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void verifyTotp();
+          }}
+          noValidate
+        >
+          <label>
+            Authenticator code
+            <input
+              className="verify-code-input"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="[0-9]*"
+              maxLength={6}
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="000000"
+              disabled={!ready}
+              autoFocus
+            />
+          </label>
+          <button type="submit" className="btn btn-block" disabled={busy || !ready}>
+            {busy ? 'Verifying…' : 'Verify'}
+          </button>
+        </form>
+      ) : (
+        <form
+          className="auth-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void verifyRecovery();
+          }}
+          noValidate
+        >
+          <label>
+            Backup recovery code
+            <input
+              type="text"
+              autoComplete="off"
+              maxLength={20}
+              value={recoveryCode}
+              onChange={(e) => setRecoveryCode(e.target.value.toUpperCase())}
+              placeholder="XXXX-XXXX-XXXX"
+              disabled={!ready}
+              style={{ fontFamily: 'monospace', letterSpacing: 1.5 }}
+              autoFocus
+            />
+          </label>
+          <button type="submit" className="btn btn-block" disabled={busy || !ready}>
+            {busy ? 'Verifying backup code…' : 'Verify backup code'}
+          </button>
+        </form>
+      )}
+
+      <div style={{ marginTop: 14, display: 'grid', gap: 8 }}>
+        <button
+          type="button"
+          className="btn-ghost btn-block"
+          disabled={busy}
+          onClick={() => {
+            setError('');
+            setMode((prev) => (prev === 'totp' ? 'recovery' : 'totp'));
+          }}
+        >
+          {mode === 'totp' ? 'Use a backup recovery code instead' : 'Use 6-digit authenticator code instead'}
         </button>
-      </form>
-      <div style={{ marginTop: 16 }}>
         <button type="button" className="btn-ghost btn-block" onClick={useAnotherAccount} disabled={busy}>
           Use a different account
         </button>

@@ -1,18 +1,21 @@
 /**
- * Jobiest pricing catalog; single source of truth for plan names, prices,
- * quotas and feature copy. Consumed by the marketing pricing page, the
- * in-app billing page, and the billing guards (which enforce the same numbers
- * in SQL; see supabase/migrations/013_entitlement_quotas_v2.sql).
+ * Jobiest pricing & entitlement catalog - single source of truth for plan
+ * names, prices, monthly successful-application allowances, AI quotas, and
+ * feature copy. Consumed by the marketing pricing page, the in-app billing
+ * page, admin surfaces, and server-side billing/entitlement guards (mirrored
+ * in SQL: supabase/migrations/059_subscription_ultra_and_application_ledger.sql).
  *
- * Prices are set in Naira (₦) as the billing base currency; the pricing page
- * converts them for display using lib/billing/currency.ts.
+ * Prices are set in Naira (₦) as the Nigeria billing currency and USD ($) for
+ * international checkouts; see lib/billing/currency.ts.
  */
 
-export type PlanCode = 'FREE' | 'BASIC' | 'PREMIUM' | 'MAX';
+export type PlanCode = 'FREE' | 'BASIC' | 'PREMIUM' | 'ULTRA';
+export type PaidPlanCode = 'BASIC' | 'PREMIUM' | 'ULTRA';
+export type LegacyPlanInput = PlanCode | 'MAX';
 
 export interface PlanDefinition {
   code: PlanCode;
-  name: string;
+  name: 'Free' | 'Basic' | 'Premium' | 'Ultra';
   tagline: string;
   /** Monthly price in Naira (major units). FREE is 0. */
   monthlyNgn: number;
@@ -22,10 +25,10 @@ export interface PlanDefinition {
   documentCredits: number;
   /** Total AI generations ever on FREE (null = not applicable). */
   lifetimeDocs: number | null;
-  /** Auto-apply agent-mode slots per day (0 = no daily allowance). */
-  automationSlots: number;
-  /** Total auto-apply trial uses on BASIC (null = not applicable). */
-  lifetimeAutomation: number | null;
+  /** Successful job applications included per billing month (null = unlimited on ULTRA). */
+  monthlySuccessfulApplications: number | null;
+  /** True when monthly successful job applications are unlimited (ULTRA). */
+  unlimitedApplications: boolean;
   /** Free career-tool uses per day (null = unlimited). */
   toolUses: number | null;
   highlight: string;
@@ -39,20 +42,20 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
   FREE: {
     code: 'FREE',
     name: 'Free',
-    tagline: 'Profile, matching, tracker, and every career tool. No card required.',
+    tagline: 'Profile, matching, tracker, all 30 resume templates, and every career tool. No card required.',
     monthlyNgn: 0,
     monthlyUsd: 0,
     documentCredits: 0,
     lifetimeDocs: 3,
-    automationSlots: 0,
-    lifetimeAutomation: null,
+    monthlySuccessfulApplications: 0,
+    unlimitedApplications: false,
     toolUses: 10,
     highlight: '₦0 forever',
     features: [
       '3 AI generations in total to try the AI writer (resume, cover letter, answers)',
-      'All 10 career tools; 10 uses a day',
-      'ATS resume scanner',
-      'Paste any job link for agent analysis',
+      'All 30 ISO A4 resume & CV templates with PDF and Word DOCX export',
+      'All 10 free career tools; 10 uses a day',
+      'ATS resume scanner & job link paste analysis',
       'Profile builder & application tracker',
       'Community support',
     ],
@@ -62,19 +65,19 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
   BASIC: {
     code: 'BASIC',
     name: 'Basic',
-    tagline: 'Daily documents plus a first taste of agent-mode automation.',
+    tagline: 'Daily tailored documents plus 30 successful job applications each billing month.',
     monthlyNgn: 5000,
     monthlyUsd: 3.99,
     documentCredits: 3,
     lifetimeDocs: null,
-    automationSlots: 0,
-    lifetimeAutomation: 2,
+    monthlySuccessfulApplications: 30,
+    unlimitedApplications: false,
     toolUses: 50,
     highlight: '₦5,000 / month',
     features: [
       'Everything in Free',
-      '3 AI generations a day',
-      '2 agent-mode trial runs (within them: the agent finds jobs, you choose the send policy)',
+      '30 successful job applications per billing month (failed or stopped attempts never count)',
+      '3 AI document generations a day',
       '50 career-tool uses a day',
       'Follow-up email writer',
       'Priority email support',
@@ -85,20 +88,20 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
   PREMIUM: {
     code: 'PREMIUM',
     name: 'Premium',
-    tagline: 'Agent mode unlocked, with room to run.',
+    tagline: 'Daily job discovery and 50 successful job applications every billing month.',
     monthlyNgn: 10000,
     monthlyUsd: 7.99,
     documentCredits: 10,
     lifetimeDocs: null,
-    automationSlots: 10,
-    lifetimeAutomation: null,
+    monthlySuccessfulApplications: 50,
+    unlimitedApplications: false,
     toolUses: null,
     highlight: '₦10,000 / month',
     features: [
       'Everything in Basic',
-      '10 AI generations a day',
+      '50 successful job applications per billing month (approve each send, or switch to Auto)',
+      '10 AI document generations a day',
       'Your agent finds matching jobs daily',
-      '10 agent-mode applications a day (approve each send, or switch to Auto)',
       'Unlimited career-tool uses',
       'Priority AI processing & faster queue',
       'Salary insights & interview prep unlimited',
@@ -107,30 +110,57 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
     ctaHref: '/signup',
     featured: true,
   },
-  MAX: {
-    code: 'MAX',
-    name: 'Max',
-    tagline: 'For power users and agencies. Everything, with a human in the loop.',
+  ULTRA: {
+    code: 'ULTRA',
+    name: 'Ultra',
+    tagline: 'Unlimited monthly job applications for heavy searches, with full human control.',
     monthlyNgn: 20000,
     monthlyUsd: 14.99,
     documentCredits: 20,
     lifetimeDocs: null,
-    automationSlots: 20,
-    lifetimeAutomation: null,
+    monthlySuccessfulApplications: null,
+    unlimitedApplications: true,
     toolUses: null,
     highlight: '₦20,000 / month',
     features: [
       'Everything in Premium',
-      '20 AI generations a day',
+      'Unlimited successful job applications per month (approve each send, or switch to Auto)',
+      '20 AI document generations a day',
       'Your agent finds matching jobs daily',
-      '20 agent-mode applications a day (approve each send, or switch to Auto)',
-      'Unlimited everything',
-      'Highest daily volume for heavy application runs',
+      'Unlimited career-tool uses',
+      'Highest priority processing for active searches',
       'Concierge support & early access',
     ],
-    cta: 'Choose Max',
+    cta: 'Choose Ultra',
     ctaHref: '/signup',
   },
 };
 
-export const PLAN_ORDER: PlanCode[] = ['FREE', 'BASIC', 'PREMIUM', 'MAX'];
+export const PLAN_ORDER: PlanCode[] = ['FREE', 'BASIC', 'PREMIUM', 'ULTRA'];
+export const PAID_PLAN_ORDER: PaidPlanCode[] = ['BASIC', 'PREMIUM', 'ULTRA'];
+
+export function normalizePlanCode(raw: unknown): PlanCode {
+  const upper = String(raw ?? '').trim().toUpperCase();
+  if (upper === 'ULTRA' || upper === 'MAX') return 'ULTRA';
+  if (upper === 'PREMIUM') return 'PREMIUM';
+  if (upper === 'BASIC') return 'BASIC';
+  return 'FREE';
+}
+
+export function normalizePaidPlanCode(raw: unknown): PaidPlanCode | null {
+  const code = normalizePlanCode(raw);
+  return code === 'FREE' ? null : code;
+}
+
+export function displayPlanName(raw: unknown): PlanDefinition['name'] {
+  return PLANS[normalizePlanCode(raw)].name;
+}
+
+export function monthlyApplicationsLabel(raw: unknown): string {
+  const plan = PLANS[normalizePlanCode(raw)];
+  if (plan.unlimitedApplications) return 'Unlimited successful applications / month';
+  if (plan.monthlySuccessfulApplications && plan.monthlySuccessfulApplications > 0) {
+    return `${plan.monthlySuccessfulApplications} successful applications / month`;
+  }
+  return 'Manual apply (upgrade for monthly agent submissions)';
+}

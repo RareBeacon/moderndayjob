@@ -37,10 +37,9 @@ export default function TermsPage() {
 
       <h2>3. Free and paid plans</h2>
       <p>
-        The Service offers a free plan and paid subscription plans (Basic, Premium and Max). Free-plan
-        features and daily usage limits are described on our pricing page. Paid plans are billed
-        monthly in Nigerian Naira (₦). Prices may be displayed in other currencies as an estimate;
-        the amount charged is always the Naira price for the plan you select.
+        The Service offers a free plan and paid subscription plans (Basic, Premium and Ultra). Free-plan
+        features and paid monthly application allowances are described on our pricing page. Paid plans are billed
+        monthly in Nigerian Naira (₦) for customers in Nigeria and US Dollars ($) for international checkouts.
       </p>
 
       <h2>4. Subscriptions, renewal and cancellation</h2>

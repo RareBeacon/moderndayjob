@@ -25,6 +25,7 @@ export type AppSessionRow = {
   last_active_at: string;
   expires_at: string;
   revoked_at: string | null;
+  mfa_recovery_verified_at?: string | null;
 };
 
 type SignedSessionPayload = {
@@ -33,6 +34,7 @@ type SignedSessionPayload = {
   c: string;
   a: string;
   e: string;
+  m?: string | null;
 };
 
 function bytesToBase64Url(bytes: Uint8Array): string {
@@ -113,6 +115,7 @@ async function signSessionRow(row: AppSessionRow): Promise<string> {
     c: row.created_at,
     a: row.last_active_at,
     e: row.expires_at,
+    ...(row.mfa_recovery_verified_at ? { m: row.mfa_recovery_verified_at } : {}),
   };
   const payloadB64 = bytesToBase64Url(new TextEncoder().encode(JSON.stringify(payload)));
   const key = await importHmacKey();
@@ -166,6 +169,7 @@ async function verifySignedSessionToken(
     last_active_at: parsed.a,
     expires_at: parsed.e,
     revoked_at: null,
+    mfa_recovery_verified_at: parsed.m ?? null,
   };
   if (expectedUserId && row.user_id !== expectedUserId) {
     return { valid: false, reason: 'USER_MISMATCH', row };
@@ -286,7 +290,7 @@ export async function validateAppSession(params: {
 
   const tokenHash = await hashToken(params.token);
   const res = await fetch(
-    `${cfg.baseUrl}/app_sessions?token_hash=eq.${encodeURIComponent(tokenHash)}&select=id,user_id,token_hash,created_at,last_active_at,expires_at,revoked_at&limit=1`,
+    `${cfg.baseUrl}/app_sessions?token_hash=eq.${encodeURIComponent(tokenHash)}&select=id,user_id,token_hash,created_at,last_active_at,expires_at,revoked_at,mfa_recovery_verified_at&limit=1`,
     {
       method: 'GET',
       headers: restHeaders(cfg.serviceKey),
@@ -357,4 +361,32 @@ export async function revokeAllUserSessions(userId: string): Promise<void> {
       signal: AbortSignal.timeout(3000),
     },
   );
+}
+
+export async function markAppSessionRecoveryVerified(params: {
+  token: string;
+  userId: string;
+}): Promise<{ ok: boolean; updatedSignedToken?: string }> {
+  const nowIso = new Date().toISOString();
+  if (params.token.startsWith('v1.')) {
+    const checked = await verifySignedSessionToken(params.token, params.userId);
+    if (!checked.valid) return { ok: false };
+    const updatedSignedToken = await signSessionRow({ ...checked.row, mfa_recovery_verified_at: nowIso });
+    return { ok: true, updatedSignedToken };
+  }
+  const cfg = restConfig();
+  if (!cfg) return { ok: false };
+  const tokenHash = await hashToken(params.token);
+  const res = await fetch(
+    `${cfg.baseUrl}/app_sessions?token_hash=eq.${encodeURIComponent(tokenHash)}&user_id=eq.${encodeURIComponent(params.userId)}&revoked_at=is.null`,
+    {
+      method: 'PATCH',
+      headers: restHeaders(cfg.serviceKey, { Prefer: 'return=representation' }),
+      body: JSON.stringify({ mfa_recovery_verified_at: nowIso, last_active_at: nowIso }),
+      signal: AbortSignal.timeout(3000),
+    },
+  );
+  if (!res.ok) return { ok: false };
+  const rows = (await res.json().catch(() => [])) as Array<{ id?: string }>;
+  return { ok: Array.isArray(rows) && rows.length > 0 };
 }

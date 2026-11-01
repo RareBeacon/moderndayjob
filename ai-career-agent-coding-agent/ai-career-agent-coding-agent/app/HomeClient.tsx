@@ -22,9 +22,9 @@ const howImage = "/assets/images/how-it-works-man-phone.webp";
 const pricingImage = "/assets/images/pricing-woman-laptop.webp";
 
 const plans = [
-  { name: "Basic", price: "₦5,000", features: ["3 tailored CVs or letters per day", "2 Agent Mode trial runs included", "50 career-tool uses per day"] },
-  { name: "Premium", price: "₦10,000", popular: true, features: ["10 tailored CVs or letters per day", "Daily job discovery on employer boards", "Up to 10 Agent Mode applications/day", "Unlimited career tools & priority support"] },
-  { name: "Max", price: "₦20,000", features: ["20 tailored CVs or letters per day", "Up to 20 Agent Mode applications/day", "Highest monthly document & apply caps", "Dedicated concierge support"] },
+  { name: "Basic", price: "₦5,000", features: ["30 successful job applications / month", "3 tailored CVs or letters per day", "50 career-tool uses per day"] },
+  { name: "Premium", price: "₦10,000", popular: true, features: ["50 successful job applications / month", "10 tailored CVs or letters per day", "Daily job discovery on employer boards", "Unlimited career tools & priority support"] },
+  { name: "Ultra", price: "₦20,000", features: ["Unlimited successful applications / month", "20 tailored CVs or letters per day", "Daily job discovery & fastest queue", "Dedicated concierge support"] },
 ];
 
 const problemChecks = [
@@ -45,7 +45,7 @@ const workflowSteps = [
 
 const howSteps = [
   ["Set up your profile once", "Upload your existing PDF CV or enter your roles, skills, and achievements. Everything stays editable."],
-  ["Paste a job link or browse matches", "Bring any job posting URL on any plan, or receive daily matches from supported employer boards on Premium and Max."],
+  ["Paste a job link or browse matches", "Bring any job posting URL on any plan, or receive daily matches from supported employer boards on Premium and Ultra."],
   ["Inspect your tailored CV & letter", "Switch across 30 clean CV templates, edit any line, and answer sensitive questions like salary or work authorisation yourself."],
   ["Approve, export, or track", "Download PDF or DOCX to apply directly, or approve Agent Mode submissions on supported career pages and track replies."],
 ];

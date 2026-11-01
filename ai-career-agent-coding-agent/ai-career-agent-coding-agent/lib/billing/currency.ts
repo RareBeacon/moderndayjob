@@ -21,6 +21,7 @@ export const BILLING_CURRENCY = 'NGN' as const;
 
 export const SUPPORTED_CURRENCIES = ['NGN', 'USD'] as const;
 export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
+export type Currency = SupportedCurrency;
 
 /** Nigeria sees Naira; everyone else sees (and pays) USD. */
 export function resolveCurrency(ipCountry?: string | null): SupportedCurrency {
@@ -37,6 +38,8 @@ export function countryFromHeader(value?: string | null): string | null {
 export function formatNaira(ngnAmount: number): string {
   return `₦${Math.round(ngnAmount).toLocaleString('en-NG')}`;
 }
+
+export const formatNgn = formatNaira;
 
 /** Format a USD amount like $7.99 (always two decimals). */
 export function formatUsd(usdAmount: number): string {

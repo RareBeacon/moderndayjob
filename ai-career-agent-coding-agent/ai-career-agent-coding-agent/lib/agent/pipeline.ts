@@ -125,7 +125,7 @@ async function runSubscriptionMaintenance(deps: PipelineDeps): Promise<Pick<Pipe
     if (error) throw error;
     for (const row of (expired ?? []) as Array<{ o_user_id: string; o_plan: string }>) {
       out.subscriptionsExpired!.push({ userId: row.o_user_id, plan: row.o_plan });
-      const planName = row.o_plan === 'MAX' ? 'Max' : row.o_plan === 'PREMIUM' ? 'Premium' : 'Basic';
+      const planName = row.o_plan === 'ULTRA' || row.o_plan === 'MAX' ? 'Ultra' : row.o_plan === 'PREMIUM' ? 'Premium' : 'Basic';
       await notify(
         row.o_user_id,
         'Your plan has expired',
@@ -142,7 +142,7 @@ async function runSubscriptionMaintenance(deps: PipelineDeps): Promise<Pick<Pipe
     if (error) throw error;
     for (const row of (applied ?? []) as Array<{ o_user_id: string; o_plan: string }>) {
       out.scheduledGrantsApplied!.push({ userId: row.o_user_id, plan: row.o_plan });
-      const planName = row.o_plan === 'MAX' ? 'Max' : row.o_plan === 'PREMIUM' ? 'Premium' : 'Basic';
+      const planName = row.o_plan === 'ULTRA' || row.o_plan === 'MAX' ? 'Ultra' : row.o_plan === 'PREMIUM' ? 'Premium' : 'Basic';
       await notify(
         row.o_user_id,
         `Your ${planName} upgrade is active`,

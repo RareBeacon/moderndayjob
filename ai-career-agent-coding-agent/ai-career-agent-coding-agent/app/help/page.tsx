@@ -54,7 +54,7 @@ const TOPICS: { title: string; items: { q: string; a: string }[] }[] = [
     items: [
       {
         q: 'What currency am I billed in?',
-        a: 'All plans are billed in Nigerian Naira (₦). Basic is ₦5,000 a month, Premium is ₦10,000, and Max is ₦20,000. The price you see is the price you pay.',
+        a: 'Plans in Nigeria are billed in Nigerian Naira (₦): Basic is ₦5,000 a month (30 successful applications), Premium is ₦10,000 (50 successful applications), and Ultra is ₦20,000 (unlimited successful applications). International cards can pay in USD at checkout.',
       },
       {
         q: 'How do refunds work?',

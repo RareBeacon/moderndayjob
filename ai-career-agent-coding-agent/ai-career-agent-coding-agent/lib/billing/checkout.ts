@@ -106,7 +106,7 @@ export async function applyQuotedPayment(params: {
   verifiedAmountMajor: number;
   verifiedCurrency: string;
   verifiedEmail: string;
-}): Promise<'BASIC' | 'PREMIUM' | 'MAX' | null> {
+}): Promise<'BASIC' | 'PREMIUM' | 'ULTRA' | null> {
   const { data, error } = await supabaseAdmin.rpc('apply_quoted_payment', {
     p_reference: params.reference,
     p_provider: params.provider,
@@ -126,5 +126,9 @@ export async function applyQuotedPayment(params: {
     }
     throw new Error(message);
   }
-  return (data as 'BASIC' | 'PREMIUM' | 'MAX' | null) ?? null;
+  const normalized = String(data ?? '').trim().toUpperCase();
+  if (normalized === 'ULTRA' || normalized === 'MAX') return 'ULTRA';
+  if (normalized === 'PREMIUM') return 'PREMIUM';
+  if (normalized === 'BASIC') return 'BASIC';
+  return null;
 }

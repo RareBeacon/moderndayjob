@@ -172,7 +172,7 @@ export async function POST(req: Request) {
   //    the quote, NOT from amount thresholds: a discounted Premium payment of
   //    NGN 5,000 must still grant PREMIUM. A quote that exists but mismatches
   //    is an anomaly that must never be reinterpreted by thresholds.
-  let plan: 'BASIC' | 'PREMIUM' | 'MAX' | null = null;
+  let plan: 'BASIC' | 'PREMIUM' | 'ULTRA' | null = null;
   let usedQuotedPath = false;
   try {
     if (verified.email) {

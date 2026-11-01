@@ -102,7 +102,7 @@ export async function POST(req: Request) {
   // 5. Quote-first (coupon-aware): the granted plan and expected amount come
   //    from the server-trusted payment_quotes row when one exists; amount
   //    thresholds only apply to legacy references without a quote.
-  let plan: 'BASIC' | 'PREMIUM' | 'MAX' | null = null;
+  let plan: 'BASIC' | 'PREMIUM' | 'ULTRA' | null = null;
   let usedQuotedPath = false;
   if (verified.tx_ref && verified.customer?.email) {
     try {

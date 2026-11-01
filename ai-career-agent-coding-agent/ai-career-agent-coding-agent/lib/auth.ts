@@ -40,9 +40,12 @@ function bearerToken(header: string | null): string | null {
   return token.length > 0 ? token : null;
 }
 
-async function validateBrowserAppSession(userId: string, bearerPresent: boolean): Promise<{ valid: true } | { valid: false; reason: string }> {
+async function validateBrowserAppSession(
+  userId: string,
+  bearerPresent: boolean,
+): Promise<{ valid: true; mfaRecoveryVerified?: boolean } | { valid: false; reason: string }> {
   // Bearer clients (mobile) are exempt - they have their own JWT lifecycle
-  if (bearerPresent) return { valid: true };
+  if (bearerPresent) return { valid: true, mfaRecoveryVerified: false };
   try {
     const cookieStore = await cookies();
     const appToken = cookieStore.get('jobiest_app_session')?.value;
@@ -52,7 +55,7 @@ async function validateBrowserAppSession(userId: string, bearerPresent: boolean)
     if (!v.valid) return { valid: false, reason: v.reason };
     // Qualifying activity = authenticated page/API request - touch non-blocking
     void touchAppSession(v.row).catch(() => {});
-    return { valid: true };
+    return { valid: true, mfaRecoveryVerified: Boolean(v.row.mfa_recovery_verified_at) };
   } catch {
     return { valid: false, reason: 'APP_SESSION_ERROR' };
   }
@@ -222,7 +225,8 @@ export async function requireUser(opts: { allowIncompleteMfa?: boolean; allowMis
   const providers = user.app_metadata?.providers ?? [];
   const social = providers.some((provider: string) => ['google', 'linkedin_oidc', 'linkedin'].includes(provider));
   if (!social && !user.email_confirmed_at) throw new Error('UNAUTHENTICATED');
-  if (needsMfa && !opts.allowIncompleteMfa) throw new Error('MFA_REQUIRED');
+  const recoveryElevated = appCheck.valid && Boolean(appCheck.mfaRecoveryVerified);
+  if (needsMfa && !recoveryElevated && !opts.allowIncompleteMfa) throw new Error('MFA_REQUIRED');
   if (profileStatus === 'SUSPENDED' || profileStatus === 'TERMINATED') {
     throw new Error(`ACCOUNT_${profileStatus}`);
   }

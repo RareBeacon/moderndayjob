@@ -24,7 +24,7 @@ import { sendPlanChangeEmail } from '@/lib/email/resend';
 
 const body = z.object({
   userId: z.guid(),
-  plan: z.enum(['FREE', 'BASIC', 'PREMIUM', 'MAX']),
+  plan: z.enum(['FREE', 'BASIC', 'PREMIUM', 'ULTRA', 'MAX']).transform((p): 'FREE' | 'BASIC' | 'PREMIUM' | 'ULTRA' => (p === 'MAX' ? 'ULTRA' : p)),
   durationDays: z.number().int().min(1).max(3650).optional(),
   startMode: z.enum(['IMMEDIATELY', 'AFTER_CURRENT']).default('IMMEDIATELY'),
   reason: z.string().trim().max(300).optional(),
@@ -70,6 +70,12 @@ export async function POST(req: Request) {
     if (error) {
       const message = String(error.message ?? '');
       if (message.includes('FORBIDDEN')) return Response.json({ error: 'FORBIDDEN' }, { status: 403 });
+      if (message.includes('REASON_REQUIRED')) {
+        return Response.json(
+          { error: 'REASON_REQUIRED', message: 'A documented reason of at least 5 characters is required for manual plan changes.' },
+          { status: 400 },
+        );
+      }
       if (message.includes('INVALID_DURATION')) {
         return Response.json({ error: 'INVALID_DURATION', message: 'Duration must be 1 to 3650 days.' }, { status: 400 });
       }

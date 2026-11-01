@@ -126,11 +126,11 @@ describe('server-side re-verification and guards', () => {
     );
   });
 
-  it('maps a ₦20,000 charge to the MAX plan', async () => {
+  it('maps a ₦20,000 charge to the ULTRA plan', async () => {
     stubVerify({ id: 100, tx_ref: 'aca_u2', amount: 20000, currency: 'NGN', status: 'successful', customer: { email: 'b@c.co' } });
     const res = await POST(req({ event: 'charge.completed', event_id: 'evt_2', data: { id: 100, tx_ref: 'aca_u2', status: 'successful' } }, SECRET));
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, plan: 'MAX' });
+    expect(await res.json()).toEqual({ ok: true, plan: 'ULTRA' });
     expect(rpc).toHaveBeenCalledWith('apply_verified_payment', {
       p_transaction_id: '100',
       p_tx_ref: 'aca_u2',

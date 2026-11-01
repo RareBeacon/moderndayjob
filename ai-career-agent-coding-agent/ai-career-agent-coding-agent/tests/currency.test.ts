@@ -51,7 +51,7 @@ describe('two-currency pricing display (Nigeria Naira, everywhere else USD)', ()
     expect(formatPlanPrice('NGN', PLANS.BASIC.monthlyNgn, PLANS.BASIC.monthlyUsd)).toBe('₦5,000');
     expect(formatPlanPrice('USD', PLANS.BASIC.monthlyNgn, PLANS.BASIC.monthlyUsd)).toBe('$3.99');
     expect(formatPlanPrice('USD', PLANS.PREMIUM.monthlyNgn, PLANS.PREMIUM.monthlyUsd)).toBe('$7.99');
-    expect(formatPlanPrice('USD', PLANS.MAX.monthlyNgn, PLANS.MAX.monthlyUsd)).toBe('$14.99');
+    expect(formatPlanPrice('USD', PLANS.ULTRA.monthlyNgn, PLANS.ULTRA.monthlyUsd)).toBe('$14.99');
   });
 
   it('formatMoney keeps NGN decimal-free and USD at two decimals', () => {
@@ -67,28 +67,28 @@ describe('two-currency pricing display (Nigeria Naira, everywhere else USD)', ()
     }
     expect(formatNaira(PLANS.BASIC.monthlyNgn)).toBe('₦5,000');
     expect(formatNaira(PLANS.PREMIUM.monthlyNgn)).toBe('₦10,000');
-    expect(formatNaira(PLANS.MAX.monthlyNgn)).toBe('₦20,000');
+    expect(formatNaira(PLANS.ULTRA.monthlyNgn)).toBe('₦20,000');
     // Paid plans have positive USD prices; FREE is zero in both.
     expect(PLANS.FREE.monthlyUsd).toBe(0);
-    for (const code of ['BASIC', 'PREMIUM', 'MAX'] as const) {
+    for (const code of ['BASIC', 'PREMIUM', 'ULTRA'] as const) {
       expect(PLANS[code].monthlyUsd).toBeGreaterThan(0);
     }
   });
 
   it('planForAmountIn maps USD charges to the right plan and rejects junk', () => {
-    expect(planForAmountIn('USD', 14.99)).toBe('MAX');
+    expect(planForAmountIn('USD', 14.99)).toBe('ULTRA');
     expect(planForAmountIn('USD', 7.99)).toBe('PREMIUM');
     expect(planForAmountIn('USD', 3.99)).toBe('BASIC');
     expect(planForAmountIn('USD', 3.98)).toBeNull();
     expect(planForAmountIn('USD', 0)).toBeNull();
     // The catalog, the DB list prices and the guard agree.
-    expect(PLAN_AMOUNTS_USD.MAX).toBe(14.99);
+    expect(PLAN_AMOUNTS_USD.ULTRA).toBe(14.99);
     expect(PLAN_AMOUNTS_USD.PREMIUM).toBe(7.99);
     expect(PLAN_AMOUNTS_USD.BASIC).toBe(3.99);
   });
 
   it('planForAmountIn keeps the Naira behavior and rejects unknown currencies', () => {
-    expect(planForAmountIn('NGN', 20000)).toBe('MAX');
+    expect(planForAmountIn('NGN', 20000)).toBe('ULTRA');
     expect(planForAmountIn('NGN', 5000)).toBe('BASIC');
     expect(planForAmountIn('NGN', 4999)).toBeNull();
     expect(planForAmountIn('GHS', 5000)).toBeNull();

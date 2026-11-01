@@ -12,13 +12,13 @@ export default function RefundPage() {
     <LegalPage title="Refund Policy" updated="10 September 2026">
       <p>
         We want you to be confident in your purchase. This Refund Policy explains when you can request
-        a refund for a Jobiest subscription. It applies to paid plans (Basic, Premium and Max) and
+        a refund for a Jobiest subscription. It applies to paid plans (Basic, Premium and Ultra) and
         supplements our Terms of Service.
       </p>
 
       <h2>1. Free plan</h2>
       <p>
-        The free plan is free and requires no payment, so no refunds apply. New accounts start free at no charge and with no card required; Basic includes 2 agent-mode trial runs.
+        The free plan is free and requires no payment, so no refunds apply. New accounts start free at no charge and with no card required.
       </p>
 
       <h2>2. 7-day money-back guarantee</h2>

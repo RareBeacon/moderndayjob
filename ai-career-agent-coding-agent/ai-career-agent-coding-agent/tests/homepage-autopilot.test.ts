@@ -34,10 +34,10 @@ describe.skip('Homepage: approved design, truthful delegation and discoverabilit
     expect(page).toContain('on supported boards');
     expect(page).not.toContain('finds matching openings');
     expect(page).not.toContain('submits applications on your behalf');
-    expect(PLANS.FREE.automationSlots).toBe(0);
-    expect(PLANS.BASIC.lifetimeAutomation).toBe(2);
-    expect(PLANS.PREMIUM.automationSlots).toBeGreaterThan(0);
-    expect(PLANS.MAX.automationSlots).toBeGreaterThan(0);
+    expect(PLANS.FREE.monthlySuccessfulApplications).toBe(0);
+    expect(PLANS.BASIC.monthlySuccessfulApplications).toBe(30);
+    expect(PLANS.PREMIUM.monthlySuccessfulApplications).toBe(50);
+    expect(PLANS.ULTRA.unlimitedApplications).toBe(true);
   });
 
   it('supports pasting a job link on Free and routes to the complete explanation', () => {
@@ -77,7 +77,7 @@ describe.skip('Homepage: approved design, truthful delegation and discoverabilit
     expect(pricing).toContain('Your agent finds matching jobs daily');
     expect(PLANS.BASIC.documentCredits).toBe(3);
     expect(PLANS.PREMIUM.documentCredits).toBe(10);
-    expect(PLANS.MAX.documentCredits).toBe(20);
+    expect(PLANS.ULTRA.documentCredits).toBe(20);
   });
 
   it('retains sample labels in the legacy tour component if reused elsewhere', () => {

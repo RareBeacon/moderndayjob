@@ -188,7 +188,8 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && appSessionValid && pathname !== '/mfa-verify' && pathname !== '/verify-email') {
-    if (preloadedAal?.nextLevel === 'aal2' && preloadedAal?.currentLevel !== 'aal2') {
+    const recoveryElevated = Boolean((appSessionRow as { mfa_recovery_verified_at?: string | null } | null)?.mfa_recovery_verified_at);
+    if (preloadedAal?.nextLevel === 'aal2' && preloadedAal?.currentLevel !== 'aal2' && !recoveryElevated) {
       const redirect = request.nextUrl.clone();
       redirect.pathname = '/mfa-verify';
       redirect.search = '';
