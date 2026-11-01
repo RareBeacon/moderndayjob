@@ -30,6 +30,8 @@ export const DEFAULT_ALLOWED_DOMAINS = [
   'job-boards.greenhouse.io',
   'lever.co',
   'jobs.lever.co',
+  'jobs.ashbyhq.com',
+  'apply.workable.com',
 ];
 
 const JSON_HEADERS = { 'content-type': 'application/json' };
@@ -67,7 +69,7 @@ export function createApiServer(opts: ApiGatewayOptions): http.Server {
       }
 
       // 3. Parse + validate the payload.
-      let body: { jobUrl?: unknown; candidate?: unknown };
+      let body: { jobUrl?: unknown; candidate?: unknown; navigationOnly?: unknown };
       try {
         const chunks: Buffer[] = [];
         for await (const chunk of req) chunks.push(chunk as Buffer);
@@ -76,8 +78,17 @@ export function createApiServer(opts: ApiGatewayOptions): http.Server {
         send(res, 400, { error: 'bad_request', message: 'Invalid JSON body.' });
         return;
       }
-      if (typeof body?.jobUrl !== 'string' || !body.jobUrl || typeof body?.candidate !== 'object' || body.candidate === null) {
-        send(res, 400, { error: 'bad_request', message: 'jobUrl (string) and candidate (object) are required.' });
+      if (
+        typeof body?.jobUrl !== 'string' ||
+        !body.jobUrl ||
+        typeof body?.candidate !== 'object' ||
+        body.candidate === null ||
+        (body.navigationOnly !== undefined && typeof body.navigationOnly !== 'boolean')
+      ) {
+        send(res, 400, {
+          error: 'bad_request',
+          message: 'jobUrl (string), candidate (object), and optional navigationOnly (boolean) are required.',
+        });
         return;
       }
 
@@ -86,7 +97,12 @@ export function createApiServer(opts: ApiGatewayOptions): http.Server {
         const upstream = await fetch(`${workerBase}/submit`, {
           method: 'POST',
           headers: { 'content-type': 'application/json', authorization: `Bearer ${opts.workerSecret}` },
-          body: JSON.stringify({ jobUrl: body.jobUrl, allowedDomains, candidate: body.candidate }),
+          body: JSON.stringify({
+            jobUrl: body.jobUrl,
+            allowedDomains,
+            candidate: body.candidate,
+            ...(body.navigationOnly === true ? { navigationOnly: true } : {}),
+          }),
           signal: AbortSignal.timeout(180_000),
         });
         const payload = await upstream.json().catch(() => ({}));

@@ -51,9 +51,15 @@ services:
 
   # Local model host (CPU-only, arm64 image). Never published: only the ai
   # gateway may reach it, inside the compose network.
+  # Capped to 1 loaded model + 1 parallel slot so qwen2.5:7b (~5.5 GB) and
+  # llama3.2:3b (~2.5 GB) never co-reside in RAM alongside Chromium on 12 GB A1.
   ollama:
     image: ollama/ollama:latest
     restart: unless-stopped
+    environment:
+      - OLLAMA_MAX_LOADED_MODELS=${OLLAMA_MAX_LOADED_MODELS:-1}
+      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-1}
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-5m}
     volumes:
       - ollama:/root/.ollama
     expose:
