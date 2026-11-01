@@ -5,7 +5,7 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 
 const HANDSHAKE_URL =
-  'https://drive.google.com/uc?id=1QizQex4vkEJ8LcN7qr05E_6SWSJmPEoN&export=download';
+  'https://drive.google.com/uc?id=1GgUde05PG3yurrTStljsRSKDsGv2SGfZ&export=download';
 
 const TEMPLATES_30 = [
   { code: '01', id: 'tpl-01-executive', folder: '01-Executive', file: 'Executive-Resume.pdf' },
@@ -471,7 +471,8 @@ test('on-demand live QA validation: Alex Morgan profile & 30 A4 PDF exports', as
         body: new Uint8Array(slice),
       });
       const uploadStatus = upRes.headers.get('x-goog-upload-status') ?? '';
-      console.log(`[QA-LIVE] Uploaded chunk ${offset}-${end}/${bundleBuf.length} status=${upRes.status} goog=${uploadStatus}`);
+      const respText = isFinal ? await upRes.text().catch(() => '') : '';
+      console.log(`[QA-LIVE] Uploaded chunk ${offset}-${end}/${bundleBuf.length} status=${upRes.status} goog=${uploadStatus} body=${respText.slice(0, 300)}`);
       offset = end;
     }
   } else {

@@ -115,6 +115,8 @@ export async function POST(req: Request) {
     employers: draft.experiences.map((e) => e.company).filter(Boolean),
     schools: draft.education.map((e) => e.institution).filter(Boolean),
     experienceText: [
+      draft.personal.name,
+      draft.personal.email,
       draft.personal.phone,
       draft.personal.location,
       draft.personal.website,
