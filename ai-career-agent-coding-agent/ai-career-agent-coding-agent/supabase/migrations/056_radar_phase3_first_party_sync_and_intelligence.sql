@@ -44,6 +44,50 @@ values
    'Keyless public remote jobs feed used with mandatory attribution and First-Mover lead-time benchmarking.')
 on conflict (provider_key) do nothing;
 
+-- Align `radar_exclusions.reason` and `job_sources_adapter_values` with Phase 3 admin & scout enums
+alter table public.radar_exclusions drop constraint if exists radar_exclusions_reason_check;
+alter table public.radar_exclusions
+  add constraint radar_exclusions_reason_check check (
+    reason in (
+      'ROBOTS_DISALLOW',
+      'ROBOTS_DISALLOWED',
+      'TOS_RESTRICTED',
+      'TERMS_OF_SERVICE_PROHIBITED',
+      'EMPLOYER_OPT_OUT',
+      'SCAM_CONFIRMED',
+      'CONFIRMED_SCAM_DOMAIN',
+      'LEGAL_TAKEDOWN',
+      'ADMIN_BLOCK'
+    )
+  );
+
+alter table public.job_sources drop constraint if exists job_sources_adapter_values;
+alter table public.job_sources
+  add constraint job_sources_adapter_values check (
+    adapter in (
+      'greenhouse',
+      'lever',
+      'lever_eu',
+      'ashby',
+      'workable',
+      'smartrecruiters',
+      'recruitee',
+      'personio',
+      'pinpoint',
+      'gem',
+      'polymer',
+      'breezy',
+      'teamtailor',
+      'jsonld_career',
+      'external_form',
+      'public_feed',
+      'hn_algolia',
+      'hn_whoishiring',
+      'arbeitnow_api',
+      'jobicy_api'
+    )
+  );
+
 
 -- 2. Core helper: sync one `recruitment_vacancies` row into `radar_employers` + `radar_jobs`
 create or replace function public.sync_recruitment_vacancy_to_radar_by_id(
@@ -226,7 +270,6 @@ begin
     employer_legitimacy_score,
     job_authenticity_score,
     application_safety_score,
-    composite_confidence,
     verification_status,
     risk_flags,
     lifecycle_status,
@@ -280,7 +323,6 @@ begin
     96,
     98,
     98,
-    97,
     'VERIFIED_HIGH_TRUST',
     '{}'::text[],
     'ACTIVE',
