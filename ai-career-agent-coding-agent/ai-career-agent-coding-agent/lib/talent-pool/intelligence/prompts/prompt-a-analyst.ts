@@ -103,7 +103,21 @@ STRICT SEPARATION & NON-FABRICATION RULES:
 - Return valid JSON matching the CandidateIntelligenceAnalysisSchema.`;
 
 export const promptATemplate = PromptTemplate.fromTemplate(
-  `Analyze the candidate profile, extracted CV claims, missing/contradictory checks, and retrieved competency context below, then output JSON strictly matching CandidateIntelligenceAnalysisSchema.\n\nCandidate Profile:\n{profileBlock}\n\nCV Extracted Summary:\n{cvBlock}\n\nDetected Discrepancies:\n{discrepanciesBlock}\n\nRetrieved Competency Context:\n{ragBlock}`,
+  [
+    'Analyze the candidate profile, extracted CV claims, missing/contradictory checks, and retrieved competency context below, then output JSON strictly matching CandidateIntelligenceAnalysisSchema.',
+    '',
+    'Candidate Profile:',
+    '{profileBlock}',
+    '',
+    'CV Extracted Summary:',
+    '{cvBlock}',
+    '',
+    'Detected Discrepancies:',
+    '{discrepanciesBlock}',
+    '',
+    'Retrieved Competency Context:',
+    '{ragBlock}',
+  ].join('\n'),
 );
 
 export interface ExtractedCvFacts {

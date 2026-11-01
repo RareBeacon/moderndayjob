@@ -74,6 +74,21 @@ export interface AssessmentEligibilityContext {
   telemetry: IntelligenceCallTelemetry;
 }
 
+function containsBoundedTerm(haystackLower: string, termLower: string): boolean {
+  if (!termLower) return false;
+  let idx = haystackLower.indexOf(termLower);
+  while (idx !== -1) {
+    const before = idx === 0 ? '' : haystackLower[idx - 1];
+    const afterIdx = idx + termLower.length;
+    const after = afterIdx >= haystackLower.length ? '' : haystackLower[afterIdx];
+    const beforeOk = !before || !/[a-z0-9]/.test(before);
+    const afterOk = !after || !/[a-z0-9]/.test(after);
+    if (beforeOk && afterOk) return true;
+    idx = haystackLower.indexOf(termLower, idx + 1);
+  }
+  return false;
+}
+
 /**
  * Extracts verifiable timeline, skill, degree, and title signals from raw CV text
  * without inventing absent skills or assuming keyword presence equals mastery.
@@ -91,10 +106,9 @@ export function extractStructuredFactsFromCvText(cvText: string | null | undefin
   }
 
   const lower = cvText.toLowerCase();
-  const detectedSkills = KNOWN_SKILL_LEXICON.filter((skill) => {
-    const escaped = skill.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return new RegExp(`(^|[^a-z0-9])${escaped}($|[^a-z0-9])`, 'i').test(lower);
-  });
+  const detectedSkills = KNOWN_SKILL_LEXICON.filter((skill) =>
+    containsBoundedTerm(lower, skill.toLowerCase()),
+  );
 
   // Extract 4-digit employment years (1990..2027) and estimate span if date ranges exist
   const currentYear = 2026;

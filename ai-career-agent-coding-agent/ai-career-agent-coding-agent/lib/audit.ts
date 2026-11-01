@@ -30,11 +30,14 @@ export interface AuditInput {
   uaHash?: string | null;
 }
 
-const SECRET_PATTERNS: RegExp[] = [
-  // Authorization headers must run BEFORE the generic key=value pattern so
+const LABELED_SECRET_PATTERNS: RegExp[] = [
+  // Must run BEFORE the generic `authorization[:=]` rule so
   // `Authorization: Bearer <tok>` collapses cleanly.
   /(authorization)\s*[:=]\s*bearer\s+[^\s"',]+/gi,
   /(password|secret|token|api[_-]?key|service[_-]?role)\s*[:=]\s*[^\s"',]+/gi,
+];
+
+const RAW_SECRET_PATTERNS: RegExp[] = [
   /eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g,
   /\bsk-[A-Za-z0-9._-]{16,}\b/g,
 ];
@@ -44,8 +47,11 @@ const MAX_SANITIZE_DEPTH = 5;
 
 export function redactSecrets(input: string): string {
   let out = input;
-  for (const re of SECRET_PATTERNS) {
-    out = out.replace(re, (_m, label) => (label ? `${label}=<redacted>` : '<redacted>'));
+  for (const re of LABELED_SECRET_PATTERNS) {
+    out = out.replace(re, '$1=<redacted>');
+  }
+  for (const re of RAW_SECRET_PATTERNS) {
+    out = out.replace(re, '<redacted>');
   }
   return out;
 }
