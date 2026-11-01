@@ -1,3 +1,17 @@
+import {
+  CATALOG_30_SPECS,
+  LIBRARY_FILTER_CATEGORIES,
+  TEMPLATE_GROUPS,
+  type CuratedTemplateSpec,
+  type LibraryFilterCategory,
+  type TemplateBlueprint,
+  type TemplateGroupCode,
+} from './catalog30';
+import { DRIBBBLE_30 } from './dribbble30';
+
+export { CATALOG_30_SPECS, LIBRARY_FILTER_CATEGORIES, TEMPLATE_GROUPS };
+export type { CuratedTemplateSpec, LibraryFilterCategory, TemplateBlueprint, TemplateGroupCode };
+
 export type ResumeTemplateCategory = 'minimal' | 'modern' | 'professional' | 'creative' | 'executive';
 export type ResumeTemplateDensity = 'airy' | 'balanced' | 'compact';
 export type ResumeTemplateLayout = 'single-column' | 'two-column' | 'sidebar' | 'timeline' | 'header-band' | 'split-header' | 'modular-grid';
@@ -14,11 +28,28 @@ export interface ResumeTemplate {
   heading: 'serif' | 'sans' | 'mono-accent';
   skillStyle: 'chips' | 'bars' | 'columns' | 'inline' | 'matrix';
   personality: 'quiet' | 'technical' | 'formal' | 'editorial' | 'bold';
-  /** Master Upgrade C3 catalog fields. Defaults applied by the badge helpers. */
+  /** Master Upgrade C3 & 30-Template Design System catalog fields. */
   photoSupport?: 'none' | 'optional' | 'required';
   atsFriendly?: boolean;
   columns?: 1 | 2;
   catalogId?: string;
+  number?: number;
+  code?: string;
+  folderSlug?: string;
+  pdfFileName?: string;
+  group?: TemplateGroupCode;
+  groupName?: string;
+  libraryCategories?: LibraryFilterCategory[];
+  intendedUse?: string;
+  industries?: string[];
+  experienceLevel?: 'entry' | 'mid' | 'senior' | 'executive' | 'all';
+  atsCompatibility?: 'verified' | 'partial';
+  atsNotes?: string;
+  typography?: 'sans' | 'serif' | 'editorial' | 'mono-accent';
+  surface?: string;
+  headerBg?: string;
+  headerText?: string;
+  blueprint?: TemplateBlueprint;
 }
 
 const minimal: ResumeTemplate[] = [
@@ -115,12 +146,87 @@ const masterCatalog: ResumeTemplate[] = [
   { id: 'tpl-professional-photo-resume', catalogId: 'TPL-20', name: 'Professional Photo Resume', category: 'creative', description: 'Photo-integrated layout for markets where photos are standard.', layout: 'two-column', density: 'balanced', bestFor: ['photo', 'international', 'modeling'], accent: '#0f172a', heading: 'sans', skillStyle: 'chips', personality: 'formal', photoSupport: 'required', atsFriendly: false, columns: 2 },
 ];
 
-export const LEGACY_TEMPLATES: ResumeTemplate[] = [...minimal, ...modern, ...professional, ...creative, ...executive, ...masterCatalog];
+function mapCuratedSpecToResumeTemplate(spec: CuratedTemplateSpec): ResumeTemplate {
+  const heading: 'serif' | 'sans' | 'mono-accent' =
+    spec.blueprint.headingFont === 'serif'
+      ? 'serif'
+      : spec.blueprint.headingFont === 'mono'
+        ? 'mono-accent'
+        : 'sans';
 
-/** Hard-delete: legacy 70 are no longer visible. Only 30 Dribbble templates remain. */
-export const RESUME_TEMPLATES: ResumeTemplate[] = DRIBBBLE_30 as unknown as ResumeTemplate[];
+  const density: ResumeTemplateDensity =
+    spec.blueprint.sectionGapPt <= 11
+      ? 'compact'
+      : spec.blueprint.sectionGapPt >= 13.5
+        ? 'airy'
+        : 'balanced';
+
+  const personality: ResumeTemplate['personality'] =
+    spec.typography === 'editorial'
+      ? 'editorial'
+      : spec.typography === 'mono-accent'
+        ? 'technical'
+        : spec.category === 'executive' || spec.category === 'professional'
+          ? 'formal'
+          : spec.category === 'minimal'
+            ? 'quiet'
+            : 'bold';
+
+  return {
+    id: spec.id,
+    catalogId: `JOBIEST-${spec.code}`,
+    number: spec.number,
+    code: spec.code,
+    folderSlug: spec.folderSlug,
+    pdfFileName: spec.pdfFileName,
+    name: spec.name,
+    group: spec.group,
+    groupName: spec.groupName,
+    category: spec.category,
+    libraryCategories: spec.libraryCategories,
+    description: spec.description,
+    intendedUse: spec.intendedUse,
+    layout: spec.layout,
+    density,
+    bestFor: spec.bestFor,
+    industries: spec.industries,
+    experienceLevel: spec.experienceLevel,
+    accent: spec.accent,
+    heading,
+    skillStyle: spec.skillStyle,
+    personality,
+    photoSupport: spec.photoSupport,
+    atsFriendly: spec.atsFriendly,
+    atsCompatibility: spec.atsCompatibility,
+    atsNotes: spec.atsNotes,
+    columns: spec.columns,
+    typography: spec.typography,
+    surface: spec.surface,
+    headerBg: spec.headerBg,
+    headerText: spec.headerText,
+    blueprint: spec.blueprint,
+  };
+}
+
+export const CURATED_TEMPLATES: ResumeTemplate[] = CATALOG_30_SPECS.map(mapCuratedSpecToResumeTemplate);
+
+/** Public Resume Library: 30 genuinely distinct career templates across Groups A-F. */
+export const RESUME_TEMPLATES: ResumeTemplate[] = CURATED_TEMPLATES;
 
 export const MASTER_CATALOG_TEMPLATES: ResumeTemplate[] = masterCatalog;
+
+/** Hidden legacy IDs preserved so previously saved user CVs & drafts never break. */
+export const LEGACY_TEMPLATES: ResumeTemplate[] = [
+  ...(DRIBBBLE_30 as unknown as ResumeTemplate[]),
+  ...minimal,
+  ...modern,
+  ...professional,
+  ...creative,
+  ...executive,
+  ...masterCatalog,
+];
+
+export const ALL_TEMPLATES: ResumeTemplate[] = [...CURATED_TEMPLATES, ...LEGACY_TEMPLATES];
 
 export function templatePhotoSupport(t: ResumeTemplate): 'none' | 'optional' | 'required' {
   return t.photoSupport ?? 'none';
@@ -132,18 +238,61 @@ export function templateAtsFriendly(t: ResumeTemplate): boolean {
 
 export function templateColumns(t: ResumeTemplate): 1 | 2 {
   if (t.columns === 1 || t.columns === 2) return t.columns;
-  return t.layout === 'two-column' || t.layout === 'sidebar' ? 2 : 1;
+  return t.layout === 'two-column' || t.layout === 'sidebar' || t.layout === 'modular-grid' ? 2 : 1;
 }
+
 export const TEMPLATE_CATEGORIES: ResumeTemplateCategory[] = ['minimal', 'modern', 'professional', 'creative', 'executive'];
-
-import { DRIBBBLE_30 } from './dribbble30';
-
-export const CURATED_TEMPLATES: ResumeTemplate[] = DRIBBBLE_30 as unknown as ResumeTemplate[];
-/** Hidden legacy: existing CVs still resolve, but gallery shows only 30 */
-export const ALL_TEMPLATES: ResumeTemplate[] = [...CURATED_TEMPLATES, ...LEGACY_TEMPLATES];
 
 export function getResumeTemplate(id?: string | null): ResumeTemplate {
   return ALL_TEMPLATES.find((t) => t.id === id) ?? CURATED_TEMPLATES[0];
+}
+
+/**
+ * Resolve any template ID (curated 30 or legacy saved ID) into a complete
+ * CuratedTemplateSpec with structural blueprint while honoring legacy accent/columns.
+ */
+export function resolveTemplateSpec(idOrTemplate?: string | ResumeTemplate | null): CuratedTemplateSpec {
+  const tpl = typeof idOrTemplate === 'object' && idOrTemplate !== null
+    ? idOrTemplate
+    : getResumeTemplate(idOrTemplate);
+
+  const direct = CATALOG_30_SPECS.find((s) => s.id === tpl.id);
+  if (direct) return direct;
+
+  const isTwoCol = templateColumns(tpl) === 2;
+  const fallbackBase = isTwoCol
+    ? CATALOG_30_SPECS[29] // 30 Modern Two-Column
+    : tpl.heading === 'serif'
+      ? CATALOG_30_SPECS[1] // 02 Corporate Standard
+      : tpl.heading === 'mono-accent'
+        ? CATALOG_30_SPECS[5] // 06 Software Engineer
+        : CATALOG_30_SPECS[2]; // 03 Modern Professional
+
+  const legacyHeaderBg = tpl.headerBg || fallbackBase.blueprint.palette.headerBg;
+  const legacyHeaderInk = tpl.headerText || fallbackBase.blueprint.palette.headerInk;
+
+  return {
+    ...fallbackBase,
+    id: tpl.id,
+    name: tpl.name,
+    category: tpl.category,
+    description: tpl.description,
+    columns: isTwoCol ? 2 : 1,
+    photoSupport: templatePhotoSupport(tpl),
+    atsFriendly: templateAtsFriendly(tpl),
+    atsCompatibility: templateAtsFriendly(tpl) ? 'verified' : 'partial',
+    accent: tpl.accent,
+    layout: tpl.layout,
+    blueprint: {
+      ...fallbackBase.blueprint,
+      palette: {
+        ...fallbackBase.blueprint.palette,
+        accent: tpl.accent,
+        headerBg: legacyHeaderBg,
+        headerInk: legacyHeaderInk,
+      },
+    },
+  };
 }
 
 export function recommendResumeTemplates(input: { role?: string | null; yearsExperience?: number | null; industry?: string | null; skills?: string[] | null }) {
@@ -161,13 +310,18 @@ export function recommendResumeTemplates(input: { role?: string | null; yearsExp
 
   const scored = RESUME_TEMPLATES.map((template) => {
     let score = template.category === preferredCategory ? 4 : 0;
-    for (const term of template.bestFor) {
-      if (haystack.includes(term.replace(/-/g, ' ')) || haystack.includes(term)) score += 2;
+    const terms = [...template.bestFor, ...(template.industries ?? [])];
+    for (const term of terms) {
+      const normalized = term.toLowerCase();
+      if (haystack.includes(normalized.replace(/-/g, ' ')) || haystack.includes(normalized)) score += 2;
+      for (const word of normalized.split(/\s+/)) {
+        if (word.length >= 4 && haystack.includes(word)) score += 1;
+      }
     }
     if (years >= 5 && template.density !== 'airy') score += 1;
-    if (years <= 2 && template.density !== 'compact') score += 1;
+    if (years <= 2 && (template.experienceLevel === 'entry' || template.density !== 'compact')) score += 2;
     return { template, score };
-  }).sort((a, b) => b.score - a.score || a.template.name.localeCompare(b.template.name));
+  }).sort((a, b) => b.score - a.score || (a.template.number ?? 99) - (b.template.number ?? 99));
 
   return scored.slice(0, 3).map((s) => s.template);
 }

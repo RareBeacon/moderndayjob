@@ -1,47 +1,69 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { MarketingShell } from '@/components/marketing/marketing-shell';
-import { getUser } from '@/lib/auth';
 import { TemplateGallery } from '@/components/resume/TemplateGallery';
-import { CURATED_TEMPLATES } from '@/lib/resume-studio/templates';
-import { SITE_URL } from '@/lib/site';
-import styles from '../marketing.module.css';
+import { getUser } from '@/lib/auth';
+import { RESUME_TEMPLATES } from '@/lib/resume-studio/templates';
+import styles from './templates.module.css';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Resume Templates: 30 Professional CV Designs',
-  description: 'Browse 30 curated resume and CV templates inspired by verified Dribbble references - ATS-friendly, one-page, two-column and photo layouts with live previews.',
-  alternates: { canonical: `${SITE_URL}/templates` },
+  title: 'Resume Templates | 30 Unique A4 Designs | Jobiest',
+  description:
+    'Browse 30 purpose-built ISO A4 resume templates across executive, engineering, data, finance, creative, academic, and career-transition tracks with honest ATS compatibility ratings.',
 };
 
 export default async function TemplatesPage() {
-  const user = await getUser();
+  const user = await getUser().catch(() => null);
+  const totalCount = RESUME_TEMPLATES.length;
+  const atsVerifiedCount = RESUME_TEMPLATES.filter((t) => t.atsCompatibility === 'verified').length;
+
   return (
-    <MarketingShell activePath="/templates" authenticated={!!user}>
-      <main className={styles.page} id="main">
-        <header className={styles.pageHero} data-animate>
-          <div className={styles.container} style={{ maxWidth: '1200px', padding: '0 clamp(16px, 4vw, 32px)' }}>
-            <p className={styles.eyebrow} style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--color-muted, #5d6b85)', marginBottom: '12px' }}>CAREER TOOLS / RESUME BUILDER</p>
-            <h1 style={{ fontSize: 'clamp(32px, 4vw, 52px)', lineHeight: '1.1', letterSpacing: '-0.02em', maxWidth: '20ch', margin: '0 0 12px' }}>Build a resume that gets you noticed.</h1>
-            <p className={styles.pageLead} style={{ fontSize: '17px', lineHeight: '1.6', maxWidth: '65ch', margin: '0 0 32px', color: 'var(--color-muted, #5d6b85)' }}>
-              Create a professional, ATS-friendly resume with your AI career assistant. Explore 30 professionally designed templates for your next application.
-            </p>
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '48px' }}>
-              <a href="/generate" className={styles.primaryAction || ''} style={{ display: 'inline-flex', minHeight: '44px', alignItems: 'center', justifyContent: 'center', padding: '0 1.5rem', background: 'var(--color-lime, #d7f94b)', color: 'var(--color-primary-navy, #111d35)', fontWeight: 700, borderRadius: '10px', textDecoration: 'none' }}>
-                Create with AI
-              </a>
-              <span style={{ fontSize: '14px', color: 'var(--color-muted, #5d6b85)', alignSelf: 'center' }}>Build a resume tailored to your experience and target role</span>
+    <MarketingShell activePath="/templates" authenticated={Boolean(user)}>
+      <section className={styles.heroBand}>
+        <div className={styles.container}>
+          <nav className={styles.breadcrumbs} aria-label="Breadcrumb">
+            <Link href={user ? '/dashboard' : '/'}>Home</Link>
+            <span aria-hidden="true">/</span>
+            <Link href="/tools">Career Tools</Link>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">Resume Templates</span>
+          </nav>
+
+          <div className={styles.heroGrid}>
+            <div className={styles.heroCopy}>
+              <div className={styles.eyebrow}>
+                <span className={styles.eyebrowDot} aria-hidden="true" />
+                <span>{totalCount} Templates &middot; ISO A4 Library</span>
+              </div>
+              <h1 className={styles.title}>Resume Templates</h1>
+              <p className={styles.lead}>
+                Explore {totalCount} distinct A4 resume architectures built for corporate, technical, financial, creative, academic, and career-change roles. Every preview reflects the real PDF engine, with transparent ATS parsing classification and instant template switching that preserves all of your profile data.
+              </p>
+
+              <div className={styles.statsRow}>
+                <span className={styles.statPill}>{totalCount} Unique Compositions</span>
+                <span className={styles.statPill}>{atsVerifiedCount} ATS-Verified 1-Column</span>
+                <span className={styles.statPill}>{totalCount - atsVerifiedCount} Two-Column Visual</span>
+                <span className={styles.statPill}>Selectable A4 PDF &amp; DOCX</span>
+              </div>
+            </div>
+
+            <div className={styles.heroActions}>
+              <Link className={styles.studioCta} href="/generate">
+                Open Resume Studio
+              </Link>
             </div>
           </div>
-        </header>
-        <section className={`${styles.section} ${styles.sectionSoft}`} data-animate style={{ padding: '40px 0', background: 'var(--color-surface-soft, #f7f9fc)' }}>
-          <div className={styles.container} style={{ maxWidth: '1200px', padding: '0 clamp(16px, 4vw, 32px)' }}>
-            <div className={styles.sectionHead} style={{ marginBottom: '24px', maxWidth: '720px' }}>
-              <h2 style={{ fontSize: 'clamp(24px, 3vw, 34px)', fontWeight: 600, margin: '0 0 8px', color: 'var(--color-ink, #17223b)' }}>Choose your template</h2>
-              <p style={{ fontSize: '15px', color: 'var(--color-muted, #5d6b85)', margin: 0 }}>Explore professionally designed templates for your next application. Showing 30 curated designs.</p>
-            </div>
-            <TemplateGallery templates={CURATED_TEMPLATES} />
-          </div>
-        </section>
-      </main>
+        </div>
+      </section>
+
+      <div className={styles.galleryMain}>
+        <div className={styles.container}>
+          <TemplateGallery />
+        </div>
+      </div>
     </MarketingShell>
   );
 }

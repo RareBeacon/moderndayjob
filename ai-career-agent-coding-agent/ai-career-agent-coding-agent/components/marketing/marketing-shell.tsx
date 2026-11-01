@@ -6,6 +6,7 @@ import styles from "./marketing-shell.module.css";
 
 const navItems = [
   { href: "/how-it-works", label: "How it works" },
+  { href: "/templates", label: "Templates" },
   { href: "/tools", label: "Free tools" },
   { href: "/pricing", label: "Pricing" },
   { href: "/blog", label: "Blog" },

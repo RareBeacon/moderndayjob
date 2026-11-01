@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/site/AppShell';
+import { CURATED_TEMPLATES } from '@/lib/resume-studio/templates';
 
 type UploadedDoc = { id: string; kind: string; original_name: string; byte_size: number; created_at: string };
 type GeneratedDoc = { id: string; kind: string; title: string; version: number; created_at: string };
@@ -8,6 +9,7 @@ type GeneratedDoc = { id: string; kind: string; title: string; version: number; 
 export default function Documents() {
   const [docs, setDocs] = useState<UploadedDoc[]>([]);
   const [generated, setGenerated] = useState<GeneratedDoc[]>([]);
+  const [templateOverrides, setTemplateOverrides] = useState<Record<string, string>>({});
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -45,7 +47,9 @@ export default function Documents() {
   }
 
   function exportDoc(id: string, format: 'pdf' | 'docx') {
-    window.location.assign(`/api/documents/${id}/export?format=${format}`);
+    const override = templateOverrides[id];
+    const query = override ? `format=${format}&template=${encodeURIComponent(override)}` : `format=${format}`;
+    window.location.assign(`/api/documents/${id}/export?${query}`);
   }
 
   return (
@@ -76,7 +80,22 @@ export default function Documents() {
                 <h2>{d.title}</h2>
                 <p className="muted">Generated {new Date(d.created_at).toLocaleDateString()}</p>
               </div>
-              <div className="doc-actions">
+              <div className="doc-actions" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                {d.kind === 'CV' && (
+                  <select
+                    aria-label={`Template for ${d.title}`}
+                    value={templateOverrides[d.id] ?? ''}
+                    onChange={(e) => setTemplateOverrides((prev) => ({ ...prev, [d.id]: e.target.value }))}
+                    style={{ maxWidth: 220, padding: '6px 10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
+                  >
+                    <option value="">Saved template</option>
+                    {CURATED_TEMPLATES.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.code} - {t.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <button className="text-button" onClick={() => exportDoc(d.id, 'pdf')}>PDF</button>
                 <button className="text-button" onClick={() => exportDoc(d.id, 'docx')}>DOCX</button>
               </div>

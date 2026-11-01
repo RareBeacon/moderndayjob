@@ -73,15 +73,20 @@ describe('selected-template export propagation', () => {
     for (const template of RESUME_TEMPLATES) {
       const parsed = parseDocumentContent('CV', JSON.stringify({ ...raw, templateId: template.id, contact: { name: 'Real User', email: 'real@example.com' } }));
       expect(parsed.templateId, template.id).toBe(template.id);
-      const pdf = await renderPdf(parsed.title, parsed.sections, parsed.photo, parsed.templateId);
-      const docx = await renderDocx(parsed.title, parsed.sections, parsed.photo, parsed.templateId);
+      const pdf = await renderPdf(parsed.title, parsed.sections, parsed.photo, parsed.templateId, parsed.resume);
+      const docx = await renderDocx(parsed.title, parsed.sections, parsed.photo, parsed.templateId, parsed.resume);
       expect(pdf.subarray(0, 4).toString(), template.id).toBe('%PDF');
-      expect((await PDFDocument.load(new Uint8Array(pdf))).getPageCount(), template.id).toBeGreaterThan(0);
+      const loadedPdf = await PDFDocument.load(new Uint8Array(pdf));
+      expect(loadedPdf.getPageCount(), template.id).toBeGreaterThan(0);
+      const { width, height } = loadedPdf.getPage(0).getSize();
+      expect(width, `${template.id} A4 width`).toBeCloseTo(595.28, 1);
+      expect(height, `${template.id} A4 height`).toBeCloseTo(841.89, 1);
       expect(docx.subarray(0, 2).toString(), template.id).toBe('PK');
       const xml = await (await JSZip.loadAsync(docx)).file('word/document.xml')?.async('string');
       expect(xml, template.id).toContain('Real User');
       expect(xml, template.id).toContain(template.accent.slice(1).toUpperCase());
       expect(xml, template.id).not.toContain('Northstar Labs');
+      expect(xml, template.id).not.toContain('NovaTech Solutions');
       const twoColumn = template.columns === 2 || ['two-column', 'sidebar', 'modular-grid'].includes(template.layout);
       expect(xml?.includes('<w:tbl>'), template.id).toBe(twoColumn);
       usedIds.push(template.id);

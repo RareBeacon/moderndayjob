@@ -82,3 +82,35 @@ test('a code from an emailed link auto-submits exactly once', async ({ page }) =
   await expect(page).toHaveURL(/\/login\?email=ada%40example.com&verified=1/);
   expect(confirmed).toEqual(['123456']);
 });
+
+test('resume library search, category tabs, ATS filter, and zoomable preview work cleanly', async ({ page }) => {
+  await page.goto('/templates');
+  await expect(page.getByRole('heading', { name: 'Resume Templates' })).toBeVisible();
+
+  const searchInput = page.getByLabel('Search resume templates');
+  await searchInput.fill('Software Engineer');
+  const cards = page.locator('[data-preview-size="mini"] article[data-template-id]');
+  await expect(cards.first()).toBeVisible();
+  expect(await cards.count()).toBeGreaterThanOrEqual(1);
+  await searchInput.fill('');
+
+  // Filter by Academic category
+  await page.getByRole('button', { name: /^Academic/ }).click();
+  await expect(cards).toHaveCount(4);
+
+  // Reset to All Templates
+  await page.getByRole('button', { name: /^All Templates/ }).click();
+  await expect(cards).toHaveCount(8);
+
+  // Open modal and verify zoom controls + Use Template link
+  await page.getByRole('button', { name: /^Preview .+ full size$/ }).first().click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: '125%' }).click();
+  await dialog.getByRole('button', { name: '75%' }).click();
+  await dialog.getByRole('button', { name: '100%' }).click();
+  const useLink = dialog.getByRole('link', { name: /Use This Template/i });
+  await expect(useLink).toHaveAttribute('href', /^\/generate\?template=tpl-/);
+  await dialog.getByRole('button', { name: 'Close template preview' }).click();
+});
+

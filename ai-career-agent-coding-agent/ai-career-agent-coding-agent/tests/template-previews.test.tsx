@@ -20,25 +20,33 @@ describe('real template previews', () => {
         expect(html, template.id).toContain(`data-template-id="${template.id}"`);
         expect(html, template.id).toContain(`data-layout="${template.layout}"`);
         expect(html, template.id).toContain('Alex Morgan');
-        expect(html, template.id).toContain('alex.morgan@example.com');
-        expect(html, template.id).toContain('Northstar Labs');
-        expect(html, template.id).toContain('Lakeview University');
-        expect(html, template.id).toContain('Service Insights Dashboard');
+        expect(html, template.id).toContain('alex.morgan.test@jobiest-qa.example');
+        expect(html, template.id).toContain('NovaTech Solutions');
+        expect(html, template.id).toContain('University of Manchester');
+        expect(html, template.id).toContain('AI Workflow Automation Platform');
         expect(html, template.id).toContain('data-section="skills"');
         expect(html, template.id).not.toContain('miniLine');
       }
-      // The small paper is the same document, rather than a decorative card.
+      // The small paper is the exact same A4 document sheet rather than a decorative card.
       expect(mini.match(/<article\b[\s\S]*<\/article>/)?.[0], template.id).toBe(full.match(/<article\b[\s\S]*<\/article>/)?.[0]);
       expect(mini.includes('Fictional sample portrait'), template.id).toBe(templatePhotoSupport(template) !== 'none');
+      expect(mini.includes('<svg'), template.id).toBe(templatePhotoSupport(template) !== 'none');
     }
   });
 
-  it('exposes all designs in the public gallery with a full-size action and matching selection link', () => {
+  it('exposes search, multi-faceted filters, and 8 paginated A4 cards initially in the public gallery', () => {
     const html = renderToStaticMarkup(<TemplateGallery templates={RESUME_TEMPLATES} />);
-    // Gallery now paginates spacious cards: 8 initially, rest via Show More
     expect(html.match(/data-preview-size="mini"/g)).toHaveLength(8);
-    expect(html.match(/Preview full size/g)).toHaveLength(8);
-    expect(html.match(/Use this template/g)).toHaveLength(8);
+    expect(html.match(/Preview [^"]+ full size/g)).toHaveLength(8);
+    expect(html.match(/>Use Template</g)).toHaveLength(8);
+    expect(html).toContain('Search resume templates');
+    expect(html).toContain('All Templates');
+    expect(html).toContain('Professional');
+    expect(html).toContain('Executive');
+    expect(html).toContain('Minimalist');
+    expect(html).toContain('Technical');
+    expect(html).toContain('Academic');
+    expect(html).toContain('Career Change');
     expect(html).toContain('Show 8 more');
     for (const template of RESUME_TEMPLATES.slice(0, 8)) {
       expect(html).toContain(`/generate?template=${template.id}`);
@@ -49,7 +57,9 @@ describe('real template previews', () => {
     const draft = freshDraft();
     const html = renderToStaticMarkup(<ResumeDocumentPreview template={base} draft={draft} />);
     expect(html).not.toContain('Alex Morgan');
-    expect(html).not.toContain('alex.morgan@example.com');
+    expect(html).not.toContain('alex.morgan.test@jobiest-qa.example');
+    expect(html).not.toContain('NovaTech Solutions');
+    expect(JSON.stringify(draft)).not.toContain('NovaTech Solutions');
     expect(JSON.stringify(draft)).not.toContain('Northstar Labs');
   });
 
@@ -61,7 +71,7 @@ describe('real template previews', () => {
       const picked = withRequestedTemplate(userDraft, selected);
       expect(picked.selectedTemplate).toBe(template.id);
       expect(picked.personal.name).toBe('Real User');
-      expect(JSON.stringify(picked)).not.toContain('Northstar Labs');
+      expect(JSON.stringify(picked)).not.toContain('NovaTech Solutions');
     }
     expect(requestedTemplateId('?template=not-a-template')).toBeNull();
     expect(requestedTemplateId('?other=value')).toBeNull();
