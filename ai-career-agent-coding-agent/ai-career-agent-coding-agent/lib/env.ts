@@ -29,14 +29,22 @@ const schema = z.object({
   CLOUDFLARE_API_TOKEN: z.string().default(''),
   CLOUDFLARE_MODEL: z.string().default('@cf/openai/gpt-oss-120b'),
   // Alibaba Cloud Model Studio / QwenCloud (OpenAI-compatible multi-model tiering):
-  // Accepts either QWENCLOUD_API_KEY (`sk-ws-...` / `sk-...`) or DASHSCOPE_API_KEY.
+  // Accepts QWENCLOUD_API_KEY (`sk-ws-...` / `sk-...`), DASHSCOPE_API_KEY, or QWEN_API_KEY,
+  // plus both QWEN_MODEL_* and QWEN_*_MODEL naming conventions.
   // Empty by default so existing deployments and unit tests remain unchanged.
   QWENCLOUD_API_KEY: z.string().default(''),
   DASHSCOPE_API_KEY: z.string().default(''),
+  QWEN_API_KEY: z.string().default(''),
+  QWENCLOUD_BASE_URL: z.string().default(''),
   DASHSCOPE_BASE_URL: z.string().default(''),
+  QWEN_BASE_URL: z.string().default(''),
+  QWEN_MODEL_FLAGSHIP: z.string().default(''),
   QWEN_FLAGSHIP_MODEL: z.string().default('qwen3.8-max'),
+  QWEN_MODEL_STANDARD: z.string().default(''),
   QWEN_STANDARD_MODEL: z.string().default('qwen3.7-plus'),
+  QWEN_MODEL_FAST: z.string().default(''),
   QWEN_FAST_MODEL: z.string().default('qwen3.8-flash'),
+  QWEN_MODEL_ASR: z.string().default(''),
   QWEN_ASR_MODEL: z.string().default('qwen3-asr-flash'),
   // Max concurrent AI provider calls per server instance. Extra requests
   // queue instead of overloading the model host (see lib/ai/server.ts).
@@ -90,10 +98,17 @@ function parseEnv(): z.infer<typeof schema> {
   CLOUDFLARE_MODEL: process.env.CLOUDFLARE_MODEL,
   QWENCLOUD_API_KEY: process.env.QWENCLOUD_API_KEY,
   DASHSCOPE_API_KEY: process.env.DASHSCOPE_API_KEY,
+  QWEN_API_KEY: process.env.QWEN_API_KEY,
+  QWENCLOUD_BASE_URL: process.env.QWENCLOUD_BASE_URL,
   DASHSCOPE_BASE_URL: process.env.DASHSCOPE_BASE_URL,
+  QWEN_BASE_URL: process.env.QWEN_BASE_URL,
+  QWEN_MODEL_FLAGSHIP: process.env.QWEN_MODEL_FLAGSHIP,
   QWEN_FLAGSHIP_MODEL: process.env.QWEN_FLAGSHIP_MODEL,
+  QWEN_MODEL_STANDARD: process.env.QWEN_MODEL_STANDARD,
   QWEN_STANDARD_MODEL: process.env.QWEN_STANDARD_MODEL,
+  QWEN_MODEL_FAST: process.env.QWEN_MODEL_FAST,
   QWEN_FAST_MODEL: process.env.QWEN_FAST_MODEL,
+  QWEN_MODEL_ASR: process.env.QWEN_MODEL_ASR,
   QWEN_ASR_MODEL: process.env.QWEN_ASR_MODEL,
   AI_MAX_CONCURRENCY: process.env.AI_MAX_CONCURRENCY,
   RESEND_API_KEY: process.env.RESEND_API_KEY,

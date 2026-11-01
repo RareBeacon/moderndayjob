@@ -221,6 +221,33 @@ describe('Alibaba QwenCloud & DashScope Multi-Model Routing', () => {
     }
   });
 
+  it('prioritizes Qwen ahead of self-hosted Ollama when both are configured and supports QWEN_MODEL_* aliases', async () => {
+    vi.resetModules();
+    process.env.QWENCLOUD_API_KEY = 'sk-ws-SYNTHETIC.PRIORITY.TEST_KEY_0006';
+    process.env.QWEN_MODEL_FLAGSHIP = 'qwen3.8-max';
+    process.env.OLLAMA_BASE_URL = 'https://ollama.example.test';
+    process.env.OLLAMA_MODEL = 'qwen2.5:7b';
+    try {
+      const server = await import('@/lib/ai/server');
+      expect(server.qwenEnvVarsPresent()).toContain('QWENCLOUD_API_KEY');
+      expect(server.qwenEnvVarsPresent()).toContain('QWEN_MODEL_FLAGSHIP');
+      expect(server.qwenEndpointHost()).toBe('maas.qwencloudapi.com');
+
+      const gw = await server.buildGatewayForUser('u1', { tier: 'flagship' });
+      const providers = (gw as unknown as { providers: { name: string }[] }).providers;
+      expect(providers[0].name).toBe('qwen-qwen3.8-max');
+      expect(providers.some((p) => p.name === 'ollama')).toBe(true);
+      expect(providers.findIndex((p) => p.name === 'qwen-qwen3.8-max')).toBeLessThan(
+        providers.findIndex((p) => p.name === 'ollama'),
+      );
+    } finally {
+      delete process.env.QWENCLOUD_API_KEY;
+      delete process.env.QWEN_MODEL_FLAGSHIP;
+      delete process.env.OLLAMA_BASE_URL;
+      delete process.env.OLLAMA_MODEL;
+    }
+  });
+
   it('redacts dotted sk-ws- workspace keys in audit logs so secrets never persist', () => {
     const sample = 'failed call with sk-ws-SYNTHETIC.DOT.SEGMENT_KEY_1234567890abcdef in trace';
     const scrubbed = redactSecrets(sample);

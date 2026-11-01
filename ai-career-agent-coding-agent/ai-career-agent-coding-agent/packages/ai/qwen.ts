@@ -4,6 +4,8 @@ import { OpenAICompatProvider } from './providers';
 export const QWENCLOUD_GLOBAL_BASE_URL = 'https://maas.qwencloudapi.com/compatible-mode/v1';
 export const DASHSCOPE_INTL_BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
 export const DASHSCOPE_US_BASE_URL = 'https://dashscope-us.aliyuncs.com/compatible-mode/v1';
+export const DASHSCOPE_CN_BASE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+export const QIANWEN_CN_BASE_URL = 'https://maas.qianwenaiapi.com/compatible-mode/v1';
 
 export type QwenWorkloadTier = 'flagship' | 'standard' | 'fast';
 export type QwenReasoningMode = 'off' | 'low' | 'default';
@@ -43,8 +45,20 @@ export function resolveQwenEndpoints(apiKey: string, explicitBaseUrl?: string): 
 
   const fp = fingerprintKey(apiKey);
   const candidates = apiKey.trim().startsWith('sk-ws-')
-    ? [QWENCLOUD_GLOBAL_BASE_URL, DASHSCOPE_INTL_BASE_URL, DASHSCOPE_US_BASE_URL]
-    : [DASHSCOPE_INTL_BASE_URL, QWENCLOUD_GLOBAL_BASE_URL, DASHSCOPE_US_BASE_URL];
+    ? [
+        QWENCLOUD_GLOBAL_BASE_URL,
+        DASHSCOPE_INTL_BASE_URL,
+        DASHSCOPE_US_BASE_URL,
+        QIANWEN_CN_BASE_URL,
+        DASHSCOPE_CN_BASE_URL,
+      ]
+    : [
+        DASHSCOPE_INTL_BASE_URL,
+        QWENCLOUD_GLOBAL_BASE_URL,
+        DASHSCOPE_US_BASE_URL,
+        DASHSCOPE_CN_BASE_URL,
+        QIANWEN_CN_BASE_URL,
+      ];
 
   if (cachedResolvedBaseUrl && cachedResolvedBaseUrl.keyFingerprint === fp) {
     return [
@@ -53,6 +67,15 @@ export function resolveQwenEndpoints(apiKey: string, explicitBaseUrl?: string): 
     ];
   }
   return candidates;
+}
+
+export function getResolvedQwenEndpointHost(apiKey: string, explicitBaseUrl?: string): string {
+  const active = resolveQwenEndpoints(apiKey, explicitBaseUrl)[0];
+  try {
+    return new URL(active).host;
+  } catch {
+    return 'unknown';
+  }
 }
 
 /**
@@ -148,13 +171,26 @@ export function createQwenChatTransport(opts?: {
           body: JSON.stringify({ ...baseBody, ...extra }),
         });
 
-      let res = await sendOnce(knobs);
+      let res: Response;
+      try {
+        res = await sendOnce(knobs);
+      } catch (netErr) {
+        lastError = netErr instanceof Error ? netErr : new Error('AI_PROVIDER_NETWORK_ERROR');
+        if (i < endpoints.length - 1) continue;
+        throw lastError;
+      }
 
       if (!res.ok && Object.keys(knobs).length > 0) {
         const errText = await res.text().catch(() => '');
         if (isThinkingKnobRejection(res.status, errText)) {
-          res = await sendOnce({});
-        } else if ((res.status === 401 || res.status === 404) && i < endpoints.length - 1) {
+          try {
+            res = await sendOnce({});
+          } catch (netErr) {
+            lastError = netErr instanceof Error ? netErr : new Error('AI_PROVIDER_NETWORK_ERROR');
+            if (i < endpoints.length - 1) continue;
+            throw lastError;
+          }
+        } else if ((res.status === 401 || res.status === 403 || res.status === 404) && i < endpoints.length - 1) {
           lastError = new Error(`AI_PROVIDER_${res.status}`);
           continue;
         } else {
@@ -163,7 +199,7 @@ export function createQwenChatTransport(opts?: {
       }
 
       if (!res.ok) {
-        if ((res.status === 401 || res.status === 404) && i < endpoints.length - 1) {
+        if ((res.status === 401 || res.status === 403 || res.status === 404) && i < endpoints.length - 1) {
           lastError = new Error(`AI_PROVIDER_${res.status}`);
           continue;
         }
@@ -207,7 +243,15 @@ export function buildQwenTierProviders(params: {
   if (!cleanKey) return [];
 
   const endpoints = resolveQwenEndpoints(cleanKey, params.explicitBaseUrl);
-  const models = resolveQwenTierModels(params.tier, params.modelOverrides);
+  const classicFallbacks =
+    params.tier === 'flagship'
+      ? ['qwen-max', 'qwen-plus', 'qwen-turbo']
+      : params.tier === 'standard'
+        ? ['qwen-plus', 'qwen-max', 'qwen-turbo']
+        : ['qwen-turbo', 'qwen-plus'];
+  const models = Array.from(
+    new Set([...resolveQwenTierModels(params.tier, params.modelOverrides), ...classicFallbacks]),
+  );
   const reasoningMode: QwenReasoningMode = params.tier === 'flagship' ? 'low' : 'off';
   const transport = createQwenChatTransport({
     endpoints,
