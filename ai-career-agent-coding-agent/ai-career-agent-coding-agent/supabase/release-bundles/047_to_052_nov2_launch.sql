@@ -1,8 +1,8 @@
 -- =============================================================================
--- Jobiest Nov 2, 2026 Production Launch SQL Bundle (Migrations 047 through 052)
--- Safe, additive-only (IF NOT EXISTS) with RLS enabled across 100% of tables.
--- Take a Supabase database backup/snapshot first, then paste into SQL Editor.
--- Rollback script: supabase/rollbacks/047_to_050_talent_pool.down.sql
+-- Jobiest Nov 2, 2026 One-Paste Supabase SQL Bundle (Migrations 047 -> 052)
+-- Safe, idempotent, additive-only (IF NOT EXISTS / DROP POLICY IF EXISTS).
+-- Enables RLS on 100% of tables, configures pgvector RAG, creates the private
+-- `talent-recordings` bucket, and hardens `public.ai_credentials` RLS.
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -906,6 +906,7 @@ alter table public.talent_interaction_reports enable row level security;
 -- personalized interview blueprints, and persistent LangGraph checkpoints.
 
 create extension if not exists vector;
+set search_path = public, extensions;
 
 create table if not exists public.talent_rag_documents (
   id uuid primary key default gen_random_uuid(),
@@ -944,6 +945,7 @@ create unique index if not exists uq_talent_rag_docs_active_hash
 
 alter table public.talent_rag_documents enable row level security;
 
+drop policy if exists "talent_rag_documents_owner_select" on public.talent_rag_documents;
 create policy "talent_rag_documents_owner_select"
   on public.talent_rag_documents
   for select
@@ -991,6 +993,7 @@ create index if not exists idx_talent_rag_chunks_skills
 
 alter table public.talent_rag_chunks enable row level security;
 
+drop policy if exists "talent_rag_chunks_owner_select" on public.talent_rag_chunks;
 create policy "talent_rag_chunks_owner_select"
   on public.talent_rag_chunks
   for select
@@ -1030,7 +1033,7 @@ returns table (
 language plpgsql
 stable
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   if p_namespace = 'CANDIDATE_KNOWLEDGE' and p_candidate_user_id is null then
@@ -1099,12 +1102,14 @@ create index if not exists idx_talent_assessment_contexts_user
 
 alter table public.talent_assessment_contexts enable row level security;
 
+drop policy if exists "talent_assessment_contexts_owner_select" on public.talent_assessment_contexts;
 create policy "talent_assessment_contexts_owner_select"
   on public.talent_assessment_contexts
   for select
   to authenticated
   using (user_id = auth.uid());
 
+drop policy if exists "talent_assessment_contexts_owner_update" on public.talent_assessment_contexts;
 create policy "talent_assessment_contexts_owner_update"
   on public.talent_assessment_contexts
   for update
@@ -1136,17 +1141,12 @@ create index if not exists idx_talent_blueprints_app
 
 alter table public.talent_interview_blueprints enable row level security;
 
+drop policy if exists "talent_interview_blueprints_owner_select" on public.talent_interview_blueprints;
 create policy "talent_interview_blueprints_owner_select"
   on public.talent_interview_blueprints
   for select
   to authenticated
-  using (
-    user_id = auth.uid()
-    or exists (
-      select 1 from public.profiles p
-      where p.user_id = auth.uid() and p.role = 'ADMIN'
-    )
-  );
+  using (user_id = auth.uid());
 
 create table if not exists public.talent_workflow_checkpoints (
   id uuid primary key default gen_random_uuid(),
@@ -1180,17 +1180,12 @@ create index if not exists idx_talent_workflow_checkpoints_session
 
 alter table public.talent_workflow_checkpoints enable row level security;
 
+drop policy if exists "talent_workflow_checkpoints_owner_select" on public.talent_workflow_checkpoints;
 create policy "talent_workflow_checkpoints_owner_select"
   on public.talent_workflow_checkpoints
   for select
   to authenticated
-  using (
-    user_id = auth.uid()
-    or exists (
-      select 1 from public.profiles p
-      where p.user_id = auth.uid() and p.role = 'ADMIN'
-    )
-  );
+  using (user_id = auth.uid());
 -- END MIGRATION: 051_talent_rag_and_langgraph_checkpoints.sql
 
 -- -----------------------------------------------------------------------------
@@ -1251,3 +1246,37 @@ begin
   end if;
 end $$;
 -- END MIGRATION: 052_cybersecurity_admin_and_userdata_hardening.sql
+
+-- -----------------------------------------------------------------------------
+-- POST-RUN VERIFICATION SUMMARY (returns 1 row confirming activation)
+-- -----------------------------------------------------------------------------
+select
+  (
+    select count(*)::int
+    from information_schema.tables
+    where table_schema = 'public'
+      and (
+        table_name like 'talent_%'
+        or table_name like 'employer_%'
+        or table_name like 'recruitment_%'
+      )
+  ) as talent_and_employer_tables_ready,
+  exists (
+    select 1
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname = 'match_talent_rag_chunks'
+  ) as rag_vector_rpc_ready,
+  exists (
+    select 1
+    from storage.buckets
+    where id = 'talent-recordings' and public = false
+  ) as private_recordings_bucket_ready,
+  not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'ai_credentials'
+      and policyname = 'ai_credentials_self'
+  ) as ai_credentials_ciphertext_locked_down;
