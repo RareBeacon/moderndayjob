@@ -22,8 +22,21 @@ export function encryptSecret(value: string): string {
 }
 
 export function decryptSecret(payload: string): string {
-  const [ivS, tagS, dataS] = payload.split('.');
-  const d = crypto.createDecipheriv('aes-256-gcm', getKey(), Buffer.from(ivS, 'base64'), { authTagLength: 16 });
-  d.setAuthTag(Buffer.from(tagS, 'base64'));
-  return Buffer.concat([d.update(Buffer.from(dataS, 'base64')), d.final()]).toString('utf8');
+  if (typeof payload !== 'string') {
+    throw new Error('INVALID_CIPHERTEXT');
+  }
+  const parts = payload.split('.');
+  if (parts.length !== 3 || !parts[0] || !parts[1] || !parts[2]) {
+    throw new Error('INVALID_CIPHERTEXT');
+  }
+  const [ivS, tagS, dataS] = parts;
+  const iv = Buffer.from(ivS, 'base64');
+  const tag = Buffer.from(tagS, 'base64');
+  const data = Buffer.from(dataS, 'base64');
+  if (iv.length !== 12 || tag.length !== 16) {
+    throw new Error('INVALID_CIPHERTEXT');
+  }
+  const d = crypto.createDecipheriv('aes-256-gcm', getKey(), iv, { authTagLength: 16 });
+  d.setAuthTag(tag);
+  return Buffer.concat([d.update(data), d.final()]).toString('utf8');
 }

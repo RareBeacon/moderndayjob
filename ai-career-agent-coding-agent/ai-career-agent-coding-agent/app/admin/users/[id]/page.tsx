@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { z } from 'zod';
 import { requireUserOrRedirect } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { AdminShell, AdminForbidden } from '@/components/site/AdminShell';
@@ -15,6 +17,7 @@ export const dynamic = 'force-dynamic';
  */
 export default async function AdminUserDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  if (!z.guid().safeParse(id).success) notFound();
   const user = await requireUserOrRedirect(`/admin/users/${id}`);
 
   const { data: admin } = await supabaseAdmin

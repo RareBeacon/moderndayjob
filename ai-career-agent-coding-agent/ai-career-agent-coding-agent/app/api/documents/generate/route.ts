@@ -101,7 +101,8 @@ export async function POST(req: Request) {
 
   let result;
   try {
-    const gateway = await buildGatewayForUser(user.id).catch(() => undefined);
+    const docTier = String(kind).toUpperCase() === 'CV' ? 'flagship' : 'standard';
+    const gateway = await buildGatewayForUser(user.id, { tier: docTier }).catch(() => undefined);
     result = await trackGeneration({ userId: user.id, feature: `document.${String(kind).toLowerCase()}` }, () => generateDocument({ kind, profile, job, questions: autoQuestions, gateway }));
   } catch (err) {
     await meter.refund();

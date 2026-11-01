@@ -1,43 +1,40 @@
-import { requireUser } from '@/lib/auth';
-import { supabaseAdmin } from '@/lib/supabase';
-import { revokeAllUserSessions } from '@/lib/session';
 import { z } from 'zod';
+import { requireAdminUser, adminErrorResponse, isPeerAdminTarget } from '@/lib/admin';
+import { supabaseAdmin } from '@/lib/supabase';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
-/* Admin-only "sign out everywhere": revokes every live session for the target
- * user via Supabase Auth admin + app_sessions. Combined with suspend/terminate this closes
- * the "revoke-sessions" promise from SECURITY_ARCHITECTURE. */
-const body = z.object({ userId: z.guid() });
+/** Sign a user out everywhere (revokes every refresh token via GoTrue admin).
+ *  Self- and peer-admin-protected so one compromised admin cannot force-evict
+ *  the owner or fellow administrators. */
+const bodySchema = z.object({ userId: z.guid() });
 
 export async function POST(req: Request) {
-  const rl = await enforceRateLimit(`admin:users:signout:${requestIp(req)}`, 60, '1 m');
+  const rl = await enforceRateLimit(`admin:users:signout:${requestIp(req)}`, 30, '1 m');
   if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
 
   try {
-    const admin = await requireUser({ req }).catch(() => null);
-    if (!admin) return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
-    const { data: a } = await supabaseAdmin
-      .from('admin_users')
-      .select('user_id')
-      .eq('user_id', admin.id)
-      .maybeSingle();
-    if (!a) return Response.json({ error: 'FORBIDDEN' }, { status: 403 });
+    const admin = await requireAdminUser(req);
+    const parsed = bodySchema.safeParse(await req.json().catch(() => ({})));
+    if (!parsed.success) return Response.json({ error: 'INVALID_BODY' }, { status: 400 });
+    const { userId } = parsed.data;
+    if (userId === admin.id) {
+      return Response.json({ error: 'CANNOT_SIGNOUT_SELF' }, { status: 409 });
+    }
+    if (await isPeerAdminTarget([userId])) {
+      return Response.json({ error: 'CANNOT_MODIFY_ADMIN_ACCOUNT' }, { status: 409 });
+    }
 
-    const { userId } = body.parse(await req.json());
     const { error } = await supabaseAdmin.auth.admin.signOut(userId, 'global');
-    if (error) return Response.json({ error: error.message }, { status: 409 });
-    await revokeAllUserSessions(userId).catch(() => undefined);
+    if (error) return Response.json({ error: 'SIGNOUT_FAILED' }, { status: 409 });
 
     await supabaseAdmin.from('admin_actions').insert({
       admin_user_id: admin.id,
       target_user_id: userId,
       action: 'REVOKE_SESSIONS',
     });
+
     return Response.json({ ok: true, signedOut: userId });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'INTERNAL';
-    if (message === 'FORBIDDEN') return Response.json({ error: 'FORBIDDEN' }, { status: 403 });
-    if (error instanceof z.ZodError) return Response.json({ error: 'BAD_REQUEST' }, { status: 400 });
-    return Response.json({ error: message }, { status: 409 });
+    return adminErrorResponse(error);
   }
 }

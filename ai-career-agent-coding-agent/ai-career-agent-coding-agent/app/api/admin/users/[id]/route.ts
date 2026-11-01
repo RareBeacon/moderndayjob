@@ -1,7 +1,9 @@
+import { z } from 'zod';
 import { requireAdminUser, adminErrorResponse } from '@/lib/admin';
 import { supabaseAdmin } from '@/lib/supabase';
 import { requireAuditEvent } from '@/lib/audit';
 import { verifyRevealToken } from '@/lib/security/reveal';
+import { maskEmailsInStructure } from '@/lib/security/safe-url';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 
 /**
@@ -9,8 +11,9 @@ import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
  * Admin-gated. Returns account, plan, quota, recent generation usage,
  * applications, audit and security history for one user - WITHOUT PII by
  * default. The email is included only when a valid, unexpired reveal token
- * for THIS admin is presented, and every such read is audit-logged
- * fail-closed: if the audit write fails, the email is not returned.
+ * for THIS admin is presented (`x-admin-reveal-token` header or `?reveal=`),
+ * and every such read is audit-logged fail-closed: if the audit write fails,
+ * `503 AUDIT_UNAVAILABLE` is returned and the email is never disclosed.
  */
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -18,9 +21,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
 
   try {
-    const admin = await requireAdminUser();
+    const admin = await requireAdminUser(req);
     const { id } = await params;
-    const revealToken = new URL(req.url).searchParams.get('reveal') ?? '';
+    if (!z.guid().safeParse(id).success) {
+      return Response.json({ error: 'INVALID_USER_ID' }, { status: 400 });
+    }
+
+    const headerToken = req.headers.get('x-admin-reveal-token') ?? '';
+    const queryToken = new URL(req.url).searchParams.get('reveal') ?? '';
+    const revealToken = headerToken || queryToken;
     const revealValid = revealToken ? verifyRevealToken(revealToken, admin.id) : false;
 
     const [profile, subscription, lifetime, usage, apps, audit, security] = await Promise.all([
@@ -38,22 +47,29 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     // PII gate (B-063): email only with a valid reveal token + fail-closed audit.
     let email: string | null = null;
     if (revealValid && profile.data.email) {
-      await requireAuditEvent({
-        action: 'ADMIN_USER_PII_READ',
-        resource: 'user',
-        resourceId: id,
-        userId: admin.id,
-        outcome: 'allow',
-        meta: { target: id },
-      });
-      email = profile.data.email;
+      try {
+        await requireAuditEvent({
+          action: 'ADMIN_USER_PII_READ',
+          resource: 'user',
+          resourceId: id,
+          userId: admin.id,
+          outcome: 'allow',
+          meta: { target: id },
+        });
+        email = profile.data.email;
+      } catch {
+        return Response.json({ error: 'AUDIT_UNAVAILABLE' }, { status: 503 });
+      }
     }
+
+    const emailDomain = String(profile.data.email ?? '').split('@')[1] ?? null;
 
     return Response.json({
       user: {
         id,
         email, // null unless reveal was valid + audited
-        emailDomain: String(profile.data.email ?? '').split('@')[1] ?? null,
+        emailDomain,
+        email_domain: emailDomain,
         fullName: profile.data.full_name,
         accountStatus: profile.data.account_status,
         createdAt: profile.data.created_at,
@@ -62,8 +78,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       usageLifetime: lifetime.data ?? null,
       recentUsage: usage.data ?? [],
       applications: apps.data ?? [],
-      recentAudit: audit.data ?? [],
-      recentSecurity: security.data ?? [],
+      recentAudit: revealValid ? (audit.data ?? []) : maskEmailsInStructure(audit.data ?? []),
+      recentSecurity: revealValid ? (security.data ?? []) : maskEmailsInStructure(security.data ?? []),
     });
   } catch (error) {
     return adminErrorResponse(error);

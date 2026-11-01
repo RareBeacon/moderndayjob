@@ -27,6 +27,8 @@ const ICONS = {
   card: 'M3 6h18v12H3zM3 10h18M7 15h4',
   settings: 'M12 15.5A3.5 3.5 0 1 1 15.5 12 3.5 3.5 0 0 1 12 15.5zm7.4-2.6l1.6-1.2-1.6-2.8-1.9.7a6.9 6.9 0 0 0-1.2-.7L16.1 7h-3.2l-.2 1.9a6.9 6.9 0 0 0-1.2.7l-1.9-.7-1.6 2.8 1.6 1.2a7.3 7.3 0 0 0 0 1.4l-1.6 1.2 1.6 2.8 1.9-.7a6.9 6.9 0 0 0 1.2.7l.2 1.9h3.2l.2-1.9a6.9 6.9 0 0 0 1.2-.7l1.9.7 1.6-2.8-1.6-1.2a7.3 7.3 0 0 0 0-1.4z',
   shield: 'M12 3l7 3v6c0 4.5-3 7.8-7 9-4-1.2-7-4.5-7-9V6l7-3zM9.5 12l1.8 1.8 3.4-3.6',
+  talent: 'M12 2l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 15.4 6.8 18.1l1-5.8-4.3-4.1 5.9-.9L12 2z',
+  building: 'M4 21h16M6 21V5a1 1 0 011-1h6a1 1 0 011 1v16M14 9h3a1 1 0 011 1v11M9 8h2M9 12h2M9 16h2',
   menu: 'M4 7h16M4 12h16M4 17h16',
 };
 
@@ -37,6 +39,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: 'dashboard', href: '/dashboard', label: 'Workspace', icon: ic(ICONS.home) },
       { key: 'applications', href: '/applications', label: 'Applications', icon: ic(ICONS.layers) },
       { key: 'generate', href: '/generate', label: 'Resume Studio', icon: ic(ICONS.edit) },
+      { key: 'talent-pool', href: '/talent-pool', label: 'Talent Pool', icon: ic(ICONS.talent) },
     ],
   },
   {
@@ -50,6 +53,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     heading: 'Account',
     items: [
+      { key: 'employer', href: '/employer', label: 'Recruiter Hub', icon: ic(ICONS.building) },
       { key: 'billing', href: '/billing', label: 'Billing & plan', icon: ic(ICONS.card) },
       { key: 'settings', href: '/settings', label: 'Settings', icon: ic(ICONS.settings) },
     ],

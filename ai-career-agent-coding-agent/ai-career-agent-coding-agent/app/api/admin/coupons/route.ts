@@ -30,8 +30,11 @@ const createBody = z.object({
 });
 
 export async function GET(req: Request) {
+  const rl = await enforceRateLimit(`admin:coupons:list:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
   try {
-    await requireAdminUser();
+    await requireAdminUser(req);
     const { data, error } = await supabaseAdmin
       .from('coupons')
       .select('*')
@@ -54,7 +57,7 @@ export async function POST(req: Request) {
   if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
 
   try {
-    const admin = await requireAdminUser();
+    const admin = await requireAdminUser(req);
     const parsed = createBody.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
       return Response.json({ error: 'INVALID_BODY', issues: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`) }, { status: 400 });

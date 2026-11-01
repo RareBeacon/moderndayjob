@@ -288,6 +288,7 @@ async function DashboardBodyInner(user: Awaited<ReturnType<typeof requireUserOrR
       suggestions.push({ text: 'Unlock 5 free Agent Mode runs a month with a one-time zero-charge card check.', href: '/auto-apply/activation' });
     }
     if ((portfolioCount ?? 0) === 0) suggestions.push({ text: 'Publish a clean portfolio page to share one link with hiring managers.', href: '/portfolios' });
+    suggestions.push({ text: 'Join the Jobiest Talent Pool (included on every plan) to be discovered by verified employers.', href: '/talent-pool' });
     if (suggestions.length === 0) suggestions.push({ text: 'Tailor a fresh CV or explore 30 templates in Resume Studio.', href: '/generate' });
   } catch {
     if (suggestions.length === 0) suggestions.push({ text: 'Tailor a fresh CV or explore 30 templates in Resume Studio.', href: '/generate' });

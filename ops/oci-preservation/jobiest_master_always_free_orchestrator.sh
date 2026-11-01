@@ -37,10 +37,10 @@ REPO_RAW_BASE="https://raw.githubusercontent.com/RareBeacon/moderndayjob"
 PINNED_GATE0_COMMIT="298bbf055bdaf27d7bca0f4b48fd8abffc369de7"
 PINNED_GATE0_SHA256="ceb930cc75642091000e0074bf37e23b4d2781608b17b11f76b0c08341dd82ce"
 
-PINNED_GATE4_COMMIT="96f832c317760a859338236778f7512d2c79d977"
-PINNED_GATE4_SHA256="1d94a2f18837ae6f05448b2cfaa45e8aa4fee8aa809240256ce5429b8775c513"
+PINNED_GATE4_COMMIT="1fbb6291c6a76a90930860fe435b538a17a3a7f7"
+PINNED_GATE4_SHA256="d1d13476975847d1f9acf39301e23a52bb07b64da8e49bdab530df6bb51c7946"
 
-APP_COMMIT_SHA="ecda13abaf77778c9c022056a6ab34b70b23939f"
+APP_COMMIT_SHA="1fbb6291c6a76a90930860fe435b538a17a3a7f7"
 MAILU_VERSION="2024.06.67"
 PRIMARY_MAIL_DOMAIN="jobiest.com"
 
@@ -1841,7 +1841,7 @@ if [[ -z "$A1_CUTOVER_ID" ]]; then
       tail -n 25 -f "$HUNTER_LOG" &
       TAIL_VIEW_PID=$!
       while kill -0 "$ACTIVE_WATCH_PID" 2>/dev/null; do
-        if [[ -r /dev/tty ]]; then
+        if ( : </dev/tty ) 2>/dev/null; then
           WATCH_KEY=""
           if IFS= read -r -t 60 WATCH_KEY </dev/tty; then
             if [[ "$WATCH_KEY" == "Q" || "$WATCH_KEY" == "q" ]]; then

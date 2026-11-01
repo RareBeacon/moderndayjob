@@ -7,45 +7,78 @@ import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 /**
  * POST /api/admin/users/reveal - re-authenticate to obtain a 5-minute PII
  * reveal token (B-063). The password is verified against Supabase's token
- * endpoint server-side (never stored, never logged) and is REQUIRED to be
- * correct before any PII is returned elsewhere. Every attempt - success or
- * failure - is audit-logged (fail-closed on success).
+ * endpoint server-side (never stored, never logged), the minted ephemeral
+ * GoTrue session is immediately revoked so no orphan session persists, and
+ * every attempt - success or failure - is audit-logged (fail-closed on allow).
+ *
+ * Brute-force defense: strictly capped to 6 attempts per 10 minutes per IP
+ * AND per admin user ID.
  */
 
 const body = z.object({ password: z.string().min(1).max(200) });
 
-async function verifyPassword(email: string, password: string): Promise<boolean> {
+async function verifyAndRevokeEphemeralPasswordSession(
+  email: string,
+  password: string,
+): Promise<'ok' | 'mismatch' | 'unavailable'> {
+  const baseUrl = String(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '');
+  const anonKey = String(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '');
+  let res: Response;
   try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/token?grant_type=password`,
-      {
+    res = await fetch(`${baseUrl}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        apikey: anonKey,
+      },
+      body: JSON.stringify({ email, password }),
+      signal: AbortSignal.timeout(8_000),
+    });
+  } catch {
+    return 'unavailable';
+  }
+
+  if (!res.ok) return 'mismatch';
+
+  // Best-effort revoke the ephemeral GoTrue session created by grant_type=password.
+  try {
+    const payload = (await res.json().catch(() => null)) as { access_token?: string } | null;
+    if (payload?.access_token) {
+      await fetch(`${baseUrl}/auth/v1/logout?scope=local`, {
         method: 'POST',
         headers: {
-          'content-type': 'application/json',
-          apikey: String(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''),
+          apikey: anonKey,
+          authorization: `Bearer ${payload.access_token}`,
         },
-        body: JSON.stringify({ email, password }),
-      },
-    );
-    return res.ok;
+        signal: AbortSignal.timeout(4_000),
+      }).catch(() => undefined);
+    }
   } catch {
-    return false;
+    // Non-fatal session cleanup.
   }
+
+  return 'ok';
 }
 
 export async function POST(req: Request) {
-  const rl = await enforceRateLimit(`admin:users:reveal:${requestIp(req)}`, 60, '1 m');
-  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+  const ip = requestIp(req);
+  const ipRl = await enforceRateLimit(`admin:users:reveal:ip:${ip}`, 6, '10 m');
+  if (!ipRl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
 
   try {
-    const admin = await requireAdminUser();
+    const admin = await requireAdminUser(req);
+    const adminRl = await enforceRateLimit(`admin:users:reveal:admin:${admin.id}`, 6, '10 m');
+    if (!adminRl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
+
     const parsed = body.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) return Response.json({ error: 'INVALID_BODY' }, { status: 400 });
     if (!admin.email) return Response.json({ error: 'ADMIN_EMAIL_UNKNOWN' }, { status: 400 });
 
-    const ok = await verifyPassword(admin.email, parsed.data.password);
-    if (!ok) {
-      // Best-effort deny audit; the reveal itself failed, nothing was disclosed.
+    const outcome = await verifyAndRevokeEphemeralPasswordSession(admin.email, parsed.data.password);
+    if (outcome === 'unavailable') {
+      return Response.json({ error: 'AUTH_UPSTREAM_UNAVAILABLE' }, { status: 503 });
+    }
+    if (outcome === 'mismatch') {
       void requireAuditEvent({
         action: 'ADMIN_PII_REVEAL',
         resource: 'admin',

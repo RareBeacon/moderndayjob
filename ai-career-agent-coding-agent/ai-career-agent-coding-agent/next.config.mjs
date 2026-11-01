@@ -14,6 +14,7 @@ const csp = [
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
+  "media-src 'self' blob: https://*.supabase.co",
   "font-src 'self' data:",
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
   "object-src 'none'",
@@ -38,6 +39,7 @@ const securityHeaders = [
 
 /** Authenticated and account surfaces must never be cacheable (F-003). */
 const noStore = { key: 'Cache-Control', value: 'no-store, max-age=0' };
+const noIndex = { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' };
 
 const noStoreSources = [
   '/login',
@@ -57,8 +59,35 @@ const noStoreSources = [
   '/match/:path*',
   '/generate/:path*',
   '/auto-apply/:path*',
+  '/talent-pool/:path*',
+  '/employer/:path*',
   '/admin/:path*',
+  '/api/admin/:path*',
+  '/api/credentials',
+  '/api/profile',
+  '/api/documents/:path*',
+  '/api/talent-pool/:path*',
+  '/api/employer/:path*',
 ];
+
+const noIndexSources = [
+  '/admin/:path*',
+  '/dashboard/:path*',
+  '/onboarding/:path*',
+  '/profile/:path*',
+  '/settings/:path*',
+  '/documents/:path*',
+  '/applications/:path*',
+  '/billing/:path*',
+  '/talent-pool/:path*',
+  '/employer/:path*',
+  '/api/:path*',
+];
+
+const interviewMediaPermissions = {
+  key: 'Permissions-Policy',
+  value: 'camera=(self), microphone=(self), geolocation=(), payment=()',
+};
 
 const nextConfig = {
   poweredByHeader: false,
@@ -67,7 +96,9 @@ const nextConfig = {
   async headers() {
     return [
       { source: '/(.*)', headers: securityHeaders },
+      { source: '/talent-pool/interview/:path*', headers: [interviewMediaPermissions] },
       ...noStoreSources.map((source) => ({ source, headers: [noStore] })),
+      ...noIndexSources.map((source) => ({ source, headers: [noIndex] })),
     ];
   },
 };

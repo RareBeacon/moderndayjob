@@ -4,6 +4,7 @@ import { requireUser } from '@/lib/auth';
 import { assertEntitlement } from '@packages/security/entitlements';
 import { supabaseAdmin } from '@/lib/supabase';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
+import { isSafeHttpUrl } from '@/lib/security/safe-url';
 import { isAutomationEnabled, listApplications } from '@/lib/applications/service';
 
 const automated = z.object({ jobId: z.guid(), email: z.string().email() });
@@ -11,12 +12,14 @@ const manual = z.object({
   mode: z.literal('manual'),
   company: z.string().trim().min(2).max(120),
   title: z.string().trim().min(2).max(160),
-  url: z.string().url().max(2000),
+  url: z.string().trim().url().max(2000).refine((v) => isSafeHttpUrl(v, 2000), 'Only http:// and https:// URLs are allowed.'),
   status: z.enum(['DRAFT', 'SUBMITTED', 'INTERVIEW', 'REJECTED', 'WITHDRAWN']).default('DRAFT'),
 });
 
 /** List the user's applications, each with its job (normalized to `.job`). */
 export async function GET(req: Request) {
+  const rl = await enforceRateLimit(`application:list:${requestIp(req)}`, 60, '1 m');
+  if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
   const u = await requireUser({ req: req }).catch(() => null);
   if (!u) return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const applications = await listApplications(u.id);

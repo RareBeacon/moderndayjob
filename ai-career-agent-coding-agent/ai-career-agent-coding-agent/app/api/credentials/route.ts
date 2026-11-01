@@ -27,6 +27,8 @@ const addBody = z.object({
 });
 
 export async function GET(req: Request) {
+  const rate = await enforceRateLimit(`credentials:list:${requestIp(req)}`, 60, '1 m');
+  if (!rate.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
   const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
   const { data, error } = await supabaseAdmin
