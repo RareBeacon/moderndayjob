@@ -10,9 +10,23 @@ export default async function TalentPoolPage() {
   const user = await requireUserOrRedirect('/talent-pool');
 
   const [overview, entitlement] = await Promise.all([
-    getCandidateTalentPoolOverview(user.id, user.email),
+    getCandidateTalentPoolOverview(user.id, user.email).catch(() => null),
     getEntitlement(user.id).catch(() => ({ plan: 'FREE' as const })),
   ]);
+
+  if (!overview) {
+    return (
+      <AppShell active="talent-pool" title="Talent Pool">
+        <section className="workspace-hero">
+          <p className="eyebrow">TALENT POOL</p>
+          <h1>Jobiest Talent Pool is activating</h1>
+          <p>
+            Database migration setup is in progress. Your existing CV, Job Match, and Application tools remain active.
+          </p>
+        </section>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell active="talent-pool" title="Talent Pool">

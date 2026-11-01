@@ -16,7 +16,10 @@ export default async function AdminEmployersPage() {
     .maybeSingle();
   if (!admin) return <AdminForbidden />;
 
-  const data = await listAdminEmployers(user.id);
+  const data = await listAdminEmployers(user.id).catch(() => ({
+    organizations: [],
+    reports: [],
+  }));
   const orgs = data.organizations as Array<{
     id: string;
     company_name: string;

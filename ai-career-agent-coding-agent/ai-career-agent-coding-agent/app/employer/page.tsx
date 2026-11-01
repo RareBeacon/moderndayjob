@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function EmployerPortalPage() {
   const user = await requireUserOrRedirect('/employer');
-  const context = await getEmployerContextForUser(user.id);
+  const context = await getEmployerContextForUser(user.id).catch(() => null);
 
   return (
     <AppShell active="employer" title="Hire Verified Talent">

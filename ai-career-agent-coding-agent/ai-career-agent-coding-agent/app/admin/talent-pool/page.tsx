@@ -38,7 +38,12 @@ export default async function AdminTalentPoolPage({
     ? parsedFilters.data
     : { page: 1, page_size: 20 };
 
-  const queue = await listAdminTalentApplications(user.id, filters);
+  const queue = await listAdminTalentApplications(user.id, filters).catch(() => ({
+    items: [],
+    total: 0,
+    page: filters.page,
+    page_size: filters.page_size,
+  }));
 
   return (
     <AdminShell active="talent-pool">
