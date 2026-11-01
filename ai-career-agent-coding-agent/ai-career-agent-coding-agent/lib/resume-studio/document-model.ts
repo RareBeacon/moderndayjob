@@ -1,4 +1,5 @@
-import type { StudioDraft } from './draft';
+import type { ResumeSectionKey } from './catalog30';
+import type { DocumentMode, StudioDraft } from './draft';
 
 export interface ResumeContactInfo {
   location: string;
@@ -78,6 +79,7 @@ export interface ResumeSkillGroup {
 }
 
 export interface NormalizedResumeDocument {
+  documentMode?: DocumentMode;
   fullName: string;
   initials: string;
   professionalTitle: string;
@@ -371,6 +373,7 @@ export function normalizeResumeFromDraft(draft: StudioDraft): NormalizedResumeDo
     : additionalRaw;
 
   return {
+    documentMode: draft.documentMode === 'cv' ? 'cv' : 'resume',
     fullName,
     initials: computeInitials(fullName),
     professionalTitle,
@@ -397,6 +400,7 @@ export function normalizeResumeFromDraft(draft: StudioDraft): NormalizedResumeDo
 export interface StoredCvPayload {
   templateId?: string;
   templateName?: string;
+  documentMode?: DocumentMode;
   contact?: {
     name?: string;
     email?: string;
@@ -418,6 +422,7 @@ export interface StoredCvPayload {
     tools?: string[];
   }>;
   skills?: Array<string | { name: string; category?: string }>;
+  skillItems?: Array<{ name: string; category?: string }>;
   education?: Array<{
     institution?: string;
     qualification?: string;
@@ -500,7 +505,9 @@ export function normalizeResumeFromStoredJson(json: StoredCvPayload): Normalized
     })
     .filter((e) => e.qualificationLine || e.institution);
 
-  const { flat: skills, groups: skillGroups } = buildSkillGroups(json.skills ?? []);
+  const { flat: skills, groups: skillGroups } = buildSkillGroups(
+    Array.isArray(json.skillItems) && json.skillItems.length > 0 ? json.skillItems : (json.skills ?? []),
+  );
 
   const projects: ResumeProjectItem[] = (json.projects ?? [])
     .map((p, idx) => ({
@@ -552,6 +559,7 @@ export function normalizeResumeFromStoredJson(json: StoredCvPayload): Normalized
     : additionalRaw;
 
   return {
+    documentMode: json.documentMode === 'cv' ? 'cv' : 'resume',
     fullName,
     initials: computeInitials(fullName),
     professionalTitle,
@@ -572,5 +580,108 @@ export function normalizeResumeFromStoredJson(json: StoredCvPayload): Normalized
     memberships,
     references: cleanField(json.references, 600),
     additional: cleanedAdditional,
+  };
+}
+
+const COMPREHENSIVE_CV_PRIMARY_KEYS: ResumeSectionKey[] = [
+  'summary',
+  'experience',
+  'education',
+  'publications',
+  'projects',
+  'certifications',
+  'skills',
+  'awards',
+  'memberships',
+  'volunteer',
+  'languages',
+  'additional',
+  'references',
+];
+
+const COMPREHENSIVE_CV_RAIL_KEYS: ResumeSectionKey[] = [
+  'skills',
+  'certifications',
+  'languages',
+  'memberships',
+  'awards',
+];
+
+/**
+ * Resolve template section ordering for Resume vs CV mode.
+ * - Resume mode ('resume' / undefined): preserves each template's curated, concise section priority.
+ * - CV mode ('cv'): guarantees every comprehensive Curriculum Vitae section is rendered across all 30 templates.
+ */
+export function resolveTemplateSectionsForMode(
+  spec: {
+    columns: 1 | 2;
+    blueprint: { primarySections: ResumeSectionKey[]; secondarySections: ResumeSectionKey[] };
+  },
+  mode?: DocumentMode | null,
+): { primarySections: ResumeSectionKey[]; secondarySections: ResumeSectionKey[] } {
+  if (mode !== 'cv') {
+    return {
+      primarySections: spec.blueprint.primarySections,
+      secondarySections: spec.blueprint.secondarySections,
+    };
+  }
+
+  const seen = new Set<ResumeSectionKey>();
+  const primarySections: ResumeSectionKey[] = [];
+  const secondarySections: ResumeSectionKey[] = [];
+
+  for (const key of spec.blueprint.primarySections) {
+    if (!seen.has(key)) {
+      seen.add(key);
+      primarySections.push(key);
+    }
+  }
+  for (const key of spec.blueprint.secondarySections) {
+    if (!seen.has(key)) {
+      seen.add(key);
+      secondarySections.push(key);
+    }
+  }
+
+  if (spec.columns === 2) {
+    for (const key of COMPREHENSIVE_CV_RAIL_KEYS) {
+      if (!seen.has(key)) {
+        seen.add(key);
+        secondarySections.push(key);
+      }
+    }
+  }
+
+  for (const key of COMPREHENSIVE_CV_PRIMARY_KEYS) {
+    if (!seen.has(key)) {
+      seen.add(key);
+      primarySections.push(key);
+    }
+  }
+
+  return { primarySections, secondarySections };
+}
+
+/**
+ * Apply an explicit export/preview DocumentMode ('resume' vs 'cv') to a normalized document.
+ */
+export function applyDocumentModeToResume(
+  doc: NormalizedResumeDocument,
+  mode?: DocumentMode | null,
+): NormalizedResumeDocument {
+  if (!mode) return doc;
+  if (mode === 'cv') {
+    return {
+      ...doc,
+      documentMode: 'cv',
+    };
+  }
+  return {
+    ...doc,
+    documentMode: 'resume',
+    experiences: doc.experiences.map((exp) => ({
+      ...exp,
+      bullets: exp.bullets.slice(0, 5),
+    })),
   };
 }

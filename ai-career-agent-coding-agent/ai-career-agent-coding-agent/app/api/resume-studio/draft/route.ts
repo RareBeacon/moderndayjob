@@ -8,12 +8,13 @@ import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 export const dynamic = 'force-dynamic';
 
 const draftBody = z.object({
-  id: z.guid().optional(),
+  id: z.union([z.guid(), z.literal(''), z.null()]).optional(),
   name: z.string().trim().min(1).max(160).optional(),
   selectedTemplate: z.string().trim().min(1).max(100).optional(),
   currentStep: z.string().trim().min(1).max(100).optional(),
   targetJobDescription: z.string().max(30000).optional(),
   content: z.record(z.string(), z.unknown()).optional(),
+  draft: z.record(z.string(), z.unknown()).optional(),
 });
 
 function emptyProfile() {
@@ -42,7 +43,11 @@ export async function GET(req: Request) {
       .limit(1)
       .maybeSingle(),
     supabaseAdmin.from('profiles').select('full_name,email,target_roles').eq('user_id', user.id).maybeSingle(),
-    supabaseAdmin.from('career_profiles').select('headline,summary,skills,experience,education,projects,links').eq('user_id', user.id).maybeSingle(),
+    supabaseAdmin
+      .from('career_profiles')
+      .select('headline,summary,skills,experience,education,projects,links')
+      .eq('user_id', user.id)
+      .maybeSingle(),
   ]);
 
   if (draftError && /resume_studio_drafts/i.test(draftError.message ?? '')) {
@@ -64,7 +69,13 @@ export async function GET(req: Request) {
         }
       : null,
     memory: {
-      ...(profile ? { fullName: profile.full_name ?? '', email: profile.email ?? '', targetRoles: profile.target_roles ?? [] } : emptyProfile()),
+      ...(profile
+        ? {
+            fullName: profile.full_name ?? '',
+            email: profile.email ?? user.email ?? '',
+            targetRoles: profile.target_roles ?? [],
+          }
+        : { ...emptyProfile(), email: user.email ?? '' }),
       career,
     },
   });
@@ -76,10 +87,14 @@ export async function PUT(req: Request) {
 
   const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
-  const parsed = draftBody.safeParse(await req.json().catch(() => ({})));
-  if (!parsed.success) return NextResponse.json({ error: 'INVALID_BODY', issues: parsed.error.issues }, { status: 400 });
 
-  const normalized = normalizeStudioDraft(parsed.data.content ?? {});
+  const parsed = draftBody.safeParse(await req.json().catch(() => ({})));
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'INVALID_BODY', issues: parsed.error.issues }, { status: 400 });
+  }
+
+  const rawContent = parsed.data.content ?? parsed.data.draft ?? {};
+  const normalized = normalizeStudioDraft(rawContent);
   const score = scoreResumeDraft(normalized);
   const completion = completionForDraft(normalized);
   const payload = {
@@ -96,16 +111,39 @@ export async function PUT(req: Request) {
     updated_at: new Date().toISOString(),
   };
 
-  if (parsed.data.id) {
+  const targetId = typeof parsed.data.id === 'string' && parsed.data.id.length > 0 ? parsed.data.id : null;
+
+  if (targetId) {
     const { data, error } = await supabaseAdmin
       .from('resume_studio_drafts')
       .update(payload)
-      .eq('id', parsed.data.id)
+      .eq('id', targetId)
+      .eq('user_id', user.id)
+      .select('id, name, selected_template, current_step, completion, updated_at')
+      .maybeSingle();
+    if (error) return NextResponse.json({ error: 'DRAFT_SAVE_FAILED', detail: error.message }, { status: 500 });
+    if (data) return NextResponse.json({ id: data.id, draft: data, score, completion });
+  }
+
+  const { data: existingActive } = await supabaseAdmin
+    .from('resume_studio_drafts')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('is_active', true)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingActive?.id) {
+    const { data, error } = await supabaseAdmin
+      .from('resume_studio_drafts')
+      .update(payload)
+      .eq('id', existingActive.id)
       .eq('user_id', user.id)
       .select('id, name, selected_template, current_step, completion, updated_at')
       .single();
     if (error) return NextResponse.json({ error: 'DRAFT_SAVE_FAILED', detail: error.message }, { status: 500 });
-    return NextResponse.json({ draft: data, score, completion });
+    return NextResponse.json({ id: data.id, draft: data, score, completion });
   }
 
   const { data, error } = await supabaseAdmin
@@ -114,5 +152,5 @@ export async function PUT(req: Request) {
     .select('id, name, selected_template, current_step, completion, updated_at')
     .single();
   if (error) return NextResponse.json({ error: 'DRAFT_SAVE_FAILED', detail: error.message }, { status: 500 });
-  return NextResponse.json({ draft: data, score, completion }, { status: 201 });
+  return NextResponse.json({ id: data.id, draft: data, score, completion }, { status: 201 });
 }

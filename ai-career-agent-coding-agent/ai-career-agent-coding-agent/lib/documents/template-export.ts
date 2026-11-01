@@ -16,6 +16,7 @@ import {
 import { PDFDocument, PDFFont, PDFImage, PDFPage, rgb, StandardFonts } from 'pdf-lib';
 import {
   normalizeResumeFromStoredJson,
+  resolveTemplateSectionsForMode,
   toPdfSafeText,
   type NormalizedResumeDocument,
 } from '@/lib/resume-studio/document-model';
@@ -409,10 +410,12 @@ export async function renderTemplatePdf(
     : reconstructResumeFromSections(title, sections, typeof photo === 'string' ? photo : null);
 
   const pdf = await PDFDocument.create();
-  pdf.setTitle(toPdfSafeText(`${docData.fullName || 'Candidate'} - ${spec.name}`));
+  const modeLabel = docData.documentMode === 'cv' ? 'Curriculum Vitae' : 'Resume';
+  pdf.setTitle(toPdfSafeText(`${docData.fullName || 'Candidate'} ${modeLabel} - ${spec.name}`));
   pdf.setSubject(toPdfSafeText(docData.professionalTitle || spec.intendedUse));
   pdf.setCreator('Jobiest Resume Studio');
   pdf.setProducer('Jobiest A4 Template Engine');
+  const { primarySections, secondarySections } = resolveTemplateSectionsForMode(spec, docData.documentMode);
 
   const serifReg = await pdf.embedFont(StandardFonts.TimesRoman);
   const serifBold = await pdf.embedFont(StandardFonts.TimesRomanBold);
@@ -505,7 +508,8 @@ export async function renderTemplatePdf(
     }
 
     if (pageIdx > 0 && bp.bodyStructure !== 'full-bleed-dark-sidebar') {
-      const contLabel = toPdfSafeText(`${docData.fullName || 'Resume'}  |  ${docData.professionalTitle || spec.name}`);
+      const contFallback = docData.documentMode === 'cv' ? 'Curriculum Vitae' : 'Resume';
+      const contLabel = toPdfSafeText(`${docData.fullName || contFallback}  |  ${docData.professionalTitle || spec.name}`);
       page.drawText(contLabel, {
         x: margin,
         y: A4_HEIGHT_PT - 24,
@@ -2000,7 +2004,7 @@ export async function renderTemplatePdf(
 
   if (spec.columns === 1) {
     renderSectionFlow(
-      bp.primarySections,
+      primarySections,
       {
         x: margin,
         width: contentWidth,
@@ -2021,7 +2025,7 @@ export async function renderTemplatePdf(
     const mainW = A4_WIDTH_PT - mainX - 30;
     // Primary column drawn FIRST in PDF stream order
     renderSectionFlow(
-      bp.primarySections,
+      primarySections,
       {
         x: mainX,
         width: mainW,
@@ -2038,7 +2042,7 @@ export async function renderTemplatePdf(
     );
     // Secondary dark sidebar drawn SECOND in PDF stream order
     renderSectionFlow(
-      bp.secondarySections,
+      secondarySections,
       {
         x: 20,
         width: sideW - 36,
@@ -2059,7 +2063,7 @@ export async function renderTemplatePdf(
     const mainW = contentWidth - railW - colGap;
     // Primary right column drawn FIRST in PDF stream order
     renderSectionFlow(
-      bp.primarySections,
+      primarySections,
       {
         x: mainX,
         width: mainW,
@@ -2076,7 +2080,7 @@ export async function renderTemplatePdf(
     );
     // Secondary left rail drawn SECOND in PDF stream order
     renderSectionFlow(
-      bp.secondarySections,
+      secondarySections,
       {
         x: margin,
         width: railW - 4,
@@ -2098,7 +2102,7 @@ export async function renderTemplatePdf(
     const railX = margin + mainW + colGap;
     // Primary left column drawn FIRST in PDF stream order
     renderSectionFlow(
-      bp.primarySections,
+      primarySections,
       {
         x: margin,
         width: mainW,
@@ -2115,7 +2119,7 @@ export async function renderTemplatePdf(
     );
     // Secondary right rail drawn SECOND in PDF stream order
     renderSectionFlow(
-      bp.secondarySections,
+      secondarySections,
       {
         x: railX,
         width: railW - 4,
@@ -2176,6 +2180,7 @@ export async function renderTemplateDocx(
   const docData = providedResume
     ? { ...providedResume, photoDataUrl: typeof photo === 'string' ? photo : providedResume.photoDataUrl ?? '' }
     : reconstructResumeFromSections(title, sections, typeof photo === 'string' ? photo : null);
+  const { primarySections, secondarySections } = resolveTemplateSectionsForMode(spec, docData.documentMode);
 
   const buildSectionParagraphs = (keys: ResumeSectionKey[], textHex: string, subHex: string): Paragraph[] => {
     const out: Paragraph[] = [];
@@ -2458,9 +2463,9 @@ export async function renderTemplateDocx(
 
   let bodyNodes: Array<Paragraph | Table>;
   if (twoColumn) {
-    const primaryParas = buildSectionParagraphs(bp.primarySections, inkHex, mutedHex);
+    const primaryParas = buildSectionParagraphs(primarySections, inkHex, mutedHex);
     const secondaryParas = buildSectionParagraphs(
-      bp.secondarySections,
+      secondarySections,
       bp.bodyStructure === 'full-bleed-dark-sidebar' ? railInkHex : inkHex,
       bp.bodyStructure === 'full-bleed-dark-sidebar' ? 'CBD5E1' : mutedHex,
     );
@@ -2498,7 +2503,7 @@ export async function renderTemplateDocx(
       }),
     ];
   } else {
-    bodyNodes = buildSectionParagraphs(bp.primarySections, inkHex, mutedHex);
+    bodyNodes = buildSectionParagraphs(primarySections, inkHex, mutedHex);
   }
 
   // ISO A4 in twentieths of a point (twips): 210mm = 11906 twips, 297mm = 16838 twips

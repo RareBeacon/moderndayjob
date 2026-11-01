@@ -40,10 +40,13 @@ export interface StudioCertification {
   date?: string;
 }
 
+export type DocumentMode = 'resume' | 'cv';
+
 export interface StudioDraft {
   id?: string;
   versionName: string;
   selectedTemplate: string;
+  documentMode?: DocumentMode;
   currentStep: string;
   personal: {
     name: string;
@@ -92,6 +95,7 @@ export interface ResumeScore {
 export const EMPTY_STUDIO_DRAFT: StudioDraft = {
   versionName: 'General Resume',
   selectedTemplate: 'tpl-03-modern-professional',
+  documentMode: 'resume',
   currentStep: 'welcome',
   personal: { name: '', email: '', phone: '', location: '', website: '', linkedin: '', github: '', photoDataUrl: '' },
   career: { headline: '', targetRole: '', yearsExperience: '', seniority: '', summary: '' },
@@ -141,6 +145,7 @@ export function normalizeStudioDraft(input: Partial<StudioDraft> | null | undefi
     ...d,
     versionName: cleanText(d.versionName, 120) || EMPTY_STUDIO_DRAFT.versionName,
     selectedTemplate: cleanText(d.selectedTemplate, 80) || EMPTY_STUDIO_DRAFT.selectedTemplate,
+    documentMode: d.documentMode === 'cv' ? 'cv' : 'resume',
     currentStep: cleanText(d.currentStep, 80) || EMPTY_STUDIO_DRAFT.currentStep,
     personal: {
       ...EMPTY_STUDIO_DRAFT.personal,

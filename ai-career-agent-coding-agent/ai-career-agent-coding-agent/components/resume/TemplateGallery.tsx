@@ -2,7 +2,9 @@
 
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { ResumeDocumentPreview } from '@/components/resume/ResumeDocumentPreview';
+import type { DocumentMode } from '@/lib/resume-studio/draft';
 import { SAMPLE_PREVIEW_DRAFT } from '@/lib/resume-studio/sample';
+import { savePendingTemplateSelection } from '@/lib/resume-studio/selection';
 import {
   LIBRARY_FILTER_CATEGORIES,
   RESUME_TEMPLATES,
@@ -53,6 +55,15 @@ export function TemplateGallery({ templates: propTemplates }: { templates?: Resu
   const [visibleCount, setVisibleCount] = useState<number>(PAGE_STEP);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [zoom, setZoom] = useState<number>(1);
+  const [modalDocMode, setModalDocMode] = useState<DocumentMode>('resume');
+
+  const modalPreviewDraft = useMemo(
+    () =>
+      modalDocMode === 'cv'
+        ? { ...SAMPLE_PREVIEW_DRAFT, documentMode: 'cv' as const }
+        : SAMPLE_PREVIEW_DRAFT,
+    [modalDocMode],
+  );
 
   const isFiltered =
     searchQuery.trim().length > 0 ||
@@ -131,6 +142,7 @@ export function TemplateGallery({ templates: propTemplates }: { templates?: Resu
 
   const openPreview = useCallback((templateId: string) => {
     setZoom(1);
+    setModalDocMode('resume');
     setPreviewId(templateId);
   }, []);
 
@@ -330,6 +342,22 @@ export function TemplateGallery({ templates: propTemplates }: { templates?: Resu
                 </div>
 
                 <div className={styles.modalToolbar}>
+                  <div className={styles.zoomGroup} role="group" aria-label="Document format mode">
+                    {([
+                      { label: 'Resume', value: 'resume' as const },
+                      { label: 'CV', value: 'cv' as const },
+                    ]).map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setModalDocMode(opt.value)}
+                        className={`${styles.zoomBtn} ${modalDocMode === opt.value ? styles.zoomBtnActive : ''}`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+
                   <div className={styles.zoomGroup} role="group" aria-label="Preview zoom">
                     {[
                       { label: '75%', value: 0.75 },
@@ -377,9 +405,22 @@ export function TemplateGallery({ templates: propTemplates }: { templates?: Resu
 
                   <a
                     className={styles.modalUseCta}
-                    href={`/generate?template=${encodeURIComponent(activePreviewTemplate.id)}`}
+                    href={`/generate?template=${encodeURIComponent(activePreviewTemplate.id)}${modalDocMode === 'cv' ? '&docType=cv' : ''}`}
+                    onClick={() => savePendingTemplateSelection(activePreviewTemplate.id, modalDocMode)}
                   >
-                    Use This Template
+                    {modalDocMode === 'cv' ? 'Build CV With Template' : 'Use This Template'}
+                  </a>
+                  <a
+                    className={styles.modalSecondaryCta}
+                    href={`/generate?template=${encodeURIComponent(activePreviewTemplate.id)}&docType=${modalDocMode === 'cv' ? 'resume' : 'cv'}`}
+                    onClick={() =>
+                      savePendingTemplateSelection(
+                        activePreviewTemplate.id,
+                        modalDocMode === 'cv' ? 'resume' : 'cv',
+                      )
+                    }
+                  >
+                    {modalDocMode === 'cv' ? 'Or Build Resume' : 'Or Build CV'}
                   </a>
 
                   <button
@@ -396,7 +437,7 @@ export function TemplateGallery({ templates: propTemplates }: { templates?: Resu
               <div className={styles.modalBody}>
                 <div className={styles.modalCanvasScroll}>
                   <ResumeDocumentPreview
-                    draft={SAMPLE_PREVIEW_DRAFT}
+                    draft={modalPreviewDraft}
                     template={activePreviewTemplate}
                     size="full"
                     isDemo
@@ -469,9 +510,10 @@ export function TemplateGallery({ templates: propTemplates }: { templates?: Resu
 
                   <a
                     className={styles.useBtn}
-                    href={`/generate?template=${encodeURIComponent(activePreviewTemplate.id)}`}
+                    href={`/generate?template=${encodeURIComponent(activePreviewTemplate.id)}${modalDocMode === 'cv' ? '&docType=cv' : ''}`}
+                    onClick={() => savePendingTemplateSelection(activePreviewTemplate.id, modalDocMode)}
                   >
-                    Build With {activePreviewTemplate.name}
+                    Build {modalDocMode === 'cv' ? 'CV' : 'Resume'} With {activePreviewTemplate.name}
                   </a>
                 </aside>
               </div>
@@ -554,8 +596,19 @@ const GalleryCard = memo(function GalleryCard({
           <a
             className={styles.useBtn}
             href={`/generate?template=${encodeURIComponent(template.id)}`}
+            onClick={() => savePendingTemplateSelection(template.id, 'resume')}
           >
             Use Template
+          </a>
+        </div>
+        <div className={styles.cardSubAction}>
+          <span>Supports Resume &amp; CV</span>
+          <a
+            className={styles.cardCvLink}
+            href={`/generate?template=${encodeURIComponent(template.id)}&docType=cv`}
+            onClick={() => savePendingTemplateSelection(template.id, 'cv')}
+          >
+            Build as CV &rarr;
           </a>
         </div>
       </div>
