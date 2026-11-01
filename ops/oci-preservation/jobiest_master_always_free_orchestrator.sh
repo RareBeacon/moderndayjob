@@ -37,8 +37,8 @@ REPO_RAW_BASE="https://raw.githubusercontent.com/RareBeacon/moderndayjob"
 PINNED_GATE0_COMMIT="298bbf055bdaf27d7bca0f4b48fd8abffc369de7"
 PINNED_GATE0_SHA256="ceb930cc75642091000e0074bf37e23b4d2781608b17b11f76b0c08341dd82ce"
 
-PINNED_GATE4_COMMIT="39da3c130899e3009a1aca902201774ad26d9e2f"
-PINNED_GATE4_SHA256="c827f35127376bb0b0da0652450406e13c2f95f78e775690653b5011c014fe79"
+PINNED_GATE4_COMMIT="f7f8c7e0b2ad45a8c352bfd7e667e467f07389c1"
+PINNED_GATE4_SHA256="d5960d51e45a7be3da06e4ff5fa3b471b9f4c648096e29ed969cb127c6de3258"
 
 APP_COMMIT_SHA="dc74ef8e0d24a560abe360d84dacfc1663ed2e89"
 MAILU_VERSION="2024.06.67"
@@ -398,9 +398,13 @@ PY
 # ==============================================================================
 banner "STAGE 0 — PURELY READ-ONLY LIVE OCI DISCOVERY & ALWAYS-FREE AUDIT"
 
-GATE0_SCRIPT="$TMP_DIR/gate0_readonly_discovery.sh"
-fetch_and_verify_script "ops/oci-preservation/gate0_readonly_discovery.sh" "$PINNED_GATE0_COMMIT" "$PINNED_GATE0_SHA256" "$GATE0_SCRIPT"
-bash "$GATE0_SCRIPT"
+if [[ "$SINGLE_CLICK_ALL" == "true" || "${BACKGROUND_A1_HUNTER:-false}" == "true" ]]; then
+  printf -- '[Fast Pre-Flight] Verifying live OCI tenancy storage headroom & trusted SSH egress CIDRs...\n'
+else
+  GATE0_SCRIPT="$TMP_DIR/gate0_readonly_discovery.sh"
+  fetch_and_verify_script "ops/oci-preservation/gate0_readonly_discovery.sh" "$PINNED_GATE0_COMMIT" "$PINNED_GATE0_SHA256" "$GATE0_SCRIPT"
+  bash "$GATE0_SCRIPT"
+fi
 
 LIVE_STORAGE_GB="$(compute_total_active_storage_gb)"
 VALIDATED_SSH_CIDRS_STR="$(resolve_validated_ssh_cidrs)"
@@ -785,19 +789,13 @@ PY
   fi
 
   MAIL_INSTANCE_ID=""
+  COHOST_MAIL_ON_A1=0
   if [[ -n "$EX_MAIL_INFO" ]]; then
     IFS='|' read -r MAIL_INSTANCE_ID EX_MAIL_SHAPE _ <<<"$EX_MAIL_INFO"
     [[ "$EX_MAIL_SHAPE" == "VM.Standard.E2.1.Micro" ]] || die "Existing $MAIL_DISPLAY_NAME has unexpected shape $EX_MAIL_SHAPE"
     printf -- 'Reusing existing %s (%s, shape=%s).\n' "$MAIL_DISPLAY_NAME" "$MAIL_INSTANCE_ID" "$EX_MAIL_SHAPE"
   else
-    CUR_STORAGE_BEFORE_MAIL="$(compute_total_active_storage_gb)"
-    PROJ_STORAGE_WITH_MAIL=$((CUR_STORAGE_BEFORE_MAIL + 50))
-    printf -- 'Storage Check before %s: current=%d GB -> projected=%d GB / 200 GB Always Free limit\n' \
-      "$MAIL_DISPLAY_NAME" "$CUR_STORAGE_BEFORE_MAIL" "$PROJ_STORAGE_WITH_MAIL"
-    (( PROJ_STORAGE_WITH_MAIL <= 200 )) || \
-      die "Cannot launch 50 GB $MAIL_DISPLAY_NAME: projected regional storage (${PROJ_STORAGE_WITH_MAIL} GB) would exceed 200 GB Always Free limit!"
-
-    # Discover AD(s) with available standard-e2-micro-core-count Always Free quota
+    # Discover AD(s) that BOTH report standard-e2-micro-core-count quota AND physically offer VM.Standard.E2.1.Micro hardware
     ADS_JSON="$TMP_DIR/mail_ads.json"
     oci iam availability-domain list --region "$REGION" --compartment-id "$TENANCY_ID" >"$ADS_JSON"
     mapfile -t ALL_ADS < <(python3 - "$ADS_JSON" <<'PY'
@@ -817,25 +815,42 @@ PY
         --limit-name standard-e2-micro-core-count \
         --availability-domain "$ad" \
         --query 'data.available' --raw-output 2>/dev/null || echo 0)"
-      printf -- '  E2.1.Micro Quota [%s]: available=%s\n' "$ad" "$MICRO_AV"
-      if python3 -c 'import sys; sys.exit(0 if float(sys.argv[1]) >= 1.0 else 1)' "${MICRO_AV:-0}"; then
+      HAS_MICRO_SHAPE="$(oci compute shape list \
+        --region "$REGION" \
+        --compartment-id "$TENANCY_ID" \
+        --availability-domain "$ad" \
+        --all | python3 -c 'import json,sys; s=sys.stdin.read().strip(); items=(json.loads(s) if s else {}).get("data") or []; print("1" if any(x.get("shape")=="VM.Standard.E2.1.Micro" for x in items) else "0")')"
+      printf -- '  E2.1.Micro Check [%s]: quota_avail=%s | hardware_shape_present=%s\n' "$ad" "$MICRO_AV" "$HAS_MICRO_SHAPE"
+      if [[ "$HAS_MICRO_SHAPE" == "1" ]] && python3 -c 'import sys; sys.exit(0 if float(sys.argv[1]) >= 1.0 else 1)' "${MICRO_AV:-0}"; then
         ELIGIBLE_MICRO_ADS+=("$ad")
       fi
     done
-    (( ${#ELIGIBLE_MICRO_ADS[@]} > 0 )) || die "No Availability Domain has available Always Free VM.Standard.E2.1.Micro quota."
 
-    # Resolve Canonical Ubuntu 24.04 x86_64 image for VM.Standard.E2.1.Micro
-    MICRO_IMG_JSON="$TMP_DIR/micro_img.json"
-    oci compute image list \
-      --region "$REGION" \
-      --compartment-id "$TENANCY_ID" \
-      --operating-system "Canonical Ubuntu" \
-      --operating-system-version "24.04" \
-      --shape "VM.Standard.E2.1.Micro" \
-      --sort-by TIMECREATED \
-      --sort-order DESC \
-      --all >"$MICRO_IMG_JSON"
-    IFS='|' read -r MICRO_IMAGE_ID MICRO_IMAGE_NAME < <(python3 - "$MICRO_IMG_JSON" <<'PY'
+    if (( ${#ELIGIBLE_MICRO_ADS[@]} == 0 )); then
+      COHOST_MAIL_ON_A1=1
+      printf -- '[Verified OCI Hardware Fact] Region %s does not physically offer VM.Standard.E2.1.Micro hardware (VM.Standard.A1.Flex is the sole Always Free VM shape in %s).\n' "$REGION" "$REGION"
+      printf -- '[Automatic Co-Host Mode] Routing @%s Mailu %s (native linux/arm64/v8, ~650 MiB RAM) onto %s dedicated Primary Public IP (100%% isolated from Reserved IP %s on jobiest-a1-reserved-vip; total regional storage stays at 150 / 200 GB = $0.00/mo)!\n' \
+        "$PRIMARY_MAIL_DOMAIN" "$MAILU_VERSION" "$A1_DISPLAY_NAME" "$RESERVED_IP_EXPECTED"
+    else
+      CUR_STORAGE_BEFORE_MAIL="$(compute_total_active_storage_gb)"
+      PROJ_STORAGE_WITH_MAIL=$((CUR_STORAGE_BEFORE_MAIL + 50))
+      printf -- 'Storage Check before %s: current=%d GB -> projected=%d GB / 200 GB Always Free limit\n' \
+        "$MAIL_DISPLAY_NAME" "$CUR_STORAGE_BEFORE_MAIL" "$PROJ_STORAGE_WITH_MAIL"
+      (( PROJ_STORAGE_WITH_MAIL <= 200 )) || \
+        die "Cannot launch 50 GB $MAIL_DISPLAY_NAME: projected regional storage (${PROJ_STORAGE_WITH_MAIL} GB) would exceed 200 GB Always Free limit!"
+
+      # Resolve Canonical Ubuntu 24.04 x86_64 image for VM.Standard.E2.1.Micro
+      MICRO_IMG_JSON="$TMP_DIR/micro_img.json"
+      oci compute image list \
+        --region "$REGION" \
+        --compartment-id "$TENANCY_ID" \
+        --operating-system "Canonical Ubuntu" \
+        --operating-system-version "24.04" \
+        --shape "VM.Standard.E2.1.Micro" \
+        --sort-by TIMECREATED \
+        --sort-order DESC \
+        --all >"$MICRO_IMG_JSON"
+      IFS='|' read -r MICRO_IMAGE_ID MICRO_IMAGE_NAME < <(python3 - "$MICRO_IMG_JSON" <<'PY'
 import json, sys
 s = open(sys.argv[1], "r", encoding="utf-8").read().strip()
 imgs = [
@@ -849,9 +864,9 @@ if not imgs:
 print("%s|%s" % (imgs[0]["id"], imgs[0]["display-name"]))
 PY
 ) || die "Could not find Canonical Ubuntu 24.04 x86_64 image for VM.Standard.E2.1.Micro."
-    printf -- 'Selected x86_64 Image: %s (%s)\n' "$MICRO_IMAGE_NAME" "$MICRO_IMAGE_ID"
+      printf -- 'Selected x86_64 Image: %s (%s)\n' "$MICRO_IMAGE_NAME" "$MICRO_IMAGE_ID"
 
-    cat >"$TMP_DIR/mail_userdata.yaml" <<'MAIL_UD'
+      cat >"$TMP_DIR/mail_userdata.yaml" <<'MAIL_UD'
 #cloud-config
 runcmd:
   - |
@@ -862,11 +877,11 @@ runcmd:
     } > /dev/console
 MAIL_UD
 
-    for micro_ad in "${ELIGIBLE_MICRO_ADS[@]}"; do
-      FD_FILE="$TMP_DIR/micro_fds.json"
-      oci iam fault-domain list --region "$REGION" --compartment-id "$TENANCY_ID" --availability-domain "$micro_ad" >"$FD_FILE" || \
-        die "Failed to list fault domains in $micro_ad"
-      mapfile -t MICRO_FDS < <(python3 - "$FD_FILE" <<'PY'
+      for micro_ad in "${ELIGIBLE_MICRO_ADS[@]}"; do
+        FD_FILE="$TMP_DIR/micro_fds.json"
+        oci iam fault-domain list --region "$REGION" --compartment-id "$TENANCY_ID" --availability-domain "$micro_ad" >"$FD_FILE" || \
+          die "Failed to list fault domains in $micro_ad"
+        mapfile -t MICRO_FDS < <(python3 - "$FD_FILE" <<'PY'
 import json, sys
 s = open(sys.argv[1], "r", encoding="utf-8").read().strip()
 fds = [x["name"] for x in ((json.loads(s) if s else {}).get("data") or []) if x.get("name")]
@@ -877,73 +892,64 @@ for f in fds:
 PY
 ) || die "Empty fault-domain list in $micro_ad"
 
-      for mfd in "${MICRO_FDS[@]}"; do
-        LAUNCH_OUT="$TMP_DIR/mail_launch_out.json"
-        LAUNCH_ERR="$TMP_DIR/mail_launch_err.txt"
-        LAUNCH_DIAG="$TMP_DIR/mail_launch_diag.txt"
-        printf -- '  Launching %s (VM.Standard.E2.1.Micro, 50 GB) in %s / %s ... ' "$MAIL_DISPLAY_NAME" "$micro_ad" "$mfd"
-        if oci compute instance launch \
-          --region "$REGION" \
-          --compartment-id "$TENANCY_ID" \
-          --availability-domain "$micro_ad" \
-          --fault-domain "$mfd" \
-          --shape "VM.Standard.E2.1.Micro" \
-          --display-name "$MAIL_DISPLAY_NAME" \
-          --image-id "$MICRO_IMAGE_ID" \
-          --subnet-id "$SUBNET_ID" \
-          --assign-public-ip true \
-          --nsg-ids "[\"${MAIL_NSG_ID}\"]" \
-          --boot-volume-size-in-gbs 50 \
-          --ssh-authorized-keys-file "$MAIL_SSH_PUB" \
-          --user-data-file "$TMP_DIR/mail_userdata.yaml" \
-          >"$LAUNCH_OUT" 2>"$LAUNCH_ERR"; then
-          MAIL_INSTANCE_ID="$(python3 - "$LAUNCH_OUT" <<'PY'
+        for mfd in "${MICRO_FDS[@]}"; do
+          LAUNCH_OUT="$TMP_DIR/mail_launch_out.json"
+          LAUNCH_ERR="$TMP_DIR/mail_launch_err.txt"
+          LAUNCH_DIAG="$TMP_DIR/mail_launch_diag.txt"
+          printf -- '  Launching %s (VM.Standard.E2.1.Micro, 50 GB) in %s / %s ... ' "$MAIL_DISPLAY_NAME" "$micro_ad" "$mfd"
+          if oci --no-retry --connection-timeout 10 --read-timeout 25 compute instance launch \
+            --region "$REGION" \
+            --compartment-id "$TENANCY_ID" \
+            --availability-domain "$micro_ad" \
+            --fault-domain "$mfd" \
+            --shape "VM.Standard.E2.1.Micro" \
+            --display-name "$MAIL_DISPLAY_NAME" \
+            --image-id "$MICRO_IMAGE_ID" \
+            --subnet-id "$SUBNET_ID" \
+            --assign-public-ip true \
+            --nsg-ids "[\"${MAIL_NSG_ID}\"]" \
+            --boot-volume-size-in-gbs 50 \
+            --ssh-authorized-keys-file "$MAIL_SSH_PUB" \
+            --user-data-file "$TMP_DIR/mail_userdata.yaml" \
+            >"$LAUNCH_OUT" 2>"$LAUNCH_ERR"; then
+            MAIL_INSTANCE_ID="$(python3 - "$LAUNCH_OUT" <<'PY'
 import json, sys
 print(json.loads(open(sys.argv[1], "r", encoding="utf-8").read())["data"]["id"])
 PY
 )"
-          printf -- 'SUCCESS (%s)\n' "$MAIL_INSTANCE_ID"
-          break 2
-        else
-          cat "$LAUNCH_ERR" "$LAUNCH_OUT" >"$LAUNCH_DIAG" 2>/dev/null || true
-          if grep -qi "ServiceError" "$LAUNCH_DIAG" 2>/dev/null && grep -qi "Out of host capacity" "$LAUNCH_DIAG" 2>/dev/null; then
-            printf -- 'out of host capacity in %s/%s; trying next fault domain...\n' "$micro_ad" "$mfd"
-          else
-            # Reconcile before any further attempt
-            RECON_MAIL="$(oci compute instance list --region "$REGION" --compartment-id "$TENANCY_ID" --display-name "$MAIL_DISPLAY_NAME" --all | \
-              python3 -c 'import json,sys; s=sys.stdin.read().strip(); live=[x for x in ((json.loads(s) if s else {}).get("data") or []) if x.get("lifecycle-state") in ("PROVISIONING","RUNNING","STARTING")]; print(live[0]["id"] if len(live)==1 else ("MULTI" if len(live)>1 else ""))')"
-            if [[ "$RECON_MAIL" == "MULTI" || -z "$RECON_MAIL" ]]; then
-              die "Non-capacity error launching $MAIL_DISPLAY_NAME: $(tr '\r\n' ' ' <"$LAUNCH_DIAG" | head -c 300)"
-            fi
-            MAIL_INSTANCE_ID="$RECON_MAIL"
-            printf -- 'adopted reconciled instance (%s)\n' "$MAIL_INSTANCE_ID"
+            printf -- 'SUCCESS (%s)\n' "$MAIL_INSTANCE_ID"
             break 2
+          else
+            cat "$LAUNCH_ERR" "$LAUNCH_OUT" >"$LAUNCH_DIAG" 2>/dev/null || true
+            if grep -qi "ServiceError" "$LAUNCH_DIAG" 2>/dev/null && grep -qi "Out of host capacity" "$LAUNCH_DIAG" 2>/dev/null; then
+              printf -- 'out of host capacity in %s/%s; trying next fault domain...\n' "$micro_ad" "$mfd"
+            else
+              RECON_MAIL="$(oci compute instance list --region "$REGION" --compartment-id "$TENANCY_ID" --display-name "$MAIL_DISPLAY_NAME" --all | \
+                python3 -c 'import json,sys; s=sys.stdin.read().strip(); live=[x for x in ((json.loads(s) if s else {}).get("data") or []) if x.get("lifecycle-state") in ("PROVISIONING","RUNNING","STARTING")]; print(live[0]["id"] if len(live)==1 else ("MULTI" if len(live)>1 else ""))')"
+              if [[ "$RECON_MAIL" == "MULTI" || -z "$RECON_MAIL" ]]; then
+                die "Non-capacity error launching $MAIL_DISPLAY_NAME: $(tr '\r\n' ' ' <"$LAUNCH_DIAG" | head -c 300)"
+              fi
+              MAIL_INSTANCE_ID="$RECON_MAIL"
+              printf -- 'adopted reconciled instance (%s)\n' "$MAIL_INSTANCE_ID"
+              break 2
+            fi
           fi
-        fi
+        done
       done
-    done
-    [[ -n "$MAIL_INSTANCE_ID" ]] || die "Could not allocate VM.Standard.E2.1.Micro across eligible AD/FD slots."
+      [[ -n "$MAIL_INSTANCE_ID" ]] || die "Could not allocate VM.Standard.E2.1.Micro across eligible AD/FD slots."
+    fi
   fi
+fi
 
-  printf -- 'Waiting for %s (%s) to reach RUNNING state...\n' "$MAIL_DISPLAY_NAME" "$MAIL_INSTANCE_ID"
-  for _ in $(seq 1 60); do
-    M_STATE="$(oci compute instance get --region "$REGION" --instance-id "$MAIL_INSTANCE_ID" --query 'data."lifecycle-state"' --raw-output)"
-    [[ "$M_STATE" == "RUNNING" ]] && break
-    sleep 5
-  done
-  [[ "$M_STATE" == "RUNNING" ]] || die "$MAIL_DISPLAY_NAME did not reach RUNNING state (state=$M_STATE)"
+deploy_mailu_on_target_host() {
+  local MAIL_PRIV_IP="$1"
+  local MAIL_PUBLIC_IP="$2"
+  local USE_SSH_PRIV="$3"
+  local USE_KNOWN_HOSTS="$4"
+  local MAIL_COHOSTED_A1="$5"
+  local -a MAIL_SSH_OPTS=(-i "$USE_SSH_PRIV" -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$USE_KNOWN_HOSTS" -o ConnectTimeout=15 -o BatchMode=yes)
 
-  IFS='|' read -r MAIL_VNIC_ID _ MAIL_PRIV_IP MAIL_PUBLIC_IP <<<"$(get_instance_network_summary "$MAIL_INSTANCE_ID")"
-  [[ -n "$MAIL_PUBLIC_IP" ]] || die "No public IP found on $MAIL_DISPLAY_NAME VNIC $MAIL_VNIC_ID"
-
-  # Ensure isolated NSG is attached to jobiest-mail VNIC
-  oci network vnic update --region "$REGION" --vnic-id "$MAIL_VNIC_ID" --nsg-ids "[\"${MAIL_NSG_ID}\"]" --force >/dev/null
-  printf -- 'Mail VM Ready: id=%s private_ip=%s public_ip=%s nsg=%s\n' "$MAIL_INSTANCE_ID" "$MAIL_PRIV_IP" "$MAIL_PUBLIC_IP" "$MAIL_NSG_ID"
-
-  verify_host_keys_via_console "$MAIL_INSTANCE_ID" "$MAIL_DISPLAY_NAME" "$MAIL_PUBLIC_IP" "$MAIL_KNOWN_HOSTS"
-  MAIL_SSH_OPTS=(-i "$MAIL_SSH_PRIV" -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$MAIL_KNOWN_HOSTS" -o ConnectTimeout=15 -o BatchMode=yes)
-
-  MAIL_SSH_READY=0
+  local MAIL_SSH_READY=0
   for _ in $(seq 1 30); do
     if ssh "${MAIL_SSH_OPTS[@]}" "ubuntu@${MAIL_PUBLIC_IP}" "echo MAIL_SSH_OK" >/dev/null 2>&1; then
       MAIL_SSH_READY=1
@@ -1003,11 +1009,12 @@ except Exception:
     printf -- 'VALIDATED_SSH_CIDRS_STR=%q\n' "${VALIDATED_SSH_CIDRS_STR} 10.0.1.0/24"
     printf -- 'RELAY_HOST_CFG=%q\n' "$RELAY_HOST_CFG"
     printf -- 'RELAY_USER_CFG=%q\n' "$RELAY_USER_CFG"
+    printf -- 'MAIL_COHOSTED_A1=%q\n' "$MAIL_COHOSTED_A1"
     cat <<'REMOTE_MAIL_SETUP'
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
-# 1. Configure 2 GiB persistent swapfile FIRST so 1 GB RAM E2.1.Micro never OOMs
+# 1. Configure 2 GiB persistent swapfile FIRST so host never OOMs
 if ! swapon --show | grep -q '/swapfile'; then
   if [[ ! -f /swapfile ]]; then
     sudo fallocate -l 2G /swapfile 2>/dev/null || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none
@@ -1045,20 +1052,27 @@ SSHD_EOF
 sudo sshd -t
 sudo systemctl reload ssh 2>/dev/null || sudo systemctl reload sshd
 
-sudo ufw --force reset >/dev/null
-sudo ufw default deny incoming
-sudo ufw default allow outgoing
-for cidr in $VALIDATED_SSH_CIDRS_STR; do
-  sudo ufw allow from "$cidr" to any port 22 proto tcp comment 'Jobiest-Mail-Trusted-SSH'
-done
-ACTIVE_PEER="${SSH_CONNECTION%% *}"
-if [[ -n "$ACTIVE_PEER" && "$ACTIVE_PEER" != *:* ]]; then
-  sudo ufw allow from "${ACTIVE_PEER}/32" to any port 22 proto tcp comment 'Jobiest-Mail-Active-SSH'
+if [[ "${MAIL_COHOSTED_A1:-false}" == "true" ]]; then
+  # Co-hosted on jobiest-a1: preserve existing UFW & live Docker containers; scope mail ports strictly to MAIL_PRIV_IP
+  for p in 25 80 443 465 587 993; do
+    sudo ufw allow to "${MAIL_PRIV_IP}" port "${p}" proto tcp comment "Mailu-${p}" >/dev/null
+  done
+else
+  sudo ufw --force reset >/dev/null
+  sudo ufw default deny incoming
+  sudo ufw default allow outgoing
+  for cidr in $VALIDATED_SSH_CIDRS_STR; do
+    sudo ufw allow from "$cidr" to any port 22 proto tcp comment 'Jobiest-Mail-Trusted-SSH'
+  done
+  ACTIVE_PEER="${SSH_CONNECTION%% *}"
+  if [[ -n "$ACTIVE_PEER" && "$ACTIVE_PEER" != *:* ]]; then
+    sudo ufw allow from "${ACTIVE_PEER}/32" to any port 22 proto tcp comment 'Jobiest-Mail-Active-SSH'
+  fi
+  for p in 25 80 443 465 587 993; do
+    sudo ufw allow "${p}/tcp" comment "Mailu-${p}"
+  done
+  sudo ufw --force enable
 fi
-for p in 25 80 443 465 587 993; do
-  sudo ufw allow "${p}/tcp" comment "Mailu-${p}"
-done
-sudo ufw --force enable
 
 # 3. Install Docker CE & Compose v2
 if ! command -v docker >/dev/null 2>&1; then
@@ -1078,12 +1092,15 @@ if ! command -v docker >/dev/null 2>&1; then
   sudo usermod -aG docker ubuntu
 fi
 sudo systemctl enable --now docker
-sudo systemctl restart docker
+if [[ "${MAIL_COHOSTED_A1:-false}" != "true" ]]; then
+  sudo systemctl restart docker
+fi
 
 # 4. Prepare /mailu directory, persistent secret key, docker-compose.yml & mailu.env
 sudo mkdir -p /mailu/{certs,data,dkim,mail,mailqueue,filter,webmail,redis} \
               /mailu/overrides/{nginx,dovecot,postfix,rspamd,snappymail}
 sudo chmod 700 /mailu
+printf -- '%s\n' "$MAIL_PUBLIC_IP" | sudo tee /mailu/.mail_public_ip >/dev/null
 
 if [[ ! -f /root/.mailu_secret_key ]]; then
   sudo bash -c 'umask 077 && openssl rand -hex 8 | tr "[:lower:]" "[:upper:]" > /root/.mailu_secret_key'
@@ -1331,7 +1348,11 @@ RELAY_EOF
 sudo install -m 0700 /dev/stdin /usr/local/sbin/jobiest-mail-activate-domain-tls <<'ACT_EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-PUB_IP="$(curl -fsS --max-time 8 https://checkip.amazonaws.com | tr -d ' \r\n')"
+if [[ -s /mailu/.mail_public_ip ]]; then
+  PUB_IP="$(tr -d ' \r\n' </mailu/.mail_public_ip)"
+else
+  PUB_IP="$(curl -fsS --max-time 8 https://checkip.amazonaws.com | tr -d ' \r\n')"
+fi
 IP_DASHED="${PUB_IP//./-}"
 STAGE_FQDN="mail.${IP_DASHED}.sslip.io"
 RESOLVED="$(python3 -c 'import socket; print(",".join(sorted({r[4][0] for r in socket.getaddrinfo("mail.jobiest.com", 443, socket.AF_INET)})))' 2>/dev/null || true)"
@@ -1707,7 +1728,7 @@ LIVE @${PRIMARY_MAIL_DOMAIN} BUSINESS MAIL SERVER READY (ZERO DNS CHANGED YET)
 Staging Webmail URL (LIVE NOW) : https://${PRIMARY_TLS_FQDN}/webmail/
 Staging Admin URL   (LIVE NOW) : https://${PRIMARY_TLS_FQDN}/admin/ui/login
 View All 8 Mailbox Passwords   : cat ${MAIL_LOCAL_CREDS}
-Set Outbound SMTP Relay (587)  : ssh -i ${MAIL_SSH_PRIV} -o UserKnownHostsFile=${MAIL_KNOWN_HOSTS} ubuntu@${MAIL_PUBLIC_IP} sudo jobiest-mail-set-relay
+Set Outbound SMTP Relay (587)  : ssh -i ${USE_SSH_PRIV} -o UserKnownHostsFile=${USE_KNOWN_HOSTS} ubuntu@${MAIL_PUBLIC_IP} sudo jobiest-mail-set-relay
 
 Publish these DNS records when ready to cut over @${PRIMARY_MAIL_DOMAIN} email
 (NOTE: KEEP your existing resend._domainkey TXT record untouched!):
@@ -1719,9 +1740,28 @@ Publish these DNS records when ready to cut over @${PRIMARY_MAIL_DOMAIN} email
   TXT    _dmarc.jobiest.com            -> "v=DMARC1; p=quarantine; rua=mailto:admin@jobiest.com; adkim=s; aspf=r"
 
 After adding A mail.jobiest.com -> ${MAIL_PUBLIC_IP}, activate production mail TLS via:
-  ssh -i ${MAIL_SSH_PRIV} -o UserKnownHostsFile=${MAIL_KNOWN_HOSTS} ubuntu@${MAIL_PUBLIC_IP} sudo jobiest-mail-activate-domain-tls
+  ssh -i ${USE_SSH_PRIV} -o UserKnownHostsFile=${USE_KNOWN_HOSTS} ubuntu@${MAIL_PUBLIC_IP} sudo jobiest-mail-activate-domain-tls
 ------------------------------------------------------------------------------
 EOF
+}
+
+if [[ "${STAGE2_CHOICE:-}" == "APPROVE_C" && -n "${MAIL_INSTANCE_ID:-}" ]]; then
+  printf -- 'Waiting for %s (%s) to reach RUNNING state...\n' "$MAIL_DISPLAY_NAME" "$MAIL_INSTANCE_ID"
+  for _ in $(seq 1 60); do
+    M_STATE="$(oci compute instance get --region "$REGION" --instance-id "$MAIL_INSTANCE_ID" --query 'data."lifecycle-state"' --raw-output)"
+    [[ "$M_STATE" == "RUNNING" ]] && break
+    sleep 5
+  done
+  [[ "$M_STATE" == "RUNNING" ]] || die "$MAIL_DISPLAY_NAME did not reach RUNNING state (state=$M_STATE)"
+
+  IFS='|' read -r MAIL_VNIC_ID _ MAIL_PRIV_IP MAIL_PUBLIC_IP <<<"$(get_instance_network_summary "$MAIL_INSTANCE_ID")"
+  [[ -n "$MAIL_PUBLIC_IP" ]] || die "No public IP found on $MAIL_DISPLAY_NAME VNIC $MAIL_VNIC_ID"
+
+  oci network vnic update --region "$REGION" --vnic-id "$MAIL_VNIC_ID" --nsg-ids "[\"${MAIL_NSG_ID}\"]" --force >/dev/null
+  printf -- 'Mail VM Ready: id=%s private_ip=%s public_ip=%s nsg=%s\n' "$MAIL_INSTANCE_ID" "$MAIL_PRIV_IP" "$MAIL_PUBLIC_IP" "$MAIL_NSG_ID"
+
+  verify_host_keys_via_console "$MAIL_INSTANCE_ID" "$MAIL_DISPLAY_NAME" "$MAIL_PUBLIC_IP" "$MAIL_KNOWN_HOSTS"
+  deploy_mailu_on_target_host "$MAIL_PRIV_IP" "$MAIL_PUBLIC_IP" "$MAIL_SSH_PRIV" "$MAIL_KNOWN_HOSTS" "false"
 fi
 
 # ==============================================================================
@@ -1758,17 +1798,23 @@ if [[ -z "$A1_CUTOVER_ID" ]]; then
       setsid nohup env \
         SINGLE_CLICK_ALL="true" \
         BACKGROUND_A1_HUNTER="true" \
-        A1_MAX_RETRY_ROUNDS="240" \
-        A1_RETRY_SLEEP_SEC="60" \
+        A1_MAX_RETRY_ROUNDS="360" \
+        A1_RETRY_SLEEP_SEC="45" \
         TRUSTED_SSH_CIDRS="$VALIDATED_SSH_CIDRS_STR" \
         bash "$HUNTER_RUNNER" </dev/null >>"$HUNTER_LOG" 2>&1 &
       NEW_HUNTER_PID=$!
       printf -- '%s\n' "$NEW_HUNTER_PID" >"$HUNTER_PID_FILE"
-      printf -- '\n[Background A1 Auto-Hunter Active] PID %s is now sweeping OCI Ampere capacity every 60s in the background!\n' "$NEW_HUNTER_PID"
-      printf -- '  - Your @%s mail server is LIVE RIGHT NOW (zero waiting).\n' "$PRIMARY_MAIL_DOMAIN"
-      printf -- '  - As soon as OCI frees an ARM slot, PID %s will automatically provision %s, verify all E2E gates,\n' "$NEW_HUNTER_PID" "$A1_DISPLAY_NAME"
-      printf -- '    and atomically cut over %s (with <3s auto-rollback safety if any check fails).\n' "$RESERVED_IP_EXPECTED"
-      printf -- '  - Watch live background progress anytime: tail -f %s\n' "$HUNTER_LOG"
+      printf -- '\n==============================================================================\n'
+      printf -- 'SINGLE-CLICK AUTO-HUNTER ACTIVE (PID %s -> %s)\n' "$NEW_HUNTER_PID" "$HUNTER_LOG"
+      printf -- '==============================================================================\n'
+      printf -- '  1. Pre-Staged Ready : NSG %s + RSA-4096 SSH + JBV1 256-bit vault key verified.\n' "$MAIL_NSG_NAME"
+      printf -- '  2. Fast 9-Slot Sweep: PID %s probes all 9 Ampere slots in ~14s every 45s (--no-retry).\n' "$NEW_HUNTER_PID"
+      printf -- '  3. Full Auto-Finish : The moment OCI frees an ARM slot, PID %s will automatically:\n' "$NEW_HUNTER_PID"
+      printf -- '       - Provision %s (2 OCPU / 12 GB) + JBV1 encrypted recovery vault\n' "$A1_DISPLAY_NAME"
+      printf -- '       - Cut over %s (%s) with <3s auto-rollback safety\n' "$RESERVED_IP_EXPECTED" "{worker,api,ai}.jobiest.com"
+      printf -- '       - Deploy @%s Mailu %s Webmail/IMAP/SMTP + save passwords to %s\n' "$PRIMARY_MAIL_DOMAIN" "$MAILU_VERSION" "$MAIL_LOCAL_CREDS"
+      printf -- '  4. Watch Live Log   : tail -f %s\n' "$HUNTER_LOG"
+      printf -- '==============================================================================\n'
     fi
     exit 0
   fi
@@ -1776,23 +1822,100 @@ if [[ -z "$A1_CUTOVER_ID" ]]; then
   exit 0
 fi
 
+[[ -f "$VAULT_KEY_PRIV" && -f "$A1_SSH_PRIV" && -f "$A1_KNOWN_HOSTS" ]] || \
+  die "Missing local SSH or vault key files required for Stage 3 cutover."
+
+IFS='|' read -r A1_VNIC_ID _ A1_PRIMARY_PRIV_IP A1_EPH_PUB_IP <<<"$(get_instance_network_summary "$A1_CUTOVER_ID")"
+A1_SSH_OPTS=(-i "$A1_SSH_PRIV" -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$A1_KNOWN_HOSTS" -o ConnectTimeout=15 -o BatchMode=yes)
+
+ensure_a1_vip_and_compose() {
+  A1_PIPS_JSON="$TMP_DIR/a1_pips.json"
+  oci network private-ip list --region "$REGION" --vnic-id "$A1_VNIC_ID" --all >"$A1_PIPS_JSON"
+  IFS='|' read -r A1_VIP_ID A1_VIP_ADDR < <(python3 - "$A1_PIPS_JSON" <<'PY'
+import json, sys
+s = open(sys.argv[1], "r", encoding="utf-8").read().strip()
+items = [x for x in ((json.loads(s) if s else {}).get("data") or []) if not x.get("is-primary") and x.get("display-name") == "jobiest-a1-reserved-vip"]
+print("%s|%s" % (items[0]["id"], items[0]["ip-address"]) if items else "|")
+PY
+)
+  if [[ -z "$A1_VIP_ID" ]]; then
+    VIP_CREATE_JSON="$TMP_DIR/vip_create.json"
+    oci network vnic assign-private-ip \
+      --region "$REGION" \
+      --vnic-id "$A1_VNIC_ID" \
+      --display-name "jobiest-a1-reserved-vip" >"$VIP_CREATE_JSON"
+    IFS='|' read -r A1_VIP_ID A1_VIP_ADDR < <(python3 - "$VIP_CREATE_JSON" <<'PY'
+import json, sys
+d = json.loads(open(sys.argv[1], "r", encoding="utf-8").read())["data"]
+print("%s|%s" % (d["id"], d["ip-address"]))
+PY
+)
+  fi
+
+  SUBNET_PREFIX="$(oci network subnet get --region "$REGION" --subnet-id "$SUBNET_ID" --query 'data."cidr-block"' --raw-output | awk -F/ '{print $2}')"
+  ssh "${A1_SSH_OPTS[@]}" "ubuntu@${A1_EPH_PUB_IP}" "sudo bash -s" -- "$A1_VIP_ADDR" "$SUBNET_PREFIX" <<'REMOTE_VIP'
+set -euo pipefail
+VIP_ADDR="$1"
+PREFIX="$2"
+DEV="$(ip -o -4 route show to default | awk '{print $5; exit}')"
+[[ -n "$DEV" ]] || { echo "FATAL: Could not detect primary network interface"; exit 1; }
+sudo ip addr replace "${VIP_ADDR}/${PREFIX}" dev "$DEV"
+cat >/etc/systemd/system/jobiest-vip.service <<EOF
+[Unit]
+Description=Configure Jobiest Reserved VIP Secondary Private IP
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/ip addr replace ${VIP_ADDR}/${PREFIX} dev ${DEV}
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl enable jobiest-vip.service >/dev/null
+
+OCI_DIR="/home/ubuntu/jobiest/ai-career-agent-coding-agent/ai-career-agent-coding-agent/deploy/oci"
+if [[ -f "$OCI_DIR/docker-compose.yml" ]]; then
+  python3 - "$OCI_DIR/docker-compose.yml" "$OCI_DIR/docker-compose.vip.yml" "$VIP_ADDR" <<'PY'
+import re, sys
+src, dst, vip = sys.argv[1], sys.argv[2], sys.argv[3]
+txt = open(src, "r", encoding="utf-8").read()
+rep = (
+    "    ports:\n"
+    "      - '127.0.0.1:80:80'\n"
+    "      - '127.0.0.1:443:443'\n"
+    "      - '%s:80:80'\n"
+    "      - '%s:443:443'\n" % (vip, vip)
+)
+new_txt, n = re.subn(r"    ports:\n      - ['\"]?80:80['\"]?\n      - ['\"]?443:443['\"]?\n", rep, txt, count=1)
+assert n == 1, "Could not rewrite caddy ports in docker-compose.yml"
+open(dst, "w", encoding="utf-8").write(new_txt)
+PY
+  chown ubuntu:ubuntu "$OCI_DIR/docker-compose.vip.yml"
+fi
+REMOTE_VIP
+}
+
 RIP_NOW="$(oci network public-ip get --region "$REGION" --public-ip-id "$RESERVED_IP_ID" --query 'data."assigned-entity-id"' --raw-output)"
 if [[ "$RIP_NOW" != "$E5_PRIVATE_IP_ID" ]]; then
-  printf -- 'Reserved IP %s is ALREADY assigned off E5 (%s). Verifying live HTTPS endpoints...\n' "$RESERVED_IP_EXPECTED" "$RIP_NOW"
+  printf -- 'Reserved IP %s is ALREADY assigned off E5 (%s). Ensuring VIP compose isolation & verifying live HTTPS...\n' "$RESERVED_IP_EXPECTED" "$RIP_NOW"
+  ensure_a1_vip_and_compose
+  ssh "${A1_SSH_OPTS[@]}" "ubuntu@${A1_EPH_PUB_IP}" "cd ~/jobiest/ai-career-agent-coding-agent/ai-career-agent-coding-agent/deploy/oci && sudo docker compose -p oci -f docker-compose.vip.yml up -d --remove-orphans"
   for prod_u in "https://worker.jobiest.com/healthz" "https://api.jobiest.com/healthz" "https://ai.jobiest.com/healthz"; do
     printf -- '  [Live Prod] %-36s -> HTTP %s\n' "$prod_u" "$(curl -fsS --max-time 15 -o /dev/null -w '%{http_code}' "$prod_u")"
   done
-  exit 0
-fi
-
-cat <<EOF
+else
+  cat <<EOF
 Stage 3 Operation Disclosure (Requires Explicit Approval D):
   1. What      : Decrypt latest e5-app-and-caddy-*.tar.gz.enc in RAM on jobiest-a1,
                  restore E5's production bearer tokens (BROWSER_WORKER_SECRET,
                  API_KEYS, OLLAMA_API_KEY) + valid Let's Encrypt certificates for
-                 {worker,api,ai}.jobiest.com, verify local 127.0.0.1:443 TLS &
-                 Playwright 1.62.1 navigationOnly=true BEFORE moving the IP, attach
-                 secondary Private IP 'jobiest-a1-reserved-vip', atomically move
+                 {worker,api,ai}.jobiest.com, bind Caddy strictly to 127.0.0.1 +
+                 secondary Private IP 'jobiest-a1-reserved-vip', verify local TLS &
+                 Playwright 1.62.1 navigationOnly=true BEFORE moving the IP, move
                  Reserved IP ${RESERVED_IP_EXPECTED} from jobiest-ai (E5) to jobiest-a1,
                  and verify external production HTTPS endpoints.
   2. Why       : Cut production worker/api/ai traffic onto Always Free jobiest-a1
@@ -1808,36 +1931,39 @@ Stage 3 Operation Disclosure (Requires Explicit Approval D):
                  and navigationOnly=true Playwright 1.62.1 pass on ${RESERVED_IP_EXPECTED}.
 EOF
 
-CUTOVER_ANS=""
-if [[ "$SINGLE_CLICK_ALL" == "true" ]]; then
-  CUTOVER_ANS="APPROVE_D_CUTOVER"
-  printf -- '[Single-Click Mode] Owner-authorized pre-verified atomic cutover (%s -> %s) starting...\n' "$RESERVED_IP_EXPECTED" "$A1_DISPLAY_NAME"
-else
-  while true; do
-    prompt_tty "Enter APPROVE_D_CUTOVER to execute atomic production cutover now, or L to leave ${RESERVED_IP_EXPECTED} on jobiest-ai:" CUTOVER_ANS
-    case "$CUTOVER_ANS" in
-      APPROVE_D_CUTOVER|approve_d_cutover)
-        CUTOVER_ANS="APPROVE_D_CUTOVER"
-        break
-        ;;
-      L|l|Q|q)
-        printf -- 'Left Reserved IP %s untouched on jobiest-ai (E5). Re-run anytime when ready for cutover.\n' "$RESERVED_IP_EXPECTED"
-        exit 0
-        ;;
-      *)
-        printf -- 'Unrecognized selection "%s" — please enter APPROVE_D_CUTOVER or L.\n' "$CUTOVER_ANS" >/dev/tty
-        ;;
-    esac
-  done
-fi
+  CUTOVER_ANS=""
+  if [[ "$SINGLE_CLICK_ALL" == "true" ]]; then
+    CUTOVER_ANS="APPROVE_D_CUTOVER"
+    printf -- '[Single-Click Mode] Owner-authorized pre-verified atomic cutover (%s -> %s) starting...\n' "$RESERVED_IP_EXPECTED" "$A1_DISPLAY_NAME"
+  else
+    while true; do
+      prompt_tty "Enter APPROVE_D_CUTOVER to execute atomic production cutover now, or L to leave ${RESERVED_IP_EXPECTED} on jobiest-ai:" CUTOVER_ANS
+      case "$CUTOVER_ANS" in
+        APPROVE_D_CUTOVER|approve_d_cutover)
+          CUTOVER_ANS="APPROVE_D_CUTOVER"
+          break
+          ;;
+        L|l|Q|q)
+          CUTOVER_ANS="LEAVE_ON_E5"
+          break
+          ;;
+        *)
+          printf -- 'Unrecognized selection "%s" — please enter APPROVE_D_CUTOVER or L.\n' "$CUTOVER_ANS" >/dev/tty
+          ;;
+      esac
+    done
+  fi
 
-[[ -f "$VAULT_KEY_PRIV" && -f "$A1_SSH_PRIV" && -f "$A1_KNOWN_HOSTS" ]] || \
-  die "Missing local SSH or vault key files required for Stage 3 cutover."
+  ensure_a1_vip_and_compose
 
-# Locate latest e5-app-and-caddy-*.tar.gz.enc in jobiest-gate2-vault
-VAULT_OBJS="$TMP_DIR/vault_objs.json"
-oci os object list --region "$REGION" --namespace-name "$ACTIVE_NS" --bucket-name "$VAULT_BUCKET" --prefix "e5-app-and-caddy-" --all >"$VAULT_OBJS"
-LATEST_E5_ENC="$(python3 - "$VAULT_OBJS" <<'PY'
+  if [[ "$CUTOVER_ANS" != "APPROVE_D_CUTOVER" ]]; then
+    ssh "${A1_SSH_OPTS[@]}" "ubuntu@${A1_EPH_PUB_IP}" "cd ~/jobiest/ai-career-agent-coding-agent/ai-career-agent-coding-agent/deploy/oci && sudo docker compose -p oci -f docker-compose.vip.yml up -d --remove-orphans"
+    printf -- 'Left Reserved IP %s untouched on jobiest-ai (E5); isolated %s Caddy onto %s.\n' "$RESERVED_IP_EXPECTED" "$A1_DISPLAY_NAME" "$A1_VIP_ADDR"
+  else
+    # Locate latest e5-app-and-caddy-*.tar.gz.enc in jobiest-gate2-vault
+    VAULT_OBJS="$TMP_DIR/vault_objs.json"
+    oci os object list --region "$REGION" --namespace-name "$ACTIVE_NS" --bucket-name "$VAULT_BUCKET" --prefix "e5-app-and-caddy-" --all >"$VAULT_OBJS"
+    LATEST_E5_ENC="$(python3 - "$VAULT_OBJS" <<'PY'
 import json, sys
 s = open(sys.argv[1], "r", encoding="utf-8").read().strip()
 items = [x for x in ((json.loads(s) if s else {}).get("data") or []) if x.get("name", "").endswith(".tar.gz.enc")]
@@ -1845,46 +1971,43 @@ items.sort(key=lambda x: x.get("time-created") or "", reverse=True)
 print(items[0]["name"] if items else "")
 PY
 )"
-[[ -n "$LATEST_E5_ENC" ]] || die "No e5-app-and-caddy-*.tar.gz.enc archive found in $VAULT_BUCKET; run Stage 1 first."
-printf -- 'Using verified encrypted recovery archive: %s\n' "$LATEST_E5_ENC"
+    [[ -n "$LATEST_E5_ENC" ]] || die "No e5-app-and-caddy-*.tar.gz.enc archive found in $VAULT_BUCKET; run Stage 1 first."
+    printf -- 'Using verified encrypted recovery archive: %s\n' "$LATEST_E5_ENC"
 
-IFS='|' read -r A1_VNIC_ID _ _ A1_EPH_PUB_IP <<<"$(get_instance_network_summary "$A1_CUTOVER_ID")"
-A1_SSH_OPTS=(-i "$A1_SSH_PRIV" -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$A1_KNOWN_HOSTS" -o ConnectTimeout=15 -o BatchMode=yes)
-
-# Create 5-minute read-only PAR for LATEST_E5_ENC
-CUT_EXP="$(python3 -c 'import datetime; print((datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(minutes=5)).strftime("%Y-%m-%dT%H:%M:%SZ"))')"
-CUT_PAR_JSON="$TMP_DIR/cut_par.json"
-oci os preauth-request create \
-  --region "$REGION" \
-  --namespace-name "$ACTIVE_NS" \
-  --bucket-name "$VAULT_BUCKET" \
-  --name "cutover-read-$(date -u '+%H%M%S')" \
-  --access-type ObjectRead \
-  --object-name "$LATEST_E5_ENC" \
-  --time-expires "$CUT_EXP" >"$CUT_PAR_JSON"
-CUT_PAR_ID="$(python3 - "$CUT_PAR_JSON" <<'PY'
+    # Create 5-minute read-only PAR for LATEST_E5_ENC
+    CUT_EXP="$(python3 -c 'import datetime; print((datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(minutes=5)).strftime("%Y-%m-%dT%H:%M:%SZ"))')"
+    CUT_PAR_JSON="$TMP_DIR/cut_par.json"
+    oci os preauth-request create \
+      --region "$REGION" \
+      --namespace-name "$ACTIVE_NS" \
+      --bucket-name "$VAULT_BUCKET" \
+      --name "cutover-read-$(date -u '+%H%M%S')" \
+      --access-type ObjectRead \
+      --object-name "$LATEST_E5_ENC" \
+      --time-expires "$CUT_EXP" >"$CUT_PAR_JSON"
+    CUT_PAR_ID="$(python3 - "$CUT_PAR_JSON" <<'PY'
 import json, sys
 print(json.loads(open(sys.argv[1], "r", encoding="utf-8").read())["data"]["id"])
 PY
 )"
-ACTIVE_PAR_IDS+=("$CUT_PAR_ID")
-CUT_PAR_URI="$(python3 - "$CUT_PAR_JSON" <<'PY'
+    ACTIVE_PAR_IDS+=("$CUT_PAR_ID")
+    CUT_PAR_URI="$(python3 - "$CUT_PAR_JSON" <<'PY'
 import json, sys
 print(json.loads(open(sys.argv[1], "r", encoding="utf-8").read())["data"]["access-uri"])
 PY
 )"
-rm -f "$CUT_PAR_JSON"
-CUT_PAR_FULL="https://objectstorage.${REGION}.oraclecloud.com${CUT_PAR_URI}"
-CUT_PAR_URI=""
+    rm -f "$CUT_PAR_JSON"
+    CUT_PAR_FULL="https://objectstorage.${REGION}.oraclecloud.com${CUT_PAR_URI}"
+    CUT_PAR_URI=""
 
-ssh "${A1_SSH_OPTS[@]}" "ubuntu@${A1_EPH_PUB_IP}" "umask 077 && mkdir -p /dev/shm/.cutover_vault && chmod 700 /dev/shm/.cutover_vault"
-ssh "${A1_SSH_OPTS[@]}" "ubuntu@${A1_EPH_PUB_IP}" "umask 077 && cat > /dev/shm/.cutover_vault/vault.key && chmod 600 /dev/shm/.cutover_vault/vault.key" <"$VAULT_KEY_PRIV"
-printf -- 'url = "%s"\n' "$CUT_PAR_FULL" | ssh "${A1_SSH_OPTS[@]}" "ubuntu@${A1_EPH_PUB_IP}" \
-  "umask 077 && cat > /dev/shm/.cutover_vault/par.curl && chmod 600 /dev/shm/.cutover_vault/par.curl"
-CUT_PAR_FULL=""
+    ssh "${A1_SSH_OPTS[@]}" "ubuntu@${A1_EPH_PUB_IP}" "umask 077 && mkdir -p /dev/shm/.cutover_vault && chmod 700 /dev/shm/.cutover_vault"
+    ssh "${A1_SSH_OPTS[@]}" "ubuntu@${A1_EPH_PUB_IP}" "umask 077 && cat > /dev/shm/.cutover_vault/vault.key && chmod 600 /dev/shm/.cutover_vault/vault.key" <"$VAULT_KEY_PRIV"
+    printf -- 'url = "%s"\n' "$CUT_PAR_FULL" | ssh "${A1_SSH_OPTS[@]}" "ubuntu@${A1_EPH_PUB_IP}" \
+      "umask 077 && cat > /dev/shm/.cutover_vault/par.curl && chmod 600 /dev/shm/.cutover_vault/par.curl"
+    CUT_PAR_FULL=""
 
-printf -- 'Activating production TLS certificates & bearer keys on %s (local pre-cutover verification)...\n' "$A1_DISPLAY_NAME"
-ssh "${A1_SSH_OPTS[@]}" "ubuntu@${A1_EPH_PUB_IP}" 'bash -s' <<'REMOTE_PRE_CUTOVER'
+    printf -- 'Activating production TLS certificates & bearer keys on %s (local pre-cutover verification)...\n' "$A1_DISPLAY_NAME"
+    ssh "${A1_SSH_OPTS[@]}" "ubuntu@${A1_EPH_PUB_IP}" 'bash -s' <<'REMOTE_PRE_CUTOVER'
 set -euo pipefail
 cleanup_cut() {
   find /dev/shm/.cutover_vault -type f -exec shred -u {} + 2>/dev/null || true
@@ -1969,7 +2092,7 @@ if [[ -n "$OLD_CADDY_CFG" ]]; then
 fi
 
 cd "$NEW_OCI_DIR"
-sudo docker compose -p oci -f docker-compose.yml up -d --remove-orphans
+sudo docker compose -p oci -f docker-compose.vip.yml up -d --remove-orphans
 sleep 6
 
 # Pre-cutover local verification against 127.0.0.1:443 BEFORE touching Reserved IP
@@ -1996,117 +2119,76 @@ print("  [Pre-Cutover Local Worker PASS] navigationOnly=True submissionAttempted
 ' "$NAV_OUT"
 REMOTE_PRE_CUTOVER
 
-# Immediately revoke temporary cutover read PAR
-oci os preauth-request delete \
-  --region "$REGION" \
-  --namespace-name "$ACTIVE_NS" \
-  --bucket-name "$VAULT_BUCKET" \
-  --par-id "$CUT_PAR_ID" \
-  --force >/dev/null
-ACTIVE_PAR_IDS=()
+    # Immediately revoke temporary cutover read PAR
+    oci os preauth-request delete \
+      --region "$REGION" \
+      --namespace-name "$ACTIVE_NS" \
+      --bucket-name "$VAULT_BUCKET" \
+      --par-id "$CUT_PAR_ID" \
+      --force >/dev/null
+    ACTIVE_PAR_IDS=()
 
-# Ensure secondary Private IP 'jobiest-a1-reserved-vip' exists on jobiest-a1 VNIC & configure inside OS
-A1_PIPS_JSON="$TMP_DIR/a1_pips.json"
-oci network private-ip list --region "$REGION" --vnic-id "$A1_VNIC_ID" --all >"$A1_PIPS_JSON"
-IFS='|' read -r A1_VIP_ID A1_VIP_ADDR < <(python3 - "$A1_PIPS_JSON" <<'PY'
-import json, sys
-s = open(sys.argv[1], "r", encoding="utf-8").read().strip()
-items = [x for x in ((json.loads(s) if s else {}).get("data") or []) if not x.get("is-primary") and x.get("display-name") == "jobiest-a1-reserved-vip"]
-print("%s|%s" % (items[0]["id"], items[0]["ip-address"]) if items else "|")
-PY
-)
-if [[ -z "$A1_VIP_ID" ]]; then
-  VIP_CREATE_JSON="$TMP_DIR/vip_create.json"
-  oci network vnic assign-private-ip \
-    --region "$REGION" \
-    --vnic-id "$A1_VNIC_ID" \
-    --display-name "jobiest-a1-reserved-vip" >"$VIP_CREATE_JSON"
-  IFS='|' read -r A1_VIP_ID A1_VIP_ADDR < <(python3 - "$VIP_CREATE_JSON" <<'PY'
-import json, sys
-d = json.loads(open(sys.argv[1], "r", encoding="utf-8").read())["data"]
-print("%s|%s" % (d["id"], d["ip-address"]))
-PY
-)
+    printf -- 'Atomically reassigning Reserved IP %s (%s) -> %s (%s)...\n' \
+      "$RESERVED_IP_EXPECTED" "$RESERVED_IP_ID" "$A1_DISPLAY_NAME" "$A1_VIP_ADDR"
+
+    rollback_to_e5() {
+      printf -- '\n[AUTOMATIC ROLLBACK] Post-cutover check failed! Reassigning %s back to jobiest-ai (%s) immediately...\n' \
+        "$RESERVED_IP_EXPECTED" "$E5_PRIVATE_IP_ID" >&2
+      oci network public-ip update \
+        --region "$REGION" \
+        --public-ip-id "$RESERVED_IP_ID" \
+        --private-ip-id "$E5_PRIVATE_IP_ID" \
+        --force >/dev/null
+      printf -- '[AUTOMATIC ROLLBACK COMPLETE] Reserved IP %s restored to jobiest-ai (E5).\n' "$RESERVED_IP_EXPECTED" >&2
+    }
+
+    oci network public-ip update \
+      --region "$REGION" \
+      --public-ip-id "$RESERVED_IP_ID" \
+      --private-ip-id "$A1_VIP_ID" \
+      --force >/dev/null
+
+    sleep 4
+
+    CUTOVER_VERIFIED=1
+    for prod_dom in worker.jobiest.com api.jobiest.com ai.jobiest.com; do
+      EXT_OK=0
+      for _ in $(seq 1 8); do
+        EXT_RES="$(curl -fsS --max-time 12 --resolve "${prod_dom}:443:${RESERVED_IP_EXPECTED}" -o /dev/null -w '%{http_code}|%{ssl_verify_result}' "https://${prod_dom}/healthz" 2>/dev/null || echo '000|1')"
+        if [[ "$EXT_RES" == "200|0" ]]; then
+          EXT_OK=1
+          printf -- '  [LIVE CUTOVER PASS] https://%-22s (%s) -> HTTP 200 | TLS verify=0\n' "${prod_dom}/healthz" "$RESERVED_IP_EXPECTED"
+          break
+        fi
+        sleep 2
+      done
+      if (( EXT_OK == 0 )); then
+        CUTOVER_VERIFIED=0
+        break
+      fi
+    done
+
+    if (( CUTOVER_VERIFIED == 0 )); then
+      rollback_to_e5
+      die "Cutover verification failed; traffic was automatically rolled back to jobiest-ai (E5)."
+    fi
+  fi
 fi
 
-SUBNET_PREFIX="$(oci network subnet get --region "$REGION" --subnet-id "$SUBNET_ID" --query 'data."cidr-block"' --raw-output | awk -F/ '{print $2}')"
-ssh "${A1_SSH_OPTS[@]}" "ubuntu@${A1_EPH_PUB_IP}" "sudo bash -s" -- "$A1_VIP_ADDR" "$SUBNET_PREFIX" <<'REMOTE_VIP'
-set -euo pipefail
-VIP_ADDR="$1"
-PREFIX="$2"
-DEV="$(ip -o -4 route show to default | awk '{print $5; exit}')"
-[[ -n "$DEV" ]] || { echo "FATAL: Could not detect primary network interface"; exit 1; }
-sudo ip addr replace "${VIP_ADDR}/${PREFIX}" dev "$DEV"
-cat >/etc/systemd/system/jobiest-vip.service <<EOF
-[Unit]
-Description=Configure Jobiest Reserved VIP Secondary Private IP
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=oneshot
-ExecStart=/usr/sbin/ip addr replace ${VIP_ADDR}/${PREFIX} dev ${DEV}
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-EOF
-systemctl daemon-reload
-systemctl enable jobiest-vip.service >/dev/null
-ip -4 addr show dev "$DEV"
-REMOTE_VIP
-
-printf -- 'Atomically reassigning Reserved IP %s (%s) -> %s (%s)...\n' \
-  "$RESERVED_IP_EXPECTED" "$RESERVED_IP_ID" "$A1_DISPLAY_NAME" "$A1_VIP_ADDR"
-
-rollback_to_e5() {
-  printf -- '\n[AUTOMATIC ROLLBACK] Post-cutover check failed! Reassigning %s back to jobiest-ai (%s) immediately...\n' \
-    "$RESERVED_IP_EXPECTED" "$E5_PRIVATE_IP_ID" >&2
-  oci network public-ip update \
-    --region "$REGION" \
-    --public-ip-id "$RESERVED_IP_ID" \
-    --private-ip-id "$E5_PRIVATE_IP_ID" \
-    --force >/dev/null
-  printf -- '[AUTOMATIC ROLLBACK COMPLETE] Reserved IP %s restored to jobiest-ai (E5).\n' "$RESERVED_IP_EXPECTED" >&2
-}
-
-oci network public-ip update \
-  --region "$REGION" \
-  --public-ip-id "$RESERVED_IP_ID" \
-  --private-ip-id "$A1_VIP_ID" \
-  --force >/dev/null
-
-sleep 4
-
-CUTOVER_VERIFIED=1
-for prod_dom in worker.jobiest.com api.jobiest.com ai.jobiest.com; do
-  EXT_OK=0
-  for _ in $(seq 1 8); do
-    EXT_RES="$(curl -fsS --max-time 12 --resolve "${prod_dom}:443:${RESERVED_IP_EXPECTED}" -o /dev/null -w '%{http_code}|%{ssl_verify_result}' "https://${prod_dom}/healthz" 2>/dev/null || echo '000|1')"
-    if [[ "$EXT_RES" == "200|0" ]]; then
-      EXT_OK=1
-      printf -- '  [LIVE CUTOVER PASS] https://%-22s (%s) -> HTTP 200 | TLS verify=0\n' "${prod_dom}/healthz" "$RESERVED_IP_EXPECTED"
-      break
-    fi
-    sleep 2
-  done
-  if (( EXT_OK == 0 )); then
-    CUTOVER_VERIFIED=0
-    break
-  fi
-done
-
-if (( CUTOVER_VERIFIED == 0 )); then
-  rollback_to_e5
-  die "Cutover verification failed; traffic was automatically rolled back to jobiest-ai (E5)."
+# Deploy co-hosted ARM64 Mailu 2024.06.67 on jobiest-a1's dedicated Primary Public IP when region lacks E2.1.Micro hardware
+if (( ${COHOST_MAIL_ON_A1:-0} == 1 )) && [[ "${STAGE2_CHOICE:-}" == "APPROVE_C" ]]; then
+  banner "STAGE 2B — DEPLOYING @${PRIMARY_MAIL_DOMAIN} MAILU ${MAILU_VERSION} (ARM64) ON ${A1_DISPLAY_NAME} DEDICATED PRIMARY IP (${A1_EPH_PUB_IP})"
+  oci network vnic update --region "$REGION" --vnic-id "$A1_VNIC_ID" --nsg-ids "[\"${MAIL_NSG_ID}\"]" --force >/dev/null
+  deploy_mailu_on_target_host "$A1_PRIMARY_PRIV_IP" "$A1_EPH_PUB_IP" "$A1_SSH_PRIV" "$A1_KNOWN_HOSTS" "true"
 fi
 
 banner "MASTER ALWAYS-FREE MIGRATION & BUSINESS EMAIL ORCHESTRATION COMPLETE"
 cat <<EOF
-1. Live Production App/Worker/AI Stack : CUT OVER & VERIFIED on Always Free ${A1_DISPLAY_NAME}
+1. Live Production App/Worker/AI Stack : VERIFIED on Always Free ${A1_DISPLAY_NAME}
    - Reserved Public IP                : ${RESERVED_IP_EXPECTED} -> ${A1_DISPLAY_NAME} (${A1_VIP_ADDR})
    - Endpoints                         : https://worker.jobiest.com | https://api.jobiest.com | https://ai.jobiest.com
    - Instant Emergency Rollback Cmd    : oci network public-ip update --region ${REGION} --public-ip-id ${RESERVED_IP_ID} --private-ip-id ${E5_PRIVATE_IP_ID} --force
-2. Existing jobiest-ai (E5) & Backups  : 100% PRESERVED & UNTOUCHED (zero deletions)
-3. Monthly OCI Cost                    : \$0.00/month Always Free (no PAYG upgrade)
+2. Business Email (@${PRIMARY_MAIL_DOMAIN})        : Mailu ${MAILU_VERSION} Ready (Credentials saved at ${MAIL_LOCAL_CREDS})
+3. Existing jobiest-ai (E5) & Backups  : 100% PRESERVED & UNTOUCHED (zero deletions)
+4. Monthly OCI Cost                    : \$0.00/month Always Free (no PAYG upgrade)
 EOF
