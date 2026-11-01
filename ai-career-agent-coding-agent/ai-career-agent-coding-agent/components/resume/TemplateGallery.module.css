@@ -242,6 +242,8 @@
   border-radius: 16px;
   overflow: hidden;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 560px;
 }
 
 .card:hover {

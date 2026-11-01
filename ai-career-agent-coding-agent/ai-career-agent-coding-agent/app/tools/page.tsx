@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Icon } from "@/components/icons/icons";
 import { MarketingShell } from "@/components/marketing/marketing-shell";
-import { getUser } from "@/lib/auth";
+import { getOptionalUser } from "@/lib/auth";
 import { SITE_URL } from "@/lib/site";
 import { marketingMetadata } from "@/components/marketing/metadata";
 import styles from "../marketing.module.css";
@@ -112,7 +112,7 @@ function groupId(title: string) {
 }
 
 export default async function ToolsPage() {
-  const user = await getUser();
+  const user = await getOptionalUser();
 const toolItemList = {
   '@context': 'https://schema.org',
   '@type': 'ItemList',

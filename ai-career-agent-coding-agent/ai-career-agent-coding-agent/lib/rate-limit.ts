@@ -6,6 +6,8 @@ import { hashIp } from '@/lib/ai/usage';
 const url = process.env.UPSTASH_REDIS_REST_URL;
 const token = process.env.UPSTASH_REDIS_REST_TOKEN;
 const redis = url && token ? new Redis({ url, token }) : null;
+const limiterCache = new Map<string, Ratelimit>();
+const ephemeralCache = new Map<string, number>();
 
 /** Shared Redis client (null when Upstash is not configured). */
 export function getRedis() {
@@ -40,7 +42,18 @@ export async function enforceRateLimit(
   ip?: string,
 ) {
   if (!redis) return { allowed: true, remaining: limit };
-  const rl = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(limit, window), analytics: true, prefix: 'aca' });
+  const cacheKey = `${limit}:${window}`;
+  let rl = limiterCache.get(cacheKey);
+  if (!rl) {
+    rl = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(limit, window),
+      analytics: false,
+      prefix: 'aca',
+      ephemeralCache,
+    });
+    limiterCache.set(cacheKey, rl);
+  }
   const r = await rl.limit(key);
   if (!r.success) void noteRateLimitTrip(key, ip);
   return { allowed: r.success, remaining: r.remaining };

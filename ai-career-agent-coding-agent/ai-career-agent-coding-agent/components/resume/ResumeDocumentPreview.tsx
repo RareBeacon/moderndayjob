@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { memo } from 'react';
 import type { StudioDraft } from '@/lib/resume-studio/draft';
 import type { ResumeTemplate } from '@/lib/resume-studio/templates';
 import { BespokeResumeDocument } from './BespokeResumeDocument';
@@ -15,7 +15,7 @@ export interface ResumeDocumentPreviewProps {
   zoom?: number;
 }
 
-export function ResumeDocumentPreview({
+function ResumeDocumentPreviewInner({
   draft,
   template,
   size = 'full',
@@ -39,3 +39,5 @@ export function ResumeDocumentPreview({
     </div>
   );
 }
+
+export const ResumeDocumentPreview = memo(ResumeDocumentPreviewInner);

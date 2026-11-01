@@ -2,11 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { MarketingShell } from '@/components/marketing/marketing-shell';
 import { TemplateGallery } from '@/components/resume/TemplateGallery';
-import { getUser } from '@/lib/auth';
+import { getOptionalUser } from '@/lib/auth';
 import { RESUME_TEMPLATES } from '@/lib/resume-studio/templates';
 import styles from './templates.module.css';
-
-export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Resume Templates | 30 Unique A4 Designs | Jobiest',
@@ -15,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 export default async function TemplatesPage() {
-  const user = await getUser().catch(() => null);
+  const user = await getOptionalUser();
   const totalCount = RESUME_TEMPLATES.length;
   const atsVerifiedCount = RESUME_TEMPLATES.filter((t) => t.atsCompatibility === 'verified').length;
 
