@@ -5,7 +5,7 @@ import { APP_SESSION_COOKIE, validateAppSession, touchAppSession, appSessionCook
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
 /** Pages that require an authenticated session. /verify-email is NOT here (pre-session for password signups / social gate). */
-const PROTECTED = ['/dashboard', '/onboarding', '/profile', '/settings', '/documents', '/applications', '/billing', '/generate', '/auto-apply', '/admin', '/mfa-verify', '/complete-account'];
+const PROTECTED = ['/dashboard', '/onboarding', '/profile', '/settings', '/documents', '/applications', '/billing', '/generate', '/auto-apply', '/talent-pool', '/employer', '/admin', '/mfa-verify', '/complete-account'];
 const AUTH_PAGES = ['/login', '/signup'];
 
 function isProtected(pathname: string): boolean {
@@ -200,6 +200,8 @@ export const config = {
     '/billing/:path*',
     '/generate/:path*',
     '/auto-apply/:path*',
+    '/talent-pool/:path*',
+    '/employer/:path*',
     '/admin/:path*',
     '/login',
     '/signup',

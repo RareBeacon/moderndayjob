@@ -1138,7 +1138,7 @@ PY
       fi
       printf 'Sweep %d complete: covered %d/%d regional AD/FD slot(s) (%d API launch calls, %ds elapsed; next sweep in %ds).\n' \
         "$round" "${#UNIQUE_PROBED_SLOTS[@]}" "$TOTAL_REGIONAL_SLOT_COUNT" "$TOTAL_LAUNCH_ATTEMPTS" "$ELAPSED_NOW" "$EFFECTIVE_WAIT_SEC"
-      if [[ -r /dev/tty ]]; then
+      if [[ "${NON_INTERACTIVE:-false}" != "true" && "${BACKGROUND_A1_HUNTER:-false}" != "true" ]] && ( : >/dev/tty ) 2>/dev/null; then
         printf '  Waiting %ds before next sweep — leave idle to keep sweeping, or type P + Enter (Stage 2 Mail VM) or Q + Enter (quit): ' "$EFFECTIVE_WAIT_SEC" >/dev/tty
         SWEEP_WAIT_IN=""
         if IFS= read -r -t "$EFFECTIVE_WAIT_SEC" SWEEP_WAIT_IN </dev/tty; then
@@ -1161,7 +1161,7 @@ PY
               ;;
           esac
         else
-          printf '\n' >/dev/tty
+          printf '\n' >/dev/tty 2>/dev/null || true
         fi
       else
         sleep "$EFFECTIVE_WAIT_SEC"

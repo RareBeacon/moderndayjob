@@ -14,6 +14,7 @@ const csp = [
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
+  "media-src 'self' blob: https://*.supabase.co",
   "font-src 'self' data:",
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
   "object-src 'none'",
@@ -57,8 +58,15 @@ const noStoreSources = [
   '/match/:path*',
   '/generate/:path*',
   '/auto-apply/:path*',
+  '/talent-pool/:path*',
+  '/employer/:path*',
   '/admin/:path*',
 ];
+
+const interviewMediaPermissions = {
+  key: 'Permissions-Policy',
+  value: 'camera=(self), microphone=(self), geolocation=(), payment=()',
+};
 
 const nextConfig = {
   poweredByHeader: false,
@@ -67,6 +75,7 @@ const nextConfig = {
   async headers() {
     return [
       { source: '/(.*)', headers: securityHeaders },
+      { source: '/talent-pool/interview/:path*', headers: [interviewMediaPermissions] },
       ...noStoreSources.map((source) => ({ source, headers: [noStore] })),
     ];
   },
