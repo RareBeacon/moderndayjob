@@ -1,9 +1,14 @@
 import { defaultFetchImpl, type FetchLike, type NormalizedJob, type SourceAdapter } from './types';
 import { capText, cleanLine, contentHash, htmlToText } from './normalize';
+import {
+  buildAtsBoardEndpointUrl,
+  parseAtsFeedPayload,
+  type RadarAtsProvider,
+} from '../radar/adapters/ats';
 
 /* ============================================================
    Greenhouse, public board JSON API (no auth for public boards)
-   GET https://boards.greenhouse.io/v1/boards/{token}/jobs?content=true
+   GET https://boards-api.greenhouse.io/v1/boards/{token}/jobs?content=true&pay_transparency=true
    ============================================================ */
 interface GreenhouseJob {
   id: number;
@@ -12,6 +17,11 @@ interface GreenhouseJob {
   absolute_url?: string;
   location?: { name?: string };
   content?: string;
+  pay_input_ranges?: Array<{
+    min_cents?: number | null;
+    max_cents?: number | null;
+    currency_type?: string | null;
+  }>;
   metadata?: unknown;
 }
 
@@ -25,11 +35,14 @@ export function greenhouseAdapter(token: string, fetchImpl: FetchLike): SourceAd
     id: `greenhouse:${token}`,
     label: `Greenhouse · ${token}`,
     async fetchBatch(limit) {
-      const data = await json(`https://boards.greenhouse.io/v1/boards/${encodeURIComponent(token)}/jobs?content=true`);
+      const data = await json(
+        `https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(token)}/jobs?content=true&pay_transparency=true`,
+      );
       const rows: NormalizedJob[] = [];
       for (const job of (data.jobs ?? []).slice(0, limit)) {
         if (!job.title || !job.absolute_url) continue;
         const description = capText(htmlToText(job.content ?? ''));
+        const payRange = job.pay_input_ranges?.[0];
         rows.push({
           source: 'GREENHOUSE',
           external_id: String(job.id),
@@ -42,6 +55,13 @@ export function greenhouseAdapter(token: string, fetchImpl: FetchLike): SourceAd
             contentHash: await contentHash([token, job.title, job.location?.name, description]),
             boardToken: token,
             updatedAt: job.updated_at ?? null,
+            ...(payRange
+              ? {
+                  salaryMin: typeof payRange.min_cents === 'number' ? payRange.min_cents / 100 : null,
+                  salaryMax: typeof payRange.max_cents === 'number' ? payRange.max_cents / 100 : null,
+                  salaryCurrency: payRange.currency_type ?? null,
+                }
+              : {}),
           },
         });
       }
@@ -51,34 +71,43 @@ export function greenhouseAdapter(token: string, fetchImpl: FetchLike): SourceAd
 }
 
 /* ============================================================
-   Lever, public postings API
+   Lever, public postings API (US & EU)
    GET https://api.lever.co/v0/postings/{company}?mode=json
+   GET https://api.eu.lever.co/v0/postings/{company}?mode=json
    ============================================================ */
 interface LeverPosting {
   id?: string;
   text?: string;
   hostedUrl?: string;
   applyUrl?: string;
+  workplaceType?: string;
   descriptionPlain?: string;
   description?: string;
   categories?: { location?: string; commitment?: string; team?: string; department?: string };
   createdAt?: number;
 }
 
-export function leverAdapter(company: string, fetchImpl: FetchLike): SourceAdapter {
+export function leverAdapter(company: string, fetchImpl: FetchLike, region: 'us' | 'eu' = 'us'): SourceAdapter {
+  const host = region === 'eu' ? 'api.eu.lever.co' : 'api.lever.co';
+  const idPrefix = region === 'eu' ? 'lever_eu' : 'lever';
+  const sourceTag = region === 'eu' ? 'LEVER_EU' : 'LEVER';
   return {
-    id: `lever:${company}`,
-    label: `Lever · ${company}`,
+    id: `${idPrefix}:${company}`,
+    label: `Lever${region === 'eu' ? ' EU' : ''} · ${company}`,
     async fetchBatch(limit) {
-      const res = await fetchImpl(`https://api.lever.co/v0/postings/${encodeURIComponent(company)}?mode=json`);
+      const res = await fetchImpl(`https://${host}/v0/postings/${encodeURIComponent(company)}?mode=json`);
       if (!res.ok) throw new Error(`LEVER_HTTP_${res.status}`);
       const postings = (await res.json()) as LeverPosting[];
       const rows: NormalizedJob[] = [];
       for (const p of postings.slice(0, limit)) {
         if (!p.id || !p.text || !p.hostedUrl) continue;
-        const description = capText(p.descriptionPlain && p.descriptionPlain.trim().length > 0 ? p.descriptionPlain : htmlToText(p.description ?? ''));
+        const description = capText(
+          p.descriptionPlain && p.descriptionPlain.trim().length > 0
+            ? p.descriptionPlain
+            : htmlToText(p.description ?? ''),
+        );
         rows.push({
-          source: 'LEVER',
+          source: sourceTag,
           external_id: p.id,
           company: cleanLine(company.replace(/[-_]/g, ' ')) ?? company,
           title: cleanLine(p.text) ?? 'Untitled role',
@@ -88,6 +117,7 @@ export function leverAdapter(company: string, fetchImpl: FetchLike): SourceAdapt
           metadata: {
             contentHash: await contentHash([company, p.text, p.categories?.location, description]),
             team: cleanLine(p.categories?.team),
+            workplaceType: p.workplaceType ?? null,
             postedAt: p.createdAt ? new Date(p.createdAt).toISOString() : null,
           },
         });
@@ -97,15 +127,20 @@ export function leverAdapter(company: string, fetchImpl: FetchLike): SourceAdapt
   };
 }
 
+export function leverEuAdapter(company: string, fetchImpl: FetchLike): SourceAdapter {
+  return leverAdapter(company, fetchImpl, 'eu');
+}
+
 /* ============================================================
    Ashby, public posting API
-   GET https://api.ashbyhq.com/posting-api/job-board/{org}
+   GET https://api.ashbyhq.com/posting-api/job-board/{org}?includeCompensation=true
    ============================================================ */
 interface AshbyJob {
   id?: string;
   title?: string;
   jobUrl?: string;
   location?: string;
+  workplaceType?: string;
   secondaryLocations?: Array<{ location?: string }>;
   department?: string;
   isRemote?: boolean;
@@ -118,15 +153,28 @@ export function ashbyAdapter(org: string, fetchImpl: FetchLike): SourceAdapter {
     id: `ashby:${org}`,
     label: `Ashby · ${org}`,
     async fetchBatch(limit) {
-      const res = await fetchImpl(`https://api.ashbyhq.com/posting-api/job-board/${encodeURIComponent(org)}`);
+      const res = await fetchImpl(
+        `https://api.ashbyhq.com/posting-api/job-board/${encodeURIComponent(org)}?includeCompensation=true`,
+      );
       if (!res.ok) throw new Error(`ASHBY_HTTP_${res.status}`);
       const data = (await res.json()) as { jobs?: AshbyJob[] };
       const rows: NormalizedJob[] = [];
       for (const job of (data.jobs ?? []).slice(0, limit)) {
         if (!job.id || !job.title || !job.jobUrl) continue;
         const description = capText(htmlToText(job.description ?? ''));
+        const workplaceBadge = job.workplaceType
+          ? /^hybrid$/i.test(job.workplaceType)
+            ? 'Hybrid'
+            : /^remote$/i.test(job.workplaceType)
+              ? 'Remote'
+              : null
+          : job.isRemote
+            ? 'Remote'
+            : null;
         const location = cleanLine(
-          [job.location, job.isRemote ? 'Remote' : null, ...(job.secondaryLocations ?? []).map((l) => l.location ?? '')].filter(Boolean).join(' · '),
+          [job.location, workplaceBadge, ...(job.secondaryLocations ?? []).map((l) => l.location ?? '')]
+            .filter(Boolean)
+            .join(' · '),
         );
         rows.push({
           source: 'ASHBY',
@@ -139,6 +187,7 @@ export function ashbyAdapter(org: string, fetchImpl: FetchLike): SourceAdapter {
           metadata: {
             contentHash: await contentHash([org, job.title, location, description]),
             department: cleanLine(job.department),
+            workplaceType: job.workplaceType ?? null,
             publishedAt: job.publishedAt ?? null,
           },
         });
@@ -150,10 +199,7 @@ export function ashbyAdapter(org: string, fetchImpl: FetchLike): SourceAdapter {
 
 /* ============================================================
    Workable, public widget API (no auth for public boards)
-   GET https://apply.workable.com/api/v1/widget/accounts/{account}
-   Verified live 2026-09-21 (quickhirestaffing: 118 postings).
-   The widget response carries no description text; matching relies on
-   title/location and the content hash covers the stable fields.
+   GET https://apply.workable.com/api/v1/widget/accounts/{account}?details=true
    ============================================================ */
 interface WorkableJob {
   title?: string;
@@ -163,6 +209,9 @@ interface WorkableJob {
   state?: string;
   country?: string;
   telecommuting?: boolean;
+  description?: string;
+  requirements?: string;
+  benefits?: string;
   published_on?: string;
 }
 
@@ -171,23 +220,31 @@ export function workableAdapter(account: string, fetchImpl: FetchLike): SourceAd
     id: `workable:${account}`,
     label: `Workable · ${account}`,
     async fetchBatch(limit) {
-      const res = await fetchImpl(`https://apply.workable.com/api/v1/widget/accounts/${encodeURIComponent(account)}`);
+      const res = await fetchImpl(
+        `https://apply.workable.com/api/v1/widget/accounts/${encodeURIComponent(account)}?details=true`,
+      );
       if (!res.ok) throw new Error(`WORKABLE_HTTP_${res.status}`);
       const data = (await res.json()) as { jobs?: WorkableJob[] };
       const rows: NormalizedJob[] = [];
       for (const job of (data.jobs ?? []).slice(0, limit)) {
         if (!job.title || !job.url) continue;
         const location = cleanLine([job.city, job.state, job.country].filter(Boolean).join(', '));
+        const description = capText(
+          [job.description, job.requirements, job.benefits]
+            .filter((part): part is string => typeof part === 'string' && part.trim().length > 0)
+            .map((part) => htmlToText(part))
+            .join('\n\n'),
+        );
         rows.push({
           source: 'WORKABLE',
           external_id: job.shortcode ?? job.url,
           company: cleanLine(account.replace(/[-_]/g, ' ')) ?? account,
           title: cleanLine(job.title) ?? 'Untitled role',
           url: job.url,
-          description: '',
+          description,
           location,
           metadata: {
-            contentHash: await contentHash([account, job.title, location]),
+            contentHash: await contentHash([account, job.title, location, description]),
             telecommuting: job.telecommuting ?? false,
             publishedAt: job.published_on ?? null,
           },
@@ -199,15 +256,9 @@ export function workableAdapter(account: string, fetchImpl: FetchLike): SourceAd
 }
 
 /* ============================================================
-   SmartRecruiters, public postings API (no auth)
-   GET https://api.smartrecruiters.com/v1/companies/{companyId}/postings
-   Verified live 2026-09-21 (BoschGroup: 4,801 postings).
-   NOTE: source support only for now. The application form lives behind
-   SmartRecruiters' oneclick-ui SPA, which renders an empty body to
-   headless browsers (observed 2026-09-21), so no apply adapter is
-   shipped until the form can be verified with the real browser worker.
-   No registry rows exist for this adapter yet; enable later with one
-   job_sources insert per company.
+   SmartRecruiters, public postings API
+   NOTE: Held disabled by default in radar_provider_policies until
+   partner credentials or explicit robots/terms clearance is recorded.
    ============================================================ */
 interface SmartRecruitersPosting {
   id?: string;
@@ -230,7 +281,9 @@ export function smartrecruitersAdapter(companyId: string, fetchImpl: FetchLike):
       const rows: NormalizedJob[] = [];
       for (const job of (data.content ?? []).slice(0, limit)) {
         if (!job.id || !job.name) continue;
-        const location = cleanLine(job.location?.fullLocation ?? [job.location?.city, job.location?.country].filter(Boolean).join(', '));
+        const location = cleanLine(
+          job.location?.fullLocation ?? [job.location?.city, job.location?.country].filter(Boolean).join(', '),
+        );
         rows.push({
           source: 'SMARTRECRUITERS',
           external_id: job.id,
@@ -253,8 +306,73 @@ export function smartrecruitersAdapter(companyId: string, fetchImpl: FetchLike):
 }
 
 /* ============================================================
-   Board registry, remote-first curation verified live 2026-09-10;
-   env-overridable. Boards below all returned live postings on that date.
+   Phase 2 Expanded Public ATS Source Adapters (Recruitee, Personio,
+   Pinpoint, Gem, Polymer, BreezyHR, Teamtailor)
+   ============================================================ */
+function buildRadarBackedAdapter(
+  provider: Extract<
+    RadarAtsProvider,
+    'recruitee' | 'personio' | 'pinpoint' | 'gem' | 'polymer' | 'breezy' | 'teamtailor'
+  >,
+  sourceTag: NormalizedJob['source'],
+  labelPrefix: string,
+  boardToken: string,
+  fetchImpl: FetchLike,
+): SourceAdapter {
+  return {
+    id: `${provider}:${boardToken}`,
+    label: `${labelPrefix} · ${boardToken}`,
+    async fetchBatch(limit) {
+      const res = await fetchImpl(buildAtsBoardEndpointUrl(provider, boardToken));
+      if (!res.ok) throw new Error(`${sourceTag}_HTTP_${res.status}`);
+      const rawBody = await res.text();
+      const parsed = parseAtsFeedPayload(provider, boardToken, rawBody, limit);
+      const rows: NormalizedJob[] = [];
+      for (const p of parsed) {
+        rows.push({
+          source: sourceTag,
+          external_id: p.externalId,
+          company: p.companyName,
+          title: p.title,
+          url: p.url,
+          description: p.descriptionPlain,
+          location: p.locationRaw,
+          metadata: {
+            contentHash: await contentHash([boardToken, p.title, p.locationRaw, p.descriptionPlain]),
+            workplaceType: p.workplaceType,
+            department: p.department ?? null,
+            postedAt: p.postedAt ?? null,
+          },
+        });
+      }
+      return rows;
+    },
+  };
+}
+
+export const recruiteeAdapter = (slug: string, fetchImpl: FetchLike): SourceAdapter =>
+  buildRadarBackedAdapter('recruitee', 'RECRUITEE', 'Recruitee', slug, fetchImpl);
+
+export const personioAdapter = (company: string, fetchImpl: FetchLike): SourceAdapter =>
+  buildRadarBackedAdapter('personio', 'PERSONIO', 'Personio', company, fetchImpl);
+
+export const pinpointAdapter = (subdomain: string, fetchImpl: FetchLike): SourceAdapter =>
+  buildRadarBackedAdapter('pinpoint', 'PINPOINT', 'Pinpoint', subdomain, fetchImpl);
+
+export const gemAdapter = (slug: string, fetchImpl: FetchLike): SourceAdapter =>
+  buildRadarBackedAdapter('gem', 'GEM', 'Gem', slug, fetchImpl);
+
+export const polymerAdapter = (slug: string, fetchImpl: FetchLike): SourceAdapter =>
+  buildRadarBackedAdapter('polymer', 'POLYMER', 'Polymer', slug, fetchImpl);
+
+export const breezyAdapter = (company: string, fetchImpl: FetchLike): SourceAdapter =>
+  buildRadarBackedAdapter('breezy', 'BREEZY', 'BreezyHR', company, fetchImpl);
+
+export const teamtailorAdapter = (company: string, fetchImpl: FetchLike): SourceAdapter =>
+  buildRadarBackedAdapter('teamtailor', 'TEAMTAILOR', 'Teamtailor', company, fetchImpl);
+
+/* ============================================================
+   Board registry defaults (env-overridable)
    ============================================================ */
 export const DEFAULT_GREENHOUSE_BOARDS = 'gitlab,anthropic,coinbase';
 export const DEFAULT_LEVER_BOARDS = 'spotify';
@@ -270,7 +388,10 @@ function csv(value: string | undefined, fallback: string): string[] {
 }
 
 /** Build adapters from env (or defaults). Order: greenhouse, lever, ashby, workable. */
-export function defaultAdapters(env: NodeJS.ProcessEnv = process.env, fetchImpl: FetchLike = defaultFetchImpl()): SourceAdapter[] {
+export function defaultAdapters(
+  env: NodeJS.ProcessEnv = process.env,
+  fetchImpl: FetchLike = defaultFetchImpl(),
+): SourceAdapter[] {
   return [
     ...csv(env.JOB_SOURCE_GREENHOUSE_BOARDS, DEFAULT_GREENHOUSE_BOARDS).map((t) => greenhouseAdapter(t, fetchImpl)),
     ...csv(env.JOB_SOURCE_LEVER_BOARDS, DEFAULT_LEVER_BOARDS).map((c) => leverAdapter(c, fetchImpl)),

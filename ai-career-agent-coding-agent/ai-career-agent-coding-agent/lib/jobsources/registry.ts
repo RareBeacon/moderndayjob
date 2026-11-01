@@ -9,7 +9,21 @@
  */
 import { createHash } from 'node:crypto';
 import { supabaseAdmin } from '@/lib/supabase';
-import { greenhouseAdapter, leverAdapter, ashbyAdapter, workableAdapter, smartrecruitersAdapter } from './boards';
+import {
+  greenhouseAdapter,
+  leverAdapter,
+  leverEuAdapter,
+  ashbyAdapter,
+  workableAdapter,
+  smartrecruitersAdapter,
+  recruiteeAdapter,
+  personioAdapter,
+  pinpointAdapter,
+  gemAdapter,
+  polymerAdapter,
+  breezyAdapter,
+  teamtailorAdapter,
+} from './boards';
 import type { SourceAdapter, FetchLike } from './types';
 
 export interface SourceRegistryRow {
@@ -21,6 +35,9 @@ export interface SourceRegistryRow {
   consecutive_failures: number;
   last_ok_at: string | null;
   cooldown_until: string | null;
+  collection_permission?: string | null;
+  commercial_indexing_allowed?: boolean | null;
+  robots_status?: string | null;
 }
 
 /** Failure threshold before the circuit opens. */
@@ -34,12 +51,28 @@ function adapterFor(row: SourceRegistryRow, fetchImpl: FetchLike): SourceAdapter
       return greenhouseAdapter(row.board, fetchImpl);
     case 'lever':
       return leverAdapter(row.board, fetchImpl);
+    case 'lever_eu':
+      return leverEuAdapter(row.board, fetchImpl);
     case 'ashby':
       return ashbyAdapter(row.board, fetchImpl);
     case 'workable':
       return workableAdapter(row.board, fetchImpl);
     case 'smartrecruiters':
       return smartrecruitersAdapter(row.board, fetchImpl);
+    case 'recruitee':
+      return recruiteeAdapter(row.board, fetchImpl);
+    case 'personio':
+      return personioAdapter(row.board, fetchImpl);
+    case 'pinpoint':
+      return pinpointAdapter(row.board, fetchImpl);
+    case 'gem':
+      return gemAdapter(row.board, fetchImpl);
+    case 'polymer':
+      return polymerAdapter(row.board, fetchImpl);
+    case 'breezy':
+      return breezyAdapter(row.board, fetchImpl);
+    case 'teamtailor':
+      return teamtailorAdapter(row.board, fetchImpl);
     default:
       return null;
   }
@@ -66,6 +99,13 @@ export async function loadRegistryAdapters(
   const now = Date.now();
   return rows
     .filter((r) => r.enabled)
+    .filter((r) => r.commercial_indexing_allowed !== false)
+    .filter(
+      (r) =>
+        r.collection_permission !== 'PROHIBITED' &&
+        r.collection_permission !== 'RESTRICTED_PENDING_REVIEW',
+    )
+    .filter((r) => r.robots_status !== 'DISALLOWED')
     .filter((r) => !r.cooldown_until || new Date(r.cooldown_until).getTime() <= now)
     .map((r) => adapterFor(r, fetchImpl))
     .filter((a): a is SourceAdapter => a !== null);

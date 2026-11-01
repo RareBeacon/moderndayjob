@@ -19,6 +19,16 @@ function sanitizeSearch(value: string): string {
  *  - page: 1-indexed page number (default 1)
  *  - limit: items per page (default 20, max 50)
  */
+/** Strip internal per-user metadata keys before returning shared job rows (Condition 4). */
+function sanitizeJobMetadata(meta: unknown): Record<string, unknown> {
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return {};
+  const clone = { ...(meta as Record<string, unknown>) };
+  delete clone.originUser;
+  delete clone.leaseToken;
+  delete clone.rawPayloadHash;
+  return clone;
+}
+
 export async function GET(req: Request) {
   // Authenticated endpoint: the jobs pool is not a public listing surface
   // (owner decision C-04; the site deliberately publishes no job listings).
@@ -37,7 +47,8 @@ export async function GET(req: Request) {
 
     let query = supabaseAdmin
       .from('jobs')
-      .select('id, source, external_id, company, title, url, description, location, metadata, created_at', { count: 'exact' });
+      .select('id, source, external_id, company, title, url, description, location, metadata, created_at', { count: 'exact' })
+      .not('source', 'in', '("MANUAL","DISCOVERED")');
 
     if (q) {
       query = query.or(`title.ilike.%${q}%,company.ilike.%${q}%`);
@@ -46,7 +57,7 @@ export async function GET(req: Request) {
       query = query.ilike('location', `%${location}%`);
     }
     if (source) {
-      query = query.eq('source', source);
+      query = query.eq('source', source.toUpperCase());
     }
 
     query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
@@ -76,6 +87,7 @@ export async function GET(req: Request) {
 
     const enrichedJobs = (jobs || []).map((j) => ({
       ...j,
+      metadata: sanitizeJobMetadata(j.metadata),
       isSaved: savedJobIds.has(j.id),
     }));
 
