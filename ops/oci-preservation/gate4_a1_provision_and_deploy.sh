@@ -52,14 +52,15 @@ VAULT_BUCKET="jobiest-gate2-vault"
 
 REPO_URL="https://github.com/RareBeacon/moderndayjob.git"
 ISOLATED_BRANCH="arena/5a999da6-moderndayjob"
-APP_COMMIT_SHA="dc74ef8e0d24a560abe360d84dacfc1663ed2e89"
+APP_COMMIT_SHA="ecda13abaf77778c9c022056a6ab34b70b23939f"
 
 A1_DISPLAY_NAME="jobiest-a1"
 ALLOW_1OCPU_FALLBACK="${ALLOW_1OCPU_FALLBACK:-false}"
+PREFER_UNPINNED_FD="${PREFER_UNPINNED_FD:-true}"
 ALLOW_BROAD_SSH_CIDR="${ALLOW_BROAD_SSH_CIDR:-false}"
 TRUSTED_SSH_CIDRS="${TRUSTED_SSH_CIDRS:-}"
 A1_MAX_RETRY_ROUNDS="${A1_MAX_RETRY_ROUNDS:-30}"
-A1_RETRY_SLEEP_SEC="${A1_RETRY_SLEEP_SEC:-45}"
+A1_RETRY_SLEEP_SEC="${A1_RETRY_SLEEP_SEC:-95}"
 
 GATE4_WORKER_DOMAIN="worker.gate4.jobiest.internal"
 GATE4_API_DOMAIN="api.gate4.jobiest.internal"
@@ -842,10 +843,10 @@ if st in ("PROVISIONING", "STARTING"):
     print("WAIT|" + summary)
 elif st != "RUNNING":
     print("BAD_STATE|" + summary)
-elif sh != "VM.Standard.A1.Flex" or abs(ocpus - exp_ocpus) > 0.01 or abs(mem - 12.0) > 0.01 or ad != exp_ad or fd != exp_fd:
+elif sh != "VM.Standard.A1.Flex" or abs(ocpus - exp_ocpus) > 0.01 or abs(mem - 12.0) > 0.01 or ad != exp_ad or (exp_fd != "ANY" and fd != exp_fd):
     print("MISMATCH|" + summary)
 else:
-    print("VERIFIED|" + summary)
+    print("VERIFIED|" + fd + "|" + summary)
 PY
 )"
       case "${inst_check%%|*}" in
@@ -853,94 +854,172 @@ PY
           sleep 5
           ;;
         VERIFIED)
-          printf '  [Reconcile] Adopted verified instance (%s)\n' "${inst_check#*|}"
+          recon_rest="${inst_check#*|}"
+          recon_actual_fd="${recon_rest%%|*}"
+          recon_summary="${recon_rest#*|}"
+          printf '  [Reconcile] Adopted verified instance (%s)\n' "$recon_summary"
           A1_INSTANCE_ID="$recon_id"
           A1_AD="$expected_ad"
           if [[ "$expected_ocpus" == "1.0" ]]; then
-            A1_ALLOCATED_SHAPE_CFG="1 OCPU / 12 GB ($expected_fd) [reconciled owner-approved fallback]"
+            A1_ALLOCATED_SHAPE_CFG="1 OCPU / 12 GB ($recon_actual_fd) [reconciled owner-approved fallback]"
           else
-            A1_ALLOCATED_SHAPE_CFG="2 OCPU / 12 GB ($expected_fd) [reconciled]"
+            A1_ALLOCATED_SHAPE_CFG="2 OCPU / 12 GB ($recon_actual_fd) [reconciled]"
           fi
-          SLOT_LAST_STATUS["$slot_key"]="RECONCILED_LAUNCH (${A1_ALLOCATED_SHAPE_CFG})"
+          if [[ -n "$slot_key" && -n "${SLOT_LAST_STATUS["$slot_key"]+x}" ]]; then
+            SLOT_LAST_STATUS["$slot_key"]="RECONCILED_LAUNCH (${A1_ALLOCATED_SHAPE_CFG})"
+          elif [[ -n "${SLOT_LAST_STATUS["${expected_ad}|${recon_actual_fd}"]+x}" ]]; then
+            SLOT_LAST_STATUS["${expected_ad}|${recon_actual_fd}"]="RECONCILED_LAUNCH (${A1_ALLOCATED_SHAPE_CFG})"
+          fi
           return 0
           ;;
         MISMATCH)
-          SLOT_LAST_STATUS["$slot_key"]="aborted_reconciled_spec_mismatch"
+          [[ -n "$slot_key" && -n "${SLOT_LAST_STATUS["$slot_key"]+x}" ]] && SLOT_LAST_STATUS["$slot_key"]="aborted_reconciled_spec_mismatch"
           print_sweep_summary
           die "Reconciled instance spec mismatch (${inst_check#*|}; expected VM.Standard.A1.Flex ${expected_ocpus} OCPU / 12.0 GB in ${expected_ad}/${expected_fd}). Aborting safely."
           ;;
         *)
-          SLOT_LAST_STATUS["$slot_key"]="aborted_reconciled_bad_state"
+          [[ -n "$slot_key" && -n "${SLOT_LAST_STATUS["$slot_key"]+x}" ]] && SLOT_LAST_STATUS["$slot_key"]="aborted_reconciled_bad_state"
           print_sweep_summary
           die "Reconciled instance entered unexpected state (${inst_check#*|}). Aborting safely."
           ;;
       esac
     done
 
-    SLOT_LAST_STATUS["$slot_key"]="aborted_reconciled_provisioning_timeout"
+    [[ -n "$slot_key" && -n "${SLOT_LAST_STATUS["$slot_key"]+x}" ]] && SLOT_LAST_STATUS["$slot_key"]="aborted_reconciled_provisioning_timeout"
     print_sweep_summary
     die "Reconciled instance $recon_id remained in PROVISIONING/STARTING past verification window; outcome remains ambiguous — refusing further launch attempts."
   }
 
   for round in $(seq 1 "$A1_MAX_RETRY_ROUNDS"); do
-    printf '\n[Capacity Sweep %d/%d — %s] Probing %d quota-eligible 2 OCPU / 12 GB AD/FD slot(s)%s...\n' \
-      "$round" "$A1_MAX_RETRY_ROUNDS" "$(date -u '+%H:%M:%SZ')" "$ELIGIBLE_2OCPU_SLOT_COUNT" \
-      "$([[ "$ALLOW_1OCPU_FALLBACK" == "true" ]] && printf ' (+ %d approved 1 OCPU / 12 GB fallback slot(s))' "$ELIGIBLE_1OCPU_SLOT_COUNT" || printf ' (1 OCPU fallback disabled)')"
+    ROUND_HAD_RATE_LIMIT=0
+    if [[ "$PREFER_UNPINNED_FD" == "true" ]]; then
+      printf '\n[Capacity Sweep %d/%d — %s] AD-wide scheduler mode (unpinned FD covers all 3 FDs/AD in 1 call): %d AD(s) for 2 OCPU / 12 GB%s...\n' \
+        "$round" "$A1_MAX_RETRY_ROUNDS" "$(date -u '+%H:%M:%SZ')" "${#ADS_2OCPU_ELIGIBLE[@]}" \
+        "$([[ "$ALLOW_1OCPU_FALLBACK" == "true" ]] && printf ' + %d AD(s) for 1 OCPU / 12 GB fallback' "${#ADS_1OCPU_ELIGIBLE[@]}" || printf ' (1 OCPU fallback disabled)')"
 
-    for slot_key in "${SLOTS_2OCPU[@]}"; do
-      IFS='|' read -r cand_ad fd <<<"$slot_key"
-      UNIQUE_PROBED_SLOTS["$slot_key"]=1
+      AD2_COUNT="${#ADS_2OCPU_ELIGIBLE[@]}"
+      for (( ad_idx=0; ad_idx<AD2_COUNT; ad_idx++ )); do
+        cand_ad="${ADS_2OCPU_ELIGIBLE[$(( (round - 1 + ad_idx) % AD2_COUNT ))]}"
+        for fd_mark in ${AD_FDS["$cand_ad"]}; do
+          UNIQUE_PROBED_SLOTS["${cand_ad}|${fd_mark}"]=1
+        done
 
-      for rl_try in 1 2 3 4; do
-        assert_zero_live_a1_before_launch
-        SLOT_ATTEMPTS["$slot_key"]=$(( ${SLOT_ATTEMPTS["$slot_key"]} + 1 ))
-        TOTAL_LAUNCH_ATTEMPTS=$((TOTAL_LAUNCH_ATTEMPTS + 1))
+        for rl_try in 1 2 3 4; do
+          assert_zero_live_a1_before_launch
+          TOTAL_LAUNCH_ATTEMPTS=$((TOTAL_LAUNCH_ATTEMPTS + 1))
+          for fd_mark in ${AD_FDS["$cand_ad"]}; do
+            SLOT_ATTEMPTS["${cand_ad}|${fd_mark}"]=$(( ${SLOT_ATTEMPTS["${cand_ad}|${fd_mark}"]} + 1 ))
+          done
 
-        printf '  Trying 2 OCPU / 12 GB in %s / %s ... ' "$cand_ad" "$fd"
-        if oci --no-retry --connection-timeout 10 --read-timeout 25 compute instance launch \
-          --region "$REGION" \
-          --compartment-id "$TENANCY_ID" \
-          --availability-domain "$cand_ad" \
-          --fault-domain "$fd" \
-          --display-name "$A1_DISPLAY_NAME" \
-          --shape "VM.Standard.A1.Flex" \
-          --shape-config '{"ocpus": 2.0, "memoryInGBs": 12.0}' \
-          --image-id "$A1_IMAGE_ID" \
-          --subnet-id "$SUBNET_ID" \
-          --assign-public-ip true \
-          --boot-volume-size-in-gbs 50 \
-          --ssh-authorized-keys-file "$SSH_KEY_PUB" \
-          --user-data-file "$TMP_DIR/a1_userdata.yaml" \
-          >"$TMP_DIR/launch_out.json" 2>"$TMP_DIR/launch_err.txt"; then
-          LAUNCH_OUT="$(cat "$TMP_DIR/launch_out.json")"
-          A1_INSTANCE_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["data"]["id"])' <<<"$LAUNCH_OUT")"
-          A1_AD="$cand_ad"
-          A1_ALLOCATED_SHAPE_CFG="2 OCPU / 12 GB ($fd)"
-          SLOT_LAST_STATUS["$slot_key"]="LAUNCHED (2 OCPU / 12 GB)"
-          printf 'SUCCESS! (%s)\n' "$A1_INSTANCE_ID"
-          break 3
-        else
-          cat "$TMP_DIR/launch_err.txt" "$TMP_DIR/launch_out.json" >"$TMP_DIR/launch_diag.txt" 2>/dev/null || true
-          if is_confirmed_out_of_host_capacity "$TMP_DIR/launch_diag.txt"; then
-            SLOT_LAST_STATUS["$slot_key"]="out_of_host_capacity (2 OCPU / 12 GB)"
-            printf 'out of host capacity\n'
-            break
-          elif is_confirmed_rate_limit "$TMP_DIR/launch_diag.txt" && (( rl_try < 4 )); then
-            SLOT_LAST_STATUS["$slot_key"]="rate_limited_retrying"
-            printf 'API rate-limited (429); cooling down 12s and retrying slot...\n'
-            sleep 12
+          printf '  Trying 2 OCPU / 12 GB in %s (all fault domains) ... ' "$cand_ad"
+          if oci --no-retry --connection-timeout 10 --read-timeout 25 compute instance launch \
+            --region "$REGION" \
+            --compartment-id "$TENANCY_ID" \
+            --availability-domain "$cand_ad" \
+            --display-name "$A1_DISPLAY_NAME" \
+            --shape "VM.Standard.A1.Flex" \
+            --shape-config '{"ocpus": 2.0, "memoryInGBs": 12.0}' \
+            --image-id "$A1_IMAGE_ID" \
+            --subnet-id "$SUBNET_ID" \
+            --assign-public-ip true \
+            --boot-volume-size-in-gbs 50 \
+            --ssh-authorized-keys-file "$SSH_KEY_PUB" \
+            --user-data-file "$TMP_DIR/a1_userdata.yaml" \
+            >"$TMP_DIR/launch_out.json" 2>"$TMP_DIR/launch_err.txt"; then
+            LAUNCH_OUT="$(cat "$TMP_DIR/launch_out.json")"
+            IFS='|' read -r A1_INSTANCE_ID PICKED_FD <<<"$(python3 -c 'import json,sys; d=json.loads(sys.stdin.read())["data"]; print("%s|%s" % (d["id"], d.get("fault-domain") or "AUTO"))' <<<"$LAUNCH_OUT")"
+            A1_AD="$cand_ad"
+            A1_ALLOCATED_SHAPE_CFG="2 OCPU / 12 GB ($PICKED_FD)"
+            [[ -n "${SLOT_LAST_STATUS["${cand_ad}|${PICKED_FD}"]+x}" ]] && SLOT_LAST_STATUS["${cand_ad}|${PICKED_FD}"]="LAUNCHED (2 OCPU / 12 GB)"
+            printf 'SUCCESS! (%s in %s)\n' "$A1_INSTANCE_ID" "$PICKED_FD"
+            break 3
           else
-            reconcile_non_capacity_launch_error "$cand_ad" "$fd" "2.0" "$slot_key" "$TMP_DIR/launch_diag.txt"
-            [[ -n "$A1_INSTANCE_ID" ]] && break 3
-            break
+            cat "$TMP_DIR/launch_err.txt" "$TMP_DIR/launch_out.json" >"$TMP_DIR/launch_diag.txt" 2>/dev/null || true
+            if is_confirmed_out_of_host_capacity "$TMP_DIR/launch_diag.txt"; then
+              for fd_mark in ${AD_FDS["$cand_ad"]}; do
+                SLOT_LAST_STATUS["${cand_ad}|${fd_mark}"]="out_of_host_capacity (2 OCPU / 12 GB, AD-wide)"
+              done
+              printf 'out of host capacity\n'
+              break
+            elif is_confirmed_rate_limit "$TMP_DIR/launch_diag.txt" && (( rl_try < 4 )); then
+              ROUND_HAD_RATE_LIMIT=1
+              printf 'API rate-limited (429); cooling down %ds and retrying AD...\n' "$(( 15 * rl_try ))"
+              sleep "$(( 15 * rl_try ))"
+            else
+              reconcile_non_capacity_launch_error "$cand_ad" "ANY" "2.0" "" "$TMP_DIR/launch_diag.txt"
+              [[ -n "$A1_INSTANCE_ID" ]] && break 3
+              break
+            fi
           fi
-        fi
+        done
+        sleep 3
       done
-      sleep 3
-    done
 
-    if [[ -z "$A1_INSTANCE_ID" && "$ALLOW_1OCPU_FALLBACK" == "true" ]]; then
-      for slot_key in "${SLOTS_1OCPU[@]}"; do
+      if [[ -z "$A1_INSTANCE_ID" && "$ALLOW_1OCPU_FALLBACK" == "true" ]]; then
+        AD1_COUNT="${#ADS_1OCPU_ELIGIBLE[@]}"
+        for (( ad_idx=0; ad_idx<AD1_COUNT; ad_idx++ )); do
+          cand_ad="${ADS_1OCPU_ELIGIBLE[$(( (round - 1 + ad_idx) % AD1_COUNT ))]}"
+          for fd_mark in ${AD_FDS["$cand_ad"]}; do
+            UNIQUE_PROBED_SLOTS["${cand_ad}|${fd_mark}"]=1
+          done
+
+          for rl_try in 1 2 3 4; do
+            assert_zero_live_a1_before_launch
+            TOTAL_LAUNCH_ATTEMPTS=$((TOTAL_LAUNCH_ATTEMPTS + 1))
+            for fd_mark in ${AD_FDS["$cand_ad"]}; do
+              SLOT_ATTEMPTS["${cand_ad}|${fd_mark}"]=$(( ${SLOT_ATTEMPTS["${cand_ad}|${fd_mark}"]} + 1 ))
+            done
+
+            printf '  Trying approved fallback 1 OCPU / 12 GB in %s (all fault domains) ... ' "$cand_ad"
+            if oci --no-retry --connection-timeout 10 --read-timeout 25 compute instance launch \
+              --region "$REGION" \
+              --compartment-id "$TENANCY_ID" \
+              --availability-domain "$cand_ad" \
+              --display-name "$A1_DISPLAY_NAME" \
+              --shape "VM.Standard.A1.Flex" \
+              --shape-config '{"ocpus": 1.0, "memoryInGBs": 12.0}' \
+              --image-id "$A1_IMAGE_ID" \
+              --subnet-id "$SUBNET_ID" \
+              --assign-public-ip true \
+              --boot-volume-size-in-gbs 50 \
+              --ssh-authorized-keys-file "$SSH_KEY_PUB" \
+              --user-data-file "$TMP_DIR/a1_userdata.yaml" \
+              >"$TMP_DIR/launch_out.json" 2>"$TMP_DIR/launch_err.txt"; then
+              LAUNCH_OUT="$(cat "$TMP_DIR/launch_out.json")"
+              IFS='|' read -r A1_INSTANCE_ID PICKED_FD <<<"$(python3 -c 'import json,sys; d=json.loads(sys.stdin.read())["data"]; print("%s|%s" % (d["id"], d.get("fault-domain") or "AUTO"))' <<<"$LAUNCH_OUT")"
+              A1_AD="$cand_ad"
+              A1_ALLOCATED_SHAPE_CFG="1 OCPU / 12 GB ($PICKED_FD) [owner-approved fallback]"
+              [[ -n "${SLOT_LAST_STATUS["${cand_ad}|${PICKED_FD}"]+x}" ]] && SLOT_LAST_STATUS["${cand_ad}|${PICKED_FD}"]="LAUNCHED (1 OCPU / 12 GB)"
+              printf 'SUCCESS! (%s in %s)\n' "$A1_INSTANCE_ID" "$PICKED_FD"
+              break 3
+            else
+              cat "$TMP_DIR/launch_err.txt" "$TMP_DIR/launch_out.json" >"$TMP_DIR/launch_diag.txt" 2>/dev/null || true
+              if is_confirmed_out_of_host_capacity "$TMP_DIR/launch_diag.txt"; then
+                for fd_mark in ${AD_FDS["$cand_ad"]}; do
+                  SLOT_LAST_STATUS["${cand_ad}|${fd_mark}"]="out_of_host_capacity (1 OCPU / 12 GB, AD-wide)"
+                done
+                printf 'out of host capacity\n'
+                break
+              elif is_confirmed_rate_limit "$TMP_DIR/launch_diag.txt" && (( rl_try < 4 )); then
+                ROUND_HAD_RATE_LIMIT=1
+                printf 'API rate-limited (429); cooling down %ds and retrying AD...\n' "$(( 15 * rl_try ))"
+                sleep "$(( 15 * rl_try ))"
+              else
+                reconcile_non_capacity_launch_error "$cand_ad" "ANY" "1.0" "" "$TMP_DIR/launch_diag.txt"
+                [[ -n "$A1_INSTANCE_ID" ]] && break 3
+                break
+              fi
+            fi
+          done
+          sleep 3
+        done
+      fi
+    else
+      printf '\n[Capacity Sweep %d/%d — %s] Probing %d quota-eligible 2 OCPU / 12 GB AD/FD slot(s)%s...\n' \
+        "$round" "$A1_MAX_RETRY_ROUNDS" "$(date -u '+%H:%M:%SZ')" "$ELIGIBLE_2OCPU_SLOT_COUNT" \
+        "$([[ "$ALLOW_1OCPU_FALLBACK" == "true" ]] && printf ' (+ %d approved 1 OCPU / 12 GB fallback slot(s))' "$ELIGIBLE_1OCPU_SLOT_COUNT" || printf ' (1 OCPU fallback disabled)')"
+
+      for slot_key in "${SLOTS_2OCPU[@]}"; do
         IFS='|' read -r cand_ad fd <<<"$slot_key"
         UNIQUE_PROBED_SLOTS["$slot_key"]=1
 
@@ -949,7 +1028,7 @@ PY
           SLOT_ATTEMPTS["$slot_key"]=$(( ${SLOT_ATTEMPTS["$slot_key"]} + 1 ))
           TOTAL_LAUNCH_ATTEMPTS=$((TOTAL_LAUNCH_ATTEMPTS + 1))
 
-          printf '  Trying approved fallback 1 OCPU / 12 GB in %s / %s ... ' "$cand_ad" "$fd"
+          printf '  Trying 2 OCPU / 12 GB in %s / %s ... ' "$cand_ad" "$fd"
           if oci --no-retry --connection-timeout 10 --read-timeout 25 compute instance launch \
             --region "$REGION" \
             --compartment-id "$TENANCY_ID" \
@@ -957,7 +1036,7 @@ PY
             --fault-domain "$fd" \
             --display-name "$A1_DISPLAY_NAME" \
             --shape "VM.Standard.A1.Flex" \
-            --shape-config '{"ocpus": 1.0, "memoryInGBs": 12.0}' \
+            --shape-config '{"ocpus": 2.0, "memoryInGBs": 12.0}' \
             --image-id "$A1_IMAGE_ID" \
             --subnet-id "$SUBNET_ID" \
             --assign-public-ip true \
@@ -968,22 +1047,23 @@ PY
             LAUNCH_OUT="$(cat "$TMP_DIR/launch_out.json")"
             A1_INSTANCE_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["data"]["id"])' <<<"$LAUNCH_OUT")"
             A1_AD="$cand_ad"
-            A1_ALLOCATED_SHAPE_CFG="1 OCPU / 12 GB ($fd) [owner-approved fallback]"
-            SLOT_LAST_STATUS["$slot_key"]="LAUNCHED (1 OCPU / 12 GB)"
+            A1_ALLOCATED_SHAPE_CFG="2 OCPU / 12 GB ($fd)"
+            SLOT_LAST_STATUS["$slot_key"]="LAUNCHED (2 OCPU / 12 GB)"
             printf 'SUCCESS! (%s)\n' "$A1_INSTANCE_ID"
             break 3
           else
             cat "$TMP_DIR/launch_err.txt" "$TMP_DIR/launch_out.json" >"$TMP_DIR/launch_diag.txt" 2>/dev/null || true
             if is_confirmed_out_of_host_capacity "$TMP_DIR/launch_diag.txt"; then
-              SLOT_LAST_STATUS["$slot_key"]="out_of_host_capacity (1 OCPU / 12 GB)"
+              SLOT_LAST_STATUS["$slot_key"]="out_of_host_capacity (2 OCPU / 12 GB)"
               printf 'out of host capacity\n'
               break
             elif is_confirmed_rate_limit "$TMP_DIR/launch_diag.txt" && (( rl_try < 4 )); then
+              ROUND_HAD_RATE_LIMIT=1
               SLOT_LAST_STATUS["$slot_key"]="rate_limited_retrying"
               printf 'API rate-limited (429); cooling down 12s and retrying slot...\n'
               sleep 12
             else
-              reconcile_non_capacity_launch_error "$cand_ad" "$fd" "1.0" "$slot_key" "$TMP_DIR/launch_diag.txt"
+              reconcile_non_capacity_launch_error "$cand_ad" "$fd" "2.0" "$slot_key" "$TMP_DIR/launch_diag.txt"
               [[ -n "$A1_INSTANCE_ID" ]] && break 3
               break
             fi
@@ -991,16 +1071,77 @@ PY
         done
         sleep 3
       done
+
+      if [[ -z "$A1_INSTANCE_ID" && "$ALLOW_1OCPU_FALLBACK" == "true" ]]; then
+        for slot_key in "${SLOTS_1OCPU[@]}"; do
+          IFS='|' read -r cand_ad fd <<<"$slot_key"
+          UNIQUE_PROBED_SLOTS["$slot_key"]=1
+
+          for rl_try in 1 2 3 4; do
+            assert_zero_live_a1_before_launch
+            SLOT_ATTEMPTS["$slot_key"]=$(( ${SLOT_ATTEMPTS["$slot_key"]} + 1 ))
+            TOTAL_LAUNCH_ATTEMPTS=$((TOTAL_LAUNCH_ATTEMPTS + 1))
+
+            printf '  Trying approved fallback 1 OCPU / 12 GB in %s / %s ... ' "$cand_ad" "$fd"
+            if oci --no-retry --connection-timeout 10 --read-timeout 25 compute instance launch \
+              --region "$REGION" \
+              --compartment-id "$TENANCY_ID" \
+              --availability-domain "$cand_ad" \
+              --fault-domain "$fd" \
+              --display-name "$A1_DISPLAY_NAME" \
+              --shape "VM.Standard.A1.Flex" \
+              --shape-config '{"ocpus": 1.0, "memoryInGBs": 12.0}' \
+              --image-id "$A1_IMAGE_ID" \
+              --subnet-id "$SUBNET_ID" \
+              --assign-public-ip true \
+              --boot-volume-size-in-gbs 50 \
+              --ssh-authorized-keys-file "$SSH_KEY_PUB" \
+              --user-data-file "$TMP_DIR/a1_userdata.yaml" \
+              >"$TMP_DIR/launch_out.json" 2>"$TMP_DIR/launch_err.txt"; then
+              LAUNCH_OUT="$(cat "$TMP_DIR/launch_out.json")"
+              A1_INSTANCE_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["data"]["id"])' <<<"$LAUNCH_OUT")"
+              A1_AD="$cand_ad"
+              A1_ALLOCATED_SHAPE_CFG="1 OCPU / 12 GB ($fd) [owner-approved fallback]"
+              SLOT_LAST_STATUS["$slot_key"]="LAUNCHED (1 OCPU / 12 GB)"
+              printf 'SUCCESS! (%s)\n' "$A1_INSTANCE_ID"
+              break 3
+            else
+              cat "$TMP_DIR/launch_err.txt" "$TMP_DIR/launch_out.json" >"$TMP_DIR/launch_diag.txt" 2>/dev/null || true
+              if is_confirmed_out_of_host_capacity "$TMP_DIR/launch_diag.txt"; then
+                SLOT_LAST_STATUS["$slot_key"]="out_of_host_capacity (1 OCPU / 12 GB)"
+                printf 'out of host capacity\n'
+                break
+              elif is_confirmed_rate_limit "$TMP_DIR/launch_diag.txt" && (( rl_try < 4 )); then
+                ROUND_HAD_RATE_LIMIT=1
+                SLOT_LAST_STATUS["$slot_key"]="rate_limited_retrying"
+                printf 'API rate-limited (429); cooling down 12s and retrying slot...\n'
+                sleep 12
+              else
+                reconcile_non_capacity_launch_error "$cand_ad" "$fd" "1.0" "$slot_key" "$TMP_DIR/launch_diag.txt"
+                [[ -n "$A1_INSTANCE_ID" ]] && break 3
+                break
+              fi
+            fi
+          done
+          sleep 3
+        done
+      fi
     fi
 
     ELAPSED_NOW=$(( $(date +%s) - SWEEP_START_EPOCH ))
     if (( round < A1_MAX_RETRY_ROUNDS )); then
-      printf 'Sweep %d complete: probed %d/%d distinct regional AD/FD slot(s) (%d attempts, %ds elapsed).\n' \
-        "$round" "${#UNIQUE_PROBED_SLOTS[@]}" "$TOTAL_REGIONAL_SLOT_COUNT" "$TOTAL_LAUNCH_ATTEMPTS" "$ELAPSED_NOW"
+      JITTER_SEC=$(( RANDOM % 22 ))
+      EFFECTIVE_WAIT_SEC=$(( A1_RETRY_SLEEP_SEC + JITTER_SEC ))
+      if (( ROUND_HAD_RATE_LIMIT == 1 )); then
+        EFFECTIVE_WAIT_SEC=$(( EFFECTIVE_WAIT_SEC * 2 ))
+        (( EFFECTIVE_WAIT_SEC > 600 )) && EFFECTIVE_WAIT_SEC=600
+      fi
+      printf 'Sweep %d complete: covered %d/%d regional AD/FD slot(s) (%d API launch calls, %ds elapsed; next sweep in %ds).\n' \
+        "$round" "${#UNIQUE_PROBED_SLOTS[@]}" "$TOTAL_REGIONAL_SLOT_COUNT" "$TOTAL_LAUNCH_ATTEMPTS" "$ELAPSED_NOW" "$EFFECTIVE_WAIT_SEC"
       if [[ -r /dev/tty ]]; then
-        printf '  Waiting %ds before next sweep — leave idle to keep sweeping, or type P + Enter (Stage 2 Mail VM) or Q + Enter (quit): ' "$A1_RETRY_SLEEP_SEC" >/dev/tty
+        printf '  Waiting %ds before next sweep — leave idle to keep sweeping, or type P + Enter (Stage 2 Mail VM) or Q + Enter (quit): ' "$EFFECTIVE_WAIT_SEC" >/dev/tty
         SWEEP_WAIT_IN=""
-        if IFS= read -r -t "$A1_RETRY_SLEEP_SEC" SWEEP_WAIT_IN </dev/tty; then
+        if IFS= read -r -t "$EFFECTIVE_WAIT_SEC" SWEEP_WAIT_IN </dev/tty; then
           SWEEP_WAIT_IN="${SWEEP_WAIT_IN#"${SWEEP_WAIT_IN%%[![:space:]]*}"}"
           SWEEP_WAIT_IN="${SWEEP_WAIT_IN%"${SWEEP_WAIT_IN##*[![:space:]]}"}"
           case "$SWEEP_WAIT_IN" in
@@ -1023,7 +1164,7 @@ PY
           printf '\n' >/dev/tty
         fi
       else
-        sleep "$A1_RETRY_SLEEP_SEC"
+        sleep "$EFFECTIVE_WAIT_SEC"
       fi
     fi
   done
