@@ -884,7 +884,7 @@ PY
       TOTAL_LAUNCH_ATTEMPTS=$((TOTAL_LAUNCH_ATTEMPTS + 1))
 
       printf '  Trying 2 OCPU / 12 GB in %s / %s ... ' "$cand_ad" "$fd"
-      if oci compute instance launch \
+      if oci --no-retry --connection-timeout 10 --read-timeout 25 compute instance launch \
         --region "$REGION" \
         --compartment-id "$TENANCY_ID" \
         --availability-domain "$cand_ad" \
@@ -916,7 +916,7 @@ PY
           [[ -n "$A1_INSTANCE_ID" ]] && break 2
         fi
       fi
-      sleep 2
+      sleep 0.5
     done
 
     if [[ -z "$A1_INSTANCE_ID" && "$ALLOW_1OCPU_FALLBACK" == "true" ]]; then
@@ -928,7 +928,7 @@ PY
         TOTAL_LAUNCH_ATTEMPTS=$((TOTAL_LAUNCH_ATTEMPTS + 1))
 
         printf '  Trying approved fallback 1 OCPU / 12 GB in %s / %s ... ' "$cand_ad" "$fd"
-        if oci compute instance launch \
+        if oci --no-retry --connection-timeout 10 --read-timeout 25 compute instance launch \
           --region "$REGION" \
           --compartment-id "$TENANCY_ID" \
           --availability-domain "$cand_ad" \
@@ -960,7 +960,7 @@ PY
             [[ -n "$A1_INSTANCE_ID" ]] && break 2
           fi
         fi
-        sleep 2
+        sleep 0.5
       done
     fi
 
