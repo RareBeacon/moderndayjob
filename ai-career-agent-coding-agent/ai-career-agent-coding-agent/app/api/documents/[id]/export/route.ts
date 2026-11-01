@@ -18,7 +18,7 @@ export const runtime = 'nodejs';
  * Editing and re-downloading never consumes a credit.
  */
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  const rl = await enforceRateLimit(`documents:export:${requestIp(req)}`, 30, '1 m');
+  const rl = await enforceRateLimit(`documents:export:${requestIp(req)}`, 60, '1 m');
   if (!rl.allowed) return Response.json({ error: 'RATE_LIMITED' }, { status: 429 });
 
   const user = await requireUser({ req: req }).catch(() => null);
@@ -38,27 +38,28 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 
   const { data: doc, error } = await supabaseAdmin
     .from('generated_documents')
-    .select('id, user_id, type, title, content')
+    .select('id, user_id, kind, title, content')
     .eq('id', id)
     .eq('user_id', user.id)
     .maybeSingle();
 
   if (error || !doc) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
-  const parsed = parseDocumentContent(doc.type, doc.content ?? '', doc.title ?? doc.type);
+  const docKind = (doc as { kind?: string; type?: string }).kind ?? (doc as { type?: string }).type ?? 'CV';
+  const parsed = parseDocumentContent(docKind, doc.content ?? '', doc.title ?? docKind);
   const effectiveTemplateId =
-    doc.type === 'CV' && requestedTemplate && isKnownResumeTemplateId(requestedTemplate)
+    docKind === 'CV' && requestedTemplate && isKnownResumeTemplateId(requestedTemplate)
       ? requestedTemplate
       : parsed.templateId;
 
-  const candidateSlug = (parsed.resume?.fullName || doc.title || doc.type || 'resume')
+  const candidateSlug = (parsed.resume?.fullName || doc.title || docKind || 'resume')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
     .slice(0, 48);
 
   const templateSuffix =
-    doc.type === 'CV' && effectiveTemplateId
+    docKind === 'CV' && effectiveTemplateId
       ? `-${resolveTemplateSpec(effectiveTemplateId).pdfFileName.replace(/\.pdf$/i, '').toLowerCase()}`
       : '';
 
