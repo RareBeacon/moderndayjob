@@ -37,8 +37,8 @@ REPO_RAW_BASE="https://raw.githubusercontent.com/RareBeacon/moderndayjob"
 PINNED_GATE0_COMMIT="298bbf055bdaf27d7bca0f4b48fd8abffc369de7"
 PINNED_GATE0_SHA256="ceb930cc75642091000e0074bf37e23b4d2781608b17b11f76b0c08341dd82ce"
 
-PINNED_GATE4_COMMIT="f7f8c7e0b2ad45a8c352bfd7e667e467f07389c1"
-PINNED_GATE4_SHA256="d5960d51e45a7be3da06e4ff5fa3b471b9f4c648096e29ed969cb127c6de3258"
+PINNED_GATE4_COMMIT="1d0cb7c5e49deb8d7d2de6c957f080e428acec1f"
+PINNED_GATE4_SHA256="4a43a7d88c2be73ec85826cd2d19848eb72629bd79ae4d31c6b9f4b3d8cd3a02"
 
 APP_COMMIT_SHA="dc74ef8e0d24a560abe360d84dacfc1663ed2e89"
 MAILU_VERSION="2024.06.67"
@@ -490,6 +490,15 @@ EOF
   if [[ "$SINGLE_CLICK_ALL" == "true" ]]; then
     STAGE1_CHOICE="APPROVE_A_B"
     PREAPPROVED_STAGE2_C=1
+    if [[ "${BACKGROUND_A1_HUNTER:-false}" != "true" && -f "$SSH_KEY_DIR/jobiest_a1_autohunter.pid" ]]; then
+      PREV_HUNTER_PID="$(cat "$SSH_KEY_DIR/jobiest_a1_autohunter.pid" 2>/dev/null || true)"
+      if [[ -n "$PREV_HUNTER_PID" ]] && kill -0 "$PREV_HUNTER_PID" 2>/dev/null; then
+        printf -- '[Single-Click Mode] Stopping previous background hunter PID %s before fresh 9-slot sweep...\n' "$PREV_HUNTER_PID"
+        kill -TERM -- "-${PREV_HUNTER_PID}" 2>/dev/null || kill -TERM "$PREV_HUNTER_PID" 2>/dev/null || true
+        sleep 2
+      fi
+      rm -f "$SSH_KEY_DIR/jobiest_a1_autohunter.pid"
+    fi
     printf -- '[Single-Click Mode] Owner-authorized unattended Stage 1 fast 9-slot sweep active.\n'
   else
     while true; do
@@ -558,9 +567,13 @@ sudo chmod 644 /etc/cron.d/jobiest-a1-keepwarm"
           printf -- 'Installed /etc/cron.d/jobiest-a1-keepwarm health readiness cron on %s.\n' "$A1_DISPLAY_NAME"
         fi
         break
+      elif [[ "${BACKGROUND_A1_HUNTER:-false}" == "true" ]]; then
+        printf -- '\n[Background A1 Auto-Hunter] Cycle finished (rc=%d); cooling down 60s before next 360-sweep cycle...\n' "$G4_RC"
+        sleep 60
+        continue
       elif [[ "$SINGLE_CLICK_ALL" == "true" ]]; then
-        printf -- '\n[Single-Click Mode] Initial ARM capacity sweep reported transient OCI Out-of-Host-Capacity.\n'
-        printf -- '                    Proceeding IMMEDIATELY to Stage 2 (x86_64 Mail VM) with zero wait; background A1 auto-hunter will follow!\n'
+        printf -- '\n[Single-Click Mode] Initial 9-slot ARM sweep reported transient OCI Out-of-Host-Capacity.\n'
+        printf -- '                    Proceeding IMMEDIATELY to Stage 2 pre-staging; continuous background 9-slot auto-hunter will follow!\n'
         break
       elif (( G4_RC == 75 )); then
         printf -- '\n[Stage 1 Deferred] Proceeding directly to Stage 2 (Mail VM on x86_64) per operator selection.\n'
