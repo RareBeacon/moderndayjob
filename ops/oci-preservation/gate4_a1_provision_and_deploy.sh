@@ -754,6 +754,17 @@ sys.exit(1)
 PY
   }
 
+  is_confirmed_rate_limit() {
+    local err_file="$1"
+    python3 - "$err_file" <<'PY'
+import sys
+low = open(sys.argv[1], "r", encoding="utf-8", errors="replace").read().lower()
+if "serviceerror" in low and ("toomanyrequests" in low or "too many requests" in low):
+    sys.exit(0)
+sys.exit(1)
+PY
+  }
+
   reconcile_non_capacity_launch_error() {
     local expected_ad="$1"
     local expected_fd="$2"
@@ -878,56 +889,14 @@ PY
 
     for slot_key in "${SLOTS_2OCPU[@]}"; do
       IFS='|' read -r cand_ad fd <<<"$slot_key"
-      assert_zero_live_a1_before_launch
       UNIQUE_PROBED_SLOTS["$slot_key"]=1
-      SLOT_ATTEMPTS["$slot_key"]=$(( ${SLOT_ATTEMPTS["$slot_key"]} + 1 ))
-      TOTAL_LAUNCH_ATTEMPTS=$((TOTAL_LAUNCH_ATTEMPTS + 1))
 
-      printf '  Trying 2 OCPU / 12 GB in %s / %s ... ' "$cand_ad" "$fd"
-      if oci --no-retry --connection-timeout 10 --read-timeout 25 compute instance launch \
-        --region "$REGION" \
-        --compartment-id "$TENANCY_ID" \
-        --availability-domain "$cand_ad" \
-        --fault-domain "$fd" \
-        --display-name "$A1_DISPLAY_NAME" \
-        --shape "VM.Standard.A1.Flex" \
-        --shape-config '{"ocpus": 2.0, "memoryInGBs": 12.0}' \
-        --image-id "$A1_IMAGE_ID" \
-        --subnet-id "$SUBNET_ID" \
-        --assign-public-ip true \
-        --boot-volume-size-in-gbs 50 \
-        --ssh-authorized-keys-file "$SSH_KEY_PUB" \
-        --user-data-file "$TMP_DIR/a1_userdata.yaml" \
-        >"$TMP_DIR/launch_out.json" 2>"$TMP_DIR/launch_err.txt"; then
-        LAUNCH_OUT="$(cat "$TMP_DIR/launch_out.json")"
-        A1_INSTANCE_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["data"]["id"])' <<<"$LAUNCH_OUT")"
-        A1_AD="$cand_ad"
-        A1_ALLOCATED_SHAPE_CFG="2 OCPU / 12 GB ($fd)"
-        SLOT_LAST_STATUS["$slot_key"]="LAUNCHED (2 OCPU / 12 GB)"
-        printf 'SUCCESS! (%s)\n' "$A1_INSTANCE_ID"
-        break 2
-      else
-        cat "$TMP_DIR/launch_err.txt" "$TMP_DIR/launch_out.json" >"$TMP_DIR/launch_diag.txt" 2>/dev/null || true
-        if is_confirmed_out_of_host_capacity "$TMP_DIR/launch_diag.txt"; then
-          SLOT_LAST_STATUS["$slot_key"]="out_of_host_capacity (2 OCPU / 12 GB)"
-          printf 'out of host capacity\n'
-        else
-          reconcile_non_capacity_launch_error "$cand_ad" "$fd" "2.0" "$slot_key" "$TMP_DIR/launch_diag.txt"
-          [[ -n "$A1_INSTANCE_ID" ]] && break 2
-        fi
-      fi
-      sleep 0.5
-    done
-
-    if [[ -z "$A1_INSTANCE_ID" && "$ALLOW_1OCPU_FALLBACK" == "true" ]]; then
-      for slot_key in "${SLOTS_1OCPU[@]}"; do
-        IFS='|' read -r cand_ad fd <<<"$slot_key"
+      for rl_try in 1 2 3 4; do
         assert_zero_live_a1_before_launch
-        UNIQUE_PROBED_SLOTS["$slot_key"]=1
         SLOT_ATTEMPTS["$slot_key"]=$(( ${SLOT_ATTEMPTS["$slot_key"]} + 1 ))
         TOTAL_LAUNCH_ATTEMPTS=$((TOTAL_LAUNCH_ATTEMPTS + 1))
 
-        printf '  Trying approved fallback 1 OCPU / 12 GB in %s / %s ... ' "$cand_ad" "$fd"
+        printf '  Trying 2 OCPU / 12 GB in %s / %s ... ' "$cand_ad" "$fd"
         if oci --no-retry --connection-timeout 10 --read-timeout 25 compute instance launch \
           --region "$REGION" \
           --compartment-id "$TENANCY_ID" \
@@ -935,7 +904,7 @@ PY
           --fault-domain "$fd" \
           --display-name "$A1_DISPLAY_NAME" \
           --shape "VM.Standard.A1.Flex" \
-          --shape-config '{"ocpus": 1.0, "memoryInGBs": 12.0}' \
+          --shape-config '{"ocpus": 2.0, "memoryInGBs": 12.0}' \
           --image-id "$A1_IMAGE_ID" \
           --subnet-id "$SUBNET_ID" \
           --assign-public-ip true \
@@ -946,21 +915,81 @@ PY
           LAUNCH_OUT="$(cat "$TMP_DIR/launch_out.json")"
           A1_INSTANCE_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["data"]["id"])' <<<"$LAUNCH_OUT")"
           A1_AD="$cand_ad"
-          A1_ALLOCATED_SHAPE_CFG="1 OCPU / 12 GB ($fd) [owner-approved fallback]"
-          SLOT_LAST_STATUS["$slot_key"]="LAUNCHED (1 OCPU / 12 GB)"
+          A1_ALLOCATED_SHAPE_CFG="2 OCPU / 12 GB ($fd)"
+          SLOT_LAST_STATUS["$slot_key"]="LAUNCHED (2 OCPU / 12 GB)"
           printf 'SUCCESS! (%s)\n' "$A1_INSTANCE_ID"
-          break 2
+          break 3
         else
           cat "$TMP_DIR/launch_err.txt" "$TMP_DIR/launch_out.json" >"$TMP_DIR/launch_diag.txt" 2>/dev/null || true
           if is_confirmed_out_of_host_capacity "$TMP_DIR/launch_diag.txt"; then
-            SLOT_LAST_STATUS["$slot_key"]="out_of_host_capacity (1 OCPU / 12 GB)"
+            SLOT_LAST_STATUS["$slot_key"]="out_of_host_capacity (2 OCPU / 12 GB)"
             printf 'out of host capacity\n'
+            break
+          elif is_confirmed_rate_limit "$TMP_DIR/launch_diag.txt" && (( rl_try < 4 )); then
+            SLOT_LAST_STATUS["$slot_key"]="rate_limited_retrying"
+            printf 'API rate-limited (429); cooling down 12s and retrying slot...\n'
+            sleep 12
           else
-            reconcile_non_capacity_launch_error "$cand_ad" "$fd" "1.0" "$slot_key" "$TMP_DIR/launch_diag.txt"
-            [[ -n "$A1_INSTANCE_ID" ]] && break 2
+            reconcile_non_capacity_launch_error "$cand_ad" "$fd" "2.0" "$slot_key" "$TMP_DIR/launch_diag.txt"
+            [[ -n "$A1_INSTANCE_ID" ]] && break 3
+            break
           fi
         fi
-        sleep 0.5
+      done
+      sleep 3
+    done
+
+    if [[ -z "$A1_INSTANCE_ID" && "$ALLOW_1OCPU_FALLBACK" == "true" ]]; then
+      for slot_key in "${SLOTS_1OCPU[@]}"; do
+        IFS='|' read -r cand_ad fd <<<"$slot_key"
+        UNIQUE_PROBED_SLOTS["$slot_key"]=1
+
+        for rl_try in 1 2 3 4; do
+          assert_zero_live_a1_before_launch
+          SLOT_ATTEMPTS["$slot_key"]=$(( ${SLOT_ATTEMPTS["$slot_key"]} + 1 ))
+          TOTAL_LAUNCH_ATTEMPTS=$((TOTAL_LAUNCH_ATTEMPTS + 1))
+
+          printf '  Trying approved fallback 1 OCPU / 12 GB in %s / %s ... ' "$cand_ad" "$fd"
+          if oci --no-retry --connection-timeout 10 --read-timeout 25 compute instance launch \
+            --region "$REGION" \
+            --compartment-id "$TENANCY_ID" \
+            --availability-domain "$cand_ad" \
+            --fault-domain "$fd" \
+            --display-name "$A1_DISPLAY_NAME" \
+            --shape "VM.Standard.A1.Flex" \
+            --shape-config '{"ocpus": 1.0, "memoryInGBs": 12.0}' \
+            --image-id "$A1_IMAGE_ID" \
+            --subnet-id "$SUBNET_ID" \
+            --assign-public-ip true \
+            --boot-volume-size-in-gbs 50 \
+            --ssh-authorized-keys-file "$SSH_KEY_PUB" \
+            --user-data-file "$TMP_DIR/a1_userdata.yaml" \
+            >"$TMP_DIR/launch_out.json" 2>"$TMP_DIR/launch_err.txt"; then
+            LAUNCH_OUT="$(cat "$TMP_DIR/launch_out.json")"
+            A1_INSTANCE_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["data"]["id"])' <<<"$LAUNCH_OUT")"
+            A1_AD="$cand_ad"
+            A1_ALLOCATED_SHAPE_CFG="1 OCPU / 12 GB ($fd) [owner-approved fallback]"
+            SLOT_LAST_STATUS["$slot_key"]="LAUNCHED (1 OCPU / 12 GB)"
+            printf 'SUCCESS! (%s)\n' "$A1_INSTANCE_ID"
+            break 3
+          else
+            cat "$TMP_DIR/launch_err.txt" "$TMP_DIR/launch_out.json" >"$TMP_DIR/launch_diag.txt" 2>/dev/null || true
+            if is_confirmed_out_of_host_capacity "$TMP_DIR/launch_diag.txt"; then
+              SLOT_LAST_STATUS["$slot_key"]="out_of_host_capacity (1 OCPU / 12 GB)"
+              printf 'out of host capacity\n'
+              break
+            elif is_confirmed_rate_limit "$TMP_DIR/launch_diag.txt" && (( rl_try < 4 )); then
+              SLOT_LAST_STATUS["$slot_key"]="rate_limited_retrying"
+              printf 'API rate-limited (429); cooling down 12s and retrying slot...\n'
+              sleep 12
+            else
+              reconcile_non_capacity_launch_error "$cand_ad" "$fd" "1.0" "$slot_key" "$TMP_DIR/launch_diag.txt"
+              [[ -n "$A1_INSTANCE_ID" ]] && break 3
+              break
+            fi
+          fi
+        done
+        sleep 3
       done
     fi
 
