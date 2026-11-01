@@ -68,6 +68,10 @@ export interface StudioDraft {
   education: StudioEducation[];
   projects: StudioProject[];
   certifications: StudioCertification[];
+  languages?: { language: string; proficiency: string }[];
+  publications?: { id: string; title: string; venue: string; date: string; url: string }[];
+  volunteer?: { id: string; role: string; organization: string; dates: string; summary: string }[];
+  memberships?: string[];
   achievements: string[];
   references: string;
   additional: string;
@@ -87,7 +91,7 @@ export interface ResumeScore {
 
 export const EMPTY_STUDIO_DRAFT: StudioDraft = {
   versionName: 'General Resume',
-  selectedTemplate: 'modern-tech',
+  selectedTemplate: 'tpl-03-modern-professional',
   currentStep: 'welcome',
   personal: { name: '', email: '', phone: '', location: '', website: '', linkedin: '', github: '', photoDataUrl: '' },
   career: { headline: '', targetRole: '', yearsExperience: '', seniority: '', summary: '' },
@@ -96,6 +100,10 @@ export const EMPTY_STUDIO_DRAFT: StudioDraft = {
   education: [],
   projects: [],
   certifications: [],
+  languages: [],
+  publications: [],
+  volunteer: [],
+  memberships: [],
   achievements: [],
   references: '',
   additional: '',
@@ -177,6 +185,25 @@ export function normalizeStudioDraft(input: Partial<StudioDraft> | null | undefi
       issuer: cleanText(c.issuer, 160),
       date: cleanText(c.date, 80),
     })).filter((c) => c.name).slice(0, 20) : [],
+    languages: Array.isArray(d.languages) ? d.languages.map((l) => ({
+      language: cleanText(l.language, 60),
+      proficiency: cleanText(l.proficiency, 80),
+    })).filter((l) => l.language).slice(0, 12) : [],
+    publications: Array.isArray(d.publications) ? d.publications.map((p, index) => ({
+      id: cleanText(p.id, 80) || `pub-${index}`,
+      title: cleanText(p.title, 220),
+      venue: cleanText(p.venue, 160),
+      date: cleanText(p.date, 80),
+      url: cleanText(p.url, 240),
+    })).filter((p) => p.title).slice(0, 20) : [],
+    volunteer: Array.isArray(d.volunteer) ? d.volunteer.map((v, index) => ({
+      id: cleanText(v.id, 80) || `vol-${index}`,
+      role: cleanText(v.role, 140),
+      organization: cleanText(v.organization, 140),
+      dates: cleanText(v.dates, 80),
+      summary: cleanText(v.summary, 400),
+    })).filter((v) => v.role || v.organization).slice(0, 10) : [],
+    memberships: uniqueStrings(d.memberships ?? [], 15),
     achievements: uniqueStrings(d.achievements ?? [], 20),
     references: cleanText(d.references, 1000),
     additional: cleanText(d.additional, 1600),

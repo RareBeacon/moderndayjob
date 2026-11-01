@@ -1,0 +1,142 @@
+.heroBand {
+  background: linear-gradient(180deg, #f5f8fd 0%, #ffffff 100%);
+  border-bottom: 1px solid #e6ecf5;
+  padding: 28px 0 32px;
+}
+
+.container {
+  width: min(1320px, calc(100% - 40px));
+  margin-inline: auto;
+}
+
+.breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.83rem;
+  color: #6a7891;
+  margin-bottom: 16px;
+}
+
+.breadcrumbs a {
+  color: #41506b;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.breadcrumbs a:hover {
+  color: #111d35;
+  text-decoration: underline;
+}
+
+.heroGrid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 20px;
+}
+
+.heroCopy {
+  max-width: 780px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #111d35;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 5px 12px;
+  border-radius: 999px;
+  margin-bottom: 12px;
+}
+
+.eyebrowDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #d7f94b;
+}
+
+.title {
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(2rem, 3.6vw, 2.75rem);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: #17223b;
+  margin: 0 0 10px;
+  line-height: 1.1;
+}
+
+.lead {
+  font-size: 1.02rem;
+  line-height: 1.58;
+  color: #41506b;
+  margin: 0;
+}
+
+.statsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.statPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #dce4f0;
+  color: #17223b;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 6px 13px;
+  border-radius: 999px;
+}
+
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.studioCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 0 22px;
+  border-radius: 12px;
+  background: #111d35;
+  color: #ffffff;
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.studioCta:hover {
+  background: #1c2f54;
+}
+
+.galleryMain {
+  background: #f7f9fc;
+  padding: 30px 0 64px;
+}
+
+@media (max-width: 640px) {
+  .container {
+    width: calc(100% - 24px);
+  }
+
+  .heroBand {
+    padding: 20px 0 24px;
+  }
+}

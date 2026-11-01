@@ -1,308 +1,334 @@
+import {
+  Document as DocxDocument,
+  HeadingLevel,
+  ImageRun,
+  Packer,
+  Paragraph,
+  TextRun,
+} from 'docx';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
-import { AlignmentType, Document, HeadingLevel, ImageRun, Packer, Paragraph, TextRun } from 'docx';
-import { parsePhotoDataUrl, type PhotoMime } from '@/lib/resume-studio/photo';
-import { ALL_TEMPLATES } from '@/lib/resume-studio/templates';
-import { renderTemplateDocx, renderTemplatePdf } from './template-export';
+import { parsePhotoDataUrl } from '@/lib/resume-studio/photo';
+import {
+  normalizeResumeFromStoredJson,
+  toPdfSafeText,
+  type NormalizedResumeDocument,
+  type StoredCvPayload,
+} from '@/lib/resume-studio/document-model';
+import { ALL_TEMPLATES, getResumeTemplate } from '@/lib/resume-studio/templates';
+import {
+  A4_HEIGHT_PT,
+  A4_WIDTH_PT,
+  renderTemplateDocx,
+  renderTemplatePdf,
+  resolveValidatedPhoto,
+  type ExportSection,
+  type PhotoInput,
+  type ValidatedPhoto,
+} from './template-export';
 
-/**
- * Server-side PDF/DOCX export for generated career documents.
- *
- * pdf-lib (already a dependency) renders the PDF; the `docx` package renders
- * DOCX. Both are pure-JS and safe in the serverless runtime. This module is
- * imported ONLY by server routes, so no browser bundle grows.
- *
- * The em/en-dash rule applies to the source content (already sanitized at
- * generation time); export is a pure render and adds nothing.
- */
+export type { ExportSection, PhotoInput, ValidatedPhoto };
 
-export interface ExportSection {
-  heading?: string;
-  lines: string[];
-  /** Parallel to `lines`: true renders the line as a bullet. */
-  bullets?: boolean[];
+export function isKnownResumeTemplateId(id?: string | null): id is string {
+  return Boolean(id && ALL_TEMPLATES.some((t) => t.id === id));
 }
 
 export interface ParsedDocument {
   title: string;
+  photo?: ValidatedPhoto;
+  templateId?: string;
+  resume?: NormalizedResumeDocument;
   sections: ExportSection[];
-  /** Known selected design, present only for structured CVs. */
-  templateId?: string;
-  /** Validated resume photo (JPEG/PNG, magic-byte checked) for photo-capable templates. */
-  photo?: { bytes: Uint8Array; mime: PhotoMime };
 }
 
-interface CvJson {
-  templateId?: string;
-  templateName?: string;
-  contact?: { name?: string; email?: string; phone?: string; location?: string; website?: string; linkedin?: string; github?: string };
-  headline?: string;
-  summary?: string;
-  experiences?: { company?: string; title?: string; location?: string; start?: string; end?: string; bullets?: string[] }[];
-  skills?: string[];
-  education?: { institution?: string; qualification?: string; start?: string; end?: string; achievements?: string }[];
-  projects?: { name?: string; description?: string; technologies?: string[]; url?: string; achievements?: string[] }[];
-  certifications?: { name?: string; issuer?: string; date?: string }[];
-  achievements?: string[];
-  additional?: string;
-  references?: string;
-  answers?: { question?: string; answer?: string }[];
-  body?: string;
-  photoDataUrl?: string;
-}
+export function parseDocumentContent(type: string, raw: string, fallbackTitle = 'Document'): ParsedDocument {
+  const trimmed = (raw ?? '').trim();
+  if (!trimmed) return { title: fallbackTitle, sections: [{ lines: ['(empty document)'] }] };
 
-function firstNonEmpty(v: unknown): string | undefined {
-  if (typeof v !== 'string') return undefined;
-  const t = v.trim();
-  return t.length > 0 ? t : undefined;
-}
-
-/** Interpret stored content into a render-ready title + section list. */
-export function parseDocumentContent(kind: string, content: string): ParsedDocument {
-  let json: CvJson | null = null;
-  try {
-    json = JSON.parse(content) as CvJson;
-  } catch {
-    json = null;
-  }
-  let photo: ParsedDocument['photo'];
-  if (json?.photoDataUrl) {
-    const parsed = parsePhotoDataUrl(json.photoDataUrl);
-    if (parsed.ok) photo = { bytes: parsed.bytes, mime: parsed.mime };
-  }
-
-  if (kind === 'CV' && json && (json.headline || json.summary || json.experiences || json.contact)) {
-    const sections: ExportSection[] = [];
-    const h = firstNonEmpty(json.contact?.name) ?? firstNonEmpty(json.headline);
-    const headline = firstNonEmpty(json.headline);
-    const s = firstNonEmpty(json.summary);
-    if (h) sections.push({ heading: undefined, lines: [h] });
-    const contact = [json.contact?.email, json.contact?.phone, json.contact?.location, json.contact?.website, json.contact?.linkedin, json.contact?.github]
-      .map((x) => (x ? String(x).trim() : ''))
-      .filter(Boolean);
-    if (contact.length) sections.push({ heading: undefined, lines: [contact.join(' | ')] });
-    if (headline && headline !== h) sections.push({ heading: undefined, lines: [headline] });
-    if (s) sections.push({ heading: 'Professional summary', lines: [s] });
-    if (json.experiences?.length) {
-      const lines: string[] = [];
-      const bullets: boolean[] = [];
-      for (const e of json.experiences) {
-        const head = [e.title, e.company, e.location].filter((x) => x && String(x).trim()).join(' | ');
-        const when = [e.start, e.end].filter((x) => x && String(x).trim()).join(' to ');
-        if (head || when) {
-          lines.push([head, when].filter(Boolean).join(', '));
-          bullets.push(false);
-        }
-        for (const b of e.bullets ?? []) {
-          if (b && b.trim()) { lines.push(b.trim()); bullets.push(true); }
-        }
+  if (type === 'CV') {
+    try {
+      const json = JSON.parse(trimmed) as StoredCvPayload;
+      const sections: ExportSection[] = [];
+      const contactBits = [
+        json.contact?.name,
+        json.contact?.email,
+        json.contact?.phone,
+        json.contact?.location,
+      ].filter(Boolean) as string[];
+      const linkBits = [
+        json.contact?.website,
+        json.contact?.linkedin,
+        json.contact?.github,
+      ].filter(Boolean) as string[];
+      if (contactBits.length || linkBits.length) {
+        sections.push({
+          lines: [
+            ...(contactBits.length ? [contactBits.join('  |  ')] : []),
+            ...(linkBits.length ? [linkBits.join('  |  ')] : []),
+          ],
+        });
       }
-      sections.push({ heading: 'Experience', lines, bullets });
-    }
-    if (json.projects?.length) {
-      const lines: string[] = [];
-      const bullets: boolean[] = [];
-      for (const p of json.projects) {
-        const head = [p.name, p.url].filter((x) => x && String(x).trim()).join(' | ');
-        if (head) { lines.push(head); bullets.push(false); }
-        if (p.description) { lines.push(p.description.trim()); bullets.push(true); }
-        if (p.technologies?.length) { lines.push(`Tools: ${p.technologies.join(', ')}`); bullets.push(true); }
-        for (const a of p.achievements ?? []) { if (a?.trim()) { lines.push(a.trim()); bullets.push(true); } }
+      if (json.summary) sections.push({ heading: 'Summary', lines: [json.summary] });
+      if (json.experiences?.length) {
+        const lines: string[] = [];
+        for (const exp of json.experiences) {
+          const span = [exp.start, exp.end].filter(Boolean).join(' - ');
+          const roleLine = [exp.title, exp.company, exp.location].filter(Boolean).join(' - ');
+          lines.push(span ? `${roleLine} (${span})` : roleLine);
+          for (const b of exp.bullets ?? []) lines.push(`- ${b}`);
+        }
+        sections.push({ heading: 'Experience', lines });
       }
-      sections.push({ heading: 'Projects', lines, bullets });
-    }
-    if (json.skills?.length) {
-      sections.push({ heading: 'Skills', lines: [json.skills.join(', ')] });
-    }
-    if (json.education?.length) {
-      sections.push({
-        heading: 'Education',
-        lines: json.education.map((e) => {
-          const main = [e.qualification, e.institution].filter((x) => x && String(x).trim()).join(' | ');
-          const when = [e.start, e.end].filter((x) => x && String(x).trim()).join(' to ');
-          return [main, when, e.achievements].filter((x) => x && String(x).trim()).join(', ');
-        }).filter(Boolean),
+      if (json.skills?.length) {
+        const skillNames = json.skills
+          .map((s) => (typeof s === 'string' ? s : s.name))
+          .filter(Boolean);
+        sections.push({ heading: 'Skills', lines: [skillNames.join(', ')] });
+      }
+      if (json.education?.length) {
+        const lines: string[] = [];
+        for (const e of json.education) {
+          const qual = e.qualification || [e.degree, e.field].filter(Boolean).join(', ');
+          const span = [e.start, e.end].filter(Boolean).join(' - ');
+          const base = [qual, e.institution].filter(Boolean).join(' - ');
+          lines.push(span ? `${base} (${span})` : base);
+          if (e.achievements) lines.push(`- ${e.achievements}`);
+        }
+        sections.push({ heading: 'Education', lines });
+      }
+      if (json.projects?.length) {
+        const lines: string[] = [];
+        for (const p of json.projects) {
+          lines.push([p.name, p.url].filter(Boolean).join(' - '));
+          if (p.description) lines.push(p.description);
+          for (const a of p.achievements ?? []) lines.push(`- ${a}`);
+        }
+        sections.push({ heading: 'Projects', lines });
+      }
+      if (json.certifications?.length) {
+        sections.push({
+          heading: 'Certifications',
+          lines: json.certifications.map((c) => [c.name, c.issuer, c.date].filter(Boolean).join(' - ')),
+        });
+      }
+      if (json.achievements?.length) {
+        sections.push({ heading: 'Highlights', lines: json.achievements.map((a) => `- ${a}`) });
+      }
+      if (json.additional) sections.push({ heading: 'Additional', lines: [json.additional] });
+      if (json.references) sections.push({ heading: 'References', lines: [json.references] });
+
+      const photoCheck = parsePhotoDataUrl(json.photoDataUrl);
+      const validPhoto: ValidatedPhoto | undefined = photoCheck.ok
+        ? { bytes: photoCheck.bytes, mime: photoCheck.mime }
+        : undefined;
+
+      const resume = normalizeResumeFromStoredJson({
+        ...json,
+        photoDataUrl: validPhoto ? json.photoDataUrl : '',
       });
+
+      return {
+        title: json.headline || json.contact?.name || fallbackTitle,
+        photo: validPhoto,
+        templateId: isKnownResumeTemplateId(json.templateId) ? json.templateId : undefined,
+        resume,
+        sections: sections.length ? sections : [{ lines: [trimmed] }],
+      };
+    } catch {
+      // fall through to plain text
     }
-    if (json.certifications?.length) {
-      sections.push({ heading: 'Certifications', lines: json.certifications.map((c) => [c.name, c.issuer, c.date].filter((x) => x && String(x).trim()).join(' | ')).filter(Boolean) });
-    }
-    if (json.achievements?.length) {
-      sections.push({ heading: 'Achievements', lines: json.achievements.filter(Boolean), bullets: json.achievements.map(() => true) });
-    }
-    if (json.additional) sections.push({ heading: 'Additional information', lines: [json.additional] });
-    if (json.references) sections.push({ heading: 'References', lines: [json.references] });
-    const templateId = typeof json.templateId === 'string'
-      ? ALL_TEMPLATES.find((template) => template.id === json.templateId)?.id
-      : undefined;
-    return { title: h ?? headline ?? 'Resume', sections, photo, templateId };
   }
 
-  if (kind === 'ANSWERS' && json?.answers?.length) {
-    const lines: string[] = [];
-    const bullets: boolean[] = [];
-    for (const a of json.answers) {
-      if (a.question) { lines.push(`Q: ${a.question}`); bullets.push(false); }
-      if (a.answer) { lines.push(a.answer); bullets.push(false); }
+  if (type === 'ANSWERS') {
+    try {
+      const json = JSON.parse(trimmed) as { answers?: Array<{ question: string; answer: string }> };
+      if (json.answers?.length) {
+        return {
+          title: fallbackTitle,
+          sections: json.answers.map((a, i) => ({
+            heading: `Q${i + 1}`,
+            lines: [a.question, '', a.answer],
+          })),
+        };
+      }
+    } catch {
+      // fall through
     }
-    return { title: 'Application answers', sections: [{ heading: 'Answers', lines, bullets }] };
   }
 
-  if (kind === 'COVER_LETTER') {
-    const bodyText = json?.body ?? content;
-    return {
-      title: 'Cover letter',
-      sections: bodyText
-        .split(/\n{2,}/)
-        .map((p) => p.trim())
-        .filter(Boolean)
-        .map((p) => ({ heading: undefined, lines: [p] })),
+  const paragraphs = trimmed.split(/\n{2,}/);
+  return {
+    title: fallbackTitle,
+    sections: paragraphs.map((p) => {
+      const lines = p.split('\n');
+      if (lines[0]?.startsWith('#')) {
+        return {
+          heading: lines[0].replace(/^#+\s*/, ''),
+          lines: lines.slice(1).map((l) => l.replace(/^[-*]\s*/, '')),
+        };
+      }
+      return { lines };
+    }),
+  };
+}
+
+export async function renderPdf(
+  title: string,
+  sections: ExportSection[],
+  photo?: PhotoInput,
+  templateId?: string | null,
+  resume?: NormalizedResumeDocument | null,
+): Promise<Buffer> {
+  if (isKnownResumeTemplateId(templateId)) {
+    return renderTemplatePdf(title, sections, getResumeTemplate(templateId), photo, resume);
+  }
+  const pdf = await PDFDocument.create();
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+
+  const pageWidth = A4_WIDTH_PT;
+  const pageHeight = A4_HEIGHT_PT;
+  const margin = 48;
+  const maxWidth = pageWidth - margin * 2;
+
+  let page = pdf.addPage([pageWidth, pageHeight]);
+  let y = pageHeight - margin;
+
+  const ensureSpace = (needed: number) => {
+    if (y - needed < margin) {
+      page = pdf.addPage([pageWidth, pageHeight]);
+      y = pageHeight - margin;
+    }
+  };
+
+  const drawWrapped = (text: string, size: number, useBold = false, color = rgb(0.08, 0.1, 0.14)) => {
+    const f = useBold ? bold : font;
+    const safeText = toPdfSafeText(text);
+    const words = safeText.split(/\s+/).filter(Boolean);
+    let current = '';
+    const flush = () => {
+      if (!current) return;
+      ensureSpace(size * 1.45);
+      page.drawText(current, { x: margin, y: y - size, size, font: f, color });
+      y -= size * 1.45;
+      current = '';
     };
-  }
-
-  // Fallback: plain text (markdown-ish) content.
-  const text = (json?.body ?? content).trim();
-  const sections: ExportSection[] = [];
-  let current: ExportSection | null = null;
-  for (const raw of text.split('\n')) {
-    const line = raw.trim();
-    if (!line) continue;
-    const heading = line.replace(/^#+\s*/, '');
-    if (line.startsWith('#')) {
-      sections.push({ heading, lines: [] });
-      current = sections[sections.length - 1];
-    } else if (/^[-*•]\s+/.test(line)) {
-      if (!current) { current = { heading: undefined, lines: [] }; sections.push(current); }
-      current.lines.push(line.replace(/^[-*•]\s+/, ''));
-      current.bullets = current.bullets ?? [];
-      current.bullets.push(true);
-    } else {
-      if (!current) { current = { heading: undefined, lines: [] }; sections.push(current); }
-      current.lines.push(line);
-      current.bullets = current.bullets ?? [];
-      current.bullets.push(false);
+    for (const w of words) {
+      const candidate = current ? `${current} ${w}` : w;
+      if (f.widthOfTextAtSize(candidate, size) > maxWidth && current) {
+        flush();
+        current = w;
+      } else {
+        current = candidate;
+      }
     }
-  }
-  return { title: 'Document', sections };
-}
-
-/* ---------- PDF ---------- */
-
-const PAGE_W = 612; // US Letter
-const PAGE_H = 792;
-const MARGIN = 56;
-const MAX_CHARS_PER_LINE = 92;
-
-function wrap(text: string, max: number): string[] {
-  const out: string[] = [];
-  for (const word of text.split(/\s+/)) {
-    if (out.length === 0) { out.push(word); continue; }
-    const last = out[out.length - 1];
-    if ((last + ' ' + word).length <= max) out[out.length - 1] = last + ' ' + word;
-    else out.push(word);
-  }
-  return out;
-}
-
-const PHOTO_W = 92;
-const PHOTO_H = 112;
-
-export async function renderPdf(title: string, sections: ExportSection[], photo?: ParsedDocument['photo'], templateId?: string): Promise<Buffer> {
-  const template = ALL_TEMPLATES.find((item) => item.id === templateId);
-  if (template) return renderTemplatePdf(title, sections, photo, template);
-  const doc = await PDFDocument.create();
-  const regular = await doc.embedFont(StandardFonts.Helvetica);
-  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
-  let page = doc.addPage([PAGE_W, PAGE_H]);
-  let y = PAGE_H - MARGIN;
-
-  if (photo) {
-    const image = photo.mime === 'image/png' ? await doc.embedPng(photo.bytes) : await doc.embedJpg(photo.bytes);
-    const scale = Math.min(PHOTO_W / image.width, PHOTO_H / image.height);
-    const w = image.width * scale;
-    const h = image.height * scale;
-    page.drawImage(image, { x: PAGE_W - MARGIN - w, y: PAGE_H - MARGIN - h, width: w, height: h });
-    // reserve the photo block on page 1 so text never overlaps it
-    if (y > PAGE_H - MARGIN - h - 8) y = PAGE_H - MARGIN - h - 8;
-  }
-
-  const ensure = (needed: number) => {
-    if (y - needed < MARGIN) {
-      page = doc.addPage([PAGE_W, PAGE_H]);
-      y = PAGE_H - MARGIN;
-    }
+    flush();
   };
 
-  const drawLine = (text: string, size: number, font: typeof regular, color = rgb(0.12, 0.12, 0.16)) => {
-    for (const l of wrap(text, MAX_CHARS_PER_LINE)) {
-      ensure(size + 4);
-      page.drawText(l, { x: MARGIN, y, size, font, color });
-      y -= size + 4;
-    }
-  };
+  const validPhoto = resolveValidatedPhoto(photo);
+  if (validPhoto) {
+    const embedded =
+      validPhoto.mime === 'image/png'
+        ? await pdf.embedPng(validPhoto.bytes)
+        : await pdf.embedJpg(validPhoto.bytes);
+    const size = 56;
+    page.drawImage(embedded, {
+      x: pageWidth - margin - size,
+      y: pageHeight - margin - size,
+      width: size,
+      height: size,
+    });
+  }
 
-  drawLine(title, 20, bold);
-  y -= 6;
+  drawWrapped(title, 18, true, rgb(0.04, 0.15, 0.25));
+  y -= 8;
 
-  for (const s of sections) {
-    if (s.heading) {
-      ensure(24);
-      y -= 4;
-      drawLine(s.heading, 13, bold, rgb(0.15, 0.16, 0.22));
+  for (const section of sections) {
+    if (section.heading) {
+      y -= 6;
+      ensureSpace(22);
+      drawWrapped(section.heading.toUpperCase(), 10, true, rgb(0.06, 0.46, 0.43));
       y -= 2;
     }
-    s.lines.forEach((line, i) => {
-      const isBullet = s.bullets?.[i] === true;
-      ensure(12);
-      const prefix = isBullet ? '  •  ' : '';
-      for (const l of wrap(prefix + line, MAX_CHARS_PER_LINE)) {
-        ensure(12);
-        page.drawText(l, { x: MARGIN, y, size: 10.5, font: regular });
-        y -= 12.5;
+    for (const line of section.lines) {
+      if (!line) {
+        y -= 6;
+        continue;
       }
-    });
+      drawWrapped(line, 10.5, false);
+    }
     y -= 4;
   }
 
-  return Buffer.from(await doc.save());
+  return Buffer.from(await pdf.save());
 }
 
-/* ---------- DOCX ---------- */
-
-export async function renderDocx(title: string, sections: ExportSection[], photo?: ParsedDocument['photo'], templateId?: string): Promise<Buffer> {
-  const template = ALL_TEMPLATES.find((item) => item.id === templateId);
-  if (template) return renderTemplateDocx(title, sections, photo, template);
-  const children: Paragraph[] = [
-    new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: title, bold: true })] }),
-  ];
-  if (photo) {
+export async function renderDocx(
+  title: string,
+  sections: ExportSection[],
+  photo?: PhotoInput,
+  templateId?: string | null,
+  resume?: NormalizedResumeDocument | null,
+): Promise<Buffer> {
+  if (isKnownResumeTemplateId(templateId)) {
+    return renderTemplateDocx(title, sections, getResumeTemplate(templateId), photo, resume);
+  }
+  const children: Paragraph[] = [];
+  const validPhoto = resolveValidatedPhoto(photo);
+  if (validPhoto) {
     children.push(
       new Paragraph({
-        alignment: AlignmentType.RIGHT,
+        spacing: { after: 120 },
         children: [
           new ImageRun({
-            data: Buffer.from(photo.bytes),
-            type: photo.mime === 'image/png' ? 'png' : 'jpg',
-            transformation: { width: 92, height: 112 },
+            data: validPhoto.bytes,
+            transformation: { width: 72, height: 72 },
+            type: validPhoto.mime === 'image/png' ? 'png' : 'jpg',
           }),
         ],
       }),
     );
   }
-  for (const s of sections) {
-    if (s.heading) {
-      children.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: s.heading, bold: true })] }));
+  children.push(
+    new Paragraph({
+      heading: HeadingLevel.HEADING_1,
+      spacing: { after: 180 },
+      children: [new TextRun({ text: title, bold: true, size: 32 })],
+    }),
+  );
+
+  for (const section of sections) {
+    if (section.heading) {
+      children.push(
+        new Paragraph({
+          heading: HeadingLevel.HEADING_2,
+          spacing: { before: 220, after: 80 },
+          children: [new TextRun({ text: section.heading, bold: true, size: 22, color: '0F766E' })],
+        }),
+      );
     }
-    s.lines.forEach((line, i) => {
-      const isBullet = s.bullets?.[i] === true;
+    for (const line of section.lines) {
+      const isBullet = line.startsWith('- ');
       children.push(
         new Paragraph({
           bullet: isBullet ? { level: 0 } : undefined,
-          spacing: { after: 80 },
-          children: [new TextRun({ text: line, size: 22 /* half-points => 11pt */ })],
+          spacing: { after: 60 },
+          children: [new TextRun({ text: isBullet ? line.slice(2) : line, size: 21 })],
         }),
       );
-    });
+    }
   }
-  const doc = new Document({ sections: [{ properties: {}, children }] });
-  return Packer.toBuffer(doc);
+
+  const doc = new DocxDocument({
+    sections: [
+      {
+        properties: {
+          page: {
+            size: { width: 11906, height: 16838 },
+          },
+        },
+        children,
+      },
+    ],
+  });
+  return Buffer.from(await Packer.toBuffer(doc));
 }

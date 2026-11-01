@@ -691,7 +691,11 @@ function EducationStep({ draft, addEducation, upsertEducation, addProject, upser
       <div className="resume2-subhead"><strong>Projects</strong><button className="btn secondary" onClick={addProject}>Add project</button></div>
       {draft.projects.map((project) => <div className="resume2-item" key={project.id}><div className="resume2-form-grid"><Field label="Project name" value={project.name} onChange={(v) => upsertProject(project.id, { name: v })} /><Field label="Project URL" value={project.url ?? ''} onChange={(v) => upsertProject(project.id, { url: v })} /><Field label="Technologies" value={project.technologies.join(', ')} onChange={(v) => upsertProject(project.id, { technologies: v.split(',').map((x) => x.trim()).filter(Boolean) })} /></div><label className="resume2-field full"><span>Description</span><textarea rows={3} value={project.description} onChange={(e) => upsertProject(project.id, { description: e.target.value })} /></label><label className="resume2-field full"><span>Project achievements, one per line</span><textarea rows={3} value={project.achievements.join('\n')} onChange={(e) => upsertProject(project.id, { achievements: e.target.value.split('\n').map((x) => x.trim()).filter(Boolean) })} /></label></div>)}
       <label className="resume2-field full"><span>Achievements, one per line</span><textarea rows={3} value={draft.achievements.join('\n')} onChange={(e) => patchDraft({ achievements: e.target.value.split('\n').map((x) => x.trim()).filter(Boolean) })} /></label>
-      <label className="resume2-field full"><span>Certifications, one per line</span><textarea rows={3} value={draft.certifications.map((c) => c.name).join('\n')} onChange={(e) => patchDraft({ certifications: e.target.value.split('\n').map((name) => ({ id: newId('cert'), name: name.trim() })).filter((c) => c.name) })} /></label>
+      <label className="resume2-field full"><span>Certifications, one per line</span><textarea rows={3} value={draft.certifications.map((c) => [c.name, c.issuer, c.date].filter(Boolean).join(' - ')).join('\n')} onChange={(e) => patchDraft({ certifications: e.target.value.split('\n').map((line) => { const parts = line.split(/\s+-\s+/).map((x) => x.trim()).filter(Boolean); return { id: newId('cert'), name: parts[0] ?? '', issuer: parts[1], date: parts[2] }; }).filter((c) => c.name) })} placeholder="AWS Certified Developer - Associate - 2024" /></label>
+      <label className="resume2-field full"><span>Languages, optional (one per line, e.g. English - Native)</span><textarea rows={2} value={(draft.languages ?? []).map((l) => [l.language, l.proficiency].filter(Boolean).join(' - ')).join('\n')} onChange={(e) => patchDraft({ languages: e.target.value.split('\n').map((line) => { const parts = line.split(/\s+-\s+/).map((x) => x.trim()).filter(Boolean); return { language: parts[0] ?? '', proficiency: parts[1] ?? '' }; }).filter((l) => l.language) })} placeholder="English - Native&#10;Spanish - Conversational" /></label>
+      <label className="resume2-field full"><span>Publications, optional (one per line)</span><textarea rows={2} value={(draft.publications ?? []).map((p) => [p.title, p.venue, p.date].filter(Boolean).join(' - ')).join('\n')} onChange={(e) => patchDraft({ publications: e.target.value.split('\n').map((line) => { const parts = line.split(/\s+-\s+/).map((x) => x.trim()).filter(Boolean); return { id: newId('pub'), title: parts[0] ?? '', venue: parts[1] ?? '', date: parts[2] ?? '', url: parts[3] ?? '' }; }).filter((p) => p.title) })} /></label>
+      <label className="resume2-field full"><span>Volunteer experience, optional (one per line)</span><textarea rows={2} value={(draft.volunteer ?? []).map((v) => [v.role, v.organization, v.dates, v.summary].filter(Boolean).join(' - ')).join('\n')} onChange={(e) => patchDraft({ volunteer: e.target.value.split('\n').map((line) => { const parts = line.split(/\s+-\s+/).map((x) => x.trim()).filter(Boolean); return { id: newId('vol'), role: parts[0] ?? '', organization: parts[1] ?? '', dates: parts[2] ?? '', summary: parts[3] ?? '' }; }).filter((v) => v.role || v.organization) })} /></label>
+      <label className="resume2-field full"><span>Professional memberships, optional (one per line)</span><textarea rows={2} value={(draft.memberships ?? []).join('\n')} onChange={(e) => patchDraft({ memberships: e.target.value.split('\n').map((x) => x.trim()).filter(Boolean) })} /></label>
       <label className="resume2-field full"><span>References</span><textarea rows={2} value={draft.references} onChange={(e) => patchDraft({ references: e.target.value })} placeholder="Available on request, or add named references only if you have permission." /></label>
       <StepActions prevStep={prevStep} nextStep={nextStep} />
     </div>
@@ -716,15 +720,23 @@ function OptimizeStep({ draft, jobs, patchDraft, patchCareer, writeSummary, opti
 }
 
 function TemplatesStep({ draft, recommended, selectedCategory, setSelectedCategory, patchDraft, prevStep, nextStep }: StepContentProps) {
-  const allVisible = CURATED_TEMPLATES.filter((t) => t.category === selectedCategory);
-  const [showCount, setShowCount] = useState(6);
-  const [pageSize, setPageSize] = useState(6);
+  const [tplSearch, setTplSearch] = useState('');
+  const [showAllCats, setShowAllCats] = useState(true);
+  const allVisible = CURATED_TEMPLATES.filter((t) => {
+    if (!showAllCats && t.category !== selectedCategory) return false;
+    if (!tplSearch.trim()) return true;
+    const q = tplSearch.trim().toLowerCase();
+    const hay = [t.code, t.name, t.description, t.groupName, t.intendedUse, ...(t.bestFor ?? []), ...(t.libraryCategories ?? [])].filter(Boolean).join(' ').toLowerCase();
+    return q.split(/\s+/).every((part) => hay.includes(part));
+  });
+  const [showCount, setShowCount] = useState(8);
+  const [pageSize, setPageSize] = useState(8);
   useEffect(() => {
-    const s = typeof window !== 'undefined' && window.innerWidth <= 480 ? 4 : 6;
+    const s = typeof window !== 'undefined' && window.innerWidth <= 480 ? 4 : 8;
     setPageSize(s);
     setShowCount(s);
-  }, [selectedCategory]);
-  const visible = allVisible.slice(0, showCount);
+  }, [selectedCategory, showAllCats]);
+  const visible = tplSearch.trim() ? allVisible : allVisible.slice(0, showCount);
   const selectedTemplate = getResumeTemplate(draft.selectedTemplate);
   const photoCapable = templatePhotoSupport(selectedTemplate) !== 'none';
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -766,7 +778,31 @@ function TemplatesStep({ draft, recommended, selectedCategory, setSelectedCatego
       <div className="resume2-template-grid recommended">
         {recommended.map((template) => <TemplateCard key={template.id} template={template} selected={draft.selectedTemplate === template.id} onSelect={() => patchDraft({ selectedTemplate: template.id })} />)}
       </div>
-      <div className="resume2-category-row">{TEMPLATE_CATEGORIES.map((cat) => <button key={cat} className={selectedCategory === cat ? 'active' : ''} onClick={() => setSelectedCategory(cat)}>{cat} <span>{CURATED_TEMPLATES.filter((t) => t.category === cat).length}</span></button>)}</div>
+      <div style={{ margin: '14px 0 10px' }}>
+        <input
+          type="search"
+          value={tplSearch}
+          onChange={(e) => setTplSearch(e.target.value)}
+          placeholder="Search all 30 templates by role, group, or style..."
+          aria-label="Search Resume Studio templates"
+          style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #cbd5e1', fontSize: 14 }}
+        />
+      </div>
+      <div className="resume2-category-row">
+        <button className={showAllCats ? 'active' : ''} onClick={() => setShowAllCats(true)}>All <span>{CURATED_TEMPLATES.length}</span></button>
+        {TEMPLATE_CATEGORIES.map((cat) => (
+          <button
+            key={cat}
+            className={!showAllCats && selectedCategory === cat ? 'active' : ''}
+            onClick={() => {
+              setShowAllCats(false);
+              setSelectedCategory(cat);
+            }}
+          >
+            {cat} <span>{CURATED_TEMPLATES.filter((t) => t.category === cat).length}</span>
+          </button>
+        ))}
+      </div>
       <div className="resume2-template-grid">
         {visible.map((template) => <TemplateCard key={template.id} template={template} selected={draft.selectedTemplate === template.id} onSelect={() => patchDraft({ selectedTemplate: template.id })} />)}
       </div>
@@ -804,7 +840,8 @@ function TemplatesStep({ draft, recommended, selectedCategory, setSelectedCatego
   );
 }
 
-function ReviewStep({ draft, score, finalReview, generated, runFinalReview, generateFinalResume, aiBusy, prevStep }: StepContentProps) {
+function ReviewStep({ draft, score, finalReview, generated, patchDraft, runFinalReview, generateFinalResume, aiBusy, prevStep }: StepContentProps) {
+  const activeTemplate = getResumeTemplate(draft.selectedTemplate);
   return (
     <div className="resume2-step">
       <p className="eyebrow">Final review</p>
@@ -813,7 +850,33 @@ function ReviewStep({ draft, score, finalReview, generated, runFinalReview, gene
       <ScoreCard score={score} />
       <div className="resume2-ai-row"><button className="btn secondary" onClick={runFinalReview} disabled={aiBusy === 'finalReview'}>Run final AI review</button><button className="btn" onClick={generateFinalResume} disabled={Boolean(aiBusy)}>{aiBusy === 'generateFinalResume' ? 'Generating' : 'Generate final resume'}</button></div>
       {finalReview && <div className="resume2-checks"><strong>{finalReview.summary}</strong>{finalReview.checks.map((c) => <p key={c.label} className={c.ok ? 'ok' : 'warn'}>{c.ok ? '✓' : '!'} {c.label}: {c.detail}</p>)}</div>}
-      {generated && <div className="resume2-ready"><h3>Your resume is ready</h3><p>Your resume now presents your experience in a stronger and more structured way.</p><strong>Resume Strength: {score.total}/100</strong><div className="resume2-actions left"><a className="btn" href={`/api/documents/${generated.id}/export?format=pdf`}>Download PDF</a><a className="btn secondary" href={`/api/documents/${generated.id}/export?format=docx`}>Download DOCX</a><button className="btn secondary" onClick={prevStep}>Edit Resume</button></div></div>}
+      {generated && (
+        <div className="resume2-ready">
+          <h3>Your A4 resume is ready</h3>
+          <p>Switch templates below at any time and re-download in PDF or DOCX without using another credit.</p>
+          <strong>Resume Strength: {score.total}/100 &middot; Template: {activeTemplate.name}</strong>
+          <div style={{ margin: '10px 0' }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Export template (30 A4 designs):</label>
+            <select
+              aria-label="Export template selector"
+              value={draft.selectedTemplate}
+              onChange={(e) => patchDraft({ selectedTemplate: e.target.value })}
+              style={{ width: '100%', maxWidth: 420, padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
+            >
+              {CURATED_TEMPLATES.map((t) => (
+                <option key={t.id} value={t.id}>
+                  #{t.code} {t.name} ({t.atsCompatibility === 'verified' ? 'ATS-Verified 1-Col' : '2-Col Visual'})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="resume2-actions left">
+            <a className="btn" href={`/api/documents/${generated.id}/export?format=pdf&template=${encodeURIComponent(draft.selectedTemplate)}`}>Download A4 PDF</a>
+            <a className="btn secondary" href={`/api/documents/${generated.id}/export?format=docx&template=${encodeURIComponent(draft.selectedTemplate)}`}>Download DOCX</a>
+            <button className="btn secondary" onClick={prevStep}>Edit Resume</button>
+          </div>
+        </div>
+      )}
       <div className="resume2-actions"><button className="btn secondary" onClick={prevStep}>Back</button></div>
     </div>
   );
@@ -839,7 +902,7 @@ function ScoreCard({ score }: { score: ResumeScore }) {
   );
 }
 
-function ScoreLine({ label, value }: { label: string; value: number }) {
+function ScoreLine({ label, value }: { label: number | string; value: number }) {
   return <p><span>{label}</span><b>{value}</b><i><em style={{ width: `${value}%` }} /></i></p>;
 }
 
@@ -850,8 +913,10 @@ function TemplateCard({ template, selected, onSelect }: { template: ResumeTempla
         <ResumeDocumentPreview template={template} draft={SAMPLE_PREVIEW_DRAFT} size="mini" demo />
       </div>
       <div className="resume2-template-body">
-        <strong className="resume2-template-title">{template.name}</strong>
-        <span className="resume2-template-meta">{template.category} | {template.layout} | {template.density}</span>
+        <strong className="resume2-template-title">{template.code ? `#${template.code} ` : ''}{template.name}</strong>
+        <span className="resume2-template-meta">
+          {template.atsCompatibility === 'verified' ? 'ATS-Verified' : '2-Col Visual'} | {template.columns === 2 ? '2-Col' : '1-Col'} | Group {template.group ?? 'A'}
+        </span>
         <p className="resume2-template-desc">{template.description}</p>
       </div>
       <button type="button" className="resume2-template-select" onClick={onSelect} aria-pressed={selected}>

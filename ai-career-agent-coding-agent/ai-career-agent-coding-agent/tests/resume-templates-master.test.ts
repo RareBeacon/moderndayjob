@@ -49,16 +49,17 @@ describe('Master Upgrade template catalog (C3.1)', () => {
     }
   });
 
-  it('curated library is 30 distinct Dribbble templates', () => {
+  it('curated library is 30 distinct A4 career templates across Groups A-F', () => {
     expect(RESUME_TEMPLATES).toHaveLength(30);
     expect(new Set(RESUME_TEMPLATES.map((t) => t.id)).size).toBe(30);
     expect(new Set(RESUME_TEMPLATES.map((t) => t.name)).size).toBe(30);
   });
 
-  it('offers at least one photo-required template and honest badge helpers', () => {
+  it('offers at least one photo-required master template and honest badge helpers', () => {
     expect(MASTER_CATALOG_TEMPLATES.filter((t) => templatePhotoSupport(t) === 'required').length).toBe(1);
-    const curated = RESUME_TEMPLATES.find((t) => t.id.startsWith('dribbble-'))!;
+    const curated = RESUME_TEMPLATES.find((t) => t.id.startsWith('tpl-01-'))!;
     expect(curated).toBeDefined();
-    expect(templateColumns(curated)).toBeGreaterThanOrEqual(1);
+    expect(templateColumns(curated)).toBe(1);
+    expect(templateAtsFriendly(curated)).toBe(true);
   });
 });
