@@ -1,8 +1,13 @@
--- Rollback script for 053..056 (Global Opportunity Radar Phase 1 to Phase 3)
+-- Rollback script for 053..057 (Global Opportunity Radar Phase 1 to Phase 6)
 -- Operator DBA reference only. Preserves all pre-existing 001..052 tables,
 -- seeded job_sources rows, and candidate/employer data.
 
 begin;
+
+drop function if exists public.promote_validated_radar_candidates(integer);
+drop table if exists public.radar_assisted_preparations;
+drop table if exists public.radar_alert_deliveries;
+drop table if exists public.radar_candidate_alerts;
 
 drop trigger if exists trg_sync_employer_org_status_to_radar on public.employer_organizations;
 drop trigger if exists trg_sync_recruitment_vacancy_to_radar on public.recruitment_vacancies;
@@ -11,7 +16,7 @@ drop function if exists public.tg_sync_recruitment_vacancy_to_radar();
 drop function if exists public.sync_recruitment_vacancy_to_radar_by_id(uuid);
 drop function if exists public.get_radar_intelligence_summary();
 
-drop function if exists public.match_radar_jobs_for_embedding(extensions.vector, text[], integer, integer);
+drop function if exists public.match_radar_jobs_for_embedding(vector, text[], integer, integer);
 drop function if exists public.claim_due_radar_sources(integer, integer);
 
 drop index if exists public.jobs_canonical_radar_job_idx;
