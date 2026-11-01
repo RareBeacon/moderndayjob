@@ -38,7 +38,7 @@ Configure the following environment variables in `.env.local` / production secre
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | Required | Supabase project URL (Auth, Postgres RLS, Private Storage buckets `resumes` and `talent-recordings`) |
+| `NEXT_PUBLIC_SUPABASE_URL` | Required | Supabase project URL (Auth, Postgres RLS, Private Storage buckets `career-documents` and `talent-recordings`) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Required | Supabase public anon key for SSR session validation |
 | `SUPABASE_SERVICE_ROLE_KEY` | Required | Server-only Supabase admin client (`lib/supabase.ts`) |
 | `OPENAI_API_KEY` | Recommended | Primary LLM for question generation, adaptive follow-ups, structured assessment reports (`packages/ai`), and server Whisper STT fallback (`/api/talent-pool/interviews/[id]/transcribe`) |

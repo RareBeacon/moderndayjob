@@ -36,13 +36,21 @@ export const EXCLUDED_SEO_PATH_PREFIXES = [
   '/dashboard',
   '/onboarding',
   '/profile',
+  '/settings',
   '/documents',
   '/applications',
+  '/auto-apply',
   '/billing',
   '/generate',
+  '/talent-pool',
+  '/employer',
   '/login',
   '/signup',
+  '/forgot-password',
   '/reset-password',
+  '/verify-email',
+  '/mfa-verify',
+  '/complete-account',
 ] as const;
 
 export function canonicalPublicUrl(path: string) {

@@ -1,5 +1,6 @@
 import { runSecurityDigest } from '@/lib/security/digest';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
+import { timingSafeCronBearerMatch } from '@/lib/security/cron-auth';
 
 /**
  * Daily security digest email (SECURITY_AUDIT §20.3). Triggered by Vercel
@@ -19,7 +20,7 @@ export async function GET(request: Request) {
     return Response.json({ error: 'CRON_SECRET_NOT_SET' }, { status: 500 });
   }
   const auth = request.headers.get('authorization');
-  if (auth !== `Bearer ${secret}`) {
+  if (!timingSafeCronBearerMatch(auth, secret)) {
     return Response.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   }
   const report = await runSecurityDigest();

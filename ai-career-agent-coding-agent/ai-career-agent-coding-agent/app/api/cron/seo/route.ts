@@ -1,5 +1,6 @@
 import { runSeoDailyLoop } from '@/lib/seo/service';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
+import { timingSafeCronBearerMatch } from '@/lib/security/cron-auth';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
 
   const secret = process.env.CRON_SECRET;
   if (!secret) return Response.json({ error: 'CRON_SECRET_NOT_SET' }, { status: 500 });
-  if (request.headers.get('authorization') !== `Bearer ${secret}`) {
+  if (!timingSafeCronBearerMatch(request.headers.get('authorization'), secret)) {
     return Response.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   }
   try {

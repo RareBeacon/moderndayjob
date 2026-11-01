@@ -1,5 +1,6 @@
 import { sendFirstWinEmails } from '@/lib/email/first-win';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
+import { timingSafeCronBearerMatch } from '@/lib/security/cron-auth';
 
 /**
  * First-win activation nudge, triggered daily by Vercel Cron (see
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
     return Response.json({ error: 'CRON_SECRET_NOT_SET' }, { status: 500 });
   }
   const auth = request.headers.get('authorization');
-  if (auth !== `Bearer ${secret}`) {
+  if (!timingSafeCronBearerMatch(auth, secret)) {
     return Response.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   }
   try {

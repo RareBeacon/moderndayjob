@@ -1,6 +1,7 @@
 import { runSelfScan } from '@/lib/security/self-scan';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { logSecuritySignal } from '@/lib/security/abuse';
+import { timingSafeCronBearerMatch } from '@/lib/security/cron-auth';
 
 /**
  * Weekly self security scan, the live version of the 2026-10-05 manual
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
 
   const secret = process.env.CRON_SECRET;
   if (!secret) return Response.json({ error: 'CRON_SECRET_NOT_SET' }, { status: 500 });
-  if (request.headers.get('authorization') !== `Bearer ${secret}`) {
+  if (!timingSafeCronBearerMatch(request.headers.get('authorization'), secret)) {
     return Response.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   }
 

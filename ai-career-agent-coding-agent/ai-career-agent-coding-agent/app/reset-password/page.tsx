@@ -1,5 +1,6 @@
 'use client';
 import { Suspense, useEffect, useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AuthShell } from '@/components/site/AuthShell';
 import { supabaseBrowser } from '@/lib/supabase-browser';
@@ -108,9 +109,14 @@ function ResetForm() {
       {checking ? (
         <p className="muted" role="status">Checking your reset link…</p>
       ) : !token && !hasSession ? (
-        <p className="form-error" role="alert">
-          This reset link is missing its token or has expired. Please request a new one.
-        </p>
+        <div>
+          <p className="form-error" role="alert">
+            This reset link is missing its token or has expired. Please request a new one.
+          </p>
+          <p style={{ marginTop: 12, fontSize: 13.5 }}>
+            <Link href="/forgot-password" className="inline-link">Request a new password reset link</Link>
+          </p>
+        </div>
       ) : (
         <form onSubmit={submit} className="auth-form">
           <label htmlFor="password">New password</label>

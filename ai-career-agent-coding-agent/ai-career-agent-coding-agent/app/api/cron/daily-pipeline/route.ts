@@ -1,5 +1,6 @@
 import { runDailyPipeline } from '@/lib/agent/pipeline';
 import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
+import { timingSafeCronBearerMatch } from '@/lib/security/cron-auth';
 
 /**
  * Daily pipeline, the free production replacement for an always-on worker.
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
     return Response.json({ error: 'CRON_SECRET_NOT_SET' }, { status: 500 });
   }
   const auth = request.headers.get('authorization');
-  if (auth !== `Bearer ${secret}`) {
+  if (!timingSafeCronBearerMatch(auth, secret)) {
     return Response.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   }
   try {

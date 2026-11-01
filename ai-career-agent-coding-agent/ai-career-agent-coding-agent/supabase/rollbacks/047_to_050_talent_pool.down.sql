@@ -4,6 +4,14 @@
 drop policy if exists "talent_recordings_owner_read" on storage.objects;
 drop policy if exists "talent_recordings_owner_insert" on storage.objects;
 
+-- 051_talent_rag_and_langgraph_checkpoints.sql
+drop function if exists public.match_talent_rag_chunks(vector, text, uuid, text, text, text, integer) cascade;
+drop table if exists public.talent_workflow_checkpoints cascade;
+drop table if exists public.talent_interview_blueprints cascade;
+drop table if exists public.talent_assessment_contexts cascade;
+drop table if exists public.talent_rag_chunks cascade;
+drop table if exists public.talent_rag_documents cascade;
+
 -- 050_talent_interactions_and_messaging.sql
 drop table if exists public.talent_interaction_reports cascade;
 drop table if exists public.talent_messages cascade;

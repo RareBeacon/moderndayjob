@@ -77,6 +77,24 @@ export default async function AdminTalentApplicationReviewPage({
   }>;
 
   const answerByQuestion = new Map(answers.map((a) => [a.question_id, a]));
+  const scoringExplanations = (latestReport?.scoring_explanations ?? {}) as {
+    sections_a_to_o?: {
+      section_b_professional_category?: { category?: string; title?: string; level?: string };
+      section_k_unverified_claims?: string[];
+      section_n_ai_generated_observations?: {
+        overall_score?: number;
+        advisory_signal?: string;
+        confidence_score?: number;
+        confidence_rationale?: string;
+        summary_for_admin?: string;
+      };
+      section_o_human_administrator_decision_field?: {
+        status?: string;
+        ai_auto_decision_permitted?: boolean;
+      };
+    } | null;
+  };
+  const reportAO = scoringExplanations.sections_a_to_o ?? null;
 
   return (
     <AdminShell active="talent-pool">
@@ -144,6 +162,40 @@ export default async function AdminTalentApplicationReviewPage({
           )}
         </section>
       </div>
+
+      {reportAO && (
+        <section className="card" style={{ marginBottom: 22 }}>
+          <h2 style={{ fontSize: 18, marginBottom: 10 }}>AI Advisory Intelligence Brief (Sections A to O)</h2>
+          <p style={{ fontSize: 13.5, marginBottom: 8 }}>
+            <strong>Advisory Signal:</strong>{' '}
+            <code>{reportAO.section_n_ai_generated_observations?.advisory_signal ?? 'PENDING_HUMAN_REVIEW'}</code>{' '}
+            · <strong>Human Review Required:</strong> Yes (AI Auto-Decision Permitted: False)
+          </p>
+          {reportAO.section_b_professional_category && (
+            <p style={{ fontSize: 13.5, marginBottom: 8 }}>
+              <strong>Calibrated Category &amp; Level:</strong>{' '}
+              {reportAO.section_b_professional_category.category} · {reportAO.section_b_professional_category.title} (
+              <strong>{reportAO.section_b_professional_category.level}</strong>)
+            </p>
+          )}
+          {Array.isArray(reportAO.section_k_unverified_claims) &&
+            reportAO.section_k_unverified_claims.length > 0 && (
+              <p style={{ fontSize: 13, marginBottom: 6 }}>
+                <strong>Unverified Claims for Human Verification:</strong>{' '}
+                {reportAO.section_k_unverified_claims.join(' | ')}
+              </p>
+            )}
+          {reportAO.section_n_ai_generated_observations?.confidence_rationale && (
+            <p style={{ fontSize: 13, marginBottom: 6 }}>
+              <strong>Confidence Rationale:</strong>{' '}
+              {reportAO.section_n_ai_generated_observations.confidence_rationale}
+            </p>
+          )}
+          <p className="muted" style={{ fontSize: 12.5 }}>
+            Advisory AI evidence only. Final approval, rejection, or reassessment decision rests strictly with a Jobiest administrator.
+          </p>
+        </section>
+      )}
 
       {dimensions.length > 0 && (
         <section className="card" style={{ marginBottom: 22 }}>

@@ -15,6 +15,17 @@ import {
 } from './constants';
 import type { CandidateSnapshotData } from './onboarding-inspector';
 import { TalentPoolError } from './candidate-service';
+import {
+  buildComprehensiveAssessmentReportAO,
+  invokeInterviewWorkflow,
+  OpenAIWhisperSttAdapter,
+  PROMPT_A_VERSION,
+  runIndependentAssessmentEvaluator,
+  runRealtimeInterviewerTurn,
+  type BlueprintQuestion,
+  type CandidateIntelligenceAnalysis,
+  type InterviewBlueprint,
+} from './intelligence';
 
 interface PlannedQuestion {
   competency_key: string;
@@ -400,6 +411,7 @@ export async function startInterviewSession(userId: string, sessionId: string) {
 
   const nowIso = new Date().toISOString();
   let totalQuestions = existingQuestionCount ?? 0;
+  let initialGraphState: Record<string, unknown> = { stage: 'IN_PROGRESS', followups_asked: 0 };
 
   if (totalQuestions === 0) {
     const { data: snapRow } = await supabaseAdmin
@@ -413,11 +425,11 @@ export async function startInterviewSession(userId: string, sessionId: string) {
 
     const snapshot = ((snapRow as { snapshot_data?: CandidateSnapshotData } | null)?.snapshot_data ?? {
       full_name: null,
-      headline: null,
+      headline: 'Candidate Profile',
       summary: null,
       email: null,
-      location: null,
-      country: null,
+      location: 'Remote',
+      country: 'Global',
       time_zone: 'UTC',
       career_category: 'Software Engineering',
       seniority_level: 'MID',
@@ -441,39 +453,122 @@ export async function startInterviewSession(userId: string, sessionId: string) {
       availability: 'IMMEDIATE',
       work_authorization: 'Authorized',
       preferred_assessment_route: s.mode,
-      master_cv_present: false,
-      master_cv_name: null,
+      master_cv_present: true,
+      master_cv_name: 'Candidate CV',
     }) as CandidateSnapshotData;
 
-    const planned = await generatePersonalizedQuestions(snapshot);
-    const questionRows = planned.map((q, idx) => ({
-      session_id: sessionId,
-      user_id: userId,
-      sequence_no: idx + 1,
-      competency_key: q.competency_key,
-      competency_label: q.competency_label,
-      difficulty: q.difficulty,
-      question_text: q.question_text,
-      rubric_criteria: q.rubric_criteria,
-      is_followup: false,
-      asked_at: idx === 0 ? nowIso : null,
-      created_at: nowIso,
-    }));
+    try {
+      const { state: workflowState, telemetrySummary } = await invokeInterviewWorkflow({
+        threadId: sessionId,
+        candidateId: userId,
+        applicationId: s.application_id,
+        sessionId,
+        assessmentRoute: s.mode,
+        snapshot,
+        candidateConfirmedDiscrepancies: true,
+        phase: 'PREPARE_SESSION',
+        persistToDatabase: true,
+      });
 
-    const { error: qErr } = await supabaseAdmin.from('talent_interview_questions').insert(questionRows);
-    if (qErr) {
-      throw new TalentPoolError('QUESTION_GENERATION_FAILED', 'Unable to initialize interview questions.', 500);
+      const blueprint = workflowState.interviewBlueprint;
+      if (blueprint && blueprint.questions.length >= 5) {
+        const mapDiff = (d: BlueprintQuestion['difficulty']): 'FOUNDATIONAL' | 'CORE' | 'ADVANCED' => {
+          if (d === 'FOUNDATIONAL') return 'FOUNDATIONAL';
+          if (d === 'ADVANCED' || d === 'ARCHITECTURAL') return 'ADVANCED';
+          return 'CORE';
+        };
+        const questionRows = blueprint.questions.map((q, idx) => ({
+          session_id: sessionId,
+          user_id: userId,
+          sequence_no: idx + 1,
+          competency_key: q.competency_being_tested.toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 58),
+          competency_label: `${q.question_type}: ${q.competency_being_tested}`.slice(0, 98),
+          difficulty: mapDiff(q.difficulty),
+          question_text: q.question_text,
+          rubric_criteria: q.expected_answer_characteristics,
+          is_followup: false,
+          asked_at: idx === 0 ? nowIso : null,
+          created_at: nowIso,
+        }));
+
+        const { error: qErr } = await supabaseAdmin.from('talent_interview_questions').insert(questionRows);
+        if (qErr) {
+          throw new TalentPoolError('QUESTION_GENERATION_FAILED', 'Unable to initialize interview questions.', 500);
+        }
+        totalQuestions = questionRows.length;
+
+        // Best-effort persist blueprint artifact to talent_interview_blueprints
+        try {
+          await supabaseAdmin.from('talent_interview_blueprints').insert({
+            application_id: s.application_id,
+            session_id: sessionId,
+            user_id: userId,
+            prompt_a_version: PROMPT_A_VERSION,
+            prompt_b_version: blueprint.prompt_version,
+            question_count: blueprint.questions.length,
+            target_duration_minutes: blueprint.estimated_total_minutes,
+            role_weights: {},
+            blueprint_json: blueprint,
+            quality_validation_passed: workflowState.qualityReport?.passed ?? true,
+            quality_validation_report: workflowState.qualityReport ?? {},
+          });
+        } catch {
+          // Optional if migration 051 not applied yet
+        }
+
+        await supabaseAdmin.from('talent_interview_transcripts').insert({
+          session_id: sessionId,
+          user_id: userId,
+          speaker: 'INTERVIEWER',
+          turn_index: 0,
+          content: workflowState.openingGreeting ?? blueprint.questions[0].question_text,
+          created_at: nowIso,
+        });
+
+        initialGraphState = {
+          stage: 'IN_PROGRESS',
+          followups_asked: 0,
+          langgraph_thread_id: sessionId,
+          blueprint,
+          candidate_analysis: workflowState.candidateAnalysis,
+          telemetry: telemetrySummary,
+        };
+      }
+    } catch (err) {
+      if (err instanceof TalentPoolError) throw err;
     }
-    totalQuestions = questionRows.length;
 
-    await supabaseAdmin.from('talent_interview_transcripts').insert({
-      session_id: sessionId,
-      user_id: userId,
-      speaker: 'INTERVIEWER',
-      turn_index: 0,
-      content: planned[0].question_text,
-      created_at: nowIso,
-    });
+    if (totalQuestions === 0) {
+      const planned = await generatePersonalizedQuestions(snapshot);
+      const questionRows = planned.map((q, idx) => ({
+        session_id: sessionId,
+        user_id: userId,
+        sequence_no: idx + 1,
+        competency_key: q.competency_key,
+        competency_label: q.competency_label,
+        difficulty: q.difficulty,
+        question_text: q.question_text,
+        rubric_criteria: q.rubric_criteria,
+        is_followup: false,
+        asked_at: idx === 0 ? nowIso : null,
+        created_at: nowIso,
+      }));
+
+      const { error: qErr } = await supabaseAdmin.from('talent_interview_questions').insert(questionRows);
+      if (qErr) {
+        throw new TalentPoolError('QUESTION_GENERATION_FAILED', 'Unable to initialize interview questions.', 500);
+      }
+      totalQuestions = questionRows.length;
+
+      await supabaseAdmin.from('talent_interview_transcripts').insert({
+        session_id: sessionId,
+        user_id: userId,
+        speaker: 'INTERVIEWER',
+        turn_index: 0,
+        content: planned[0].question_text,
+        created_at: nowIso,
+      });
+    }
   }
 
   const recordingActive = s.mode !== 'ACCESSIBLE_WRITTEN';
@@ -487,7 +582,7 @@ export async function startInterviewSession(userId: string, sessionId: string) {
         total_questions: totalQuestions,
         started_at: nowIso,
         last_heartbeat_at: nowIso,
-        graph_state: { stage: 'IN_PROGRESS', followups_asked: 0 },
+        graph_state: initialGraphState,
         updated_at: nowIso,
       })
       .eq('id', sessionId)
@@ -606,27 +701,65 @@ export async function submitInterviewAnswer(
     created_at: nowIso,
   });
 
-  // Adaptive follow-up check: if a core question answer is brief (< 35 words) and fewer than 2 follow-ups asked.
-  const followupsAsked = Number(s.graph_state?.followups_asked ?? 0);
+  // Adaptive follow-up check via System Prompt C (Real-Time AI Interviewer)
+  const gs = (s.graph_state ?? {}) as {
+    followups_asked?: number;
+    blueprint?: InterviewBlueprint;
+  };
+  const followupsAsked = Number(gs.followups_asked ?? 0);
   let totalQuestions = s.total_questions;
+  let addedFollowup = false;
 
-  if (!q.is_followup && wordCount < 35 && followupsAsked < 2) {
-    const followupText = `Thank you. To help our reviewers score ${q.competency_label} accurately, could you share a specific metric, technical trade-off, or concrete step you personally executed in that example?`;
-    totalQuestions += 1;
-    await supabaseAdmin.from('talent_interview_questions').insert({
-      session_id: sessionId,
-      user_id: userId,
-      sequence_no: totalQuestions,
-      parent_question_id: q.id,
-      competency_key: q.competency_key,
-      competency_label: `${q.competency_label} (Follow-up)`,
-      difficulty: 'FOLLOWUP',
-      question_text: followupText,
-      rubric_criteria: ['Provides concrete evidence, metrics, or trade-offs on follow-up probe'],
-      is_followup: true,
-      asked_at: null,
-      created_at: nowIso,
+  if (!q.is_followup && followupsAsked < 3) {
+    const bpQuestion: BlueprintQuestion = gs.blueprint?.questions?.[q.sequence_no - 1] ?? {
+      question_id: q.id,
+      question_text: q.question_text,
+      question_type: 'B_TECHNICAL_OR_DOMAIN_EXPERTISE',
+      competency_being_tested: q.competency_label,
+      skill_reference: q.competency_key,
+      profile_reference: 'snapshot:profile',
+      difficulty: 'INTERMEDIATE',
+      expected_answer_characteristics: ['Personal ownership', 'Concrete trade-offs', 'Measurable outcome'],
+      scoring_rubric: {
+        excellent_85_100: 'Specific evidence and trade-offs',
+        proficient_70_84: 'Solid working detail',
+        developing_50_69: 'Partial surface explanation',
+        insufficient_0_49: 'No substantive evidence',
+      },
+      follow_up_strategy: 'Probe personal scope, named tools, and measurable outcomes when response is brief.',
+      estimated_response_time: 150,
+      assessment_weight: 0.1,
+      source_references: ['snapshot:profile'],
+    };
+
+    const { turn: interviewerTurn } = await runRealtimeInterviewerTurn({
+      userId,
+      currentQuestion: bpQuestion,
+      candidateAnswer: cleanAnswer,
+      followupsAlreadyAskedForQuestion: 0,
+      remainingPrimaryQuestions: Math.max(0, s.total_questions - q.sequence_no),
+      nextQuestionText: null,
+      sttConfidence: input.stt_confidence ?? 1.0,
     });
+
+    if (interviewerTurn.action === 'ASK_ADAPTIVE_FOLLOWUP' && interviewerTurn.followup_question_text) {
+      totalQuestions += 1;
+      addedFollowup = true;
+      await supabaseAdmin.from('talent_interview_questions').insert({
+        session_id: sessionId,
+        user_id: userId,
+        sequence_no: totalQuestions,
+        parent_question_id: q.id,
+        competency_key: q.competency_key,
+        competency_label: `${q.competency_label} (Adaptive Follow-up)`.slice(0, 98),
+        difficulty: 'FOLLOWUP',
+        question_text: interviewerTurn.followup_question_text,
+        rubric_criteria: bpQuestion.expected_answer_characteristics,
+        is_followup: true,
+        asked_at: null,
+        created_at: nowIso,
+      });
+    }
   }
 
   // Advance to the next unanswered question if one exists.
@@ -670,8 +803,9 @@ export async function submitInterviewAnswer(
       total_questions: qList.length,
       last_heartbeat_at: nowIso,
       graph_state: {
+        ...(s.graph_state ?? {}),
         stage: 'IN_PROGRESS',
-        followups_asked: !q.is_followup && wordCount < 35 && followupsAsked < 2 ? followupsAsked + 1 : followupsAsked,
+        followups_asked: addedFollowup ? followupsAsked + 1 : followupsAsked,
         all_questions_answered: nextUnansweredIndex === -1,
       },
       updated_at: nowIso,
@@ -881,17 +1015,102 @@ export async function handleInterviewLifecycleTransition(
     integrityFlags.push(`${veryShortCount} response(s) contained fewer than 15 words.`);
   }
 
-  // Generate structured assessment report (AI-assisted with deterministic rubric fallback).
-  const evaluated = await buildStructuredAssessmentReport({
-    snapshot,
-    questions,
-    answers,
-    modality: s.mode,
-    truthfulnessSummary: truthfulness.summary,
-  });
+  // Generate structured 7-dimension evaluation & Comprehensive Sections A-O Report (Prompt D)
+  const sessionGraphState = ((session as Record<string, unknown>).graph_state ?? {}) as {
+    blueprint?: InterviewBlueprint;
+    candidate_analysis?: CandidateIntelligenceAnalysis;
+  };
+
+  let evaluated: {
+    calibrated_level: string;
+    executive_summary: string;
+    recruiter_summary: string;
+    strengths: string[];
+    growth_areas: string[];
+    ai_confidence: number;
+    evidence_limitations: string[];
+    dimensions: Array<{
+      dimension_key: string;
+      dimension_label: string;
+      score: number;
+      weight?: number;
+      confidence: number;
+      rationale: string;
+      evidence_quotes: string[];
+    }>;
+    model_provider: string | null;
+    model_name: string | null;
+    sections_a_to_o?: unknown;
+  };
+
+  if (sessionGraphState.blueprint && sessionGraphState.candidate_analysis) {
+    const primaryAnswers = questions
+      .filter((qItem) => !qItem.is_followup)
+      .map((qItem, idx) => {
+        const bpQ = sessionGraphState.blueprint!.questions[idx];
+        const ansRow = answers.find((a) => a.question_id === qItem.id);
+        const followupQ = questions.find((fq) => fq.is_followup && fq.competency_key === qItem.competency_key);
+        const followupAns = followupQ ? answers.find((a) => a.question_id === followupQ.id) : undefined;
+        return {
+          question_id: bpQ?.question_id ?? qItem.id,
+          answer_transcript: ansRow?.answer_transcript ?? '',
+          followup_transcript: followupAns?.answer_transcript,
+          modality: (ansRow?.input_modality === 'VOICE' ? 'VOICE' : 'WRITTEN') as 'VOICE' | 'WRITTEN',
+          duration_seconds: ansRow?.duration_seconds ?? 60,
+          stt_confidence: ansRow?.stt_confidence ?? 1.0,
+          technical_interruption: false,
+        };
+      });
+
+    const { evaluation: dEval, telemetry: dTelemetry } = await runIndependentAssessmentEvaluator({
+      candidateId: userId,
+      applicationId: s.application_id,
+      assessmentId: `assess-${sessionId}`,
+      analysis: sessionGraphState.candidate_analysis,
+      blueprint: sessionGraphState.blueprint,
+      answers: primaryAnswers,
+    });
+
+    const reportAO = buildComprehensiveAssessmentReportAO({
+      analysis: sessionGraphState.candidate_analysis,
+      blueprint: sessionGraphState.blueprint,
+      answers: primaryAnswers,
+      evaluation: dEval,
+    });
+
+    evaluated = {
+      calibrated_level: dEval.professional_level,
+      executive_summary: dEval.assessor_recommendations.summary_for_admin,
+      recruiter_summary: dEval.assessor_recommendations.recruiter_safe_summary,
+      strengths: dEval.strengths,
+      growth_areas: dEval.development_areas,
+      ai_confidence: dEval.confidence_explanation.confidence_score,
+      evidence_limitations: dEval.evaluation_limitations,
+      dimensions: dEval.competency_scores.map((d) => ({
+        dimension_key: d.dimension_key,
+        dimension_label: d.dimension_label,
+        score: d.score,
+        weight: d.weight,
+        confidence: dEval.confidence_explanation.confidence_score,
+        rationale: d.explanation,
+        evidence_quotes: dEval.supporting_evidence.slice(0, 3),
+      })),
+      model_provider: dTelemetry.provider,
+      model_name: dTelemetry.model,
+      sections_a_to_o: reportAO,
+    };
+  } else {
+    evaluated = await buildStructuredAssessmentReport({
+      snapshot,
+      questions,
+      answers,
+      modality: s.mode,
+      truthfulnessSummary: truthfulness.summary,
+    });
+  }
 
   const overallScore = Math.round(
-    evaluated.dimensions.reduce((acc, d) => acc + d.score, 0) / Math.max(1, evaluated.dimensions.length),
+    evaluated.dimensions.reduce((acc, d) => acc + d.score * (d.weight ?? 1 / Math.max(1, evaluated.dimensions.length)), 0),
   );
 
   // Step 2: Transition PROCESSING -> COMPLETED
@@ -922,8 +1141,11 @@ export async function handleInterviewLifecycleTransition(
         strengths: evaluated.strengths,
         growth_areas: evaluated.growth_areas,
         scoring_explanations: {
-          methodology: 'Weighted 5-dimension rubric grounded in question-level evidence and profile consistency.',
+          methodology:
+            'Role-weighted 7-dimension competency rubric grounded in personalized question-level evidence and profile consistency.',
           requires_human_decision: true,
+          human_review_required: true,
+          sections_a_to_o: evaluated.sections_a_to_o ?? null,
         },
         ai_confidence: evaluated.ai_confidence,
         evidence_limitations: evaluated.evidence_limitations,
@@ -944,7 +1166,7 @@ export async function handleInterviewLifecycleTransition(
   }
   const reportId = (reportRow as { id: string }).id;
 
-  const weight = Number((1 / Math.max(1, evaluated.dimensions.length)).toFixed(3));
+  const defaultWeight = Number((1 / Math.max(1, evaluated.dimensions.length)).toFixed(3));
   const dimRows = evaluated.dimensions.map((d) => ({
     report_id: reportId,
     application_id: s.application_id,
@@ -953,7 +1175,7 @@ export async function handleInterviewLifecycleTransition(
     dimension_label: d.dimension_label,
     score: d.score,
     max_score: 100,
-    weight,
+    weight: d.weight ?? defaultWeight,
     confidence: d.confidence,
     rationale: d.rationale,
     evidence_quotes: d.evidence_quotes,
@@ -1273,7 +1495,26 @@ export async function transcribeAudioChunk(bytes: Buffer): Promise<{
         }
       }
     } catch {
-      // Fall through cleanly so client SpeechRecognition / live transcript input stays unblocked.
+      // Fall through to OpenAI Whisper adapter or browser speech fallback
+    }
+  }
+
+  const stt = new OpenAIWhisperSttAdapter();
+  if (stt.isAvailable()) {
+    const res = await stt.transcribe({
+      sessionId: 'chunk',
+      questionId: 'chunk',
+      mimeType: 'audio/webm',
+      durationMs: 0,
+      audioBytes: bytes,
+    });
+    if (res.transcript) {
+      return {
+        supported: true,
+        transcript: res.transcript,
+        confidence: res.confidence,
+        provider: res.provider,
+      };
     }
   }
   return { supported: false, transcript: '', confidence: 0, provider: 'browser-speech-api' };
