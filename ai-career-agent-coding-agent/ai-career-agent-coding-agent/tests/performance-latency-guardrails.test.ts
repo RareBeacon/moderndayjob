@@ -16,6 +16,19 @@ describe('Performance & UI latency guardrails', () => {
       'app/about/page.tsx',
       'app/how-it-works/page.tsx',
       'app/tools/page.tsx',
+      'app/help/page.tsx',
+      'app/help/getting-started/page.tsx',
+      'app/support/page.tsx',
+      'app/free-ats-resume-scanner/page.tsx',
+      'app/free-career-path-explorer/page.tsx',
+      'app/free-cover-letter-writer/page.tsx',
+      'app/free-follow-up-email-writer/page.tsx',
+      'app/free-interview-question-generator/page.tsx',
+      'app/free-job-description-analyzer/page.tsx',
+      'app/free-linkedin-headline-builder/page.tsx',
+      'app/free-resume-summary-generator/page.tsx',
+      'app/free-salary-insights/page.tsx',
+      'app/free-skills-matcher/page.tsx',
     ]) {
       const src = read(pagePath);
       expect(src, `${pagePath} should use getOptionalUser`).toContain('getOptionalUser');
@@ -24,6 +37,12 @@ describe('Performance & UI latency guardrails', () => {
 
     const home = read('app/page.tsx');
     expect(home).not.toContain('await getUser()');
+  });
+
+  it('merges dashboard SSR queries into a single parallel Promise.all batch', () => {
+    const dashboard = read('app/(dashboard)/dashboard/page.tsx');
+    expect(dashboard).toContain('Single parallel batch');
+    expect(dashboard).toContain('{ data: pipelineCounts }');
   });
 
   it('eliminates 30-card forced layout reflows and caches normalized sample preview data', () => {

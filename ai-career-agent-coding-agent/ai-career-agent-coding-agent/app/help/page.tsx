@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { MarketingShell } from '@/components/marketing/marketing-shell';
-import { getUser } from '@/lib/auth';
+import { getOptionalUser } from '@/lib/auth';
 import { SITE_URL } from '@/lib/site';
 import { breadcrumbJsonLd, jsonLdTag } from '@/lib/seo';
 import styles from '../marketing.module.css';
@@ -65,7 +65,7 @@ const TOPICS: { title: string; items: { q: string; a: string }[] }[] = [
 ];
 
 export default async function HelpPage() {
-  const user = await getUser();
+  const user = await getOptionalUser();
   return (
     <MarketingShell activePath="/help" authenticated={!!user}>
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(breadcrumbJsonLd([{ name: 'Home', path: '/' }, { name: 'Help', path: '/help' }]))} />
