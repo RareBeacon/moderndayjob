@@ -5,6 +5,7 @@ import { enforceRateLimit, requestIp } from '@/lib/rate-limit';
 import { vacancyCreateSchema } from '@/lib/talent-pool/schemas';
 import { createEmployerVacancy } from '@/lib/talent-pool/recruiter-service';
 import { TalentPoolError } from '@/lib/talent-pool/candidate-service';
+import { syncEmployerVacancyToRadarById } from '@/lib/radar/sync/persistence';
 
 export async function POST(req: Request) {
   const ip = requestIp(req);
@@ -26,6 +27,10 @@ export async function POST(req: Request) {
 
   try {
     const vacancy = await createEmployerVacancy(user.id, parsed);
+    const vacId = (vacancy as { id?: string } | null)?.id;
+    if (vacId) {
+      await syncEmployerVacancyToRadarById(vacId).catch(() => null);
+    }
     return NextResponse.json({ ok: true, vacancy }, { status: 201 });
   } catch (err) {
     if (err instanceof TalentPoolError) {

@@ -68,6 +68,7 @@ const noStoreSources = [
   '/api/documents/:path*',
   '/api/talent-pool/:path*',
   '/api/employer/:path*',
+  '/api/radar/:path*',
 ];
 
 const noIndexSources = [

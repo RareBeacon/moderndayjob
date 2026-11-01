@@ -10,3 +10,6 @@ export * from './adapters/ats';
 export * from './adapters/jsonld';
 export * from './forms/inspector';
 export * from './pipeline/ingest-batch';
+export * from './discovery/network-scout';
+export * from './matching/semantic-matcher';
+export * from './sync/persistence';

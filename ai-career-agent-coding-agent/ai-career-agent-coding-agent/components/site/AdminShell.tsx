@@ -11,6 +11,7 @@ const NAV = [
   { href: '/admin/users', key: 'users', label: 'Users' },
   { href: '/admin/talent-pool', key: 'talent-pool', label: 'Talent Pool' },
   { href: '/admin/employers', key: 'employers', label: 'Employers' },
+  { href: '/admin/radar', key: 'radar', label: 'Opportunity Radar' },
   { href: '/admin/coupons', key: 'coupons', label: 'Coupons' },
   { href: '/admin/credentials', key: 'credentials', label: 'AI credentials' },
   { href: '/admin/security', key: 'security', label: 'Security' },
