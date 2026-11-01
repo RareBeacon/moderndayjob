@@ -548,6 +548,15 @@ describe('Phase 6: Candidate Alerts, Autonomous Cron Orchestrator & Migration 05
 
   it('protects /api/cron/radar with timing-safe CRON_SECRET and executes bounded cycle', async () => {
     vi.stubEnv('CRON_SECRET', 'super-secret-radar-cron-token-2026');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ hits: [], children: [] }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ),
+    );
 
     const badAuth = await getRadarCronRoute(
       new Request('https://jobiest.com/api/cron/radar', {
@@ -566,6 +575,7 @@ describe('Phase 6: Candidate Alerts, Autonomous Cron Orchestrator & Migration 05
     expect(body.ok).toBe(true);
     expect(body.candidatesAutoPromoted).toBe(2);
 
+    vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   });
 
