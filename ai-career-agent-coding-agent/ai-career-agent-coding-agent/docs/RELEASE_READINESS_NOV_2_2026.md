@@ -1,44 +1,61 @@
-# Jobiest Production Release Readiness & Talent Pool QA Report (Target: Nov 2, 2026)
+# Jobiest Production Release Sign-Off & Launch Handoff (Target: Nov 2, 2026)
 
 - **Repository**: `RareBeacon/moderndayjob` (`ai-career-agent-coding-agent/ai-career-agent-coding-agent`)
-- **Working Branch**: `arena/18473c9c-moderndayjob` (staged; `main` untouched pending explicit Production Authorization Gate approval)
-- **Verification Timestamp**: `2026-11-01` (`Africa/Lagos`)
-- **Automated Test Suite**: `113/113` Vitest suites passed (`1,103` tests passed, `0` failed)
-- **Typecheck & Production Build**: `tsc --noEmit` exit `0`; `next build` (`Next.js 15.5.28`) compiled `145/145` routes cleanly (`0` production `npm audit --omit=dev` vulnerabilities)
-- **Cybersecurity, User Data & Admin Panel Audit**: Completed in `docs/CYBERSECURITY_USERDATA_ADMIN_AUDIT.md` (`8/8` findings remediated: `SEC-P1-001` through `SEC-P1-006`, `SEC-P2-001`, `SEC-P2-002`)
+- **Live Production URL**: `https://jobiest.com`
+- **Live Production Commit (`main`)**: `1501d2ad63e0fc4ad9e1e2e931914d61fb1f9f15` (PRs `#15` and `#16` merged and deployed)
+- **Sign-Off Timestamp**: `2026-11-01T08:37:25Z` (`Africa/Lagos` pre-launch cutover complete)
+- **Automated Verification**:
+  - **Unit & Integration Suite**: `114/114` Vitest suites passed (`1,111` tests passed, `0` failed)
+  - **Typecheck & Production Build**: `tsc --noEmit` exit `0`; `next build` (`Next.js 15.5.28`) compiled cleanly (`0` high/critical production `npm audit --omit=dev` vulnerabilities)
+  - **Production Playwright E2E Smoke (`https://jobiest.com`)**: Passed (`CI` run `41289098001`, Desktop Chrome + Mobile Pixel 7, including live AI Support Chat verification)
+  - **Security Pipeline (`main` run `41289098060`)**: `gitleaks` full-history secret scan passed (`0` leaks), `Semgrep` static analysis passed (`0` findings), and `OWASP ZAP` live baseline against `https://jobiest.com` passed
 
 ---
 
-## 1. Bug & Security Remediation Register (Resolved Before Launch)
+## 1. Live Production Health & Alibaba Qwen Multi-Tier AI Verification
 
-| ID | Severity | Surface | Finding | Fix Applied & Verified |
-|---|---|---|---|---|
-| `BUG-P1-001` | **P1** | Auth Recovery (`/login` -> `/forgot-password`) | `/login` linked to `/forgot-password` and `POST /api/auth/forgot-password` existed, but `app/forgot-password/page.tsx` was missing (`404` on click). | Created `app/forgot-password/page.tsx` using `<AuthShell>`, wired to `/api/auth/forgot-password` with enumeration-safe copy and rate-limit handling, and added direct recovery link on `app/reset-password/page.tsx`. Verified HTTP `200` + `0` unmatched internal links across all `199` routes. |
-| `BUG-P1-002` | **P1** | Fairness & Dialect Scoring (`prompt-d-evaluator.ts`) | Deterministic rubric ownership matcher (`hasFirstPersonAction`) checked past-tense standard inflections (`"I designed"`) and penalized substantively identical West African / regional phrasing (`"na me design..."`) by `14` points. | Expanded ownership and trade-off signal detection to be inflection- and dialect-invariant; verified score delta `<= 8` on identical technical substance in `tests/talent-pool-benchmark.test.ts`. |
-| `BUG-P2-001` | **P2** | Cross-Vertical Question Overlap (`prompt-b-architect.ts`) | Fallback blueprint stems shared cross-category phrasing (`0.47` Jaccard lexical overlap). | Implemented vertical-specific `DomainLexicon` templates across Finance, Legal, Clinical/Healthcare, Marketing, Design, Operations/Supply Chain, and Engineering; cross-vertical Jaccard verified `< 0.22` across 36 synthetic candidates. |
-| `BUG-P2-002` | **P2** | SEO & Crawler Privacy (`app/robots.ts`, `lib/seo/public-urls.ts`) | `/talent-pool`, `/employer`, `/settings`, `/auto-apply`, `/forgot-password`, `/verify-email`, `/mfa-verify`, and `/complete-account` were omitted from `robots.txt` `disallow` and `EXCLUDED_SEO_PATH_PREFIXES`. | Added all private candidate, employer, admin, and auth-recovery prefixes to both `app/robots.ts` and `lib/seo/public-urls.ts`. |
-| `BUG-P2-003` | **P2** | Cron Bearer Secret Timing (`app/api/cron/*/route.ts`) | Five `/api/cron/*` endpoints compared `Authorization: Bearer ${CRON_SECRET}` with `!==` instead of constant-time comparison. | Added SHA-256 `crypto.timingSafeEqual` helper `lib/security/cron-auth.ts` and wired all 5 cron routes. |
-| `BUG-P3-001` | **P3** | Documentation (`docs/TALENT_POOL.md`) | Storage bucket table listed `resumes` instead of `career-documents`. | Corrected to `career-documents` in `docs/TALENT_POOL.md`. |
+Verified directly against `https://jobiest.com/api/health?verify_qwen=1`:
 
----
-
-## 2. Database Migration & Rollback Readiness (`047..052`)
-
-- **Pending New Migrations for Production**:
-  1. `047_talent_pool_applications.sql`
-  2. `048_talent_pool_interviews_and_assessments.sql`
-  3. `049_talent_pool_admin_and_employers.sql`
-  4. `050_talent_pool_storage_buckets.sql`
-  5. `051_talent_rag_and_langgraph_checkpoints.sql` (`pgvector`, `talent_rag_documents`, `talent_rag_chunks`, `match_talent_rag_chunks`, `talent_assessment_contexts`, `talent_interview_blueprints`, `talent_workflow_checkpoints`)
-  6. `052_cybersecurity_admin_and_userdata_hardening.sql` (locks down `public.ai_credentials` against direct PostgREST `ciphertext` reads, adds `employer_organizations_website_url_http_chk`, and re-asserts admin/audit RLS revocations)
-- **Safety Guarantees**:
-  - Additive-only (`CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`); zero `DROP TABLE` or destructive column mutations on existing Jobiest tables.
-  - Row-Level Security (`ENABLE ROW LEVEL SECURITY`) enabled on 100% of tables, `SET search_path = public` on `SECURITY DEFINER` RPCs, zero `USING (true)` policies (`tests/security-baseline.test.ts` `10/10` pass).
-  - Down-migration rollback ready at `supabase/rollbacks/047_to_050_talent_pool.down.sql` (covers `047..051`).
+- **Component Checks**: `database: "ok"`, `ai_gateway: "ok"`, `qwen: "configured"`, `email: "configured"`
+- **Active Environment Variable**: `QWENCLOUD_API_KEY` (zero secrets exposed in code, Git, or responses)
+- **Auto-Resolved Endpoint**: `https://maas.qwencloudapi.com/compatible-mode/v1` (with automatic failover across DashScope International/US/CN endpoints and legacy self-hosted Ollama / Cloudflare / OpenRouter fallbacks)
+- **Live Production Model Tier Latencies**:
+  1. **Flagship (`qwen3.8-max`)**: `6,232 ms` - Master CV/Resume Tailoring, Talent Pool Blueprint (`Prompt B`), and Rubric Evaluation (`Prompt D`)
+  2. **Standard (`qwen3.7-plus`)**: `2,501 ms` - Job Match, Cover Letters, Career Paths, Interview Prep, and Follow-Up Emails
+  3. **Fast / Realtime (`qwen3.8-flash`)**: `2,400 ms` - Live Candidate Interview Turns (`Prompt C`), Intake Extraction (`Prompt A`), and AI Support Chat
+  4. **Multimodal Speech ASR (`qwen3-asr-flash`)**: Configured for Candidate Voice/Video Interview transcription (with accessible written-route parity)
+- **In-App Admin Probe**: Available anytime at `https://jobiest.com/admin/credentials` via **"Test & auto-pick best Qwen models"**.
 
 ---
 
-## 3. Staged Release Gate Status
+## 2. Delivered Architecture, Security & QA Pillars
 
-- **Talent Pool Readiness Verdict**: **READY FOR CLOSED BETA** (code, RLS, 16-node LangGraph engine, 36-candidate personalization benchmark, accessible written parity, GDPR withdrawal, and human-review gates verified; applying migrations `047..051` + live provider STT/LLM burn-in on staging/production unlocks general availability).
-- **Overall Jobiest Platform Verdict (Nov 2, 2026 Launch)**: **READY FOR STAGING -> PRODUCTION CUTOVER UPON HUMAN APPROVAL GATE**.
+1. **Core Jobiest Continuity (Zero Regressions)**:
+   - Auth (`/login`, `/signup`, `/forgot-password`, `/reset-password`, Google OAuth PKCE), `/dashboard`, Resume Studio, Documents, Job Match, Auto-Apply approval gates, Billing/Paystack/Flutterwave server-side verification, and all 10 Free Public Career Tools verified intact.
+2. **Talent Pool & Employer Marketplace (Stages 1-4 + Prompt 3 AI Engine)**:
+   - 16-node LangGraph workflow, 3-namespace `pgvector` RAG isolation (`match_talent_rag_chunks`), Prompts A-D (`2026-11.1`), 36-candidate personalization benchmark (`6/6` pass, cross-vertical Jaccard `< 0.22`, dialect fairness delta `<= 8`), independent 6-purpose consent + GDPR withdrawal, accessible written-assessment parity, and mandatory human admin admission review (`human_review_required = true`).
+   - Safe pending-migration guards active on `/talent-pool`, `/employer`, `/admin/talent-pool`, and `/admin/employers` so production never 500s prior to SQL execution.
+3. **Cybersecurity, User Data & Admin Panel Hardening (`docs/CYBERSECURITY_USERDATA_ADMIN_AUDIT.md`)**:
+   - All 8 audit findings (`SEC-P1-001`..`006`, `SEC-P2-001`..`002`) and all 6 launch bugs (`BUG-P1-001`..`BUG-P3-001`) remediated and covered by automated regression tests.
+
+---
+
+## 3. Production Database Activation & Post-Cutover Hygiene
+
+1. **Additive Supabase Migrations (`047` -> `052`) - APPLIED & VERIFIED IN PRODUCTION**:
+   - Executed `047_to_052_nov2_launch.sql` on Supabase Production (`main PRODUCTION`), returning:
+     - `talent_and_employer_tables_ready`: **`30`**
+     - `rag_vector_rpc_ready`: **`true`** (`match_talent_rag_chunks` + `pgvector`)
+     - `private_recordings_bucket_ready`: **`true`** (`talent-recordings`, `public = false`)
+     - `ai_credentials_ciphertext_locked_down`: **`true`** (`ai_credentials_self` policy dropped)
+2. **Token Hygiene Check**:
+   - Confirm the earlier `vcp_...` Vercel personal token shared in chat is revoked in `https://vercel.com/account/tokens` (and rotate any API key previously pasted in chat at your convenience, updating `QWENCLOUD_API_KEY` in Vercel if rotated).
+3. **OCI Always-Free Preservation (Optional / Post-Launch)**:
+   - Scripts in `ops/oci-preservation/` remain ready whenever you choose to provision `jobiest-a1` (`VM.Standard.A1.Flex`); keep existing `jobiest-ai` untouched until `jobiest-a1` is verified live.
+
+---
+
+## 4. Final Launch Verdict (Nov 2, 2026)
+
+- **Jobiest Core Platform + Qwen3.8-Max / 3.7-Plus / 3.8-Flash AI Stack**: **LIVE & VERIFIED IN PRODUCTION (`https://jobiest.com`)**
+- **Jobiest Talent Pool, Employer Marketplace & `052` Security Hardening**: **100% LIVE IN PRODUCTION (`30` tables, `pgvector` RAG, private recordings bucket, and `ai_credentials` RLS lockdown active)**
