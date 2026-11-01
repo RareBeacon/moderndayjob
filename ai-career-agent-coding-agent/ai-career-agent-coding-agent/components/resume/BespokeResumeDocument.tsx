@@ -5,6 +5,7 @@ import type { ResumeSectionKey } from '@/lib/resume-studio/catalog30';
 import type { StudioDraft } from '@/lib/resume-studio/draft';
 import {
   normalizeResumeFromDraft,
+  resolveTemplateSectionsForMode,
   type NormalizedResumeDocument,
 } from '@/lib/resume-studio/document-model';
 import { SAMPLE_PREVIEW_DRAFT } from '@/lib/resume-studio/sample';
@@ -151,6 +152,10 @@ function BespokeResumeDocumentInner({
   const doc = useMemo(
     () => (draft === SAMPLE_PREVIEW_DRAFT ? getSampleNormalizedDoc() : normalizeResumeFromDraft(draft)),
     [draft],
+  );
+  const { primarySections, secondarySections } = useMemo(
+    () => resolveTemplateSectionsForMode(spec, doc.documentMode),
+    [spec, doc.documentMode],
   );
 
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -998,7 +1003,7 @@ function BespokeResumeDocumentInner({
                     ))}
                   </div>
                 )}
-                {renderSectionsList(bp.secondarySections, true, true)}
+                {renderSectionsList(secondarySections, true, true)}
               </aside>
               <div className={styles.darkSidebarMain}>
                 <header style={{ marginBottom: '18px' }}>
@@ -1015,7 +1020,7 @@ function BespokeResumeDocumentInner({
                     <span style={{ flex: 1, height: '1px', background: '#cbd5e1' }} />
                   </div>
                 </header>
-                {renderSectionsList(bp.primarySections, false, false)}
+                {renderSectionsList(primarySections, false, false)}
               </div>
             </div>
           ) : (
@@ -1035,16 +1040,16 @@ function BespokeResumeDocumentInner({
                 )}
 
                 {spec.columns === 1 ? (
-                  <div>{renderSectionsList(bp.primarySections, false, false)}</div>
+                  <div>{renderSectionsList(primarySections, false, false)}</div>
                 ) : bp.bodyStructure === 'two-col-left-rail' ? (
                   <div className={styles.twoColLeftRail}>
-                    <aside className={styles.railPanel}>{renderSectionsList(bp.secondarySections, true, false)}</aside>
-                    <div>{renderSectionsList(bp.primarySections, false, false)}</div>
+                    <aside className={styles.railPanel}>{renderSectionsList(secondarySections, true, false)}</aside>
+                    <div>{renderSectionsList(primarySections, false, false)}</div>
                   </div>
                 ) : (
                   <div className={styles.twoColRightRail}>
-                    <div>{renderSectionsList(bp.primarySections, false, false)}</div>
-                    <aside className={styles.railPanel}>{renderSectionsList(bp.secondarySections, true, false)}</aside>
+                    <div>{renderSectionsList(primarySections, false, false)}</div>
+                    <aside className={styles.railPanel}>{renderSectionsList(secondarySections, true, false)}</aside>
                   </div>
                 )}
               </div>

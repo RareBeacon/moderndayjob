@@ -445,6 +445,47 @@
   background: #1c2f54;
 }
 
+.cardSubAction {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #e2e8f2;
+  font-size: 0.76rem;
+  color: #5b6b86;
+}
+
+.cardCvLink {
+  font-weight: 700;
+  color: #111d35;
+  text-decoration: none;
+}
+
+.cardCvLink:hover {
+  text-decoration: underline;
+}
+
+.modalSecondaryCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 9px;
+  border: 1.5px solid #cbd5e1;
+  background: #ffffff;
+  color: #111d35;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.modalSecondaryCta:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
 /* Pagination / Progressive Reveal */
 .paginationWrap {
   display: flex;

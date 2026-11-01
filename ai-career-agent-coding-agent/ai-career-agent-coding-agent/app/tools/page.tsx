@@ -32,6 +32,12 @@ const groups: ToolGroup[] = [
     intro: "Check, sharpen, and tailor what employers see first.",
     tools: [
       {
+        name: "Resume & CV Template Library",
+        description: "Browse 30 unique ISO A4 designs and export as a concise Resume or full Curriculum Vitae.",
+        tag: "30 A4 templates",
+        href: "/templates",
+      },
+      {
         name: "ATS Resume Scanner",
         description: "See whether your CV is machine-readable and aligned with a target job.",
         tag: "Deterministic checks",

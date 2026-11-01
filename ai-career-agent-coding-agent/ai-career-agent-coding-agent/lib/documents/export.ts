@@ -7,8 +7,10 @@ import {
   TextRun,
 } from 'docx';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import type { DocumentMode } from '@/lib/resume-studio/draft';
 import { parsePhotoDataUrl } from '@/lib/resume-studio/photo';
 import {
+  applyDocumentModeToResume,
   normalizeResumeFromStoredJson,
   toPdfSafeText,
   type NormalizedResumeDocument,
@@ -36,11 +38,17 @@ export interface ParsedDocument {
   title: string;
   photo?: ValidatedPhoto;
   templateId?: string;
+  documentMode?: DocumentMode;
   resume?: NormalizedResumeDocument;
   sections: ExportSection[];
 }
 
-export function parseDocumentContent(type: string, raw: string, fallbackTitle = 'Document'): ParsedDocument {
+export function parseDocumentContent(
+  type: string,
+  raw: string,
+  fallbackTitle = 'Document',
+  requestedDocumentMode?: DocumentMode | null,
+): ParsedDocument {
   const trimmed = (raw ?? '').trim();
   if (!trimmed) return { title: fallbackTitle, sections: [{ lines: ['(empty document)'] }] };
 
@@ -110,6 +118,32 @@ export function parseDocumentContent(type: string, raw: string, fallbackTitle = 
           lines: json.certifications.map((c) => [c.name, c.issuer, c.date].filter(Boolean).join(' - ')),
         });
       }
+      if (json.publications?.length) {
+        sections.push({
+          heading: 'Publications',
+          lines: json.publications.map((p) => [p.title, p.venue, p.date, p.url].filter(Boolean).join(' - ')),
+        });
+      }
+      if (json.volunteer?.length) {
+        sections.push({
+          heading: 'Volunteer Leadership',
+          lines: json.volunteer.map((v) => [v.role, v.organization, v.dates, v.summary].filter(Boolean).join(' - ')),
+        });
+      }
+      if (json.memberships?.length) {
+        sections.push({ heading: 'Professional Memberships', lines: [json.memberships.join(' | ')] });
+      }
+      if (json.languages?.length) {
+        sections.push({
+          heading: 'Languages',
+          lines: [
+            json.languages
+              .map((l) => (typeof l === 'string' ? l : [l.language, l.proficiency].filter(Boolean).join(' - ')))
+              .filter(Boolean)
+              .join(', '),
+          ],
+        });
+      }
       if (json.achievements?.length) {
         sections.push({ heading: 'Highlights', lines: json.achievements.map((a) => `- ${a}`) });
       }
@@ -121,15 +155,23 @@ export function parseDocumentContent(type: string, raw: string, fallbackTitle = 
         ? { bytes: photoCheck.bytes, mime: photoCheck.mime }
         : undefined;
 
-      const resume = normalizeResumeFromStoredJson({
+      const baseResume = normalizeResumeFromStoredJson({
         ...json,
         photoDataUrl: validPhoto ? json.photoDataUrl : '',
       });
+      const effectiveMode: DocumentMode =
+        requestedDocumentMode === 'cv' || requestedDocumentMode === 'resume'
+          ? requestedDocumentMode
+          : baseResume.documentMode === 'cv'
+            ? 'cv'
+            : 'resume';
+      const resume = requestedDocumentMode ? applyDocumentModeToResume(baseResume, requestedDocumentMode) : baseResume;
 
       return {
         title: json.headline || json.contact?.name || fallbackTitle,
         photo: validPhoto,
         templateId: isKnownResumeTemplateId(json.templateId) ? json.templateId : undefined,
+        documentMode: effectiveMode,
         resume,
         sections: sections.length ? sections : [{ lines: [trimmed] }],
       };

@@ -1,11 +1,38 @@
 'use client';
 
+import Link from 'next/link';
 import { memo, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from '@/components/site/AppShell';
-import { normalizeStudioDraft, scoreResumeDraft, type ResumeScore, type StudioDraft, type StudioEducation, type StudioExperience, type StudioProject } from '@/lib/resume-studio/draft';
+import {
+  buildDocumentExportUrl,
+  downloadExportedDocument,
+} from '@/lib/documents/client-download';
+import {
+  normalizeStudioDraft,
+  scoreResumeDraft,
+  type DocumentMode,
+  type ResumeScore,
+  type StudioDraft,
+  type StudioEducation,
+  type StudioExperience,
+  type StudioProject,
+} from '@/lib/resume-studio/draft';
 import { draftFromMemory, freshDraft, firstIncompleteStep } from '@/lib/resume-studio/prefill';
-import { CURATED_TEMPLATES, TEMPLATE_CATEGORIES, getResumeTemplate, recommendResumeTemplates, templatePhotoSupport, type ResumeTemplate, type ResumeTemplateCategory } from '@/lib/resume-studio/templates';
-import { requestedTemplateId, withRequestedTemplate } from '@/lib/resume-studio/selection';
+import {
+  CURATED_TEMPLATES,
+  TEMPLATE_CATEGORIES,
+  getResumeTemplate,
+  recommendResumeTemplates,
+  templatePhotoSupport,
+  type ResumeTemplate,
+  type ResumeTemplateCategory,
+} from '@/lib/resume-studio/templates';
+import {
+  consumePendingTemplateSelection,
+  requestedDocumentMode,
+  requestedTemplateId,
+  withRequestedTemplate,
+} from '@/lib/resume-studio/selection';
 import { SAMPLE_PREVIEW_DRAFT } from '@/lib/resume-studio/sample';
 import { ResumeDocumentPreview } from '@/components/resume/ResumeDocumentPreview';
 
@@ -37,13 +64,21 @@ interface GenDoc {
   version: number;
   created_at: string;
   content?: string;
-  source_facts?: { truthfulnessPassed?: boolean; resumeStudio?: boolean; templateName?: string; resumeScore?: ResumeScore };
+  source_facts?: {
+    truthfulnessPassed?: boolean;
+    resumeStudio?: boolean;
+    templateId?: string;
+    templateName?: string;
+    documentMode?: DocumentMode;
+    resumeScore?: ResumeScore;
+  };
 }
 interface GeneratedResume {
   id: string;
   version: number;
   title: string;
   content: string;
+  documentMode?: DocumentMode;
 }
 interface DraftApiResponse {
   draft?: {
@@ -82,7 +117,7 @@ const STEPS = [
   { id: 'templates', label: 'Template library', short: 'Templates' },
   { id: 'review', label: 'Final review', short: 'Review' },
 ] as const;
-type StepId = typeof STEPS[number]['id'];
+type StepId = (typeof STEPS)[number]['id'];
 
 const KINDS: { id: Exclude<Kind, 'CV'>; label: string; hint: string }[] = [
   { id: 'COVER_LETTER', label: 'Cover letter', hint: 'Concise and specific' },
@@ -106,16 +141,36 @@ export default function GeneratePage() {
   const [message, setMessage] = useState('');
   const [generated, setGenerated] = useState<GeneratedResume | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<ResumeTemplateCategory>('modern');
-  const [jobMatch, setJobMatch] = useState<{ match: number; matchingSkills: string[]; missingKeywords: string[]; recommendations: string[] } | null>(null);
-  const [finalReview, setFinalReview] = useState<{ ready: boolean; summary: string; checks: { label: string; ok: boolean; detail: string }[] } | null>(null);
+  const [jobMatch, setJobMatch] = useState<{
+    match: number;
+    matchingSkills: string[];
+    missingKeywords: string[];
+    recommendations: string[];
+  } | null>(null);
+  const [finalReview, setFinalReview] = useState<{
+    ready: boolean;
+    summary: string;
+    checks: { label: string; ok: boolean; detail: string }[];
+  } | null>(null);
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
+  const [mobileZoom, setMobileZoom] = useState<number>(1);
   const [booted, setBooted] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const skipInitialAutosave = useRef(false);
   const deferredDraft = useDeferredValue(draft);
 
+  const activeDocMode: DocumentMode = draft.documentMode === 'cv' ? 'cv' : 'resume';
   const score = useMemo(() => scoreResumeDraft(deferredDraft), [deferredDraft]);
   const template = useMemo(() => getResumeTemplate(draft.selectedTemplate), [draft.selectedTemplate]);
-  const recommended = useMemo(() => recommendResumeTemplates({ role: deferredDraft.career.targetRole || deferredDraft.career.headline, yearsExperience: Number(deferredDraft.career.yearsExperience || 0), skills: deferredDraft.skills.map((s) => s.name) }), [deferredDraft]);
+  const recommended = useMemo(
+    () =>
+      recommendResumeTemplates({
+        role: deferredDraft.career.targetRole || deferredDraft.career.headline,
+        yearsExperience: Number(deferredDraft.career.yearsExperience || 0),
+        skills: deferredDraft.skills.map((s) => s.name),
+      }),
+    [deferredDraft],
+  );
   const stepIndex = STEPS.findIndex((s) => s.id === activeStep);
 
   useEffect(() => {
@@ -135,18 +190,30 @@ export default function GeneratePage() {
       })
       .catch(() => {});
     loadRecent();
-    const requestedTemplate = requestedTemplateId(window.location.search);
-    if (!requestedTemplate) skipInitialAutosave.current = true;
-    if (requestedTemplate) setSelectedCategory(getResumeTemplate(requestedTemplate).category);
+
+    const urlTemplate = requestedTemplateId(window.location.search);
+    const urlDocMode = requestedDocumentMode(window.location.search);
+    const pendingSelection = consumePendingTemplateSelection();
+    const effectiveRequestedTemplate = urlTemplate ?? pendingSelection?.templateId ?? null;
+    const effectiveRequestedMode = urlDocMode ?? pendingSelection?.documentMode ?? null;
+
+    if (!effectiveRequestedTemplate && !effectiveRequestedMode) {
+      skipInitialAutosave.current = true;
+    }
+    if (effectiveRequestedTemplate) {
+      setSelectedCategory(getResumeTemplate(effectiveRequestedTemplate).category);
+    }
+
     const local = window.localStorage.getItem('jobiest.resumeStudio.draft');
     const hasLocalDraft = Boolean(local);
     if (local) {
       try {
         const parsed = normalizeStudioDraft(JSON.parse(local));
-        setDraft(withRequestedTemplate(parsed, requestedTemplate));
-        setActiveStep(requestedTemplate ? 'templates' : (parsed.currentStep as StepId) || 'welcome');
+        setDraft(withRequestedTemplate(parsed, effectiveRequestedTemplate, effectiveRequestedMode));
+        setActiveStep(effectiveRequestedTemplate ? 'templates' : (parsed.currentStep as StepId) || 'welcome');
       } catch {}
     }
+
     fetch('/api/resume-studio/draft')
       .then(async (r) => {
         if (!r.ok) throw new Error('draft unavailable');
@@ -154,43 +221,51 @@ export default function GeneratePage() {
       })
       .then((data) => {
         if (data.draft?.content) {
-          const loaded = normalizeStudioDraft({ ...data.draft.content, selectedTemplate: data.draft.selectedTemplate, currentStep: data.draft.currentStep, targetJobDescription: data.draft.targetJobDescription });
-          setDraft(withRequestedTemplate(loaded, requestedTemplate));
+          const loaded = normalizeStudioDraft({
+            ...data.draft.content,
+            selectedTemplate: data.draft.selectedTemplate,
+            currentStep: data.draft.currentStep,
+            targetJobDescription: data.draft.targetJobDescription,
+          });
+          setDraft(withRequestedTemplate(loaded, effectiveRequestedTemplate, effectiveRequestedMode));
           setDraftId(data.draft.id);
-          setActiveStep(requestedTemplate ? 'templates' : (loaded.currentStep as StepId) || 'welcome');
+          setActiveStep(effectiveRequestedTemplate ? 'templates' : (loaded.currentStep as StepId) || 'welcome');
         } else {
           const remembered = draftFromMemory(data.memory);
-          // M5: the wizard starts at the first section the profile has NOT
-          // already filled. A complete profile skips straight to polish;
-          // an empty one starts at the beginning as before.
           if (!hasLocalDraft) {
-            setDraft(withRequestedTemplate(remembered, requestedTemplate));
-            setActiveStep(requestedTemplate ? 'templates' : firstIncompleteStep(remembered));
+            setDraft(withRequestedTemplate(remembered, effectiveRequestedTemplate, effectiveRequestedMode));
+            setActiveStep(effectiveRequestedTemplate ? 'templates' : firstIncompleteStep(remembered));
           }
           setDraft((current) => {
-            if (!hasLocalDraft) return withRequestedTemplate(remembered, requestedTemplate);
-            return withRequestedTemplate(normalizeStudioDraft({
-              ...current,
-              personal: {
-                name: current.personal.name || remembered.personal.name,
-                email: current.personal.email || remembered.personal.email,
-                phone: current.personal.phone || remembered.personal.phone,
-                location: current.personal.location || remembered.personal.location,
-                website: current.personal.website || remembered.personal.website,
-                linkedin: current.personal.linkedin || remembered.personal.linkedin,
-                github: current.personal.github || remembered.personal.github,
-              },
-              career: {
-                ...current.career,
-                headline: current.career.headline || remembered.career.headline,
-                targetRole: current.career.targetRole || remembered.career.targetRole,
-                summary: current.career.summary || remembered.career.summary,
-              },
-              skills: current.skills.length ? current.skills : remembered.skills,
-              experiences: current.experiences.length ? current.experiences : remembered.experiences,
-              education: current.education.length ? current.education : remembered.education,
-              projects: current.projects.length ? current.projects : remembered.projects,
-            }), requestedTemplate);
+            if (!hasLocalDraft) {
+              return withRequestedTemplate(remembered, effectiveRequestedTemplate, effectiveRequestedMode);
+            }
+            return withRequestedTemplate(
+              normalizeStudioDraft({
+                ...current,
+                personal: {
+                  name: current.personal.name || remembered.personal.name,
+                  email: current.personal.email || remembered.personal.email,
+                  phone: current.personal.phone || remembered.personal.phone,
+                  location: current.personal.location || remembered.personal.location,
+                  website: current.personal.website || remembered.personal.website,
+                  linkedin: current.personal.linkedin || remembered.personal.linkedin,
+                  github: current.personal.github || remembered.personal.github,
+                },
+                career: {
+                  ...current.career,
+                  headline: current.career.headline || remembered.career.headline,
+                  targetRole: current.career.targetRole || remembered.career.targetRole,
+                  summary: current.career.summary || remembered.career.summary,
+                },
+                skills: current.skills.length ? current.skills : remembered.skills,
+                experiences: current.experiences.length ? current.experiences : remembered.experiences,
+                education: current.education.length ? current.education : remembered.education,
+                projects: current.projects.length ? current.projects : remembered.projects,
+              }),
+              effectiveRequestedTemplate,
+              effectiveRequestedMode,
+            );
           });
         }
       })
@@ -215,12 +290,20 @@ export default function GeneratePage() {
       fetch('/api/resume-studio/draft', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: draftId, name: draft.versionName, selectedTemplate: draft.selectedTemplate, currentStep: activeStep, targetJobDescription: draft.targetJobDescription, content: { ...draft, currentStep: activeStep } }),
+        body: JSON.stringify({
+          id: draftId,
+          name: draft.versionName,
+          selectedTemplate: draft.selectedTemplate,
+          currentStep: activeStep,
+          targetJobDescription: draft.targetJobDescription,
+          content: { ...draft, currentStep: activeStep },
+        }),
       })
         .then(async (r) => {
           const data = await r.json().catch(() => ({}));
           if (!r.ok) throw new Error(data?.message ?? data?.error ?? 'save failed');
-          if (data?.draft?.id && !draftId) setDraftId(data.draft.id);
+          const resolvedId = data?.draft?.id ?? data?.id;
+          if (resolvedId && !draftId) setDraftId(resolvedId);
           setSaveState('saved');
         })
         .catch(() => setSaveState('local'));
@@ -232,7 +315,7 @@ export default function GeneratePage() {
 
   function loadRecent() {
     fetch('/api/documents/generated')
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : { documents: [] }))
       .then((d) => setRecent(d.documents ?? []))
       .catch(() => {});
   }
@@ -241,12 +324,20 @@ export default function GeneratePage() {
     setDraft((current) => normalizeStudioDraft({ ...current, ...patch }));
   }
 
+  function setDocumentMode(nextMode: DocumentMode) {
+    setDraft((current) => withRequestedTemplate(current, current.selectedTemplate, nextMode));
+  }
+
   function patchPersonal(key: keyof StudioDraft['personal'], value: string) {
-    setDraft((current) => normalizeStudioDraft({ ...current, personal: { ...current.personal, [key]: value } }));
+    setDraft((current) =>
+      normalizeStudioDraft({ ...current, personal: { ...current.personal, [key]: value } }),
+    );
   }
 
   function patchCareer(key: keyof StudioDraft['career'], value: string) {
-    setDraft((current) => normalizeStudioDraft({ ...current, career: { ...current.career, [key]: value } }));
+    setDraft((current) =>
+      normalizeStudioDraft({ ...current, career: { ...current.career, [key]: value } }),
+    );
   }
 
   function goStep(step: StepId) {
@@ -274,10 +365,18 @@ export default function GeneratePage() {
         body: JSON.stringify({ action, ...payload }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.message ?? "Looks like my writing assistant took a tiny coffee break. Let's try that again.");
+      if (!res.ok) {
+        throw new Error(
+          json?.message ?? "Looks like my writing assistant took a tiny coffee break. Let's try that again.",
+        );
+      }
       return json as T;
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Looks like my writing assistant took a tiny coffee break. Let's try that again.");
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Looks like my writing assistant took a tiny coffee break. Let's try that again.",
+      );
       return null;
     } finally {
       setAiBusy(null);
@@ -285,7 +384,10 @@ export default function GeneratePage() {
   }
 
   async function suggestSkills() {
-    const result = await callAi<{ suggestions: string[]; note: string }>('suggestSkills', { role: draft.career.targetRole || draft.career.headline, existing: draft.skills.map((s) => s.name) });
+    const result = await callAi<{ suggestions: string[]; note: string }>('suggestSkills', {
+      role: draft.career.targetRole || draft.career.headline,
+      existing: draft.skills.map((s) => s.name),
+    });
     if (!result) return;
     addSkills(result.suggestions.slice(0, 8), 'Suggested');
     setMessage(result.note);
@@ -299,16 +401,20 @@ export default function GeneratePage() {
   }
 
   async function extractMessy(text: string) {
-    const result = await callAi<{ extracted: Partial<StudioDraft>; questions: string[] }>('extractProfile', { text });
+    const result = await callAi<{ extracted: Partial<StudioDraft>; questions: string[] }>('extractProfile', {
+      text,
+    });
     if (!result) return;
-    setDraft((current) => normalizeStudioDraft({
-      ...current,
-      ...result.extracted,
-      personal: { ...current.personal, ...(result.extracted.personal ?? {}) },
-      career: { ...current.career, ...(result.extracted.career ?? {}) },
-      skills: result.extracted.skills?.length ? [...current.skills, ...result.extracted.skills] : current.skills,
-      additional: [current.additional, result.extracted.additional].filter(Boolean).join(' '),
-    }));
+    setDraft((current) =>
+      normalizeStudioDraft({
+        ...current,
+        ...result.extracted,
+        personal: { ...current.personal, ...(result.extracted.personal ?? {}) },
+        career: { ...current.career, ...(result.extracted.career ?? {}) },
+        skills: result.extracted.skills?.length ? [...current.skills, ...result.extracted.skills] : current.skills,
+        additional: [current.additional, result.extracted.additional].filter(Boolean).join(' '),
+      }),
+    );
     setMessage(result.questions.join(' '));
   }
 
@@ -326,53 +432,112 @@ export default function GeneratePage() {
   }
 
   function removeSkill(name: string) {
-    setDraft((current) => normalizeStudioDraft({ ...current, skills: current.skills.filter((s) => s.name !== name) }));
+    setDraft((current) =>
+      normalizeStudioDraft({ ...current, skills: current.skills.filter((s) => s.name !== name) }),
+    );
   }
 
   function upsertExperience(id: string, patch: Partial<StudioExperience>) {
-    setDraft((current) => normalizeStudioDraft({ ...current, experiences: current.experiences.map((e) => e.id === id ? { ...e, ...patch } : e) }));
+    setDraft((current) =>
+      normalizeStudioDraft({
+        ...current,
+        experiences: current.experiences.map((e) => (e.id === id ? { ...e, ...patch } : e)),
+      }),
+    );
   }
 
   function addExperience() {
-    setDraft((current) => normalizeStudioDraft({ ...current, experiences: [...current.experiences, { id: newId('exp'), company: '', role: draft.career.targetRole || '', roughNotes: '', tools: [], impact: '', bullets: [] }] }));
+    setDraft((current) =>
+      normalizeStudioDraft({
+        ...current,
+        experiences: [
+          ...current.experiences,
+          {
+            id: newId('exp'),
+            company: '',
+            role: draft.career.targetRole || '',
+            roughNotes: '',
+            tools: [],
+            impact: '',
+            bullets: [],
+          },
+        ],
+      }),
+    );
   }
 
   function removeExperience(id: string) {
-    setDraft((current) => normalizeStudioDraft({ ...current, experiences: current.experiences.filter((e) => e.id !== id) }));
+    setDraft((current) =>
+      normalizeStudioDraft({ ...current, experiences: current.experiences.filter((e) => e.id !== id) }),
+    );
   }
 
   async function buildExperience(exp: StudioExperience) {
-    const result = await callAi<{ bullets: string[]; followUpQuestions: string[]; note: string }>('generateExperience', { experience: exp, seniority: draft.career.seniority });
+    const result = await callAi<{ bullets: string[]; followUpQuestions: string[]; note: string }>(
+      'generateExperience',
+      { experience: exp, seniority: draft.career.seniority },
+    );
     if (!result) return;
     upsertExperience(exp.id, { bullets: result.bullets });
     setMessage([result.note, ...result.followUpQuestions].join(' '));
   }
 
-  async function improveExperience(exp: StudioExperience, mode: AiMode) {
-    const result = await callAi<{ bullets: string[]; note: string }>('improveExperience', { experience: exp, bullets: exp.bullets, mode, seniority: draft.career.seniority });
+  async function improveExperience(exp: StudioExperience, modeArg: AiMode) {
+    const result = await callAi<{ bullets: string[]; note: string }>('improveExperience', {
+      experience: exp,
+      bullets: exp.bullets,
+      mode: modeArg,
+      seniority: draft.career.seniority,
+    });
     if (!result) return;
     upsertExperience(exp.id, { bullets: result.bullets });
     setMessage(result.note);
   }
 
   function upsertEducation(id: string, patch: Partial<StudioEducation>) {
-    setDraft((current) => normalizeStudioDraft({ ...current, education: current.education.map((e) => e.id === id ? { ...e, ...patch } : e) }));
+    setDraft((current) =>
+      normalizeStudioDraft({
+        ...current,
+        education: current.education.map((e) => (e.id === id ? { ...e, ...patch } : e)),
+      }),
+    );
   }
 
   function addEducation() {
-    setDraft((current) => normalizeStudioDraft({ ...current, education: [...current.education, { id: newId('edu'), institution: '', degree: '', field: '' }] }));
+    setDraft((current) =>
+      normalizeStudioDraft({
+        ...current,
+        education: [...current.education, { id: newId('edu'), institution: '', degree: '', field: '' }],
+      }),
+    );
   }
 
   function upsertProject(id: string, patch: Partial<StudioProject>) {
-    setDraft((current) => normalizeStudioDraft({ ...current, projects: current.projects.map((p) => p.id === id ? { ...p, ...patch } : p) }));
+    setDraft((current) =>
+      normalizeStudioDraft({
+        ...current,
+        projects: current.projects.map((p) => (p.id === id ? { ...p, ...patch } : p)),
+      }),
+    );
   }
 
   function addProject() {
-    setDraft((current) => normalizeStudioDraft({ ...current, projects: [...current.projects, { id: newId('project'), name: '', description: '', technologies: [], achievements: [] }] }));
+    setDraft((current) =>
+      normalizeStudioDraft({
+        ...current,
+        projects: [
+          ...current.projects,
+          { id: newId('project'), name: '', description: '', technologies: [], achievements: [] },
+        ],
+      }),
+    );
   }
 
   async function optimizeForJob() {
-    const result = await callAi<typeof jobMatch>('optimizeForJob', { draft, jobDescription: draft.targetJobDescription });
+    const result = await callAi<typeof jobMatch>('optimizeForJob', {
+      draft,
+      jobDescription: draft.targetJobDescription,
+    });
     if (!result) return;
     setJobMatch(result);
   }
@@ -390,15 +555,31 @@ export default function GeneratePage() {
       const res = await fetch('/api/resume-studio/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ draftId, templateId: draft.selectedTemplate, draft }),
+        body: JSON.stringify({
+          draftId: draftId || undefined,
+          templateId: draft.selectedTemplate,
+          documentMode: activeDocMode,
+          draft,
+        }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.message ?? 'Resume generation failed. You can continue manually and try again.');
+      if (!res.ok) {
+        throw new Error(
+          json?.message ?? 'Document generation failed. You can continue manually and try again.',
+        );
+      }
       setGenerated(json.document);
-      setMessage('Your resume is ready. Download it, edit it, tailor it to a job, or create another version.');
+      const label = activeDocMode === 'cv' ? 'CV' : 'resume';
+      setMessage(
+        `Your ${label} is ready. Download it as PDF or DOCX, switch between Resume and CV formats, or try any of the 30 templates without using another credit.`,
+      );
       loadRecent();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Looks like my writing assistant took a tiny coffee break. Let's try that again.");
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Looks like my writing assistant took a tiny coffee break. Let's try that again.",
+      );
     } finally {
       setAiBusy(null);
     }
@@ -409,104 +590,312 @@ export default function GeneratePage() {
       <div className="resume2-hero">
         <div>
           <p className="eyebrow">Resume Studio 2.0</p>
-          <h1>Build your resume with an AI career assistant, not a boring form.</h1>
+          <h1>Build your resume or CV with an AI career assistant, not a boring form.</h1>
           <p>
-            Answer naturally, improve rough thoughts into professional resume language, preview the result live,
-            and generate a truthful ATS-friendly resume only when you approve it.
+            Answer naturally, turn rough notes into truthful bullet points, preview across 30 ISO A4 designs live,
+            and export your document as either a concise <strong>Resume</strong> or a comprehensive{' '}
+            <strong>Curriculum Vitae (CV)</strong> in PDF and Word DOCX.
           </p>
           <div className="resume2-mode-switch" role="tablist" aria-label="Resume Studio mode">
-            <button className={mode === 'builder' ? 'active' : ''} onClick={() => setMode('builder')}>AI Resume Builder Journey</button>
-            <button className={mode === 'classic' ? 'active' : ''} onClick={() => setMode('classic')}>Cover letters and answers</button>
+            <button className={mode === 'builder' ? 'active' : ''} onClick={() => setMode('builder')}>
+              AI Resume Builder Journey
+            </button>
+            <button className={mode === 'classic' ? 'active' : ''} onClick={() => setMode('classic')}>
+              Cover letters and answers
+            </button>
           </div>
         </div>
         <div className="resume2-headline-features" aria-label="Headline Resume Studio features">
-          <FeatureCard title="AI Experience Builder" body="Tell me what you actually did. The assistant asks better follow-up questions and turns your facts into stronger bullets." />
-          <FeatureCard title="30-template library" body="Browse 30 Dribbble-inspired designs, each with its own layout, palette and typography." />
-          <FeatureCard title="Live preview" body="Watch your resume update while you build. Desktop gets side-by-side preview. Mobile gets a focused preview button." />
+          <FeatureCard
+            title="Resume + Full CV Modes"
+            body="Create a focused 1 to 2 page Resume or a multi-page Curriculum Vitae with publications, memberships, volunteer work, and references."
+          />
+          <FeatureCard
+            title="30-template A4 library"
+            body="Browse 30 unique ISO A4 designs, each with its own layout, palette, typography, and honest ATS classification."
+          />
+          <FeatureCard
+            title="Live preview"
+            body="Watch your document update while you build. Desktop gets side-by-side preview. Mobile gets a focused preview button."
+          />
         </div>
       </div>
 
       {mode === 'builder' ? (
-        <div className="resume2-shell">
-          <aside className="resume2-left">
-            <Progress steps={STEPS} activeStep={activeStep} goStep={goStep} score={score.total} saveState={saveState} />
-            <AssistantBubble step={activeStep} draft={draft} />
-            {message && <div className="resume2-message">{message}</div>}
-            <div className="resume2-panel">
-              <StepContent
+        <>
+          <div className="resume2-shell">
+            <aside className="resume2-left">
+              <div className="resume2-docformat-bar" role="region" aria-label="Document output format">
+                <div>
+                  <span style={{ display: 'block', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#475569' }}>
+                    Document format
+                  </span>
+                  <span style={{ fontSize: 13, color: '#334155' }}>
+                    {activeDocMode === 'cv'
+                      ? 'Curriculum Vitae (multi-page full credentials)'
+                      : 'Resume (concise, recruiter-focused layout)'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <div className="resume2-docformat-seg" role="group" aria-label="Choose Resume or CV">
+                    <button
+                      type="button"
+                      className={activeDocMode === 'resume' ? 'active' : ''}
+                      aria-pressed={activeDocMode === 'resume'}
+                      onClick={() => setDocumentMode('resume')}
+                    >
+                      Resume
+                    </button>
+                    <button
+                      type="button"
+                      className={activeDocMode === 'cv' ? 'active' : ''}
+                      aria-pressed={activeDocMode === 'cv'}
+                      onClick={() => setDocumentMode('cv')}
+                    >
+                      CV (Curriculum Vitae)
+                    </button>
+                  </div>
+                  <Link className="btn secondary" href="/templates" style={{ fontSize: 12, padding: '7px 12px' }}>
+                    30-Template Gallery
+                  </Link>
+                </div>
+              </div>
+
+              <Progress
+                steps={STEPS}
                 activeStep={activeStep}
-                draft={draft}
-                jobs={jobs}
-                aiBusy={aiBusy}
-                recommended={recommended}
-                selectedCategory={selectedCategory}
-                setSelectedCategory={setSelectedCategory}
-                score={score}
-                jobMatch={jobMatch}
-                finalReview={finalReview}
-                generated={generated}
-                patchDraft={patchDraft}
-                patchPersonal={patchPersonal}
-                patchCareer={patchCareer}
-                nextStep={nextStep}
-                prevStep={prevStep}
-                suggestSkills={suggestSkills}
-                writeSummary={writeSummary}
-                extractMessy={extractMessy}
-                addSkills={addSkills}
-                removeSkill={removeSkill}
-                addExperience={addExperience}
-                upsertExperience={upsertExperience}
-                removeExperience={removeExperience}
-                buildExperience={buildExperience}
-                improveExperience={improveExperience}
-                addEducation={addEducation}
-                upsertEducation={upsertEducation}
-                addProject={addProject}
-                upsertProject={upsertProject}
-                optimizeForJob={optimizeForJob}
-                runFinalReview={runFinalReview}
-                generateFinalResume={generateFinalResume}
+                goStep={goStep}
+                score={score.total}
+                saveState={saveState}
+              />
+              <AssistantBubble step={activeStep} draft={draft} />
+              {message && <div className="resume2-message">{message}</div>}
+              <div className="resume2-panel">
+                <StepContent
+                  activeStep={activeStep}
+                  draft={draft}
+                  jobs={jobs}
+                  aiBusy={aiBusy}
+                  recommended={recommended}
+                  selectedCategory={selectedCategory}
+                  setSelectedCategory={setSelectedCategory}
+                  score={score}
+                  jobMatch={jobMatch}
+                  finalReview={finalReview}
+                  generated={generated}
+                  patchDraft={patchDraft}
+                  setDocumentMode={setDocumentMode}
+                  patchPersonal={patchPersonal}
+                  patchCareer={patchCareer}
+                  nextStep={nextStep}
+                  prevStep={prevStep}
+                  suggestSkills={suggestSkills}
+                  writeSummary={writeSummary}
+                  extractMessy={extractMessy}
+                  addSkills={addSkills}
+                  removeSkill={removeSkill}
+                  addExperience={addExperience}
+                  upsertExperience={upsertExperience}
+                  removeExperience={removeExperience}
+                  buildExperience={buildExperience}
+                  improveExperience={improveExperience}
+                  addEducation={addEducation}
+                  upsertEducation={upsertEducation}
+                  addProject={addProject}
+                  upsertProject={upsertProject}
+                  optimizeForJob={optimizeForJob}
+                  runFinalReview={runFinalReview}
+                  generateFinalResume={generateFinalResume}
+                  onNotify={setMessage}
+                />
+              </div>
+
+              <div className="resume2-mobile-preview-trigger">
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    setMobileZoom(1);
+                    setMobilePreviewOpen(true);
+                  }}
+                >
+                  Preview Live A4 {activeDocMode === 'cv' ? 'CV' : 'Resume'} ({template.name})
+                </button>
+              </div>
+            </aside>
+
+            <aside className="resume2-preview-wrap">
+              <div className="resume2-preview-sticky">
+                <div className="resume2-preview-head">
+                  <div>
+                    <p className="eyebrow">
+                      Live preview &middot; {activeDocMode === 'cv' ? 'Curriculum Vitae' : 'Resume'}
+                    </p>
+                    <strong>{template.name}</strong>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="btn secondary"
+                      onClick={() => setDocumentMode(activeDocMode === 'cv' ? 'resume' : 'cv')}
+                    >
+                      Switch to {activeDocMode === 'cv' ? 'Resume' : 'CV'}
+                    </button>
+                    <button className="btn secondary" onClick={() => goStep('templates')}>
+                      Change template
+                    </button>
+                  </div>
+                </div>
+                <ResumeDocumentPreview draft={deferredDraft} template={template} />
+              </div>
+            </aside>
+          </div>
+
+          {recent.length > 0 && (
+            <div style={{ maxWidth: 1280, margin: '28px auto 0' }}>
+              <RecentVersions
+                recent={recent}
+                selectedTemplateId={draft.selectedTemplate}
+                onNotify={setMessage}
               />
             </div>
-          </aside>
-          <aside className="resume2-preview-wrap">
-            <div className="resume2-preview-sticky">
-              <div className="resume2-preview-head">
-                <div>
-                  <p className="eyebrow">Live preview</p>
-                  <strong>{template.name}</strong>
+          )}
+
+          {mobilePreviewOpen && (
+            <div
+              className="resume2-preview-modal-backdrop"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Focused live A4 preview"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) setMobilePreviewOpen(false);
+              }}
+            >
+              <div className="resume2-preview-modal-dialog">
+                <div className="resume2-preview-modal-head">
+                  <div>
+                    <strong style={{ display: 'block', fontSize: 15 }}>{template.name}</strong>
+                    <span style={{ fontSize: 12, color: '#475569' }}>
+                      {activeDocMode === 'cv' ? 'Curriculum Vitae (CV)' : 'Resume'} &middot; ISO A4 Live Preview
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="btn secondary"
+                      style={{ fontSize: 12, padding: '6px 10px' }}
+                      onClick={() => setDocumentMode(activeDocMode === 'cv' ? 'resume' : 'cv')}
+                    >
+                      {activeDocMode === 'cv' ? 'Switch to Resume' : 'Switch to CV'}
+                    </button>
+                    {[
+                      { label: '75%', v: 0.75 },
+                      { label: '100%', v: 1 },
+                      { label: '125%', v: 1.2 },
+                    ].map((z) => (
+                      <button
+                        key={z.label}
+                        type="button"
+                        className={mobileZoom === z.v ? 'btn' : 'btn secondary'}
+                        style={{ fontSize: 12, padding: '6px 10px' }}
+                        onClick={() => setMobileZoom(z.v)}
+                      >
+                        {z.label}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      className="btn secondary"
+                      style={{ fontSize: 12, padding: '6px 12px' }}
+                      onClick={() => {
+                        setMobilePreviewOpen(false);
+                        goStep('templates');
+                      }}
+                    >
+                      Templates
+                    </button>
+                    <button
+                      type="button"
+                      className="btn"
+                      style={{ fontSize: 12, padding: '6px 12px' }}
+                      onClick={() => setMobilePreviewOpen(false)}
+                    >
+                      Close
+                    </button>
+                  </div>
                 </div>
-                <button className="btn secondary" onClick={() => goStep('templates')}>Change template</button>
+                <div className="resume2-preview-modal-scroll">
+                  <ResumeDocumentPreview draft={deferredDraft} template={template} size="full" zoom={mobileZoom} />
+                </div>
               </div>
-              <ResumeDocumentPreview draft={deferredDraft} template={template} />
             </div>
-          </aside>
-        </div>
+          )}
+        </>
       ) : (
-        <ClassicGenerator jobs={jobs} recent={recent} loadRecent={loadRecent} />
+        <ClassicGenerator
+          jobs={jobs}
+          recent={recent}
+          loadRecent={loadRecent}
+          selectedTemplateId={draft.selectedTemplate}
+          onNotify={setMessage}
+        />
       )}
     </AppShell>
   );
 }
 
 function FeatureCard({ title, body }: { title: string; body: string }) {
-  return <div><strong>{title}</strong><p>{body}</p></div>;
+  return (
+    <div>
+      <strong>{title}</strong>
+      <p>{body}</p>
+    </div>
+  );
 }
 
-function Progress({ steps, activeStep, goStep, score, saveState }: { steps: typeof STEPS; activeStep: StepId; goStep: (step: StepId) => void; score: number; saveState: string }) {
+function Progress({
+  steps,
+  activeStep,
+  goStep,
+  score,
+  saveState,
+}: {
+  steps: typeof STEPS;
+  activeStep: StepId;
+  goStep: (step: StepId) => void;
+  score: number;
+  saveState: string;
+}) {
   const index = steps.findIndex((s) => s.id === activeStep);
   return (
     <div className="resume2-progress-card">
       <div className="resume2-progress-top">
-        <span>Step {index + 1} of {steps.length}</span>
+        <span>
+          Step {index + 1} of {steps.length}
+        </span>
         <span>Resume strength {score}/100</span>
-        <span>{saveState === 'saved' ? 'Autosaved' : saveState === 'saving' ? 'Saving' : saveState === 'local' ? 'Saved locally' : 'Draft ready'}</span>
+        <span>
+          {saveState === 'saved'
+            ? 'Autosaved'
+            : saveState === 'saving'
+              ? 'Saving'
+              : saveState === 'local'
+                ? 'Saved locally'
+                : 'Draft ready'}
+        </span>
       </div>
-      <div className="resume2-progress-bar"><span style={{ width: `${((index + 1) / steps.length) * 100}%` }} /></div>
+      <div className="resume2-progress-bar">
+        <span style={{ width: `${((index + 1) / steps.length) * 100}%` }} />
+      </div>
       <div className="resume2-step-tabs">
         {steps.map((step, i) => (
-          <button key={step.id} className={step.id === activeStep ? 'active' : i < index ? 'done' : ''} onClick={() => goStep(step.id)}>{step.short}</button>
+          <button
+            key={step.id}
+            className={step.id === activeStep ? 'active' : i < index ? 'done' : ''}
+            onClick={() => goStep(step.id)}
+          >
+            {step.short}
+          </button>
         ))}
       </div>
     </div>
@@ -515,18 +904,27 @@ function Progress({ steps, activeStep, goStep, score, saveState }: { steps: type
 
 function AssistantBubble({ step, draft }: { step: StepId; draft: StudioDraft }) {
   const firstName = draft.personal.name.split(' ')[0] || 'there';
+  const docWord = draft.documentMode === 'cv' ? 'CV' : 'resume';
   const copy: Record<StepId, string> = {
-    welcome: "Let's build your resume together. Give me the rough version. Making it professional is my job.",
-    about: `Nice to meet you${draft.personal.name ? `, ${firstName}` : ''}. I need the contact details employers should use, and only the ones you want on your resume.`,
+    welcome: `Let's build your ${docWord} together. Give me the rough version. Making it clear and professional is my job.`,
+    about: `Nice to meet you${draft.personal.name ? `, ${firstName}` : ''}. I need the contact details employers should use, and only the ones you want on your ${docWord}.`,
     career: 'Tell me what you do or what role you are targeting. I will keep the wording strong without inflating your seniority.',
-    experience: "Tell me what you actually did. If it is messy, that is fine. I will ask one more question when it helps.",
+    experience: 'Tell me what you actually did. If it is messy, that is fine. I will ask one more question when it helps.',
     skills: 'Select skills you actually have. Suggestions are not claims until you choose them.',
-    education: 'Add education, projects, certifications and achievements only where they strengthen your story.',
-    optimize: 'Now we polish. I can write a summary, check ATS basics, and compare your resume to a target job description.',
-    templates: 'Based on your profile, I recommend a few templates, but you can browse all 30.',
-    review: 'Final check. If anything important is missing, we fix it before generating the document.',
+    education:
+      draft.documentMode === 'cv'
+        ? 'CV mode renders your full credential record: education, publications, projects, certifications, memberships, volunteer leadership, languages, and references.'
+        : 'Add education, projects, certifications and achievements where they strengthen your story.',
+    optimize: `Now we polish. I can write a summary, check ATS basics, and compare your ${docWord} to a target job description.`,
+    templates: 'Based on your profile, I recommend a few templates, or you can search all 30 ISO A4 designs.',
+    review: `Final check. Generate your truthful ${docWord}, then export as either Resume or CV in PDF and DOCX.`,
   };
-  return <div className="resume2-assistant"><span>AI assistant</span><p>{copy[step]}</p></div>;
+  return (
+    <div className="resume2-assistant">
+      <span>AI assistant</span>
+      <p>{copy[step]}</p>
+    </div>
+  );
 }
 
 interface StepContentProps {
@@ -538,10 +936,20 @@ interface StepContentProps {
   selectedCategory: ResumeTemplateCategory;
   setSelectedCategory: (category: ResumeTemplateCategory) => void;
   score: ResumeScore;
-  jobMatch: { match: number; matchingSkills: string[]; missingKeywords: string[]; recommendations: string[] } | null;
-  finalReview: { ready: boolean; summary: string; checks: { label: string; ok: boolean; detail: string }[] } | null;
+  jobMatch: {
+    match: number;
+    matchingSkills: string[];
+    missingKeywords: string[];
+    recommendations: string[];
+  } | null;
+  finalReview: {
+    ready: boolean;
+    summary: string;
+    checks: { label: string; ok: boolean; detail: string }[];
+  } | null;
   generated: GeneratedResume | null;
   patchDraft: (patch: Partial<StudioDraft>) => void;
+  setDocumentMode: (mode: DocumentMode) => void;
   patchPersonal: (key: keyof StudioDraft['personal'], value: string) => void;
   patchCareer: (key: keyof StudioDraft['career'], value: string) => void;
   nextStep: () => void;
@@ -563,6 +971,7 @@ interface StepContentProps {
   optimizeForJob: () => void;
   runFinalReview: () => void;
   generateFinalResume: () => void;
+  onNotify: (msg: string) => void;
 }
 
 function StepContent(props: StepContentProps) {
@@ -577,22 +986,89 @@ function StepContent(props: StepContentProps) {
   return <ReviewStep {...props} />;
 }
 
-function StepActions({ prevStep, nextStep, nextLabel = 'Continue' }: { prevStep: () => void; nextStep: () => void; nextLabel?: string }) {
-  return <div className="resume2-actions"><button className="btn secondary" onClick={prevStep}>Back</button><button className="btn" onClick={nextStep}>{nextLabel}</button></div>;
+function StepActions({
+  prevStep,
+  nextStep,
+  nextLabel = 'Continue',
+}: {
+  prevStep: () => void;
+  nextStep: () => void;
+  nextLabel?: string;
+}) {
+  return (
+    <div className="resume2-actions">
+      <button className="btn secondary" onClick={prevStep}>
+        Back
+      </button>
+      <button className="btn" onClick={nextStep}>
+        {nextLabel}
+      </button>
+    </div>
+  );
 }
 
-function WelcomeStep({ draft, patchDraft, nextStep, extractMessy, aiBusy }: StepContentProps) {
+function WelcomeStep({ draft, patchDraft, setDocumentMode, nextStep, extractMessy, aiBusy }: StepContentProps) {
   const [messy, setMessy] = useState('');
+  const isCv = draft.documentMode === 'cv';
   return (
     <div className="resume2-step">
       <p className="eyebrow">Welcome</p>
-      <h2>Generate My Resume starts a guided journey.</h2>
-      <p className="resume2-copy">Paste messy notes or start step by step. The assistant extracts what it can, asks you to confirm uncertain details, and never invents experience.</p>
-      <label className="resume2-field full"><span>Paste messy career notes, optional</span><textarea rows={7} value={messy} onChange={(e) => setMessy(e.target.value)} placeholder="I worked at XYZ from 2023 to 2025, mostly building automation with Python and AI. I also worked on a customer support bot." /></label>
+      <h2>{isCv ? 'Build your Curriculum Vitae step by step.' : 'Generate My Resume starts a guided journey.'}</h2>
+      <p className="resume2-copy">
+        Paste messy notes or start step by step. Choose <strong>Resume</strong> for concise 1 to 2 page industry
+        applications or <strong>CV (Curriculum Vitae)</strong> for comprehensive multi-page academic, medical, and
+        international credentials. The assistant never invents experience.
+      </p>
+      <div className="resume2-inline-card" style={{ marginBottom: 14 }}>
+        <strong>Selected format: {isCv ? 'CV (Curriculum Vitae)' : 'Resume'}</strong>
+        <p style={{ margin: '4px 0 10px' }}>
+          {isCv
+            ? 'Includes full multi-page sections for publications, certifications, memberships, volunteer leadership, languages, and references.'
+            : 'Prioritizes concise impact bullets, core skills, and targeted role alignment. You can switch to CV at any time.'}
+        </p>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className={!isCv ? 'btn' : 'btn secondary'}
+            onClick={() => setDocumentMode('resume')}
+          >
+            Build a Resume
+          </button>
+          <button
+            type="button"
+            className={isCv ? 'btn' : 'btn secondary'}
+            onClick={() => setDocumentMode('cv')}
+          >
+            Build a CV
+          </button>
+        </div>
+      </div>
+      <label className="resume2-field full">
+        <span>Paste messy career notes, optional</span>
+        <textarea
+          rows={7}
+          value={messy}
+          onChange={(e) => setMessy(e.target.value)}
+          placeholder="I worked at XYZ from 2023 to 2025, mostly building automation with Python and AI. I also worked on a customer support bot."
+        />
+      </label>
       <div className="resume2-actions left">
-        <button className="btn" disabled={!messy.trim() || aiBusy === 'extractProfile'} onClick={() => extractMessy(messy)}>{aiBusy === 'extractProfile' ? 'Reading notes' : 'Extract with AI'}</button>
-        <button className="btn secondary" onClick={nextStep}>Start step by step</button>
-        <button className="btn secondary" onClick={() => patchDraft(freshDraft())}>Create from scratch</button>
+        <button
+          className="btn"
+          disabled={!messy.trim() || aiBusy === 'extractProfile'}
+          onClick={() => extractMessy(messy)}
+        >
+          {aiBusy === 'extractProfile' ? 'Reading notes' : 'Extract with AI'}
+        </button>
+        <button className="btn secondary" onClick={nextStep}>
+          Start step by step
+        </button>
+        <button
+          className="btn secondary"
+          onClick={() => patchDraft(withRequestedTemplate(freshDraft(), draft.selectedTemplate, draft.documentMode))}
+        >
+          Create from scratch
+        </button>
       </div>
     </div>
   );
@@ -626,51 +1102,149 @@ function CareerStep({ draft, patchCareer, patchDraft, prevStep, nextStep, sugges
         <Field label="Target role" value={draft.career.targetRole} onChange={(v) => patchCareer('targetRole', v)} placeholder="AI Engineer" />
         <Field label="Professional headline" value={draft.career.headline} onChange={(v) => patchCareer('headline', v)} placeholder="AI Engineer focused on agents and automation" />
         <Field label="Years of experience" value={draft.career.yearsExperience} onChange={(v) => patchCareer('yearsExperience', v)} placeholder="3" />
-        <label className="resume2-field"><span>Seniority</span><select value={draft.career.seniority} onChange={(e) => patchCareer('seniority', e.target.value)}><option value="">Select</option><option value="student">Student or graduate</option><option value="early">1 to 2 years</option><option value="mid">2 to 5 years</option><option value="senior">5+ years</option><option value="executive">Executive</option></select></label>
+        <label className="resume2-field">
+          <span>Seniority</span>
+          <select value={draft.career.seniority} onChange={(e) => patchCareer('seniority', e.target.value)}>
+            <option value="">Select</option>
+            <option value="student">Student or graduate</option>
+            <option value="early">1 to 2 years</option>
+            <option value="mid">2 to 5 years</option>
+            <option value="senior">5+ years</option>
+            <option value="executive">Executive</option>
+          </select>
+        </label>
       </div>
       <div className="resume2-inline-card">
         <strong>AI suggestions</strong>
         <p>Based on your role, I can suggest skills. Keep only the ones you genuinely have.</p>
-        <button className="btn secondary" onClick={suggestSkills} disabled={aiBusy === 'suggestSkills'}>{aiBusy === 'suggestSkills' ? 'Suggesting' : 'Suggest relevant skills'}</button>
+        <button className="btn secondary" onClick={suggestSkills} disabled={aiBusy === 'suggestSkills'}>
+          {aiBusy === 'suggestSkills' ? 'Suggesting' : 'Suggest relevant skills'}
+        </button>
       </div>
-      <label className="resume2-field full"><span>Version name</span><input value={draft.versionName} onChange={(e) => patchDraft({ versionName: e.target.value })} placeholder="AI Engineer Resume" /></label>
+      <label className="resume2-field full">
+        <span>Version name</span>
+        <input
+          value={draft.versionName}
+          onChange={(e) => patchDraft({ versionName: e.target.value })}
+          placeholder={draft.documentMode === 'cv' ? 'AI Engineer CV' : 'AI Engineer Resume'}
+        />
+      </label>
       <StepActions prevStep={prevStep} nextStep={nextStep} />
     </div>
   );
 }
 
-function ExperienceStep({ draft, addExperience, upsertExperience, removeExperience, buildExperience, improveExperience, prevStep, nextStep, aiBusy }: StepContentProps) {
+function ExperienceStep({
+  draft,
+  addExperience,
+  upsertExperience,
+  removeExperience,
+  buildExperience,
+  improveExperience,
+  prevStep,
+  nextStep,
+  aiBusy,
+}: StepContentProps) {
   return (
     <div className="resume2-step">
       <p className="eyebrow">AI Experience Builder</p>
-      <h2>Turn rough work notes into strong resume bullets.</h2>
-      <p className="resume2-copy">Do not worry about grammar. Add what you did, tools you used, who it helped, and any outcome you can honestly support.</p>
+      <h2>Turn rough work notes into strong {draft.documentMode === 'cv' ? 'CV' : 'resume'} bullets.</h2>
+      <p className="resume2-copy">
+        Do not worry about grammar. Add what you did, tools you used, who it helped, and any outcome you can honestly support.
+      </p>
       <div className="resume2-list">
         {draft.experiences.map((exp) => (
           <div className="resume2-item" key={exp.id}>
-            <div className="resume2-item-head"><strong>{exp.role || 'New role'} {exp.company ? `| ${exp.company}` : ''}</strong><button className="link-button" onClick={() => removeExperience(exp.id)}>Remove</button></div>
+            <div className="resume2-item-head">
+              <strong>
+                {exp.role || 'New role'} {exp.company ? `| ${exp.company}` : ''}
+              </strong>
+              <button className="link-button" onClick={() => removeExperience(exp.id)}>
+                Remove
+              </button>
+            </div>
             <div className="resume2-form-grid">
               <Field label="Company, client or project" value={exp.company} onChange={(v) => upsertExperience(exp.id, { company: v })} placeholder="ABC Technologies" />
               <Field label="Role" value={exp.role} onChange={(v) => upsertExperience(exp.id, { role: v })} placeholder="AI Engineer" />
               <Field label="Location" value={exp.location ?? ''} onChange={(v) => upsertExperience(exp.id, { location: v })} placeholder="Remote or Lagos" />
               <Field label="Start" value={exp.startDate ?? ''} onChange={(v) => upsertExperience(exp.id, { startDate: v })} placeholder="2023" />
               <Field label="End" value={exp.endDate ?? ''} onChange={(v) => upsertExperience(exp.id, { endDate: v })} placeholder="2025 or Present" />
-              <label className="resume2-field checkbox"><input type="checkbox" checked={Boolean(exp.current)} onChange={(e) => upsertExperience(exp.id, { current: e.target.checked })} /> Current role</label>
+              <label className="resume2-field checkbox">
+                <input
+                  type="checkbox"
+                  checked={Boolean(exp.current)}
+                  onChange={(e) => upsertExperience(exp.id, { current: e.target.checked })}
+                />{' '}
+                Current role
+              </label>
             </div>
-            <label className="resume2-field full"><span>Tell me what you actually did</span><textarea rows={4} value={exp.roughNotes} onChange={(e) => upsertExperience(exp.id, { roughNotes: e.target.value })} placeholder="I built AI agents and automation systems for companies." /></label>
-            <Field label="Tools, comma separated" value={exp.tools.join(', ')} onChange={(v) => upsertExperience(exp.id, { tools: v.split(',').map((x) => x.trim()).filter(Boolean) })} placeholder="Python, LangChain, APIs, n8n" />
-            <label className="resume2-field full"><span>Impact or outcome, only if true</span><textarea rows={2} value={exp.impact} onChange={(e) => upsertExperience(exp.id, { impact: e.target.value })} placeholder="Reduced repetitive manual work for the operations team. Add numbers only if you have them." /></label>
+            <label className="resume2-field full">
+              <span>Tell me what you actually did</span>
+              <textarea
+                rows={4}
+                value={exp.roughNotes}
+                onChange={(e) => upsertExperience(exp.id, { roughNotes: e.target.value })}
+                placeholder="I built AI agents and automation systems for companies."
+              />
+            </label>
+            <Field
+              label="Tools, comma separated"
+              value={exp.tools.join(', ')}
+              onChange={(v) =>
+                upsertExperience(exp.id, {
+                  tools: v
+                    .split(',')
+                    .map((x) => x.trim())
+                    .filter(Boolean),
+                })
+              }
+              placeholder="Python, LangChain, APIs, n8n"
+            />
+            <label className="resume2-field full">
+              <span>Impact or outcome, only if true</span>
+              <textarea
+                rows={2}
+                value={exp.impact}
+                onChange={(e) => upsertExperience(exp.id, { impact: e.target.value })}
+                placeholder="Reduced repetitive manual work for the operations team. Add numbers only if you have them."
+              />
+            </label>
             <div className="resume2-ai-row">
-              <button className="btn" disabled={Boolean(aiBusy)} onClick={() => buildExperience(exp)}>Write with AI</button>
-              <button className="btn secondary" disabled={!exp.bullets.length || Boolean(aiBusy)} onClick={() => improveExperience(exp, 'stronger')}>Make stronger</button>
-              <button className="btn secondary" disabled={!exp.bullets.length || Boolean(aiBusy)} onClick={() => improveExperience(exp, 'technical')}>More technical</button>
-              <button className="btn secondary" disabled={!exp.bullets.length || Boolean(aiBusy)} onClick={() => improveExperience(exp, 'ats')}>ATS-friendly</button>
+              <button className="btn" disabled={Boolean(aiBusy)} onClick={() => buildExperience(exp)}>
+                Write with AI
+              </button>
+              <button className="btn secondary" disabled={!exp.bullets.length || Boolean(aiBusy)} onClick={() => improveExperience(exp, 'stronger')}>
+                Make stronger
+              </button>
+              <button className="btn secondary" disabled={!exp.bullets.length || Boolean(aiBusy)} onClick={() => improveExperience(exp, 'technical')}>
+                More technical
+              </button>
+              <button className="btn secondary" disabled={!exp.bullets.length || Boolean(aiBusy)} onClick={() => improveExperience(exp, 'ats')}>
+                ATS-friendly
+              </button>
             </div>
-            <label className="resume2-field full"><span>Resume bullets</span><textarea rows={Math.max(3, exp.bullets.length + 1)} value={exp.bullets.join('\n')} onChange={(e) => upsertExperience(exp.id, { bullets: e.target.value.split('\n').map((x) => x.trim()).filter(Boolean) })} placeholder="Built and integrated AI agents to streamline repetitive business processes." /></label>
+            <label className="resume2-field full">
+              <span>Bullets</span>
+              <textarea
+                rows={Math.max(3, exp.bullets.length + 1)}
+                value={exp.bullets.join('\n')}
+                onChange={(e) =>
+                  upsertExperience(exp.id, {
+                    bullets: e.target.value
+                      .split('\n')
+                      .map((x) => x.trim())
+                      .filter(Boolean),
+                  })
+                }
+                placeholder="Built and integrated AI agents to streamline repetitive business processes."
+              />
+            </label>
           </div>
         ))}
       </div>
-      <button className="btn secondary" onClick={addExperience}>Add experience</button>
+      <button className="btn secondary" onClick={addExperience}>
+        Add experience
+      </button>
       <StepActions prevStep={prevStep} nextStep={nextStep} />
     </div>
   );
@@ -678,66 +1252,396 @@ function ExperienceStep({ draft, addExperience, upsertExperience, removeExperien
 
 function SkillsStep({ draft, addSkills, removeSkill, suggestSkills, aiBusy, prevStep, nextStep }: StepContentProps) {
   const [skill, setSkill] = useState('');
+  const [category, setCategory] = useState('Core');
   return (
     <div className="resume2-step">
       <p className="eyebrow">Skills</p>
       <h2>Select what you actually know.</h2>
-      <div className="resume2-add-row"><input value={skill} onChange={(e) => setSkill(e.target.value)} placeholder="Add a skill" onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSkills([skill]); setSkill(''); } }} /><button className="btn secondary" onClick={() => { addSkills([skill]); setSkill(''); }}>Add</button><button className="btn secondary" disabled={aiBusy === 'suggestSkills'} onClick={suggestSkills}>Suggest skills</button></div>
+      <div className="resume2-add-row">
+        <input
+          value={skill}
+          onChange={(e) => setSkill(e.target.value)}
+          placeholder="Add a skill (e.g. TypeScript, Financial Modeling)"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              addSkills([skill], category);
+              setSkill('');
+            }
+          }}
+        />
+        <button
+          className="btn secondary"
+          onClick={() => {
+            addSkills([skill], category);
+            setSkill('');
+          }}
+        >
+          Add
+        </button>
+        <button className="btn secondary" disabled={aiBusy === 'suggestSkills'} onClick={suggestSkills}>
+          Suggest skills
+        </button>
+      </div>
+      <label className="resume2-field" style={{ maxWidth: 280 }}>
+        <span>Skill group (optional)</span>
+        <input
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          placeholder="Core, Languages, Cloud, Leadership..."
+        />
+      </label>
       <div className="resume2-skill-cloud">
-        {draft.skills.length === 0 && <p className="muted">No skills yet. Add a few or let the assistant suggest options.</p>}
-        {draft.skills.map((s) => <button key={s.name} onClick={() => removeSkill(s.name)}>{s.name}<span>×</span></button>)}
+        {draft.skills.length === 0 && (
+          <p className="muted">No skills yet. Add a few or let the assistant suggest options.</p>
+        )}
+        {draft.skills.map((s) => (
+          <button key={s.name} onClick={() => removeSkill(s.name)}>
+            {s.name}
+            <span>&times;</span>
+          </button>
+        ))}
       </div>
       <StepActions prevStep={prevStep} nextStep={nextStep} />
     </div>
   );
 }
 
-function EducationStep({ draft, addEducation, upsertEducation, addProject, upsertProject, patchDraft, prevStep, nextStep }: StepContentProps) {
+function EducationStep({
+  draft,
+  addEducation,
+  upsertEducation,
+  addProject,
+  upsertProject,
+  patchDraft,
+  setDocumentMode,
+  prevStep,
+  nextStep,
+}: StepContentProps) {
+  const isCv = draft.documentMode === 'cv';
   return (
     <div className="resume2-step">
-      <p className="eyebrow">Education, projects and more</p>
+      <p className="eyebrow">Education, projects and credentials</p>
       <h2>Add the details that support your target role.</h2>
-      <div className="resume2-subhead"><strong>Education</strong><button className="btn secondary" onClick={addEducation}>Add education</button></div>
-      {draft.education.map((edu) => <div className="resume2-item" key={edu.id}><div className="resume2-form-grid"><Field label="Institution" value={edu.institution} onChange={(v) => upsertEducation(edu.id, { institution: v })} /><Field label="Degree or qualification" value={edu.degree} onChange={(v) => upsertEducation(edu.id, { degree: v })} /><Field label="Field" value={edu.field ?? ''} onChange={(v) => upsertEducation(edu.id, { field: v })} /><Field label="Start" value={edu.startDate ?? ''} onChange={(v) => upsertEducation(edu.id, { startDate: v })} /><Field label="End" value={edu.endDate ?? ''} onChange={(v) => upsertEducation(edu.id, { endDate: v })} /></div><label className="resume2-field full"><span>Education notes or achievements</span><textarea rows={2} value={edu.achievements ?? ''} onChange={(e) => upsertEducation(edu.id, { achievements: e.target.value })} /></label></div>)}
-      <div className="resume2-subhead"><strong>Projects</strong><button className="btn secondary" onClick={addProject}>Add project</button></div>
-      {draft.projects.map((project) => <div className="resume2-item" key={project.id}><div className="resume2-form-grid"><Field label="Project name" value={project.name} onChange={(v) => upsertProject(project.id, { name: v })} /><Field label="Project URL" value={project.url ?? ''} onChange={(v) => upsertProject(project.id, { url: v })} /><Field label="Technologies" value={project.technologies.join(', ')} onChange={(v) => upsertProject(project.id, { technologies: v.split(',').map((x) => x.trim()).filter(Boolean) })} /></div><label className="resume2-field full"><span>Description</span><textarea rows={3} value={project.description} onChange={(e) => upsertProject(project.id, { description: e.target.value })} /></label><label className="resume2-field full"><span>Project achievements, one per line</span><textarea rows={3} value={project.achievements.join('\n')} onChange={(e) => upsertProject(project.id, { achievements: e.target.value.split('\n').map((x) => x.trim()).filter(Boolean) })} /></label></div>)}
-      <label className="resume2-field full"><span>Achievements, one per line</span><textarea rows={3} value={draft.achievements.join('\n')} onChange={(e) => patchDraft({ achievements: e.target.value.split('\n').map((x) => x.trim()).filter(Boolean) })} /></label>
-      <label className="resume2-field full"><span>Certifications, one per line</span><textarea rows={3} value={draft.certifications.map((c) => [c.name, c.issuer, c.date].filter(Boolean).join(' - ')).join('\n')} onChange={(e) => patchDraft({ certifications: e.target.value.split('\n').map((line) => { const parts = line.split(/\s+-\s+/).map((x) => x.trim()).filter(Boolean); return { id: newId('cert'), name: parts[0] ?? '', issuer: parts[1], date: parts[2] }; }).filter((c) => c.name) })} placeholder="AWS Certified Developer - Associate - 2024" /></label>
-      <label className="resume2-field full"><span>Languages, optional (one per line, e.g. English - Native)</span><textarea rows={2} value={(draft.languages ?? []).map((l) => [l.language, l.proficiency].filter(Boolean).join(' - ')).join('\n')} onChange={(e) => patchDraft({ languages: e.target.value.split('\n').map((line) => { const parts = line.split(/\s+-\s+/).map((x) => x.trim()).filter(Boolean); return { language: parts[0] ?? '', proficiency: parts[1] ?? '' }; }).filter((l) => l.language) })} placeholder="English - Native&#10;Spanish - Conversational" /></label>
-      <label className="resume2-field full"><span>Publications, optional (one per line)</span><textarea rows={2} value={(draft.publications ?? []).map((p) => [p.title, p.venue, p.date].filter(Boolean).join(' - ')).join('\n')} onChange={(e) => patchDraft({ publications: e.target.value.split('\n').map((line) => { const parts = line.split(/\s+-\s+/).map((x) => x.trim()).filter(Boolean); return { id: newId('pub'), title: parts[0] ?? '', venue: parts[1] ?? '', date: parts[2] ?? '', url: parts[3] ?? '' }; }).filter((p) => p.title) })} /></label>
-      <label className="resume2-field full"><span>Volunteer experience, optional (one per line)</span><textarea rows={2} value={(draft.volunteer ?? []).map((v) => [v.role, v.organization, v.dates, v.summary].filter(Boolean).join(' - ')).join('\n')} onChange={(e) => patchDraft({ volunteer: e.target.value.split('\n').map((line) => { const parts = line.split(/\s+-\s+/).map((x) => x.trim()).filter(Boolean); return { id: newId('vol'), role: parts[0] ?? '', organization: parts[1] ?? '', dates: parts[2] ?? '', summary: parts[3] ?? '' }; }).filter((v) => v.role || v.organization) })} /></label>
-      <label className="resume2-field full"><span>Professional memberships, optional (one per line)</span><textarea rows={2} value={(draft.memberships ?? []).join('\n')} onChange={(e) => patchDraft({ memberships: e.target.value.split('\n').map((x) => x.trim()).filter(Boolean) })} /></label>
-      <label className="resume2-field full"><span>References</span><textarea rows={2} value={draft.references} onChange={(e) => patchDraft({ references: e.target.value })} placeholder="Available on request, or add named references only if you have permission." /></label>
+      {isCv ? (
+        <div className="resume2-inline-card">
+          <strong>CV (Curriculum Vitae) Full-Credential Mode Active</strong>
+          <p>
+            Every populated section below (education, publications, projects, certifications, volunteer leadership,
+            memberships, languages, and references) will be included in your live preview and multi-page A4 export.
+          </p>
+        </div>
+      ) : (
+        <div className="resume2-inline-card">
+          <strong>Need publications, memberships, volunteer work, and references on every template?</strong>
+          <p style={{ marginBottom: 8 }}>
+            Switch to CV mode to include your complete academic and international credential history across any of the 30 templates.
+          </p>
+          <button type="button" className="btn secondary" onClick={() => setDocumentMode('cv')}>
+            Switch to CV Mode
+          </button>
+        </div>
+      )}
+      <div className="resume2-subhead">
+        <strong>Education</strong>
+        <button className="btn secondary" onClick={addEducation}>
+          Add education
+        </button>
+      </div>
+      {draft.education.map((edu) => (
+        <div className="resume2-item" key={edu.id}>
+          <div className="resume2-form-grid">
+            <Field label="Institution" value={edu.institution} onChange={(v) => upsertEducation(edu.id, { institution: v })} />
+            <Field label="Degree or qualification" value={edu.degree} onChange={(v) => upsertEducation(edu.id, { degree: v })} />
+            <Field label="Field" value={edu.field ?? ''} onChange={(v) => upsertEducation(edu.id, { field: v })} />
+            <Field label="Start" value={edu.startDate ?? ''} onChange={(v) => upsertEducation(edu.id, { startDate: v })} />
+            <Field label="End" value={edu.endDate ?? ''} onChange={(v) => upsertEducation(edu.id, { endDate: v })} />
+          </div>
+          <label className="resume2-field full">
+            <span>Education notes or achievements</span>
+            <textarea rows={2} value={edu.achievements ?? ''} onChange={(e) => upsertEducation(edu.id, { achievements: e.target.value })} />
+          </label>
+        </div>
+      ))}
+      <div className="resume2-subhead">
+        <strong>Projects</strong>
+        <button className="btn secondary" onClick={addProject}>
+          Add project
+        </button>
+      </div>
+      {draft.projects.map((project) => (
+        <div className="resume2-item" key={project.id}>
+          <div className="resume2-form-grid">
+            <Field label="Project name" value={project.name} onChange={(v) => upsertProject(project.id, { name: v })} />
+            <Field label="Project URL" value={project.url ?? ''} onChange={(v) => upsertProject(project.id, { url: v })} />
+            <Field
+              label="Technologies"
+              value={project.technologies.join(', ')}
+              onChange={(v) =>
+                upsertProject(project.id, {
+                  technologies: v
+                    .split(',')
+                    .map((x) => x.trim())
+                    .filter(Boolean),
+                })
+              }
+            />
+          </div>
+          <label className="resume2-field full">
+            <span>Description</span>
+            <textarea rows={3} value={project.description} onChange={(e) => upsertProject(project.id, { description: e.target.value })} />
+          </label>
+          <label className="resume2-field full">
+            <span>Project achievements, one per line</span>
+            <textarea
+              rows={3}
+              value={project.achievements.join('\n')}
+              onChange={(e) =>
+                upsertProject(project.id, {
+                  achievements: e.target.value
+                    .split('\n')
+                    .map((x) => x.trim())
+                    .filter(Boolean),
+                })
+              }
+            />
+          </label>
+        </div>
+      ))}
+      <label className="resume2-field full">
+        <span>Achievements &amp; awards, one per line</span>
+        <textarea
+          rows={3}
+          value={draft.achievements.join('\n')}
+          onChange={(e) =>
+            patchDraft({
+              achievements: e.target.value
+                .split('\n')
+                .map((x) => x.trim())
+                .filter(Boolean),
+            })
+          }
+        />
+      </label>
+      <label className="resume2-field full">
+        <span>Certifications, one per line</span>
+        <textarea
+          rows={3}
+          value={draft.certifications.map((c) => [c.name, c.issuer, c.date].filter(Boolean).join(' - ')).join('\n')}
+          onChange={(e) =>
+            patchDraft({
+              certifications: e.target.value
+                .split('\n')
+                .map((line) => {
+                  const parts = line
+                    .split(/\s+-\s+/)
+                    .map((x) => x.trim())
+                    .filter(Boolean);
+                  return { id: newId('cert'), name: parts[0] ?? '', issuer: parts[1], date: parts[2] };
+                })
+                .filter((c) => c.name),
+            })
+          }
+          placeholder="AWS Certified Developer - Associate - 2024"
+        />
+      </label>
+      <label className="resume2-field full">
+        <span>Languages, optional (one per line, e.g. English - Native)</span>
+        <textarea
+          rows={2}
+          value={(draft.languages ?? []).map((l) => [l.language, l.proficiency].filter(Boolean).join(' - ')).join('\n')}
+          onChange={(e) =>
+            patchDraft({
+              languages: e.target.value
+                .split('\n')
+                .map((line) => {
+                  const parts = line
+                    .split(/\s+-\s+/)
+                    .map((x) => x.trim())
+                    .filter(Boolean);
+                  return { language: parts[0] ?? '', proficiency: parts[1] ?? '' };
+                })
+                .filter((l) => l.language),
+            })
+          }
+          placeholder={'English - Native\nFrench - Conversational'}
+        />
+      </label>
+      <label className="resume2-field full">
+        <span>Publications, optional (one per line: Title - Venue - Year)</span>
+        <textarea
+          rows={2}
+          value={(draft.publications ?? []).map((p) => [p.title, p.venue, p.date].filter(Boolean).join(' - ')).join('\n')}
+          onChange={(e) =>
+            patchDraft({
+              publications: e.target.value
+                .split('\n')
+                .map((line) => {
+                  const parts = line
+                    .split(/\s+-\s+/)
+                    .map((x) => x.trim())
+                    .filter(Boolean);
+                  return { id: newId('pub'), title: parts[0] ?? '', venue: parts[1] ?? '', date: parts[2] ?? '', url: parts[3] ?? '' };
+                })
+                .filter((p) => p.title),
+            })
+          }
+        />
+      </label>
+      <label className="resume2-field full">
+        <span>Volunteer leadership, optional (one per line: Role - Organization - Dates - Summary)</span>
+        <textarea
+          rows={2}
+          value={(draft.volunteer ?? []).map((v) => [v.role, v.organization, v.dates, v.summary].filter(Boolean).join(' - ')).join('\n')}
+          onChange={(e) =>
+            patchDraft({
+              volunteer: e.target.value
+                .split('\n')
+                .map((line) => {
+                  const parts = line
+                    .split(/\s+-\s+/)
+                    .map((x) => x.trim())
+                    .filter(Boolean);
+                  return {
+                    id: newId('vol'),
+                    role: parts[0] ?? '',
+                    organization: parts[1] ?? '',
+                    dates: parts[2] ?? '',
+                    summary: parts[3] ?? '',
+                  };
+                })
+                .filter((v) => v.role || v.organization),
+            })
+          }
+        />
+      </label>
+      <label className="resume2-field full">
+        <span>Professional memberships, optional (one per line)</span>
+        <textarea
+          rows={2}
+          value={(draft.memberships ?? []).join('\n')}
+          onChange={(e) =>
+            patchDraft({
+              memberships: e.target.value
+                .split('\n')
+                .map((x) => x.trim())
+                .filter(Boolean),
+            })
+          }
+        />
+      </label>
+      <label className="resume2-field full">
+        <span>References</span>
+        <textarea
+          rows={2}
+          value={draft.references}
+          onChange={(e) => patchDraft({ references: e.target.value })}
+          placeholder="Available on request, or add named references only if you have permission."
+        />
+      </label>
       <StepActions prevStep={prevStep} nextStep={nextStep} />
     </div>
   );
 }
 
-function OptimizeStep({ draft, jobs, patchDraft, patchCareer, writeSummary, optimizeForJob, score, jobMatch, aiBusy, prevStep, nextStep }: StepContentProps) {
+function OptimizeStep({
+  draft,
+  jobs,
+  patchDraft,
+  patchCareer,
+  writeSummary,
+  optimizeForJob,
+  score,
+  jobMatch,
+  aiBusy,
+  prevStep,
+  nextStep,
+}: StepContentProps) {
   return (
     <div className="resume2-step">
-      <p className="eyebrow">Resume optimization</p>
-      <h2>Polish the resume without adding fake facts.</h2>
-      <label className="resume2-field full"><span>Professional summary</span><textarea rows={5} value={draft.career.summary} onChange={(e) => patchCareer('summary', e.target.value)} placeholder="A concise summary based on your real experience." /></label>
-      <div className="resume2-ai-row"><button className="btn" onClick={writeSummary} disabled={aiBusy === 'writeSummary'}>{aiBusy === 'writeSummary' ? 'Writing' : 'Write with AI'}</button><span className="muted">Uses only the facts already in this draft.</span></div>
-      <label className="resume2-field full"><span>Paste target job description, optional</span><textarea rows={6} value={draft.targetJobDescription} onChange={(e) => patchDraft({ targetJobDescription: e.target.value })} placeholder="Paste the job you are applying for. I will compare keywords without treating the job post as facts about you." /></label>
-      {jobs.length > 0 && <p className="muted" style={{ fontSize: 13 }}>Jobs you started applications for also appear when generating cover letters and answers.</p>}
-      <div className="resume2-ai-row"><button className="btn secondary" onClick={optimizeForJob} disabled={aiBusy === 'optimizeForJob' || draft.targetJobDescription.length < 30}>Check target job match</button></div>
-      {jobMatch && <div className="resume2-inline-card"><strong>Resume Match: {jobMatch.match}%</strong><ul>{jobMatch.recommendations.map((r) => <li key={r}>{r}</li>)}</ul></div>}
+      <p className="eyebrow">Document optimization</p>
+      <h2>Polish your {draft.documentMode === 'cv' ? 'CV' : 'resume'} without adding fake facts.</h2>
+      <label className="resume2-field full">
+        <span>Professional summary</span>
+        <textarea
+          rows={5}
+          value={draft.career.summary}
+          onChange={(e) => patchCareer('summary', e.target.value)}
+          placeholder="A concise summary based on your real experience."
+        />
+      </label>
+      <div className="resume2-ai-row">
+        <button className="btn" onClick={writeSummary} disabled={aiBusy === 'writeSummary'}>
+          {aiBusy === 'writeSummary' ? 'Writing' : 'Write with AI'}
+        </button>
+        <span className="muted">Uses only the facts already in this draft.</span>
+      </div>
+      <label className="resume2-field full">
+        <span>Paste target job description, optional</span>
+        <textarea
+          rows={6}
+          value={draft.targetJobDescription}
+          onChange={(e) => patchDraft({ targetJobDescription: e.target.value })}
+          placeholder="Paste the job you are applying for. I will compare keywords without treating the job post as facts about you."
+        />
+      </label>
+      {jobs.length > 0 && (
+        <p className="muted" style={{ fontSize: 13 }}>
+          Jobs you started applications for also appear when generating cover letters and answers.
+        </p>
+      )}
+      <div className="resume2-ai-row">
+        <button
+          className="btn secondary"
+          onClick={optimizeForJob}
+          disabled={aiBusy === 'optimizeForJob' || draft.targetJobDescription.length < 30}
+        >
+          Check target job match
+        </button>
+      </div>
+      {jobMatch && (
+        <div className="resume2-inline-card">
+          <strong>Job Match: {jobMatch.match}%</strong>
+          <ul>
+            {jobMatch.recommendations.map((r) => (
+              <li key={r}>{r}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <ScoreCard score={score} />
       <StepActions prevStep={prevStep} nextStep={nextStep} />
     </div>
   );
 }
 
-function TemplatesStep({ draft, recommended, selectedCategory, setSelectedCategory, patchDraft, prevStep, nextStep }: StepContentProps) {
+function TemplatesStep({
+  draft,
+  recommended,
+  selectedCategory,
+  setSelectedCategory,
+  patchDraft,
+  prevStep,
+  nextStep,
+}: StepContentProps) {
   const [tplSearch, setTplSearch] = useState('');
   const [showAllCats, setShowAllCats] = useState(true);
   const allVisible = CURATED_TEMPLATES.filter((t) => {
     if (!showAllCats && t.category !== selectedCategory) return false;
     if (!tplSearch.trim()) return true;
     const q = tplSearch.trim().toLowerCase();
-    const hay = [t.code, t.name, t.description, t.groupName, t.intendedUse, ...(t.bestFor ?? []), ...(t.libraryCategories ?? [])].filter(Boolean).join(' ').toLowerCase();
+    const hay = [
+      t.code,
+      t.name,
+      t.description,
+      t.groupName,
+      t.intendedUse,
+      ...(t.bestFor ?? []),
+      ...(t.libraryCategories ?? []),
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
     return q.split(/\s+/).every((part) => hay.includes(part));
   });
   const [showCount, setShowCount] = useState(8);
@@ -765,9 +1669,11 @@ function TemplatesStep({ draft, recommended, selectedCategory, setSelectedCatego
       const data = (await res.json()) as { dataUrl?: string; error?: string };
       if (!res.ok || !data.dataUrl) {
         throw new Error(
-          data.error === 'PHOTO_TOO_LARGE' ? 'Photo must be 2 MB or smaller.'
-          : data.error === 'PHOTO_UNSUPPORTED_TYPE' ? 'Photos must be JPEG or PNG. WebP cannot be embedded in PDF exports.'
-          : 'Upload failed. Please try again.',
+          data.error === 'PHOTO_TOO_LARGE'
+            ? 'Photo must be 2 MB or smaller.'
+            : data.error === 'PHOTO_UNSUPPORTED_TYPE'
+              ? 'Photos must be JPEG or PNG. WebP cannot be embedded in PDF exports.'
+              : 'Upload failed. Please try again.',
         );
       }
       patchDraft({ personal: { ...draft.personal, photoDataUrl: data.dataUrl } });
@@ -778,16 +1684,34 @@ function TemplatesStep({ draft, recommended, selectedCategory, setSelectedCatego
       event.target.value = '';
     }
   }
+
   return (
     <div className="resume2-step">
-      <p className="eyebrow" style={{ fontSize: '12px', letterSpacing: '0.12em' }}>CAREER TOOLS / RESUME BUILDER</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <p className="eyebrow" style={{ fontSize: '12px', letterSpacing: '0.12em', margin: 0 }}>
+          CAREER TOOLS / RESUME &amp; CV BUILDER
+        </p>
+        <Link href="/templates" style={{ fontSize: 13, fontWeight: 700, color: '#111d35' }}>
+          Open full-screen 30-template gallery &rarr;
+        </Link>
+      </div>
       <h2>Choose your template</h2>
-      <p className="resume2-copy" style={{ maxWidth: '65ch', margin: '0 0 24px' }}>Explore professionally designed templates for your next application. Your selection will be used to format your AI-generated resume.</p>
-      <h3 style={{ display: 'none' }}>Choose from 30 professional templates.</h3>
-      <p className="resume2-copy">30 curated designs, each with its own palette and layout - card previews use fictional Alex Morgan details only; the live preview shows your own draft.</p>
-      <div className="resume2-subhead"><strong>Recommended for you</strong></div>
+      <p className="resume2-copy" style={{ maxWidth: '65ch', margin: '0 0 18px' }}>
+        Explore 30 ISO A4 architectures for both concise Resumes and multi-page CVs. Switching templates preserves all of
+        your data. Card miniatures show sample layout data; the live preview shows your own draft.
+      </p>
+      <div className="resume2-subhead">
+        <strong>Recommended for you</strong>
+      </div>
       <div className="resume2-template-grid recommended">
-        {recommended.map((template) => <TemplateCard key={template.id} template={template} selected={draft.selectedTemplate === template.id} onSelect={() => patchDraft({ selectedTemplate: template.id })} />)}
+        {recommended.map((templateItem) => (
+          <TemplateCard
+            key={templateItem.id}
+            template={templateItem}
+            selected={draft.selectedTemplate === templateItem.id}
+            onSelect={() => patchDraft({ selectedTemplate: templateItem.id })}
+          />
+        ))}
       </div>
       <div style={{ margin: '14px 0 10px' }}>
         <input
@@ -800,7 +1724,9 @@ function TemplatesStep({ draft, recommended, selectedCategory, setSelectedCatego
         />
       </div>
       <div className="resume2-category-row">
-        <button className={showAllCats ? 'active' : ''} onClick={() => setShowAllCats(true)}>All <span>{CURATED_TEMPLATES.length}</span></button>
+        <button className={showAllCats ? 'active' : ''} onClick={() => setShowAllCats(true)}>
+          All <span>{CURATED_TEMPLATES.length}</span>
+        </button>
         {TEMPLATE_CATEGORIES.map((cat) => (
           <button
             key={cat}
@@ -815,32 +1741,67 @@ function TemplatesStep({ draft, recommended, selectedCategory, setSelectedCatego
         ))}
       </div>
       <div className="resume2-template-grid">
-        {visible.map((template) => <TemplateCard key={template.id} template={template} selected={draft.selectedTemplate === template.id} onSelect={() => patchDraft({ selectedTemplate: template.id })} />)}
+        {visible.map((templateItem) => (
+          <TemplateCard
+            key={templateItem.id}
+            template={templateItem}
+            selected={draft.selectedTemplate === templateItem.id}
+            onSelect={() => patchDraft({ selectedTemplate: templateItem.id })}
+          />
+        ))}
       </div>
       {allVisible.length > visible.length && (
         <div style={{ display: 'grid', placeItems: 'center', marginTop: 16 }}>
-          <button className="btn secondary" onClick={() => setShowCount((c) => Math.min(c + pageSize, allVisible.length))}>Show {pageSize} more ({allVisible.length - visible.length} remaining)</button>
+          <button
+            className="btn secondary"
+            onClick={() => setShowCount((c) => Math.min(c + pageSize, allVisible.length))}
+          >
+            Show {pageSize} more ({allVisible.length - visible.length} remaining)
+          </button>
         </div>
       )}
       {allVisible.length > 6 && visible.length === allVisible.length && (
         <div style={{ display: 'grid', placeItems: 'center', marginTop: 16 }}>
-          <button className="btn secondary" onClick={() => setShowCount(pageSize)}>Show less</button>
+          <button className="btn secondary" onClick={() => setShowCount(pageSize)}>
+            Show less
+          </button>
         </div>
       )}
       {photoCapable && (
         <div className="resume2-photo-row">
-          <strong>{templatePhotoSupport(selectedTemplate) === 'required' ? 'Photo required for this template' : 'Photo optional for this template'}</strong>
-          <p>Upload a headshot (JPEG or PNG, 2 MB max). It appears in the preview and is embedded in PDF and Word exports. Server-side validation applies.</p>
+          <strong>
+            {templatePhotoSupport(selectedTemplate) === 'required'
+              ? 'Photo required for this template'
+              : 'Photo optional for this template'}
+          </strong>
+          <p>
+            Upload a headshot (JPEG or PNG, 2 MB max). It appears in the preview and is embedded in PDF and Word exports.
+            Server-side validation applies.
+          </p>
           {draft.personal.photoDataUrl ? (
             <div className="resume2-photo-edit">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={draft.personal.photoDataUrl} alt="Your resume photo" />
-              <button className="btn secondary" type="button" onClick={() => patchDraft({ personal: { ...draft.personal, photoDataUrl: '' } })}>Remove photo</button>
+              <button
+                className="btn secondary"
+                type="button"
+                onClick={() => patchDraft({ personal: { ...draft.personal, photoDataUrl: '' } })}
+              >
+                Remove photo
+              </button>
             </div>
           ) : (
             <label className={`btn secondary resume2-photo-label${photoBusy ? ' disabled' : ''}`}>
-              {photoBusy ? 'Validating…' : 'Upload photo'}
-              <input type="file" accept="image/jpeg,image/png" className="resume2-photo-input" onChange={(event) => { void onPhotoChange(event); }} disabled={photoBusy} />
+              {photoBusy ? 'Validating...' : 'Upload photo'}
+              <input
+                type="file"
+                accept="image/jpeg,image/png"
+                className="resume2-photo-input"
+                onChange={(event) => {
+                  void onPhotoChange(event);
+                }}
+                disabled={photoBusy}
+              />
             </label>
           )}
           {photoError && <p className="resume2-photo-error">{photoError}</p>}
@@ -851,56 +1812,211 @@ function TemplatesStep({ draft, recommended, selectedCategory, setSelectedCatego
   );
 }
 
-function ReviewStep({ draft, score, finalReview, generated, patchDraft, runFinalReview, generateFinalResume, aiBusy, prevStep }: StepContentProps) {
+function ReviewStep({
+  draft,
+  score,
+  finalReview,
+  generated,
+  patchDraft,
+  setDocumentMode,
+  runFinalReview,
+  generateFinalResume,
+  aiBusy,
+  prevStep,
+  onNotify,
+}: StepContentProps) {
   const activeTemplate = getResumeTemplate(draft.selectedTemplate);
+  const activeDocMode: DocumentMode = draft.documentMode === 'cv' ? 'cv' : 'resume';
+  const [downloadBusy, setDownloadBusy] = useState<string | null>(null);
+
+  async function handleExport(format: 'pdf' | 'docx', modeOverride: DocumentMode = activeDocMode) {
+    if (!generated) return;
+    const key = `${format}:${modeOverride}`;
+    setDownloadBusy(key);
+    const result = await downloadExportedDocument({
+      documentId: generated.id,
+      format,
+      templateId: draft.selectedTemplate,
+      documentMode: modeOverride,
+      returnPath: '/generate',
+    });
+    setDownloadBusy(null);
+    if (!result.ok) {
+      onNotify(result.message);
+    } else {
+      onNotify(`Downloaded ${result.filename}`);
+    }
+  }
+
   return (
     <div className="resume2-step">
       <p className="eyebrow">Final review</p>
-      <h2>Your resume is almost ready.</h2>
-      <p className="resume2-copy">We built a resume around {draft.career.targetRole || draft.career.headline || 'your target role'} using your actual information. Run one final check, then generate the document.</p>
+      <h2>Your {activeDocMode === 'cv' ? 'Curriculum Vitae' : 'resume'} is almost ready.</h2>
+      <p className="resume2-copy">
+        We built a {activeDocMode === 'cv' ? 'comprehensive CV' : 'concise resume'} around{' '}
+        {draft.career.targetRole || draft.career.headline || 'your target role'} using your actual information. Run one
+        final check, then generate and export in PDF or DOCX.
+      </p>
       <ScoreCard score={score} />
-      <div className="resume2-ai-row"><button className="btn secondary" onClick={runFinalReview} disabled={aiBusy === 'finalReview'}>Run final AI review</button><button className="btn" onClick={generateFinalResume} disabled={Boolean(aiBusy)}>{aiBusy === 'generateFinalResume' ? 'Generating' : 'Generate final resume'}</button></div>
-      {finalReview && <div className="resume2-checks"><strong>{finalReview.summary}</strong>{finalReview.checks.map((c) => <p key={c.label} className={c.ok ? 'ok' : 'warn'}>{c.ok ? '✓' : '!'} {c.label}: {c.detail}</p>)}</div>}
+      <div className="resume2-ai-row">
+        <button className="btn secondary" onClick={runFinalReview} disabled={aiBusy === 'finalReview'}>
+          Run final AI review
+        </button>
+        <button className="btn" onClick={generateFinalResume} disabled={Boolean(aiBusy)}>
+          {aiBusy === 'generateFinalResume'
+            ? 'Generating'
+            : activeDocMode === 'cv'
+              ? 'Generate final CV'
+              : 'Generate final resume'}
+        </button>
+      </div>
+      {finalReview && (
+        <div className="resume2-checks">
+          <strong>{finalReview.summary}</strong>
+          {finalReview.checks.map((c) => (
+            <p key={c.label} className={c.ok ? 'ok' : 'warn'}>
+              {c.ok ? 'OK' : '!'} {c.label}: {c.detail}
+            </p>
+          ))}
+        </div>
+      )}
       {generated && (
         <div className="resume2-ready">
-          <h3>Your A4 resume is ready</h3>
-          <p>Switch templates below at any time and re-download in PDF or DOCX without using another credit.</p>
-          <strong>Resume Strength: {score.total}/100 &middot; Template: {activeTemplate.name}</strong>
-          <div style={{ margin: '10px 0' }}>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Export template (30 A4 designs):</label>
-            <select
-              aria-label="Export template selector"
-              value={draft.selectedTemplate}
-              onChange={(e) => patchDraft({ selectedTemplate: e.target.value })}
-              style={{ width: '100%', maxWidth: 420, padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
-            >
-              {CURATED_TEMPLATES.map((t) => (
-                <option key={t.id} value={t.id}>
-                  #{t.code} {t.name} ({t.atsCompatibility === 'verified' ? 'ATS-Verified 1-Col' : '2-Col Visual'})
-                </option>
-              ))}
-            </select>
+          <h3>Your A4 {activeDocMode === 'cv' ? 'CV' : 'resume'} is ready</h3>
+          <p>
+            Switch between <strong>Resume</strong> and <strong>CV (Curriculum Vitae)</strong> or pick any of the 30 A4
+            templates below and re-download in PDF or DOCX without using another credit.
+          </p>
+          <strong>
+            Strength: {score.total}/100 &middot; Format: {activeDocMode === 'cv' ? 'CV' : 'Resume'} &middot; Template:{' '}
+            {activeTemplate.name}
+          </strong>
+          <div style={{ display: 'grid', gap: 10, margin: '12px 0' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
+                Export document format:
+              </label>
+              <div className="resume2-docformat-seg" role="group" aria-label="Export document format">
+                <button
+                  type="button"
+                  className={activeDocMode === 'resume' ? 'active' : ''}
+                  onClick={() => setDocumentMode('resume')}
+                >
+                  Resume (Concise)
+                </button>
+                <button
+                  type="button"
+                  className={activeDocMode === 'cv' ? 'active' : ''}
+                  onClick={() => setDocumentMode('cv')}
+                >
+                  CV (Full Curriculum Vitae)
+                </button>
+              </div>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
+                Export template (30 A4 designs):
+              </label>
+              <select
+                aria-label="Export template selector"
+                value={draft.selectedTemplate}
+                onChange={(e) => patchDraft({ selectedTemplate: e.target.value })}
+                style={{
+                  width: '100%',
+                  maxWidth: 440,
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  border: '1px solid #cbd5e1',
+                  fontSize: 13,
+                }}
+              >
+                {CURATED_TEMPLATES.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    #{t.code} {t.name} ({t.atsCompatibility === 'verified' ? 'ATS-Verified 1-Col' : '2-Col Visual'})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-          <div className="resume2-actions left">
-            <a className="btn" href={`/api/documents/${generated.id}/export?format=pdf&template=${encodeURIComponent(draft.selectedTemplate)}`}>Download A4 PDF</a>
-            <a className="btn secondary" href={`/api/documents/${generated.id}/export?format=docx&template=${encodeURIComponent(draft.selectedTemplate)}`}>Download DOCX</a>
-            <button className="btn secondary" onClick={prevStep}>Edit Resume</button>
+          <div className="resume2-actions left" style={{ flexWrap: 'wrap' }}>
+            <a
+              className="btn"
+              href={buildDocumentExportUrl({
+                documentId: generated.id,
+                format: 'pdf',
+                templateId: draft.selectedTemplate,
+                documentMode: activeDocMode,
+              })}
+              onClick={(e) => {
+                e.preventDefault();
+                void handleExport('pdf', activeDocMode);
+              }}
+            >
+              {downloadBusy === `pdf:${activeDocMode}`
+                ? 'Preparing PDF...'
+                : `Download ${activeDocMode === 'cv' ? 'CV' : 'Resume'} PDF`}
+            </a>
+            <a
+              className="btn secondary"
+              href={buildDocumentExportUrl({
+                documentId: generated.id,
+                format: 'docx',
+                templateId: draft.selectedTemplate,
+                documentMode: activeDocMode,
+              })}
+              onClick={(e) => {
+                e.preventDefault();
+                void handleExport('docx', activeDocMode);
+              }}
+            >
+              {downloadBusy === `docx:${activeDocMode}`
+                ? 'Preparing DOCX...'
+                : `Download ${activeDocMode === 'cv' ? 'CV' : 'Resume'} DOCX`}
+            </a>
+            <Link className="btn secondary" href="/documents">
+              View in Documents
+            </Link>
+            <button className="btn secondary" onClick={prevStep}>
+              Edit Draft
+            </button>
           </div>
         </div>
       )}
-      <div className="resume2-actions"><button className="btn secondary" onClick={prevStep}>Back</button></div>
+      <div className="resume2-actions">
+        <button className="btn secondary" onClick={prevStep}>
+          Back
+        </button>
+      </div>
     </div>
   );
 }
 
-function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string }) {
-  return <label className="resume2-field"><span>{label}</span><input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} /></label>;
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <label className="resume2-field">
+      <span>{label}</span>
+      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+    </label>
+  );
 }
 
 function ScoreCard({ score }: { score: ResumeScore }) {
   return (
     <div className="resume2-score-card">
-      <div><span>Resume Strength</span><strong>{score.total}/100</strong></div>
+      <div>
+        <span>Resume Strength</span>
+        <strong>{score.total}/100</strong>
+      </div>
       <div className="resume2-score-bars">
         <ScoreLine label="Content" value={score.content} />
         <ScoreLine label="Experience" value={score.experience} />
@@ -908,25 +2024,51 @@ function ScoreCard({ score }: { score: ResumeScore }) {
         <ScoreLine label="ATS" value={score.ats} />
         <ScoreLine label="Formatting" value={score.formatting} />
       </div>
-      {score.fixes.length > 0 && <ul>{score.fixes.slice(0, 3).map((fix) => <li key={fix.message}>{fix.message}</li>)}</ul>}
+      {score.fixes.length > 0 && (
+        <ul>
+          {score.fixes.slice(0, 3).map((fix) => (
+            <li key={fix.message}>{fix.message}</li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
 
 function ScoreLine({ label, value }: { label: number | string; value: number }) {
-  return <p><span>{label}</span><b>{value}</b><i><em style={{ width: `${value}%` }} /></i></p>;
+  return (
+    <p>
+      <span>{label}</span>
+      <b>{value}</b>
+      <i>
+        <em style={{ width: `${value}%` }} />
+      </i>
+    </p>
+  );
 }
 
-const TemplateCard = memo(function TemplateCard({ template, selected, onSelect }: { template: ResumeTemplate; selected: boolean; onSelect: () => void }) {
+const TemplateCard = memo(function TemplateCard({
+  template,
+  selected,
+  onSelect,
+}: {
+  template: ResumeTemplate;
+  selected: boolean;
+  onSelect: () => void;
+}) {
   return (
     <div className={`resume2-template-card ${selected ? 'selected' : ''}`}>
       <div className="resume2-template-preview" aria-hidden="true">
         <ResumeDocumentPreview template={template} draft={SAMPLE_PREVIEW_DRAFT} size="mini" demo />
       </div>
       <div className="resume2-template-body">
-        <strong className="resume2-template-title">{template.code ? `#${template.code} ` : ''}{template.name}</strong>
+        <strong className="resume2-template-title">
+          {template.code ? `#${template.code} ` : ''}
+          {template.name}
+        </strong>
         <span className="resume2-template-meta">
-          {template.atsCompatibility === 'verified' ? 'ATS-Verified' : '2-Col Visual'} | {template.columns === 2 ? '2-Col' : '1-Col'} | Group {template.group ?? 'A'}
+          {template.atsCompatibility === 'verified' ? 'ATS-Verified' : '2-Col Visual'} |{' '}
+          {template.columns === 2 ? '2-Col' : '1-Col'} | Group {template.group ?? 'A'}
         </span>
         <p className="resume2-template-desc">{template.description}</p>
       </div>
@@ -937,7 +2079,19 @@ const TemplateCard = memo(function TemplateCard({ template, selected, onSelect }
   );
 });
 
-function ClassicGenerator({ jobs, recent, loadRecent }: { jobs: Job[]; recent: GenDoc[]; loadRecent: () => void }) {
+function ClassicGenerator({
+  jobs,
+  recent,
+  loadRecent,
+  selectedTemplateId,
+  onNotify,
+}: {
+  jobs: Job[];
+  recent: GenDoc[];
+  loadRecent: () => void;
+  selectedTemplateId: string;
+  onNotify: (msg: string) => void;
+}) {
   const [kind, setKind] = useState<Exclude<Kind, 'CV'>>('COVER_LETTER');
   const [jobId, setJobId] = useState('');
   const [questions, setQuestions] = useState('');
@@ -952,18 +2106,45 @@ function ClassicGenerator({ jobs, recent, loadRecent }: { jobs: Job[]; recent: G
     try {
       const payload: Record<string, unknown> = { kind };
       if (jobId) payload.jobId = jobId;
-      if (kind === 'ANSWERS') payload.questions = questions.split('\n').map((s) => s.trim()).filter(Boolean);
-      const res = await fetch('/api/documents/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (kind === 'ANSWERS') {
+        payload.questions = questions
+          .split('\n')
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+      const res = await fetch('/api/documents/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
       const json = await res.json();
       if (!res.ok) {
         const map: Record<string, { title: string; detail: string }> = {
-          AI_QUOTA_EXHAUSTED: { title: 'Out of AI generations', detail: 'You have reached your plan generation limit for today.' },
-          DAILY_AI_CREDITS_EXHAUSTED: { title: 'Out of AI generations', detail: 'You have reached your plan generation limit for today.' },
-          CAREER_PROFILE_REQUIRED: { title: 'Complete your profile', detail: 'Generation needs your career profile first.' },
+          AI_QUOTA_EXHAUSTED: {
+            title: 'Out of AI generations',
+            detail: 'You have reached your plan generation limit for today.',
+          },
+          DAILY_AI_CREDITS_EXHAUSTED: {
+            title: 'Out of AI generations',
+            detail: 'You have reached your plan generation limit for today.',
+          },
+          CAREER_PROFILE_REQUIRED: {
+            title: 'Complete your profile',
+            detail: 'Generation needs your career profile first.',
+          },
           RATE_LIMITED: { title: 'Slow down', detail: 'Too many requests. Wait a moment.' },
-          ONBOARDING_REQUIRED: { title: 'Finish your profile setup', detail: 'Answer the remaining setup questions on your dashboard to unlock generation.' },
-          TRUTHFULNESS_FAILED: { title: 'Unsupported facts found', detail: 'The draft contained claims not in your profile, so it was not saved.' },
-          ANSWERS_REQUIRES_QUESTIONS: { title: 'Add questions', detail: 'Enter at least one application question.' },
+          ONBOARDING_REQUIRED: {
+            title: 'Finish your profile setup',
+            detail: 'Answer the remaining setup questions on your dashboard to unlock generation.',
+          },
+          TRUTHFULNESS_FAILED: {
+            title: 'Unsupported facts found',
+            detail: 'The draft contained claims not in your profile, so it was not saved.',
+          },
+          ANSWERS_REQUIRES_QUESTIONS: {
+            title: 'Add questions',
+            detail: 'Enter at least one application question.',
+          },
         };
         if (json?.error === 'TRUTHFULNESS_FAILED') {
           setResult({ content: json.draft ?? '', report: json.report });
@@ -971,11 +2152,21 @@ function ClassicGenerator({ jobs, recent, loadRecent }: { jobs: Job[]; recent: G
           setError(map.TRUTHFULNESS_FAILED);
           return;
         }
-        setError(map[json?.error] ?? { title: 'Writing assistant paused', detail: "Looks like my writing assistant took a tiny coffee break. Let's try that again, or continue manually." });
+        setError(
+          map[json?.error] ?? {
+            title: 'Writing assistant paused',
+            detail: "Looks like my writing assistant took a tiny coffee break. Let's try that again, or continue manually.",
+          },
+        );
         setStatus('error');
         return;
       }
-      setResult({ content: json.document.content, report: json.report, version: json.document.version, id: json.document.id });
+      setResult({
+        content: json.document.content,
+        report: json.report,
+        version: json.document.version,
+        id: json.document.id,
+      });
       setStatus('done');
       loadRecent();
     } catch {
@@ -989,34 +2180,267 @@ function ClassicGenerator({ jobs, recent, loadRecent }: { jobs: Job[]; recent: G
       <div className="card" style={{ maxWidth: 860, marginBottom: 18 }}>
         <p className="eyebrow">Classic document mode</p>
         <h2 style={{ margin: '0 0 8px' }}>Cover letters and application answers</h2>
-        <p className="muted">Resume generation now uses the guided AI Resume Builder Journey. This mode keeps the existing cover letter and answer flow working.</p>
-        <div className="chip-group" style={{ margin: '16px 0' }}>{KINDS.map((k) => <button key={k.id} className="chip" aria-pressed={kind === k.id} onClick={() => setKind(k.id)} title={k.hint}>{k.label}</button>)}</div>
-        <label className="resume2-field full"><span>Tailor to a job you are applying to, optional</span><select value={jobId} onChange={(e) => setJobId(e.target.value)}><option value="">General, no specific job</option>{jobs.map((j) => <option key={j.id} value={j.id}>{j.title}, {j.company}</option>)}</select></label>
-        {kind === 'ANSWERS' && <label className="resume2-field full"><span>Application questions, one per line</span><textarea rows={5} value={questions} onChange={(e) => setQuestions(e.target.value)} placeholder={'Why do you want this role?\nDescribe a challenge you solved.'} /></label>}
-        <div className="resume2-actions left"><button className="btn" onClick={generate} disabled={status === 'loading'}>{status === 'loading' ? 'Generating' : 'Generate'}</button><span className="muted">Costs 1 AI credit. Editing and re-downloading your resume never uses a credit; only a fresh generation does.</span></div>
+        <p className="muted">
+          Resume and CV generation uses the guided AI Builder Journey. This mode keeps cover letter and application
+          answer generation one click away.
+        </p>
+        <div className="chip-group" style={{ margin: '16px 0' }}>
+          {KINDS.map((k) => (
+            <button
+              key={k.id}
+              className="chip"
+              aria-pressed={kind === k.id}
+              onClick={() => setKind(k.id)}
+              title={k.hint}
+            >
+              {k.label}
+            </button>
+          ))}
+        </div>
+        <label className="resume2-field full">
+          <span>Tailor to a job you are applying to, optional</span>
+          <select value={jobId} onChange={(e) => setJobId(e.target.value)}>
+            <option value="">General, no specific job</option>
+            {jobs.map((j) => (
+              <option key={j.id} value={j.id}>
+                {j.title}, {j.company}
+              </option>
+            ))}
+          </select>
+        </label>
+        {kind === 'ANSWERS' && (
+          <label className="resume2-field full">
+            <span>Application questions, one per line</span>
+            <textarea
+              rows={5}
+              value={questions}
+              onChange={(e) => setQuestions(e.target.value)}
+              placeholder={'Why do you want this role?\nDescribe a challenge you solved.'}
+            />
+          </label>
+        )}
+        <div className="resume2-actions left">
+          <button className="btn" onClick={generate} disabled={status === 'loading'}>
+            {status === 'loading' ? 'Generating' : 'Generate'}
+          </button>
+          <span className="muted">
+            Costs 1 AI credit. Editing and re-downloading your resume or CV never uses a credit; only a fresh generation does.
+          </span>
+        </div>
       </div>
-      {error && <div className="card" style={{ maxWidth: 860, borderColor: 'var(--danger-line)' }}><h2 style={{ fontSize: 17, color: 'var(--danger)' }}>{error.title}</h2><p className="muted" style={{ marginTop: 6 }}>{error.detail}</p></div>}
-      {result && <div className="card" style={{ maxWidth: 860 }}><ReportBar report={result.report} version={result.version} />{result.id && <div className="resume2-actions left"><a className="btn secondary" href={`/api/documents/${result.id}/export?format=pdf`}>Download PDF</a><a className="btn secondary" href={`/api/documents/${result.id}/export?format=docx`}>Download DOCX</a></div>}<div style={{ marginTop: 16 }}><ContentRender kind={kind} content={result.content} /></div></div>}
-      <RecentVersions recent={recent} />
+      {error && (
+        <div className="card" style={{ maxWidth: 860, borderColor: 'var(--danger-line)' }}>
+          <h2 style={{ fontSize: 17, color: 'var(--danger)' }}>{error.title}</h2>
+          <p className="muted" style={{ marginTop: 6 }}>
+            {error.detail}
+          </p>
+        </div>
+      )}
+      {result && (
+        <div className="card" style={{ maxWidth: 860 }}>
+          <ReportBar report={result.report} version={result.version} />
+          {result.id && (
+            <div className="resume2-actions left">
+              <a
+                className="btn secondary"
+                href={buildDocumentExportUrl({ documentId: result.id, format: 'pdf' })}
+                onClick={(e) => {
+                  e.preventDefault();
+                  void downloadExportedDocument({ documentId: result.id!, format: 'pdf', returnPath: '/generate' });
+                }}
+              >
+                Download PDF
+              </a>
+              <a
+                className="btn secondary"
+                href={buildDocumentExportUrl({ documentId: result.id, format: 'docx' })}
+                onClick={(e) => {
+                  e.preventDefault();
+                  void downloadExportedDocument({ documentId: result.id!, format: 'docx', returnPath: '/generate' });
+                }}
+              >
+                Download DOCX
+              </a>
+            </div>
+          )}
+          <div style={{ marginTop: 16 }}>
+            <ContentRender kind={kind} content={result.content} />
+          </div>
+        </div>
+      )}
+      <RecentVersions recent={recent} selectedTemplateId={selectedTemplateId} onNotify={onNotify} />
     </div>
   );
 }
 
-function RecentVersions({ recent }: { recent: GenDoc[] }) {
+function RecentVersions({
+  recent,
+  selectedTemplateId,
+  onNotify,
+}: {
+  recent: GenDoc[];
+  selectedTemplateId: string;
+  onNotify: (msg: string) => void;
+}) {
+  const [busyKey, setBusyKey] = useState<string | null>(null);
   if (!recent.length) return null;
-  return <section style={{ maxWidth: 860, marginTop: 28 }}><h2 style={{ fontSize: 18, margin: '0 0 12px' }}>Recent versions</h2><div className="document-list">{recent.map((d) => <div className="document-row card" key={d.id} style={{ padding: 16 }}><div><strong>{d.title}</strong><p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>v{d.version} | {new Date(d.created_at).toLocaleString()} | {d.kind}{d.source_facts?.templateName ? ` | ${d.source_facts.templateName}` : ''}</p></div><span className="badge" style={d.source_facts?.truthfulnessPassed === false ? { background: 'var(--danger-bg)', color: 'var(--danger)' } : { background: 'var(--success-bg)', color: 'var(--success)' }}>{d.source_facts?.truthfulnessPassed === false ? 'flagged' : 'verified'}</span></div>)}</div></section>;
+
+  async function quickDownload(doc: GenDoc, format: 'pdf' | 'docx', docMode?: DocumentMode) {
+    const key = `${doc.id}:${format}:${docMode ?? 'default'}`;
+    setBusyKey(key);
+    const result = await downloadExportedDocument({
+      documentId: doc.id,
+      format,
+      templateId: doc.kind === 'CV' ? doc.source_facts?.templateId || selectedTemplateId : undefined,
+      documentMode: doc.kind === 'CV' ? docMode : undefined,
+      returnPath: '/generate',
+    });
+    setBusyKey(null);
+    if (!result.ok) onNotify(result.message);
+    else onNotify(`Downloaded ${result.filename}`);
+  }
+
+  return (
+    <section style={{ maxWidth: 960, marginTop: 28 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 10, flexWrap: 'wrap' }}>
+        <h2 style={{ fontSize: 18, margin: 0 }}>Recent versions</h2>
+        <Link href="/documents" style={{ fontSize: 13, fontWeight: 700, color: '#111d35' }}>
+          Manage &amp; switch templates in Documents &rarr;
+        </Link>
+      </div>
+      <div className="document-list">
+        {recent.slice(0, 6).map((d) => (
+          <div className="document-row card" key={d.id} style={{ padding: 16 }}>
+            <div>
+              <strong>{d.title}</strong>
+              <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>
+                v{d.version} | {new Date(d.created_at).toLocaleString()} |{' '}
+                {d.kind === 'CV'
+                  ? d.source_facts?.documentMode === 'cv'
+                    ? 'CV'
+                    : 'Resume'
+                  : d.kind}
+                {d.source_facts?.templateName ? ` | ${d.source_facts.templateName}` : ''}
+              </p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span
+                className="badge"
+                style={
+                  d.source_facts?.truthfulnessPassed === false
+                    ? { background: 'var(--danger-bg)', color: 'var(--danger)' }
+                    : { background: 'var(--success-bg)', color: 'var(--success)' }
+                }
+              >
+                {d.source_facts?.truthfulnessPassed === false ? 'flagged' : 'verified'}
+              </span>
+              {d.kind === 'CV' ? (
+                <>
+                  <button
+                    type="button"
+                    className="text-button"
+                    disabled={busyKey === `${d.id}:pdf:resume`}
+                    onClick={() => void quickDownload(d, 'pdf', 'resume')}
+                  >
+                    {busyKey === `${d.id}:pdf:resume` ? 'PDF...' : 'Resume PDF'}
+                  </button>
+                  <button
+                    type="button"
+                    className="text-button"
+                    disabled={busyKey === `${d.id}:pdf:cv`}
+                    onClick={() => void quickDownload(d, 'pdf', 'cv')}
+                  >
+                    {busyKey === `${d.id}:pdf:cv` ? 'PDF...' : 'CV PDF'}
+                  </button>
+                  <button
+                    type="button"
+                    className="text-button"
+                    disabled={busyKey === `${d.id}:docx:${d.source_facts?.documentMode ?? 'resume'}`}
+                    onClick={() => void quickDownload(d, 'docx', d.source_facts?.documentMode ?? 'resume')}
+                  >
+                    DOCX
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="text-button"
+                    disabled={busyKey === `${d.id}:pdf:default`}
+                    onClick={() => void quickDownload(d, 'pdf')}
+                  >
+                    PDF
+                  </button>
+                  <button
+                    type="button"
+                    className="text-button"
+                    disabled={busyKey === `${d.id}:docx:default`}
+                    onClick={() => void quickDownload(d, 'docx')}
+                  >
+                    DOCX
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function ReportBar({ report, version }: { report: Report; version?: number }) {
-  return <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}><span className="badge" style={report.passed ? { background: 'var(--success-bg)', color: 'var(--success)' } : { background: 'var(--danger-bg)', color: 'var(--danger)' }}>{report.passed ? 'Truthful, saved' : 'Rejected'}</span>{version && <span className="muted" style={{ fontSize: 13 }}>Version {version}</span>}<span className="muted" style={{ fontSize: 13 }}>{report.summary}</span></div>;
+  return (
+    <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+      <span
+        className="badge"
+        style={
+          report.passed
+            ? { background: 'var(--success-bg)', color: 'var(--success)' }
+            : { background: 'var(--danger-bg)', color: 'var(--danger)' }
+        }
+      >
+        {report.passed ? 'Truthful, saved' : 'Rejected'}
+      </span>
+      {version && (
+        <span className="muted" style={{ fontSize: 13 }}>
+          Version {version}
+        </span>
+      )}
+      <span className="muted" style={{ fontSize: 13 }}>
+        {report.summary}
+      </span>
+    </div>
+  );
 }
 
 function ContentRender({ kind, content }: { kind: Exclude<Kind, 'CV'>; content: string }) {
-  if (kind === 'COVER_LETTER') return <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', margin: 0, fontSize: 15, color: 'var(--ink-2)' }}>{content}</pre>;
+  if (kind === 'COVER_LETTER') {
+    return (
+      <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', margin: 0, fontSize: 15, color: 'var(--ink-2)' }}>
+        {content}
+      </pre>
+    );
+  }
   try {
     const data = JSON.parse(content);
-    return <div style={{ display: 'grid', gap: 12 }}>{data.answers?.map((a: { question: string; answer: string }, i: number) => <div key={i}><strong style={{ fontSize: 14 }}>{a.question}</strong><p className="muted" style={{ margin: '4px 0 0', fontSize: 14 }}>{a.answer}</p></div>)}</div>;
+    return (
+      <div style={{ display: 'grid', gap: 12 }}>
+        {data.answers?.map((a: { question: string; answer: string }, i: number) => (
+          <div key={i}>
+            <strong style={{ fontSize: 14 }}>{a.question}</strong>
+            <p className="muted" style={{ margin: '4px 0 0', fontSize: 14 }}>
+              {a.answer}
+            </p>
+          </div>
+        ))}
+      </div>
+    );
   } catch {
-    return <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', margin: 0, fontSize: 14, color: 'var(--ink-2)' }}>{content}</pre>;
+    return (
+      <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', margin: 0, fontSize: 14, color: 'var(--ink-2)' }}>
+        {content}
+      </pre>
+    );
   }
 }
