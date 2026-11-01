@@ -87,28 +87,43 @@ export async function middleware(request: NextRequest) {
   let appSessionValid = false;
   let appSessionRow: { id: string; user_id: string; token_hash: string; created_at: string; last_active_at: string; expires_at: string; revoked_at: string | null } | null = null;
   let appSessionReason = 'NO_CHECK';
+  let preloadedSocialGates: { needsVerification: boolean; needsCompletion: boolean } | null = null;
+  let preloadedAal: { currentLevel?: string | null; nextLevel?: string | null } | null = null;
+
   if (user && pathname !== '/verify-email') {
     const appToken = request.cookies.get(APP_SESSION_COOKIE)?.value;
-    if (!appToken) {
-      appSessionReason = 'NO_APP_COOKIE';
-    } else {
-      try {
-        const v = await validateAppSession({ token: appToken, userId: user.id });
-        if (v.valid) {
-          appSessionValid = true;
-          appSessionRow = v.row as any;
-          appSessionReason = 'VALID';
-        } else {
-          appSessionValid = false;
-          appSessionReason = (v as any).reason || 'INVALID';
-          console.warn(`[middleware] appSession invalid user=${user.id.slice(0,8)} reason=${appSessionReason} path=${pathname}`);
+    const [sessionOutcome, gatesOutcome, aalOutcome] = await Promise.all([
+      (async () => {
+        if (!appToken) return { valid: false as const, reason: 'NO_APP_COOKIE', row: null };
+        try {
+          const v = await validateAppSession({ token: appToken, userId: user.id });
+          if (v.valid) return { valid: true as const, reason: 'VALID', row: v.row as any };
+          const reason = (v as any).reason || 'INVALID';
+          console.warn(`[middleware] appSession invalid user=${user.id.slice(0,8)} reason=${reason} path=${pathname}`);
+          return { valid: false as const, reason, row: null };
+        } catch (e: any) {
+          const reason = `EXCEPTION:${e?.message?.slice(0,80) || 'unknown'}`;
+          console.warn(`[middleware] appSession exception ${reason} path=${pathname}`);
+          return { valid: false as const, reason, row: null };
         }
-      } catch (e: any) {
-        appSessionValid = false;
-        appSessionReason = `EXCEPTION:${e?.message?.slice(0,80) || 'unknown'}`;
-        console.warn(`[middleware] appSession exception ${appSessionReason} path=${pathname}`);
-      }
-    }
+      })(),
+      isSocialProvider(user) ? socialGates(supabase, user).catch(() => ({ needsVerification: false, needsCompletion: false })) : Promise.resolve(null),
+      pathname !== '/mfa-verify'
+        ? (async () => {
+            try {
+              const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+              return data ?? null;
+            } catch {
+              return null;
+            }
+          })()
+        : Promise.resolve(null),
+    ]);
+    appSessionValid = sessionOutcome.valid;
+    appSessionRow = sessionOutcome.row;
+    appSessionReason = sessionOutcome.reason;
+    preloadedSocialGates = gatesOutcome;
+    preloadedAal = aalOutcome;
   } else if (!user) {
     appSessionReason = 'NO_SUPABASE_USER';
   }
@@ -132,9 +147,13 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && appSessionValid && appSessionRow) {
-    const refreshedToken = await touchAppSession(appSessionRow as any).catch(() => undefined);
-    if (typeof refreshedToken === 'string') {
-      response.cookies.set(APP_SESSION_COOKIE, refreshedToken, appSessionCookieOptions());
+    if (appSessionRow.id?.startsWith('signed:')) {
+      const refreshedToken = await touchAppSession(appSessionRow as any).catch(() => undefined);
+      if (typeof refreshedToken === 'string') {
+        response.cookies.set(APP_SESSION_COOKIE, refreshedToken, appSessionCookieOptions());
+      }
+    } else {
+      void touchAppSession(appSessionRow as any).catch(() => undefined);
     }
   }
 
@@ -147,7 +166,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(redirect);
     }
     if (appSessionValid) {
-      const { needsVerification, needsCompletion } = await socialGates(supabase, user);
+      const { needsVerification, needsCompletion } = preloadedSocialGates ?? (await socialGates(supabase, user));
       if (needsVerification && pathname !== '/verify-email') {
         const redirect = request.nextUrl.clone();
         redirect.pathname = '/verify-email';
@@ -169,15 +188,12 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && appSessionValid && pathname !== '/mfa-verify' && pathname !== '/verify-email') {
-    try {
-      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-      if (aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2') {
-        const redirect = request.nextUrl.clone();
-        redirect.pathname = '/mfa-verify';
-        redirect.search = '';
-        return NextResponse.redirect(redirect);
-      }
-    } catch {}
+    if (preloadedAal?.nextLevel === 'aal2' && preloadedAal?.currentLevel !== 'aal2') {
+      const redirect = request.nextUrl.clone();
+      redirect.pathname = '/mfa-verify';
+      redirect.search = '';
+      return NextResponse.redirect(redirect);
+    }
   }
 
   if (user && appSessionValid && AUTH_PAGES.includes(pathname)) {

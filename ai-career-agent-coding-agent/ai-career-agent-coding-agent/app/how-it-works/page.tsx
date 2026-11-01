@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Icon, type IconName } from "@/components/icons/icons";
 import { MarketingShell } from "@/components/marketing/marketing-shell";
-import { getUser } from "@/lib/auth";
+import { getOptionalUser } from "@/lib/auth";
 import { breadcrumbJsonLd, jsonLdTag } from "@/lib/seo";
 import { marketingMetadata } from "@/components/marketing/metadata";
 import { AgentTimeline } from "@/components/product/product-components";
@@ -69,7 +69,7 @@ const activityEvents = [
 ];
 
 export default async function HowItWorksPage() {
-  const user = await getUser();
+  const user = await getOptionalUser();
   return (
     <MarketingShell activePath="/how-it-works" authenticated={!!user}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd([{ name: 'Home', path: '/' }, { name: 'How it works', path: '/how-it-works' }])) }} />

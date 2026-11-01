@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { MarketingShell } from "@/components/marketing/marketing-shell";
-import { getUser } from "@/lib/auth";
+import { getOptionalUser } from "@/lib/auth";
 import { PLANS, PLAN_ORDER } from "@/lib/billing/pricing";
 import { SITE_URL } from "@/lib/site";
 import { marketingMetadata } from "@/components/marketing/metadata";
@@ -15,7 +15,7 @@ export const metadata: Metadata = marketingMetadata({
 });
 
 export default async function PricingPage() {
-  const user = await getUser();
+  const user = await getOptionalUser();
 
 function pricingJsonLd() {
   const offers = PLAN_ORDER.filter((code) => PLANS[code].monthlyNgn > 0).map((code) => {

@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { websiteJsonLd, organizationJsonLd } from "@/lib/seo";
 import { marketingMetadata } from "@/components/marketing/metadata";
-import { getUser } from "@/lib/auth";
 import "./jobiest-exact.css";
 import HomeClient from "./HomeClient";
 
@@ -29,7 +28,6 @@ export default async function Page({
     redirect(`/auth/callback?${qs.toString()}`);
   }
 
-  await getUser();
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd()) }} />

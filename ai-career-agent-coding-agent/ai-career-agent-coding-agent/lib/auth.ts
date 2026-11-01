@@ -50,8 +50,8 @@ async function validateBrowserAppSession(userId: string, bearerPresent: boolean)
     const { validateAppSession, touchAppSession } = await import('./session');
     const v = await validateAppSession({ token: appToken, userId });
     if (!v.valid) return { valid: false, reason: v.reason };
-    // Qualifying activity = authenticated page/API request - touch throttled
-    await touchAppSession(v.row).catch(() => {});
+    // Qualifying activity = authenticated page/API request - touch non-blocking
+    void touchAppSession(v.row).catch(() => {});
     return { valid: true };
   } catch {
     return { valid: false, reason: 'APP_SESSION_ERROR' };
@@ -142,6 +142,19 @@ export async function getUser(req?: Request) {
   return null;
 }
 
+export async function getOptionalUser() {
+  try {
+    const cookieStore = await cookies();
+    const hasAuthCookie = cookieStore
+      .getAll()
+      .some((c) => c.name.startsWith('sb-') || c.name === 'jobiest_app_session');
+    if (!hasAuthCookie) return null;
+  } catch {
+    return null;
+  }
+  return getUser().catch(() => null);
+}
+
 export async function getAuthContext(req?: Request): Promise<AuthContext> {
   const supabase = await serverClient();
   // Same fail-soft policy as getUser(): a throwing auth call is an anonymous
@@ -183,10 +196,23 @@ export async function getAuthContext(req?: Request): Promise<AuthContext> {
 export async function requireUser(opts: { allowIncompleteMfa?: boolean; allowMissingAppSession?: boolean; req?: Request } = {}) {
   const { user, needsMfa } = await getAuthContext(opts.req);
   if (!user) throw new Error('UNAUTHENTICATED');
-  // Enforce app-managed session (30m idle / 7d absolute) for browser clients
-  // Bearer token clients (mobile) are exempt - see validateBrowserAppSession
+  // Enforce app-managed session (30m idle / 7d absolute) and account status in parallel
   const bearerPresent = Boolean(opts.req?.headers.get('authorization')?.startsWith('Bearer '));
-  const appCheck = await validateBrowserAppSession(user.id, bearerPresent);
+  const [appCheck, profileStatus] = await Promise.all([
+    validateBrowserAppSession(user.id, bearerPresent),
+    (async () => {
+      try {
+        const { data } = await supabaseAdmin
+          .from('profiles')
+          .select('account_status')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        return data?.account_status ?? null;
+      } catch {
+        return null;
+      }
+    })(),
+  ]);
   if (!appCheck.valid && !(opts.allowMissingAppSession && appCheck.reason === 'NO_APP_SESSION')) {
     throw new Error(appCheck.reason === 'NO_APP_SESSION' ? 'SESSION_EXPIRED' : appCheck.reason === 'IDLE_EXPIRED' ? 'SESSION_IDLE_EXPIRED' : appCheck.reason === 'ABSOLUTE_EXPIRED' ? 'SESSION_ABSOLUTE_EXPIRED' : 'SESSION_EXPIRED');
   }
@@ -197,18 +223,8 @@ export async function requireUser(opts: { allowIncompleteMfa?: boolean; allowMis
   const social = providers.some((provider: string) => ['google', 'linkedin_oidc', 'linkedin'].includes(provider));
   if (!social && !user.email_confirmed_at) throw new Error('UNAUTHENTICATED');
   if (needsMfa && !opts.allowIncompleteMfa) throw new Error('MFA_REQUIRED');
-  try {
-    const { data } = await supabaseAdmin
-      .from('profiles')
-      .select('account_status')
-      .eq('user_id', user.id)
-      .maybeSingle();
-    const status = data?.account_status;
-    if (status === 'SUSPENDED' || status === 'TERMINATED') {
-      throw new Error(`ACCOUNT_${status}`);
-    }
-  } catch (error) {
-    if (error instanceof Error && error.message.startsWith('ACCOUNT_')) throw error;
+  if (profileStatus === 'SUSPENDED' || profileStatus === 'TERMINATED') {
+    throw new Error(`ACCOUNT_${profileStatus}`);
   }
   return user;
 }

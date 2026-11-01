@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { ResumeDocumentPreview } from '@/components/resume/ResumeDocumentPreview';
 import { SAMPLE_PREVIEW_DRAFT } from '@/lib/resume-studio/sample';
 import {
@@ -128,6 +128,11 @@ export function TemplateGallery({ templates: propTemplates }: { templates?: Resu
       window.removeEventListener('keydown', onKeyDown);
     };
   }, [previewId, filteredTemplates, previewIndex]);
+
+  const openPreview = useCallback((templateId: string) => {
+    setZoom(1);
+    setPreviewId(templateId);
+  }, []);
 
   const resetAllFilters = () => {
     setSearchQuery('');
@@ -261,89 +266,13 @@ export function TemplateGallery({ templates: propTemplates }: { templates?: Resu
       ) : (
         <>
           <div className={styles.grid}>
-            {displayedTemplates.map((template) => {
-              const spec = resolveTemplateSpec(template);
-              const verifiedAts = spec.atsCompatibility === 'verified';
-
-              return (
-                <div
-                  key={template.id}
-                  className={styles.card}
-                  data-gallery-card={template.id}
-                >
-                  <button
-                    type="button"
-                    className={styles.previewStageBtn}
-                    onClick={() => {
-                      setZoom(1);
-                      setPreviewId(template.id);
-                    }}
-                    aria-label={`Preview ${template.name} full size`}
-                  >
-                    <div className={styles.stageTopMeta}>
-                      <span className={styles.codePill}>#{spec.code}</span>
-                      <span className={verifiedAts ? styles.atsBadgeVerified : styles.atsBadgePartial}>
-                        {verifiedAts ? 'ATS-Verified' : '2-Col Visual'}
-                      </span>
-                    </div>
-
-                    <ResumeDocumentPreview
-                      draft={SAMPLE_PREVIEW_DRAFT}
-                      template={template}
-                      size="mini"
-                      isDemo
-                    />
-
-                    <span className={styles.previewHoverPill} aria-hidden="true">
-                      Inspect A4 Layout
-                    </span>
-                  </button>
-
-                  <div className={styles.cardBody}>
-                    <div className={styles.cardGroupEyebrow}>
-                      Group {spec.group} &middot; {spec.columns === 1 ? '1-Column A4' : '2-Column A4'}
-                    </div>
-                    <h2 className={styles.cardTitle}>{template.name}</h2>
-                    <p className={styles.cardDesc}>{template.description}</p>
-
-                    <div className={styles.bestForBox}>
-                      <span className={styles.bestForLabel}>Best for: </span>
-                      {spec.intendedUse}
-                    </div>
-
-                    <div className={styles.tagRow}>
-                      {(spec.libraryCategories ?? []).slice(0, 3).map((cat) => (
-                        <span key={cat} className={styles.metaTag}>
-                          {cat}
-                        </span>
-                      ))}
-                      {spec.photoSupport !== 'none' && (
-                        <span className={styles.metaTag}>Optional Photo</span>
-                      )}
-                    </div>
-
-                    <div className={styles.cardActions}>
-                      <button
-                        type="button"
-                        className={styles.previewBtn}
-                        onClick={() => {
-                          setZoom(1);
-                          setPreviewId(template.id);
-                        }}
-                      >
-                        Preview
-                      </button>
-                      <a
-                        className={styles.useBtn}
-                        href={`/generate?template=${encodeURIComponent(template.id)}`}
-                      >
-                        Use Template
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {displayedTemplates.map((template) => (
+              <GalleryCard
+                key={template.id}
+                template={template}
+                onOpenPreview={openPreview}
+              />
+            ))}
           </div>
 
           {!isFiltered && visibleCount < filteredTemplates.length && (
@@ -553,3 +482,84 @@ export function TemplateGallery({ templates: propTemplates }: { templates?: Resu
     </section>
   );
 }
+
+const GalleryCard = memo(function GalleryCard({
+  template,
+  onOpenPreview,
+}: {
+  template: ResumeTemplate;
+  onOpenPreview: (templateId: string) => void;
+}) {
+  const spec = useMemo(() => resolveTemplateSpec(template), [template]);
+  const verifiedAts = spec.atsCompatibility === 'verified';
+
+  return (
+    <div className={styles.card} data-gallery-card={template.id}>
+      <button
+        type="button"
+        className={styles.previewStageBtn}
+        onClick={() => onOpenPreview(template.id)}
+        aria-label={`Preview ${template.name} full size`}
+      >
+        <div className={styles.stageTopMeta}>
+          <span className={styles.codePill}>#{spec.code}</span>
+          <span className={verifiedAts ? styles.atsBadgeVerified : styles.atsBadgePartial}>
+            {verifiedAts ? 'ATS-Verified' : '2-Col Visual'}
+          </span>
+        </div>
+
+        <ResumeDocumentPreview
+          draft={SAMPLE_PREVIEW_DRAFT}
+          template={template}
+          size="mini"
+          isDemo
+        />
+
+        <span className={styles.previewHoverPill} aria-hidden="true">
+          Inspect A4 Layout
+        </span>
+      </button>
+
+      <div className={styles.cardBody}>
+        <div className={styles.cardGroupEyebrow}>
+          Group {spec.group} &middot; {spec.columns === 1 ? '1-Column A4' : '2-Column A4'}
+        </div>
+        <h2 className={styles.cardTitle}>{template.name}</h2>
+        <p className={styles.cardDesc}>{template.description}</p>
+
+        <div className={styles.bestForBox}>
+          <span className={styles.bestForLabel}>Best for: </span>
+          {spec.intendedUse}
+        </div>
+
+        <div className={styles.tagRow}>
+          {(spec.libraryCategories ?? []).slice(0, 3).map((cat) => (
+            <span key={cat} className={styles.metaTag}>
+              {cat}
+            </span>
+          ))}
+          {spec.photoSupport !== 'none' && (
+            <span className={styles.metaTag}>Optional Photo</span>
+          )}
+        </div>
+
+        <div className={styles.cardActions}>
+          <button
+            type="button"
+            className={styles.previewBtn}
+            onClick={() => onOpenPreview(template.id)}
+          >
+            Preview
+          </button>
+          <a
+            className={styles.useBtn}
+            href={`/generate?template=${encodeURIComponent(template.id)}`}
+          >
+            Use Template
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+});
+

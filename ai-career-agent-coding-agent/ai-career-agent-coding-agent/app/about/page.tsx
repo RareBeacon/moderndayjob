@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { MarketingShell } from '@/components/marketing/marketing-shell';
-import { getUser } from '@/lib/auth';
+import { getOptionalUser } from '@/lib/auth';
 import { SITE_URL } from '@/lib/site';
 import { breadcrumbJsonLd, jsonLdTag } from '@/lib/seo';
 import styles from '../marketing.module.css';
@@ -20,7 +20,7 @@ const COMMITMENTS = [
 ];
 
 export default async function AboutPage() {
-  const user = await getUser();
+  const user = await getOptionalUser();
   return (
     <MarketingShell activePath="/about" authenticated={!!user}>
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(breadcrumbJsonLd([{ name: 'Home', path: '/' }, { name: 'About', path: '/about' }]))} />

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from '@/components/site/AppShell';
 import { normalizeStudioDraft, scoreResumeDraft, type ResumeScore, type StudioDraft, type StudioEducation, type StudioExperience, type StudioProject } from '@/lib/resume-studio/draft';
 import { draftFromMemory, freshDraft, firstIncompleteStep } from '@/lib/resume-studio/prefill';
@@ -110,10 +110,12 @@ export default function GeneratePage() {
   const [finalReview, setFinalReview] = useState<{ ready: boolean; summary: string; checks: { label: string; ok: boolean; detail: string }[] } | null>(null);
   const [booted, setBooted] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipInitialAutosave = useRef(false);
+  const deferredDraft = useDeferredValue(draft);
 
-  const score = useMemo(() => scoreResumeDraft(draft), [draft]);
+  const score = useMemo(() => scoreResumeDraft(deferredDraft), [deferredDraft]);
   const template = useMemo(() => getResumeTemplate(draft.selectedTemplate), [draft.selectedTemplate]);
-  const recommended = useMemo(() => recommendResumeTemplates({ role: draft.career.targetRole || draft.career.headline, yearsExperience: Number(draft.career.yearsExperience || 0), skills: draft.skills.map((s) => s.name) }), [draft]);
+  const recommended = useMemo(() => recommendResumeTemplates({ role: deferredDraft.career.targetRole || deferredDraft.career.headline, yearsExperience: Number(deferredDraft.career.yearsExperience || 0), skills: deferredDraft.skills.map((s) => s.name) }), [deferredDraft]);
   const stepIndex = STEPS.findIndex((s) => s.id === activeStep);
 
   useEffect(() => {
@@ -134,6 +136,7 @@ export default function GeneratePage() {
       .catch(() => {});
     loadRecent();
     const requestedTemplate = requestedTemplateId(window.location.search);
+    if (!requestedTemplate) skipInitialAutosave.current = true;
     if (requestedTemplate) setSelectedCategory(getResumeTemplate(requestedTemplate).category);
     const local = window.localStorage.getItem('jobiest.resumeStudio.draft');
     const hasLocalDraft = Boolean(local);
@@ -197,10 +200,18 @@ export default function GeneratePage() {
 
   useEffect(() => {
     if (!booted) return;
-    if (typeof window !== 'undefined') window.localStorage.setItem('jobiest.resumeStudio.draft', JSON.stringify(draft));
+    if (skipInitialAutosave.current) {
+      skipInitialAutosave.current = false;
+      return;
+    }
     setSaveState('saving');
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        try {
+          window.localStorage.setItem('jobiest.resumeStudio.draft', JSON.stringify(draft));
+        } catch {}
+      }
       fetch('/api/resume-studio/draft', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -468,7 +479,7 @@ export default function GeneratePage() {
                 </div>
                 <button className="btn secondary" onClick={() => goStep('templates')}>Change template</button>
               </div>
-              <ResumeDocumentPreview draft={draft} template={template} />
+              <ResumeDocumentPreview draft={deferredDraft} template={template} />
             </div>
           </aside>
         </div>
@@ -906,7 +917,7 @@ function ScoreLine({ label, value }: { label: number | string; value: number }) 
   return <p><span>{label}</span><b>{value}</b><i><em style={{ width: `${value}%` }} /></i></p>;
 }
 
-function TemplateCard({ template, selected, onSelect }: { template: ResumeTemplate; selected: boolean; onSelect: () => void }) {
+const TemplateCard = memo(function TemplateCard({ template, selected, onSelect }: { template: ResumeTemplate; selected: boolean; onSelect: () => void }) {
   return (
     <div className={`resume2-template-card ${selected ? 'selected' : ''}`}>
       <div className="resume2-template-preview" aria-hidden="true">
@@ -924,7 +935,7 @@ function TemplateCard({ template, selected, onSelect }: { template: ResumeTempla
       </button>
     </div>
   );
-}
+});
 
 function ClassicGenerator({ jobs, recent, loadRecent }: { jobs: Job[]; recent: GenDoc[]; loadRecent: () => void }) {
   const [kind, setKind] = useState<Exclude<Kind, 'CV'>>('COVER_LETTER');

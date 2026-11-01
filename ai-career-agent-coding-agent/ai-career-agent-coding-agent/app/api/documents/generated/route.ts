@@ -14,9 +14,13 @@ export async function GET(req: Request) {
 
   const user = await requireUser({ req: req }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+  const includeContent = new URL(req.url).searchParams.get('includeContent') === '1';
+  const columns = includeContent
+    ? 'id,kind,title,version,is_active,created_at,application_id,content,source_facts'
+    : 'id,kind,title,version,is_active,created_at,application_id,source_facts';
   const { data, error } = await supabaseAdmin
     .from('generated_documents')
-    .select('id,kind,title,version,is_active,created_at,application_id,content,source_facts')
+    .select(columns)
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(50);

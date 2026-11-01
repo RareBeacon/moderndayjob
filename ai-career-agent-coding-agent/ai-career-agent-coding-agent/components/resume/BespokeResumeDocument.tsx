@@ -1,18 +1,27 @@
 'use client';
 
-import React, { useEffect, useRef, useState, type CSSProperties } from 'react';
+import React, { memo, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { ResumeSectionKey } from '@/lib/resume-studio/catalog30';
 import type { StudioDraft } from '@/lib/resume-studio/draft';
 import {
   normalizeResumeFromDraft,
   type NormalizedResumeDocument,
 } from '@/lib/resume-studio/document-model';
+import { SAMPLE_PREVIEW_DRAFT } from '@/lib/resume-studio/sample';
 import {
   resolveTemplateSpec,
   type CuratedTemplateSpec,
   type ResumeTemplate,
 } from '@/lib/resume-studio/templates';
 import styles from './BespokeResumeDocument.module.css';
+
+let cachedSampleNormalizedDoc: NormalizedResumeDocument | null = null;
+function getSampleNormalizedDoc(): NormalizedResumeDocument {
+  if (!cachedSampleNormalizedDoc) {
+    cachedSampleNormalizedDoc = normalizeResumeFromDraft(SAMPLE_PREVIEW_DRAFT);
+  }
+  return cachedSampleNormalizedDoc;
+}
 
 const CANONICAL_A4_WIDTH_PX = 794;
 const CANONICAL_A4_HEIGHT_PX = 1123;
@@ -129,42 +138,55 @@ export interface BespokeResumeDocumentProps {
   zoom?: number;
 }
 
-export function BespokeResumeDocument({
+function BespokeResumeDocumentInner({
   draft,
   template,
   size = 'full',
   isDemo = false,
   zoom = 1,
 }: BespokeResumeDocumentProps) {
-  const spec = resolveTemplateSpec(template);
+  const spec = useMemo(() => resolveTemplateSpec(template), [template]);
   const bp = spec.blueprint;
   const pal = bp.palette;
-  const doc = normalizeResumeFromDraft(draft);
+  const doc = useMemo(
+    () => (draft === SAMPLE_PREVIEW_DRAFT ? getSampleNormalizedDoc() : normalizeResumeFromDraft(draft)),
+    [draft],
+  );
 
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const sheetRef = useRef<HTMLElement | null>(null);
-  const [containerWidth, setContainerWidth] = useState<number>(size === 'mini' ? 280 : CANONICAL_A4_WIDTH_PX);
+  const [containerWidth, setContainerWidth] = useState<number>(size === 'mini' ? 268 : CANONICAL_A4_WIDTH_PX);
   const [sheetHeight, setSheetHeight] = useState<number>(CANONICAL_A4_HEIGHT_PX);
 
   useEffect(() => {
     const el = viewportRef.current;
-    const sheetEl = sheetRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
 
     const measure = () => {
       const w = el.clientWidth;
-      if (w > 20) setContainerWidth(w);
-      if (sheetEl) {
-        setSheetHeight(Math.max(CANONICAL_A4_HEIGHT_PX, sheetEl.scrollHeight));
+      if (w > 20) {
+        setContainerWidth((prev) => (Math.abs(prev - w) >= 1 ? w : prev));
+      }
+      if (size === 'full' && sheetRef.current) {
+        const nextH = Math.max(CANONICAL_A4_HEIGHT_PX, sheetRef.current.scrollHeight);
+        setSheetHeight((prev) => (Math.abs(prev - nextH) >= 2 ? nextH : prev));
       }
     };
     measure();
 
     const ro = new ResizeObserver(measure);
     ro.observe(el);
-    if (sheetEl) ro.observe(sheetEl);
+    if (size === 'full' && sheetRef.current) {
+      ro.observe(sheetRef.current);
+    }
     return () => ro.disconnect();
-  }, [draft, template.id, size, zoom]);
+  }, [size]);
+
+  useEffect(() => {
+    if (size !== 'full' || !sheetRef.current) return;
+    const nextH = Math.max(CANONICAL_A4_HEIGHT_PX, sheetRef.current.scrollHeight);
+    setSheetHeight((prev) => (Math.abs(prev - nextH) >= 2 ? nextH : prev));
+  }, [size, doc, template.id]);
 
   const effectiveScale =
     size === 'mini'
@@ -903,7 +925,10 @@ export function BespokeResumeDocument({
     bp.masthead === 'commercial-amber-band' ||
     bp.masthead === 'architectural-split';
 
-  const highlights = spec.columns === 1 && bp.callout === 'kpi-highlights' ? extractHighlights(doc) : [];
+  const highlights = useMemo(
+    () => (spec.columns === 1 && bp.callout === 'kpi-highlights' ? extractHighlights(doc) : []),
+    [spec.columns, bp.callout, doc],
+  );
 
   return (
     <div
@@ -1037,3 +1062,5 @@ export function BespokeResumeDocument({
     </div>
   );
 }
+
+export const BespokeResumeDocument = memo(BespokeResumeDocumentInner);
