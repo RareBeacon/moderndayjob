@@ -35,7 +35,7 @@ export default async function TemplatesPage() {
                 <span className={styles.eyebrowDot} aria-hidden="true" />
                 <span>{totalCount} Templates &middot; Resume &amp; CV Ready &middot; ISO A4</span>
               </div>
-              <h1 className={styles.title}>Resume &amp; CV Templates</h1>
+              <h1 className={styles.title}>Resume Templates</h1>
               <p className={styles.lead}>
                 Explore {totalCount} distinct A4 architectures built for corporate, technical, financial, creative, academic, and career-change roles. Build and export every design as either a concise <strong>Resume</strong> or a full multi-page <strong>Curriculum Vitae (CV)</strong> in selectable A4 PDF and Word DOCX, with transparent ATS parsing classification and zero data loss when switching templates.
               </p>

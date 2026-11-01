@@ -111,6 +111,15 @@ test('resume library search, category tabs, ATS filter, and zoomable preview wor
   await dialog.getByRole('button', { name: '100%' }).click();
   const useLink = dialog.getByRole('link', { name: /Use This Template/i });
   await expect(useLink).toHaveAttribute('href', /^\/generate\?template=tpl-/);
+
+  // Verify Resume <-> CV mode toggle inside the full-size A4 preview modal
+  await dialog.getByRole('button', { name: 'CV', exact: true }).click();
+  await expect(dialog.getByRole('link', { name: /Build CV With Template/i })).toHaveAttribute(
+    'href',
+    /^\/generate\?template=tpl-[a-z0-9-]+&docType=cv$/,
+  );
+  await dialog.getByRole('button', { name: 'Resume', exact: true }).click();
+
   await dialog.getByRole('button', { name: 'Close template preview' }).click();
 });
 
