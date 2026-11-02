@@ -1,0 +1,57 @@
+{
+	email {$ACME_EMAIL:admin@jobiest.com}
+}
+
+# 1. Jobiest Team Webmail (https://webmail.jobiest.com)
+{$WEBMAIL_HOSTNAME:webmail.jobiest.com} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	request_body {
+		max_size 25MB
+	}
+
+	reverse_proxy snappymail:8888
+}
+
+# 2. Stalwart JMAP, Autoconfig/Autodiscover & Admin Console (https://mail.jobiest.com)
+{$MAIL_HOSTNAME:mail.jobiest.com} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+
+	reverse_proxy stalwart:8080
+}
+
+# 3. RFC 8461 MTA-STS Policy Host (https://mta-sts.jobiest.com/.well-known/mta-sts.txt)
+{$MTA_STS_HOSTNAME:mta-sts.jobiest.com} {
+	header Content-Type "text/plain; charset=utf-8"
+	header Strict-Transport-Security "max-age=63072000; includeSubDomains"
+
+	handle /.well-known/mta-sts.txt {
+		respond <<EOF
+version: STSv1
+mode: enforce
+mx: {$MAIL_HOSTNAME:mail.jobiest.com}
+max_age: 604800
+EOF 200
+	}
+
+	handle {
+		respond "Jobiest MTA-STS endpoint" 200
+	}
+}

@@ -1,4 +1,7 @@
-import { env } from '@/lib/env';
+import {
+  sendTransactionalEmail,
+  type EmailProviderId,
+} from './transport';
 import { SITE_URL } from '@/lib/site';
 import {
   BRAND,
@@ -15,7 +18,8 @@ import {
   maskEmailForVerificationGreeting,
 } from './templates';
 
-/** Transactional email client over the Resend REST API (server-side only).
+/** Transactional email client over Jobiest's $0 multi-transport router
+ *  (Self-Hosted Stalwart SMTP <-> Brevo Free <-> Resend Free).
  *  All senders are the branded Jobiest addresses on the verified domain.
  *  no-reply@ sends automated messages; support@ is the human destination
  *  referenced in every footer. */
@@ -27,44 +31,51 @@ export interface SendEmailInput {
   text?: string;
   from?: string;
   replyTo?: string;
+  preferredProvider?: EmailProviderId;
 }
 
 export interface SendEmailResult {
   ok: boolean;
   id?: string;
   error?: string;
+  provider?: EmailProviderId;
+  attemptedProviders?: EmailProviderId[];
 }
 
 // Automated transactional sender on the verified production domain
-// (jobiest.com: DNS DKIM record present, domain verified in Resend).
+// (jobiest.com: DNS DKIM record present, domain verified in Resend/Stalwart).
 // RESEND_FROM remains available as an explicit override for special cases.
 const NO_REPLY = process.env.RESEND_FROM?.trim() || 'Jobiest <no-reply@jobiest.com>';
 
 export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
-  if (!env.RESEND_API_KEY) return { ok: false, error: 'RESEND_API_KEY_NOT_CONFIGURED' };
   try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: input.from ?? NO_REPLY,
-        to: [input.to],
-        ...(input.replyTo ? { reply_to: input.replyTo } : {}),
-        subject: input.subject,
-        html: input.html,
-        text: input.text,
-      }),
+    const res = await sendTransactionalEmail({
+      to: input.to,
+      subject: input.subject,
+      html: input.html,
+      text: input.text,
+      from: input.from ?? NO_REPLY,
+      replyTo: input.replyTo,
+      preferredProvider: input.preferredProvider,
     });
-    const json = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
-    if (res.ok && typeof json.id === 'string' && json.id.length > 0) {
-      return { ok: true, id: json.id }; // provider acceptance, not inbox delivery
+    if (res.skipped) {
+      return {
+        ok: false,
+        error: 'RESEND_API_KEY_NOT_CONFIGURED',
+        attemptedProviders: res.attemptedProviders,
+      };
     }
-    return { ok: false, error: res.ok ? 'RESEND_MISSING_ID' : json.message ?? `RESEND_${res.status}` };
+    return {
+      ok: true,
+      id: res.id,
+      provider: res.provider,
+      attemptedProviders: res.attemptedProviders,
+    };
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : 'RESEND_ERROR' };
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'EMAIL_TRANSPORT_ERROR',
+    };
   }
 }
 

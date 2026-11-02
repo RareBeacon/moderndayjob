@@ -11,6 +11,7 @@ const NAV = [
   { href: '/admin/users', key: 'users', label: 'Users' },
   { href: '/admin/programme', key: 'programme', label: 'Founding & Partners CRM' },
   { href: '/admin/team', key: 'team', label: 'Admin Team & RBAC' },
+  { href: '/admin/email', key: 'email', label: 'Email Infra' },
   { href: '/admin/talent-pool', key: 'talent-pool', label: 'Talent Pool' },
   { href: '/admin/employers', key: 'employers', label: 'Employers' },
   { href: '/admin/radar', key: 'radar', label: 'Opportunity Radar' },
