@@ -1,0 +1,95 @@
+# Jobiest $0.00/Month Self-Hosted Mail Server Stack
+# Target Host: Oracle Cloud Always Free VM.Standard.E2.1.Micro (1 GB RAM + 2 GB swap, AD-1)
+# Components:
+#   1. stalwart  : Rust all-in-one mail server (SMTP, Submission, IMAPS, JMAP, ManageSieve, DKIM/ARC, Spam Filter, WebAdmin)
+#   2. snappymail: Ultra-lightweight Webmail UI for @jobiest.com staff & founder mailboxes
+#   3. caddy     : Automatic Let's Encrypt HTTPS for webmail.jobiest.com, mail.jobiest.com & mta-sts.jobiest.com
+
+services:
+  stalwart:
+    image: stalwartlabs/stalwart:v0.11.8
+    container_name: jobiest-stalwart
+    hostname: ${MAIL_HOSTNAME:-mail.jobiest.com}
+    restart: unless-stopped
+    ports:
+      - "25:25"       # Inbound MX SMTP from external mail servers (Gmail, Outlook, employers)
+      - "465:465"     # Authenticated Implicit TLS Submission (Next.js app, mobile & desktop clients)
+      - "587:587"     # Authenticated STARTTLS Submission
+      - "993:993"     # IMAPS (iOS Mail, Android, Thunderbird, Apple Mail, Outlook)
+      - "4190:4190"   # ManageSieve server-side filtering
+      - "127.0.0.1:8080:8080" # Loopback-only HTTP management API for local bootstrap scripts
+    environment:
+      - TZ=UTC
+    volumes:
+      - stalwart_data:/opt/stalwart-mail
+      - caddy_data:/caddy-certs:ro
+    networks:
+      - mail_internal
+    mem_limit: 540m
+    mem_reservation: 256m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  snappymail:
+    image: djmaze/snappymail:v2.38.2
+    container_name: jobiest-webmail
+    restart: unless-stopped
+    environment:
+      - TZ=UTC
+      - UPLOAD_MAX_SIZE=25M
+      - MEMORY_LIMIT=128M
+    volumes:
+      - snappymail_data:/var/lib/snappymail
+    networks:
+      - mail_internal
+    depends_on:
+      - stalwart
+    mem_limit: 192m
+    mem_reservation: 64m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: jobiest-mail-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - MAIL_HOSTNAME=${MAIL_HOSTNAME:-mail.jobiest.com}
+      - WEBMAIL_HOSTNAME=${WEBMAIL_HOSTNAME:-webmail.jobiest.com}
+      - MTA_STS_HOSTNAME=${MTA_STS_HOSTNAME:-mta-sts.jobiest.com}
+      - ACME_EMAIL=${ACME_EMAIL:-admin@jobiest.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - mail_internal
+    depends_on:
+      - stalwart
+      - snappymail
+    mem_limit: 96m
+    mem_reservation: 32m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "2"
+
+networks:
+  mail_internal:
+    driver: bridge
+
+volumes:
+  stalwart_data:
+  snappymail_data:
+  caddy_data:
+  caddy_config:

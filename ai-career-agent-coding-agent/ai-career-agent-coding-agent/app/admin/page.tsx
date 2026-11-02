@@ -398,6 +398,7 @@ export default async function AdminControlCentrePage({
           </p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <Link className="btn btn-ghost btn-sm" href="/admin/team">Admin Team &amp; RBAC</Link>
+            <Link className="btn btn-ghost btn-sm" href="/admin/email">Email Infrastructure ($0/mo)</Link>
             <Link className="btn btn-ghost btn-sm" href="/admin/security">Security Events</Link>
             <Link className="btn btn-ghost btn-sm" href="/settings">2FA &amp; Recovery Codes</Link>
             <Link className="btn btn-ghost btn-sm" href="/apply" target="_blank">Public /apply Portal ↗</Link>
