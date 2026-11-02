@@ -19,7 +19,7 @@ export async function GET(req: Request) {
       .single(),
     supabaseAdmin
       .from('career_profiles')
-      .select('headline,summary,skills,experience,education,projects,links')
+      .select('headline,summary,skills,experience,education,projects,links,not_applicable')
       .eq('user_id', user.id)
       .maybeSingle(),
   ]);

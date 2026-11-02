@@ -15,6 +15,7 @@ type FormState = {
   application_email: string;
   experience: Experience[];
   education: Education[];
+  portfolio: string;
   remote_types: string[];
   locations: string;
   employment_types: string[];
@@ -25,7 +26,7 @@ type FormState = {
   not_applicable: string[];
 };
 
-const split = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean);
+const split = (s: string) => s.split(/[,;\n]+/).map((x) => x.trim()).filter(Boolean);
 
 const REMOTE_OPTIONS = [
   { value: 'remote', label: 'Remote' },
@@ -51,7 +52,7 @@ const CURRENCIES = ['NGN', 'USD', 'GBP', 'EUR', 'GHS', 'KES', 'ZAR', 'CAD'];
 
 const EMPTY: FormState = {
   full_name: '', target_roles: '', headline: '', summary: '', skills: '', application_email: '',
-  experience: [], education: [], not_applicable: [],
+  experience: [], education: [], portfolio: '', not_applicable: [],
   remote_types: [], locations: '', employment_types: [], salary_min: '', currency: 'NGN', application_mode: 'approval', daily_target: '10',
 };
 
@@ -91,6 +92,7 @@ export function SetupWizard({ onFinish, onSkip, required = false }: { onFinish: 
           application_email: p.application_email || '',
           experience: Array.isArray(c.experience) ? c.experience : [],
           education: Array.isArray(c.education) ? c.education : [],
+          portfolio: c.links?.portfolio || '',
           remote_types: Array.isArray(pr.remote_types) ? pr.remote_types : [],
           locations: Array.isArray(pr.locations) ? pr.locations.join(', ') : '',
           employment_types: Array.isArray(pr.employment_types) ? pr.employment_types : [],
@@ -130,8 +132,11 @@ export function SetupWizard({ onFinish, onSkip, required = false }: { onFinish: 
   }
 
   function canProceed(s: number): boolean {
-    if (s === 0) return form.full_name.trim().length >= 2;
-    if (s === 1) return split(form.target_roles).length >= 1;
+    if (s === 0) return form.full_name.trim().length >= 2 && form.headline.trim().length <= 160 && form.summary.trim().length <= 3000;
+    if (s === 1) {
+      const roles = split(form.target_roles);
+      return roles.length >= 1 && roles.length <= 20;
+    }
     if (s === 2) return form.remote_types.length >= 1;
     if (s === 4) {
       const email = form.application_email.trim();
@@ -158,7 +163,7 @@ export function SetupWizard({ onFinish, onSkip, required = false }: { onFinish: 
       education: form.education
         .filter((x) => x.institution.trim() && x.qualification.trim())
         .map((x) => ({ institution: x.institution.trim(), qualification: x.qualification.trim() })),
-      links: {},
+      links: form.portfolio ? { portfolio: form.portfolio } : {},
       not_applicable: form.not_applicable,
     };
     const prefBody = {
@@ -175,11 +180,16 @@ export function SetupWizard({ onFinish, onSkip, required = false }: { onFinish: 
         fetch('/api/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(profileBody) }),
         fetch('/api/preferences', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(prefBody) }),
       ]);
-      if (!pr.ok || !qr.ok) throw new Error('save failed');
+      if (!pr.ok) {
+        const errData = await pr.json().catch(() => ({}));
+        const firstMsg = (Object.values(errData.issues?.fieldErrors ?? {}).flat()[0] ?? errData.issues?.formErrors?.[0]) as string | undefined;
+        throw new Error(firstMsg || 'We could not save your profile details. Please review your entries and try again.');
+      }
+      if (!qr.ok) throw new Error('We could not save your preferences. Please try again.');
       router.refresh(); // pull fresh server data before the wizard unmounts
       onFinish();
-    } catch {
-      setError('We couldn’t save your details. Please try again.');
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : 'We could not save your details. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -240,8 +250,17 @@ export function SetupWizard({ onFinish, onSkip, required = false }: { onFinish: 
           {step === 0 && (
             <div className="form-stack">
               <label>What’s your name?<input value={form.full_name} onChange={field('full_name')} placeholder="Your name" /></label>
-              <label>What do you do?<span>A headline in your own words, any profession.</span><input value={form.headline} onChange={field('headline')} placeholder="e.g. Senior Product Designer" /></label>
-              <label>Short professional summary<span>The experience you want your agent to understand.</span><textarea value={form.summary} onChange={field('summary')} rows={3} placeholder="A few lines about your work and strengths." /></label>
+              <label>
+                <span className="field-hint-row">
+                  <span>What do you do?</span>
+                  <small className={form.headline.trim().length > 160 ? 'counter-over' : 'counter-muted'}>
+                    {form.headline.trim().length}/160
+                  </small>
+                </span>
+                <span>A short headline in your own words, any profession.</span>
+                <input value={form.headline} onChange={field('headline')} maxLength={160} placeholder="e.g. Senior Product Designer" />
+              </label>
+              <label>Short professional summary<span>The experience you want your agent to understand.</span><textarea value={form.summary} onChange={field('summary')} rows={3} maxLength={3000} placeholder="A few lines about your work and strengths." /></label>
             </div>
           )}
 
@@ -293,6 +312,10 @@ export function SetupWizard({ onFinish, onSkip, required = false }: { onFinish: 
                 <div className="section-title"><h2>Experience</h2>{form.not_applicable.includes('experience') ? null : <button type="button" className="text-button" onClick={() => setForm((f) => ({ ...f, experience: [...f.experience, { company: '', title: '', description: '' }] }))}>Add</button>}</div>
                 {!form.not_applicable.includes('experience') && form.experience.map((x, i) => (
                   <div className="repeat-row" key={i}>
+                    <div className="repeat-row-header">
+                      <span>Experience #{i + 1}</span>
+                      <button type="button" className="text-button danger" onClick={() => setForm((f) => ({ ...f, experience: f.experience.filter((_, j) => j !== i) }))}>Remove</button>
+                    </div>
                     <input placeholder="Company" value={x.company} onChange={(e) => setForm((f) => ({ ...f, experience: f.experience.map((v, j) => (j === i ? { ...v, company: e.target.value } : v)) }))} />
                     <input placeholder="Role title" value={x.title} onChange={(e) => setForm((f) => ({ ...f, experience: f.experience.map((v, j) => (j === i ? { ...v, title: e.target.value } : v)) }))} />
                     <textarea placeholder="What did you do?" value={x.description || ''} onChange={(e) => setForm((f) => ({ ...f, experience: f.experience.map((v, j) => (j === i ? { ...v, description: e.target.value } : v)) }))} />
@@ -303,6 +326,10 @@ export function SetupWizard({ onFinish, onSkip, required = false }: { onFinish: 
                 <div className="section-title"><h2>Education</h2>{form.not_applicable.includes('education') ? null : <button type="button" className="text-button" onClick={() => setForm((f) => ({ ...f, education: [...f.education, { institution: '', qualification: '' }] }))}>Add</button>}</div>
                 {!form.not_applicable.includes('education') && form.education.map((x, i) => (
                   <div className="repeat-row two" key={i}>
+                    <div className="repeat-row-header">
+                      <span>Education #{i + 1}</span>
+                      <button type="button" className="text-button danger" onClick={() => setForm((f) => ({ ...f, education: f.education.filter((_, j) => j !== i) }))}>Remove</button>
+                    </div>
                     <input placeholder="Institution" value={x.institution} onChange={(e) => setForm((f) => ({ ...f, education: f.education.map((v, j) => (j === i ? { ...v, institution: e.target.value } : v)) }))} />
                     <input placeholder="Qualification" value={x.qualification} onChange={(e) => setForm((f) => ({ ...f, education: f.education.map((v, j) => (j === i ? { ...v, qualification: e.target.value } : v)) }))} />
                   </div>
