@@ -119,11 +119,13 @@ PY
 oci network nsg rules add --region "$REGION" --nsg-id "$MAIL_NSG_ID" --security-rules "file://${NSG_RULES_JSON}" >/dev/null
 printf '  -> Applied strict mail + /32 SSH rules on %s\n' "$MAIL_NSG_NAME"
 
-if [[ ! -f "$MAIL_SSH_PRIV" || ! -f "$MAIL_SSH_PUB" ]]; then
+if [[ ! -f "$MAIL_SSH_PRIV" || ! -f "$MAIL_SSH_PUB" ]] || ! grep -q '^ssh-rsa ' "$MAIL_SSH_PUB" 2>/dev/null; then
   rm -f "$MAIL_SSH_PRIV" "$MAIL_SSH_PUB"
-  ssh-keygen -t ed25519 -N "" -C "jobiest-mail-admin" -f "$MAIL_SSH_PRIV" >/dev/null
+  ssh-keygen -t rsa -b 4096 -N "" -C "jobiest-mail-admin" -f "$MAIL_SSH_PRIV" >/dev/null
   chmod 600 "$MAIL_SSH_PRIV" && chmod 644 "$MAIL_SSH_PUB"
-  printf '  -> Generated dedicated SSH keypair  : %s\n' "$MAIL_SSH_PRIV"
+  printf '  -> Generated FIPS RSA-4096 SSH key  : %s\n' "$MAIL_SSH_PRIV"
+else
+  printf '  -> Reusing FIPS RSA-4096 SSH key    : %s\n' "$MAIL_SSH_PRIV"
 fi
 
 compute_total_storage_gb() {
@@ -141,7 +143,7 @@ compute_total_storage_gb() {
   echo "$total"
 }
 
-banner "PHASE 2/5: Allocating $0.00/mo Always-Free Mail Host ($MAIL_DISPLAY_NAME)"
+banner "PHASE 2/5: Allocating \$0.00/mo Always-Free Mail Host ($MAIL_DISPLAY_NAME)"
 
 COHOST_MODE=0
 TARGET_SSH_KEY="$MAIL_SSH_PRIV"
@@ -164,10 +166,10 @@ else
       MICRO_AV="$(oci limits resource-availability get --region "$REGION" --compartment-id "$TENANCY_ID" --service-name compute --limit-name standard-e2-micro-core-count --availability-domain "$ad" --query 'data.available' --raw-output 2>/dev/null || echo 0)"
       if [[ "$HAS_MICRO" == "1" ]] && python3 -c 'import sys; sys.exit(0 if float(sys.argv[1]) >= 1.0 else 1)' "${MICRO_AV:-0}"; then
         IMG_ID="$(oci compute image list --region "$REGION" --compartment-id "$TENANCY_ID" --operating-system "Canonical Ubuntu" --operating-system-version "24.04" --shape "VM.Standard.E2.1.Micro" --sort-by TIMECREATED --sort-order DESC --all | \
-          python3 -c 'import json,sys; d=(json.loads(sys.stdin.read() or "{}").get("data") or []); imgs=[x["id"] for x in d if "aarch64" not in x.get("display-name","").lower() and "minimal" not in x.get("display-name","").lower()]; print(imgs[0] if imgs else "")')"
+          python3 -c 'import json,sys; d=(json.loads(sys.stdin.read() or "{}").get("data") or []); imgs=[x["id"] for x in d if "aarch64" not in x.get("display-name","").lower() and "minimal" not in x.get("display-name","").lower() and "gpu" not in x.get("display-name","").lower()]; print(imgs[0] if imgs else "")')"
         if [[ -n "$IMG_ID" ]]; then
-          printf '  -> Launching %s (VM.Standard.E2.1.Micro, 50 GB, $0/mo) in %s...\n' "$MAIL_DISPLAY_NAME" "$ad"
-          MAIL_INSTANCE_ID="$(oci compute instance launch \
+          printf '  -> Launching %s (VM.Standard.E2.1.Micro, 50 GB, \$0/mo) in %s... ' "$MAIL_DISPLAY_NAME" "$ad"
+          if oci --no-retry --connection-timeout 10 --read-timeout 30 compute instance launch \
             --region "$REGION" \
             --compartment-id "$TENANCY_ID" \
             --availability-domain "$ad" \
@@ -176,61 +178,110 @@ else
             --image-id "$IMG_ID" \
             --subnet-id "$SUBNET_ID" \
             --assign-public-ip true \
-            --nsg-ids "[\"${MAIL_NSG_ID}\"]" \
             --boot-volume-size-in-gbs 50 \
             --ssh-authorized-keys-file "$MAIL_SSH_PUB" \
-            --wait-for-state RUNNING \
-            --query 'data.id' --raw-output 2>/dev/null || true)"
-          [[ -n "$MAIL_INSTANCE_ID" ]] && break
+            >"$WORK_DIR/launch_out.json" 2>"$WORK_DIR/launch_err.txt"; then
+            MAIL_INSTANCE_ID="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["data"]["id"])' "$WORK_DIR/launch_out.json")"
+            printf 'SUCCESS (%s)\n' "$MAIL_INSTANCE_ID"
+            break
+          else
+            printf 'skipped (%s)\n' "$(tr '\r\n' ' ' <"$WORK_DIR/launch_err.txt" | head -c 140)"
+          fi
         fi
       fi
     done
   fi
 
-  # Strategy 2B: If E2.1.Micro hardware isn't offered in us-chicago-1, try Always Free VM.Standard.A1.Flex (1 OCPU / 6 GB)
+  # Strategy 2B: If jobiest-a1 already exists and is RUNNING, check if we can co-host immediately OR launch dedicated A1.Flex (1 OCPU / 6 GB)
+  EXISTING_A1_ID="$(oci compute instance list --region "$REGION" --compartment-id "$TENANCY_ID" --display-name "jobiest-a1" --all | \
+    python3 -c 'import json,sys; d=(json.loads(sys.stdin.read() or "{}").get("data") or []); live=[x["id"] for x in d if x.get("lifecycle-state")=="RUNNING"]; print(live[0] if live else "")')"
+
+  if [[ -z "$MAIL_INSTANCE_ID" && -n "$EXISTING_A1_ID" && -f "$SSH_DIR/jobiest_a1_rsa" ]]; then
+    printf '  -> Found running Always Free jobiest-a1 (%s); co-hosting mail stack (0 extra GB, \$0.00/mo)!\n' "$EXISTING_A1_ID"
+    MAIL_INSTANCE_ID="$EXISTING_A1_ID"
+    TARGET_SSH_KEY="$SSH_DIR/jobiest_a1_rsa"
+    COHOST_MODE=1
+  fi
+
+  # Strategy 2C: Launch dedicated Always Free VM.Standard.A1.Flex (1 OCPU / 6 GB, 50 GB) with automatic AD capacity retry loop
   if [[ -z "$MAIL_INSTANCE_ID" ]] && (( CUR_STORAGE_GB + 50 <= 200 )); then
+    ELIGIBLE_A1_ADS=()
     for ad in $ADS_LIST; do
       A1_AV="$(oci limits resource-availability get --region "$REGION" --compartment-id "$TENANCY_ID" --service-name compute --limit-name standard-a1-core-count --availability-domain "$ad" --query 'data.available' --raw-output 2>/dev/null || echo 0)"
       if python3 -c 'import sys; sys.exit(0 if float(sys.argv[1]) >= 1.0 else 1)' "${A1_AV:-0}"; then
-        A1_IMG_ID="$(oci compute image list --region "$REGION" --compartment-id "$TENANCY_ID" --operating-system "Canonical Ubuntu" --operating-system-version "24.04" --shape "VM.Standard.A1.Flex" --sort-by TIMECREATED --sort-order DESC --all | \
-          python3 -c 'import json,sys; d=(json.loads(sys.stdin.read() or "{}").get("data") or []); imgs=[x["id"] for x in d if "aarch64" in x.get("display-name","").lower() and "minimal" not in x.get("display-name","").lower()]; print(imgs[0] if imgs else "")')"
-        if [[ -n "$A1_IMG_ID" ]]; then
-          printf '  -> Launching %s (Always Free VM.Standard.A1.Flex 1 OCPU / 6 GB, 50 GB, $0/mo) in %s...\n' "$MAIL_DISPLAY_NAME" "$ad"
-          MAIL_INSTANCE_ID="$(oci compute instance launch \
+        ELIGIBLE_A1_ADS+=("$ad")
+      fi
+    done
+
+    if (( ${#ELIGIBLE_A1_ADS[@]} > 0 )); then
+      A1_IMG_ID="$(oci compute image list --region "$REGION" --compartment-id "$TENANCY_ID" --operating-system "Canonical Ubuntu" --operating-system-version "24.04" --shape "VM.Standard.A1.Flex" --sort-by TIMECREATED --sort-order DESC --all | \
+        python3 -c 'import json,sys; d=(json.loads(sys.stdin.read() or "{}").get("data") or []); imgs=[x["id"] for x in d if "aarch64" in x.get("display-name","").lower() and "minimal" not in x.get("display-name","").lower() and "gpu" not in x.get("display-name","").lower()]; print(imgs[0] if imgs else "")')"
+      [[ -n "$A1_IMG_ID" ]] || die "Could not find Canonical Ubuntu 24.04 ARM64 image for VM.Standard.A1.Flex."
+
+      MAX_ROUNDS="${A1_MAX_RETRY_ROUNDS:-45}"
+      RETRY_SLEEP="${A1_RETRY_SLEEP_SEC:-60}"
+
+      for round in $(seq 1 "$MAX_ROUNDS"); do
+        printf '  [Attempt %d/%d] Requesting Always Free VM.Standard.A1.Flex (1 OCPU / 6 GB, \$0/mo) across %d ADs...\n' \
+          "$round" "$MAX_ROUNDS" "${#ELIGIBLE_A1_ADS[@]}"
+
+        for ad in "${ELIGIBLE_A1_ADS[@]}"; do
+          # Reconcile first so we never create a duplicate instance
+          RECON_ID="$(oci compute instance list --region "$REGION" --compartment-id "$TENANCY_ID" --display-name "$MAIL_DISPLAY_NAME" --all | \
+            python3 -c 'import json,sys; d=(json.loads(sys.stdin.read() or "{}").get("data") or []); live=[x["id"] for x in d if x.get("lifecycle-state") in ("RUNNING","PROVISIONING","STARTING")]; print(live[0] if live else "")')"
+          if [[ -n "$RECON_ID" ]]; then
+            MAIL_INSTANCE_ID="$RECON_ID"
+            printf '    -> Adopted created instance %s!\n' "$MAIL_INSTANCE_ID"
+            break 2
+          fi
+
+          printf '    -> Trying %s ... ' "$ad"
+          if oci --no-retry --connection-timeout 10 --read-timeout 30 compute instance launch \
             --region "$REGION" \
             --compartment-id "$TENANCY_ID" \
             --availability-domain "$ad" \
             --shape "VM.Standard.A1.Flex" \
-            --shape-config '{"ocpus":1,"memoryInGBs":6}' \
+            --shape-config '{"ocpus": 1.0, "memoryInGBs": 6.0}' \
             --display-name "$MAIL_DISPLAY_NAME" \
             --image-id "$A1_IMG_ID" \
             --subnet-id "$SUBNET_ID" \
             --assign-public-ip true \
-            --nsg-ids "[\"${MAIL_NSG_ID}\"]" \
             --boot-volume-size-in-gbs 50 \
             --ssh-authorized-keys-file "$MAIL_SSH_PUB" \
-            --wait-for-state RUNNING \
-            --query 'data.id' --raw-output 2>/dev/null || true)"
-          [[ -n "$MAIL_INSTANCE_ID" ]] && break
-        fi
-      fi
-    done
-  fi
+            >"$WORK_DIR/a1_out.json" 2>"$WORK_DIR/a1_err.txt"; then
+            MAIL_INSTANCE_ID="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["data"]["id"])' "$WORK_DIR/a1_out.json")"
+            printf 'SUCCESS! (%s)\n' "$MAIL_INSTANCE_ID"
+            break 2
+          else
+            ERR_TXT="$(cat "$WORK_DIR/a1_err.txt" "$WORK_DIR/a1_out.json" 2>/dev/null | tr '\r\n' ' ')"
+            if grep -qi "Out of host capacity" <<<"$ERR_TXT"; then
+              printf 'Out of host capacity in %s\n' "$ad"
+            elif grep -qi "TooManyRequests\|Too many requests" <<<"$ERR_TXT"; then
+              printf 'OCI rate-limit; pausing 20s...\n'
+              sleep 20
+            else
+              die "OCI launch error in $ad: $(head -c 280 <<<"$ERR_TXT")"
+            fi
+          fi
+        done
 
-  # Strategy 2C: If jobiest-a1 already exists and holds A1 quota (or storage == 200 GB), co-host cleanly on jobiest-a1 ($0/mo, 0 extra GB)
-  if [[ -z "$MAIL_INSTANCE_ID" ]]; then
-    EXISTING_A1_ID="$(oci compute instance list --region "$REGION" --compartment-id "$TENANCY_ID" --display-name "jobiest-a1" --all | \
-      python3 -c 'import json,sys; d=(json.loads(sys.stdin.read() or "{}").get("data") or []); live=[x["id"] for x in d if x.get("lifecycle-state")=="RUNNING"]; print(live[0] if live else "")')"
-    if [[ -n "$EXISTING_A1_ID" && -f "$SSH_DIR/jobiest_a1_rsa" ]]; then
-      printf '  -> Co-hosting mail stack on Always Free jobiest-a1 (%s) — 0 extra storage, $0.00/mo!\n' "$EXISTING_A1_ID"
-      MAIL_INSTANCE_ID="$EXISTING_A1_ID"
-      TARGET_SSH_KEY="$SSH_DIR/jobiest_a1_rsa"
-      COHOST_MODE=1
-    else
-      die "No free Always-Free VM slot or storage available (projected > 200 GB or A1 capacity temporarily full). Retrying later is 100% safe."
+        if [[ -z "$MAIL_INSTANCE_ID" && "$round" -lt "$MAX_ROUNDS" ]]; then
+          printf '  -> All 3 Chicago ADs temporarily out of free ARM64 host capacity; auto-retrying in %ds (keep Cloud Shell open)...\n' "$RETRY_SLEEP"
+          sleep "$RETRY_SLEEP"
+        fi
+      done
     fi
   fi
+
+  [[ -n "$MAIL_INSTANCE_ID" ]] || die "No Always-Free VM slot opened within retry window ($MAX_ROUNDS rounds). Re-run the exact same command anytime to continue hunting."
 fi
+
+printf '  -> Waiting for instance %s to reach RUNNING state...\n' "$MAIL_INSTANCE_ID"
+for _ in $(seq 1 36); do
+  INST_STATE="$(oci compute instance get --region "$REGION" --instance-id "$MAIL_INSTANCE_ID" --query 'data."lifecycle-state"' --raw-output)"
+  [[ "$INST_STATE" == "RUNNING" ]] && break
+  sleep 5
+done
 
 # Ensure NSG is attached to target VNIC & resolve public IP
 VNIC_ID="$(oci compute vnic-attachment list --region "$REGION" --compartment-id "$TENANCY_ID" --instance-id "$MAIL_INSTANCE_ID" --all | \
@@ -281,6 +332,13 @@ if ! swapon --show | grep -q '/swapfile'; then
   grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab >/dev/null
   sudo sysctl -w vm.swappiness=10 >/dev/null
   echo 'vm.swappiness=10' | sudo tee /etc/sysctl.d/99-swap.conf >/dev/null
+fi
+
+while sudo iptables -C INPUT -j REJECT --reject-with icmp-host-prohibited 2>/dev/null; do
+  sudo iptables -D INPUT -j REJECT --reject-with icmp-host-prohibited || true
+done
+if [[ -f /etc/iptables/rules.v4 ]]; then
+  sudo sed -i '/icmp-host-prohibited/d' /etc/iptables/rules.v4 || true
 fi
 
 sudo ufw allow from "${TRUSTED_SSH_CIDR}" to any port 22 proto tcp >/dev/null || true
@@ -448,7 +506,7 @@ if [[ -n "$CF_API_TOKEN" ]]; then
   fi
 fi
 
-banner "PHASE 5/5: $0.00/MO SELF-HOSTED EMAIL STACK IS LIVE ON ORACLE CLOUD!"
+banner 'PHASE 5/5: $0.00/MO SELF-HOSTED EMAIL STACK IS LIVE ON ORACLE CLOUD!'
 
 cat <<SUMMARY
 1. YOUR LIVE MAIL SERVER IP:
