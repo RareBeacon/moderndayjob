@@ -59,6 +59,65 @@ describe('profileSchema', () => {
     expect(experience).toEqual([]);
     expect(education).toEqual([]);
   });
+
+  it('auto-prefixes https:// for bare portfolio domains while rejecting unsafe schemes', () => {
+    const parsed = profileSchema.parse({
+      ...validBase,
+      links: { portfolio: 'linkedin.com/in/chiamaka' },
+    });
+    expect(parsed.links.portfolio).toBe('https://linkedin.com/in/chiamaka');
+    expect(() =>
+      profileSchema.parse({ ...validBase, links: { portfolio: 'javascript:alert(1)' } }),
+    ).toThrow();
+  });
+
+  it('allows more than 6 target roles (up to 20) and deduplicates case-insensitively', () => {
+    const tenRoles = [
+      'Business Analyst',
+      'Operations Associate',
+      'Project Coordinator',
+      'Customer Success Associate',
+      'Data Analyst',
+      'Research Assistant',
+      'Product Analyst',
+      'Graduate Trainee',
+      'Strategy Analyst',
+      'business analyst',
+    ];
+    const parsed = profileSchema.parse({ ...validBase, target_roles: tenRoles });
+    expect(parsed.target_roles).toHaveLength(9);
+  });
+
+  it('auto-strips completely blank experience and education rows (mobile empty-card bug)', () => {
+    const parsed = profileSchema.parse({
+      ...validBase,
+      experience: [{ company: '   ', title: '', description: '' }],
+      education: [
+        { institution: 'Global wealth uni', qualification: 'BSc' },
+        { institution: '', qualification: '  ' },
+      ],
+    });
+    expect(parsed.experience).toEqual([]);
+    expect(parsed.education).toEqual([{ institution: 'Global wealth uni', qualification: 'BSc' }]);
+  });
+
+  it('returns clear human-readable messages instead of raw Zod defaults when partially filled or over limit', () => {
+    const res = profileSchema.safeParse({
+      ...validBase,
+      headline: 'x'.repeat(175),
+      target_roles: Array.from({ length: 21 }, (_, i) => `Target Role ${i + 1}`),
+      experience: [{ company: 'Acme Corp', title: '' }],
+    });
+    expect(res.success).toBe(false);
+    if (!res.success) {
+      const messages = res.error.issues.map((i) => i.message).join(' | ');
+      expect(messages).not.toContain('Too big:');
+      expect(messages).not.toContain('Too small:');
+      expect(messages).toContain('Headline must be 160 characters or fewer');
+      expect(messages).toContain('Target roles: please list up to 20 roles.');
+      expect(messages).toContain('Experience: enter your role title');
+    }
+  });
 });
 
 describe('profileSchema · not_applicable (Milestone 1)', () => {
