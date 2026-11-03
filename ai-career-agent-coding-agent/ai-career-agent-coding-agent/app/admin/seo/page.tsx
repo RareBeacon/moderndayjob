@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { AdminForbidden, AdminShell } from '@/components/site/AdminShell';
 import { getSeoConversionEvents, getSeoContentInventory, getSeoDashboardData, getSeoKeywordResearch, getSeoSearchPerformance } from '@/lib/seo/service';
 import { keywordRowView, summarizeKeywordResearch } from '@/lib/seo/keyword-view';
-import { buildContentInventoryView, buildConversionPanelView, buildSearchPerformanceView, trendChartPoints, type DailyMetricPoint, type SeoUrlAuditRow } from '@/lib/seo/performance-view';
+import { buildContentInventoryView, buildConversionPanelView, buildSearchPerformanceView, buildSeoOptimizationActions, trendChartPoints, type DailyMetricPoint, type SeoUrlAuditRow } from '@/lib/seo/performance-view';
 import { googleOAuthConfigured } from '@/lib/seo/google';
 import { SeoControls } from './SeoControls';
 
@@ -51,6 +51,7 @@ export default async function SeoMissionControlPage() {
   const keywordSummary = summarizeKeywordResearch(keywordViews);
   const performance = await getSeoSearchPerformance(project?.id ?? null);
   const performanceView = buildSearchPerformanceView(performance.metrics);
+  const optimizationActions = buildSeoOptimizationActions(performance.metrics);
   const conversions = await getSeoConversionEvents(project?.id ?? null);
   const conversionView = buildConversionPanelView(conversions.events);
   const inventory = await getSeoContentInventory(project?.id ?? null);
@@ -173,6 +174,14 @@ export default async function SeoMissionControlPage() {
                   <div className="seo-panel-sub">
                     <h3>Impressions and clicks trend</h3>
                     <TrendChart daily={performanceView.daily} />
+                  </div>
+                  <div className="seo-panel-sub">
+                    <h3>Weekly optimization review</h3>
+                    {optimizationActions.length ? (
+                      <table className="ad-table"><thead><tr><th>Page</th><th>Suggested review</th><th>Impressions</th><th>CTR</th><th>Avg position</th></tr></thead><tbody>
+                        {optimizationActions.map((action) => <tr key={`${action.url}:${action.opportunity}`}><td><a href={action.url} target="_blank" rel="noreferrer">{action.url.replace(/^https?:\/\/[^/]+/, '')}</a></td><td>{action.opportunity}</td><td className="ad-mono">{action.impressions}</td><td className="ad-mono">{action.ctr}</td><td className="ad-mono">{action.averagePosition}</td></tr>)}
+                      </tbody></table>
+                    ) : <p className="ad-empty">No pages meet the review thresholds in the imported GSC data. Suggestions are based on real GSC rows and require a human editor; no metadata is changed automatically.</p>}
                   </div>
                   <div className="seo-two-col">
                     <div>

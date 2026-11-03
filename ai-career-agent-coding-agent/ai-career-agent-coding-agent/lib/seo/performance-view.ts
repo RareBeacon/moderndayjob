@@ -43,6 +43,15 @@ export interface DimensionBreakdownRow {
   share: string;
 }
 
+export interface SeoOptimizationAction {
+  url: string;
+  impressions: number;
+  clicks: number;
+  ctr: string;
+  averagePosition: string;
+  opportunity: 'Improve title and description' | 'Add relevant internal links';
+}
+
 export interface SearchPerformanceView {
   available: boolean;
   unavailableReason: string;
@@ -65,6 +74,36 @@ function num(value: unknown): number {
 
 function pct(value: number): string {
   return `${(value * 100).toFixed(2)}%`;
+}
+
+/**
+ * Weekly editorial queue based exclusively on imported Search Console rows.
+ * It suggests review work only; it never changes metadata or page links automatically.
+ */
+export function buildSeoOptimizationActions(metrics: SeoMetricRow[]): SeoOptimizationAction[] {
+  const byUrl = new Map<string, { clicks: number; impressions: number; positionWeighted: number }>();
+  for (const row of metrics) {
+    if (!row.url || !/^https:\/\//i.test(row.url)) continue;
+    const current = byUrl.get(row.url) ?? { clicks: 0, impressions: 0, positionWeighted: 0 };
+    const impressions = num(row.impressions);
+    current.clicks += num(row.clicks);
+    current.impressions += impressions;
+    current.positionWeighted += num(row.average_position) * impressions;
+    byUrl.set(row.url, current);
+  }
+  const actions: SeoOptimizationAction[] = [];
+  for (const [url, values] of byUrl) {
+    if (!values.impressions) continue;
+    const ctr = values.clicks / values.impressions;
+    const position = values.positionWeighted / values.impressions;
+    if (values.impressions >= 300 && ctr < 0.025) {
+      actions.push({ url, impressions: values.impressions, clicks: values.clicks, ctr: pct(ctr), averagePosition: position.toFixed(1), opportunity: 'Improve title and description' });
+    }
+    if (position >= 8 && position <= 20) {
+      actions.push({ url, impressions: values.impressions, clicks: values.clicks, ctr: pct(ctr), averagePosition: position.toFixed(1), opportunity: 'Add relevant internal links' });
+    }
+  }
+  return actions.sort((a, b) => b.impressions - a.impressions).slice(0, 30);
 }
 
 /** Build the A11.3 Search Performance panel from raw seo_metrics rows. */

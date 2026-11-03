@@ -120,6 +120,7 @@ describe('endpoint guard (B-024: deny-by-default route registry)', () => {
     '/api/billing/providers', // provider availability booleans only; no secrets, no user data; rate-limited + cacheable
     '/api/geo', // visitor country only (mirror of the public x-vercel-ip-country edge header); rate-limited, no data access
     '/api/founding-programme/apply', // public Founding Team & Strategic Partnerships intake for jobiest.com/apply; rate-limited, Zod-validated, honeypot-protected
+    '/api/og', // public branded social preview image; rate-limited and contains no user data
   ]);
 
   const AUTH_MARKERS = [
