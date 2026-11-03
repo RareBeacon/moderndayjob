@@ -12,8 +12,18 @@ import {
 import { CV_EXAMPLE_ROLES } from '@/lib/seo/cv-examples';
 import { RESUME_TEMPLATES } from '@/lib/resume-studio/templates';
 import { buildSeoOptimizationActions } from '@/lib/seo/performance-view';
+import { organizationJsonLd, websiteJsonLd } from '@/lib/seo';
+import { SITE_URL } from '@/lib/site';
 
 describe('SEO growth engines', () => {
+  it('uses stable Organization and WebSite identifiers for consistent entity references', () => {
+    const organization = organizationJsonLd();
+    const website = websiteJsonLd();
+    expect(organization['@id']).toBe(`${SITE_URL}/#organization`);
+    expect(website['@id']).toBe(`${SITE_URL}/#website`);
+    expect(website.publisher).toEqual({ '@id': `${SITE_URL}/#organization` });
+  });
+
   it('retains all 30 unique resume templates and distinct CV example routes', () => {
     expect(RESUME_TEMPLATES).toHaveLength(30);
     expect(new Set(RESUME_TEMPLATES.map((template) => template.id)).size).toBe(30);

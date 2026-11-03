@@ -7,7 +7,8 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        // authenticated surfaces, auth recovery flows, and API have no business in an index
+        // The owner allows compliant search, answer, and training crawlers on public pages.
+        // Private surfaces remain disallowed; robots directives are not access control.
         disallow: [
           '/api/',
           '/dashboard',
@@ -16,6 +17,8 @@ export default function robots(): MetadataRoute.Robots {
           '/settings',
           '/documents',
           '/applications',
+          '/opportunities',
+          '/portfolios',
           '/auto-apply',
           '/billing',
           '/generate',

@@ -105,13 +105,14 @@ function articleJsonLd(input: { title: string; description?: string | null; publ
   return {
     '@context': 'https://schema.org',
     '@type': 'Article',
+    '@id': `${input.url}#article`,
     headline: input.title,
     description: input.description ?? undefined,
     image: input.image ?? `${SITE_URL}/images/og-card.jpg`,
     datePublished: input.publishedAt ?? undefined,
     dateModified: input.updatedAt ?? input.publishedAt ?? undefined,
-    author: { '@type': 'Organization', name: 'Jobiest' },
-    publisher: { '@type': 'Organization', name: 'Jobiest' },
+    author: { '@type': 'Organization', '@id': `${SITE_URL}/#organization`, name: 'Jobiest' },
+    publisher: { '@type': 'Organization', '@id': `${SITE_URL}/#organization`, name: 'Jobiest' },
     mainEntityOfPage: input.url,
     keywords: input.keywords.join(', '),
   };

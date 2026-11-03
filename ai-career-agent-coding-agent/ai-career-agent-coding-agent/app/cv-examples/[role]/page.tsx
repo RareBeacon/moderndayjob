@@ -30,11 +30,12 @@ export default async function CvExampleDetailPage({ params }: { params: Promise<
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Article',
+    '@id': `${SITE_URL}/cv-examples/${role.slug}#article`,
     headline: role.title,
     description: role.metaDescription,
     mainEntityOfPage: `${SITE_URL}/cv-examples/${role.slug}`,
-    author: { '@type': 'Organization', name: 'Jobiest' },
-    publisher: { '@type': 'Organization', name: 'Jobiest', url: SITE_URL },
+    author: { '@type': 'Organization', '@id': `${SITE_URL}/#organization`, name: 'Jobiest' },
+    publisher: { '@type': 'Organization', '@id': `${SITE_URL}/#organization`, name: 'Jobiest', url: SITE_URL },
   };
   return (
     <MarketingShell>

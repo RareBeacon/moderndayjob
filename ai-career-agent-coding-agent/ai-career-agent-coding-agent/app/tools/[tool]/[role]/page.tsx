@@ -45,9 +45,11 @@ export default async function RoleToolPage({ params }: { params: Promise<{ tool:
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'WebApplication',
+    '@id': `${SITE_URL}/tools/${toolSlug}/${roleSlug}#application`,
     name: `${tool.name} for ${role.shortRole}`,
     applicationCategory: 'BusinessApplication',
     operatingSystem: 'Web',
+    provider: { '@type': 'Organization', '@id': `${SITE_URL}/#organization`, name: 'Jobiest' },
     url: `${SITE_URL}/tools/${toolSlug}/${roleSlug}`,
     description: `${tool.benefit} This role-specific entry is prefilled for ${role.shortRole}.`,
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'NGN' },

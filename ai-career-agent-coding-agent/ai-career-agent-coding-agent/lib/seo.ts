@@ -9,9 +9,11 @@ export function websiteJsonLd() {
   return {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
+    '@id': `${SITE_URL}/#website`,
     name: 'Jobiest',
     url: SITE_URL,
     description: 'Your AI career agent: find roles, build ATS-ready documents, apply with approval, track everything.',
+    publisher: { '@id': `${SITE_URL}/#organization` },
   };
 }
 
@@ -19,6 +21,7 @@ export function organizationJsonLd() {
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
+    '@id': `${SITE_URL}/#organization`,
     name: 'Jobiest',
     url: SITE_URL,
     logo: `${SITE_URL}/icon.svg`,
