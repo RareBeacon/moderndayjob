@@ -3,6 +3,10 @@ import { SITE_URL } from '@/lib/site';
 import { BLOG_POSTS } from '@/lib/seo/blog';
 import { CORE_SEO_PATHS, FREE_TOOL_SEO_PATHS, canonicalPublicUrl, isAllowedPublicSeoUrl } from '@/lib/seo/public-urls';
 import { supabaseAdmin } from '@/lib/supabase';
+import { RESUME_TEMPLATES } from '@/lib/resume-studio/templates';
+import { CV_EXAMPLE_ROLES } from '@/lib/seo/cv-examples';
+import { TOPIC_CLUSTERS } from '@/lib/seo/topic-clusters';
+import { listActivePublicJobs, jobMatchesRoleHub, jobMatchesLocationHub, PUBLIC_JOB_ROLE_HUBS, PUBLIC_JOB_LOCATION_HUBS, MIN_HUB_JOBS_FOR_INDEX } from '@/lib/seo/public-jobs';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,6 +52,18 @@ async function publicPortfolios(): Promise<MetadataRoute.Sitemap> {
   }
 }
 
+async function publicJobSitemapEntries(): Promise<MetadataRoute.Sitemap> {
+  const jobs = await listActivePublicJobs(1000);
+  const roleHubs = PUBLIC_JOB_ROLE_HUBS.filter((hub) => jobs.filter((job) => jobMatchesRoleHub(job, hub)).length >= MIN_HUB_JOBS_FOR_INDEX);
+  const locationHubs = PUBLIC_JOB_LOCATION_HUBS.filter((hub) => jobs.filter((job) => jobMatchesLocationHub(job, hub)).length >= MIN_HUB_JOBS_FOR_INDEX);
+  return [
+    { url: `${SITE_URL}/jobs`, lastModified: new Date(), changeFrequency: 'hourly' as const, priority: 0.9 },
+    ...jobs.map((job) => ({ url: `${SITE_URL}/jobs/${job.slug}`, lastModified: new Date(job.updatedAt), changeFrequency: 'daily' as const, priority: 0.75 })),
+    ...roleHubs.map((hub) => ({ url: `${SITE_URL}/jobs/role/${hub.slug}`, lastModified: new Date(), changeFrequency: 'hourly' as const, priority: 0.68 })),
+    ...locationHubs.map((hub) => ({ url: `${SITE_URL}/jobs/location/${hub.slug}`, lastModified: new Date(), changeFrequency: 'hourly' as const, priority: 0.68 })),
+  ];
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
   const core: MetadataRoute.Sitemap = CORE_SEO_PATHS.map((path) => ({
@@ -68,6 +84,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...staticBlog,
     ...(await publishedSeoArticles()),
     ...(await publicPortfolios()),
+    ...RESUME_TEMPLATES.map((template) => ({ url: `${SITE_URL}/templates/${template.id}`, lastModified: now, changeFrequency: 'monthly' as const, priority: 0.7 })),
+    ...CV_EXAMPLE_ROLES.map((role) => ({ url: `${SITE_URL}/cv-examples/${role.slug}`, lastModified: now, changeFrequency: 'monthly' as const, priority: 0.7 })),
+    ...TOPIC_CLUSTERS.map((cluster) => ({ url: `${SITE_URL}/blog/topic/${cluster.slug}`, lastModified: now, changeFrequency: 'weekly' as const, priority: 0.65 })),
+    ...['ats-resume-scanner', 'interview-questions', 'salary-insights'].flatMap((tool) => CV_EXAMPLE_ROLES.map((role) => ({ url: `${SITE_URL}/tools/${tool}/${role.slug}`, lastModified: now, changeFrequency: 'monthly' as const, priority: 0.65 }))),
+    ...await publicJobSitemapEntries(),
   ].filter((entry) => isAllowedPublicSeoUrl(entry.url));
   const seen = new Set<string>();
   return urls.filter((entry) => {

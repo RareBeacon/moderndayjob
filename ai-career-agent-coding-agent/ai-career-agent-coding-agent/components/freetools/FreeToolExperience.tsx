@@ -45,15 +45,15 @@ function completion(index: number, total: number, stage: Stage) {
   return Math.round(((index + 1) / Math.max(1, total)) * 75);
 }
 
-function storageKey(toolId: string) {
-  return `jobiest.freeTools.${toolId}.session`;
+function storageKey(toolId: string, scope?: string) {
+  return `jobiest.freeTools.${toolId}.${scope || 'default'}.session`;
 }
 
-export function FreeToolExperience({ toolId, signedIn }: { toolId: FreeToolId; signedIn: boolean }) {
+export function FreeToolExperience({ toolId, signedIn, initialAnswers = {}, sessionScope }: { toolId: FreeToolId; signedIn: boolean; initialAnswers?: Answers; sessionScope?: string }) {
   const tool = useMemo(() => getFreeToolConfig(toolId), [toolId]);
   const [stage, setStage] = useState<Stage>('intro');
   const [questionIndex, setQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<Answers>({});
+  const [answers, setAnswers] = useState<Answers>(initialAnswers);
   const [result, setResult] = useState<GenerationResult | null>(null);
   const [error, setError] = useState('');
   const [gateAction, setGateAction] = useState<PendingAction | null>(null);
@@ -70,11 +70,13 @@ export function FreeToolExperience({ toolId, signedIn }: { toolId: FreeToolId; s
   useEffect(() => {
     const id = anonymousId();
     setAnonId(id);
-    const saved = window.localStorage.getItem(storageKey(toolId));
+    const key = storageKey(toolId, sessionScope);
+    setAnswers(initialAnswers);
+    const saved = window.localStorage.getItem(key);
     if (saved) {
       try {
         const parsed = JSON.parse(saved) as { stage?: Stage; questionIndex?: number; answers?: Answers; result?: GenerationResult; pendingAction?: PendingAction };
-        setAnswers(parsed.answers ?? {});
+        setAnswers({ ...initialAnswers, ...(parsed.answers ?? {}) });
         setQuestionIndex(Math.min(parsed.questionIndex ?? 0, tool.questions.length - 1));
         setResult(parsed.result ?? null);
         setPendingAction(parsed.pendingAction ?? null);
@@ -83,12 +85,12 @@ export function FreeToolExperience({ toolId, signedIn }: { toolId: FreeToolId; s
       } catch {}
     }
     trackEvent('free_tool_viewed', { anonymousId: id, step: 'intro' });
-  }, [toolId]);
+  }, [toolId, sessionScope]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem(storageKey(toolId), JSON.stringify({ stage, questionIndex, answers, result, pendingAction }));
-  }, [toolId, stage, questionIndex, answers, result, pendingAction]);
+    window.localStorage.setItem(storageKey(toolId, sessionScope), JSON.stringify({ stage, questionIndex, answers, result, pendingAction }));
+  }, [toolId, sessionScope, stage, questionIndex, answers, result, pendingAction]);
 
   useEffect(() => {
     if (stage !== 'generating') return;
@@ -237,7 +239,7 @@ export function FreeToolExperience({ toolId, signedIn }: { toolId: FreeToolId; s
     setError('');
     setNotice('');
     setPendingAction(null);
-    window.localStorage.removeItem(storageKey(toolId));
+    window.localStorage.removeItem(storageKey(toolId, sessionScope));
   }
 
   return (

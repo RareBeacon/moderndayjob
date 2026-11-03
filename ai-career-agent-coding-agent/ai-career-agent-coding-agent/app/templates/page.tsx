@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { MarketingShell } from '@/components/marketing/marketing-shell';
 import { TemplateGallery } from '@/components/resume/TemplateGallery';
 import { getOptionalUser } from '@/lib/auth';
+import { SITE_URL } from '@/lib/site';
 import { RESUME_TEMPLATES } from '@/lib/resume-studio/templates';
 import styles from './templates.module.css';
 
@@ -10,6 +11,7 @@ export const metadata: Metadata = {
   title: 'Resume & CV Templates | 30 Unique A4 Designs | Jobiest',
   description:
     'Browse 30 purpose-built ISO A4 Resume and Curriculum Vitae (CV) templates across executive, engineering, data, finance, creative, academic, and career-transition tracks with honest ATS compatibility ratings.',
+  alternates: { canonical: `${SITE_URL}/templates` },
 };
 
 export default async function TemplatesPage() {
@@ -67,6 +69,18 @@ export default async function TemplatesPage() {
       <div className={styles.galleryMain}>
         <div className={styles.container}>
           <TemplateGallery />
+          <section aria-labelledby="template-directory-title" style={{ padding: '32px 0' }}>
+            <h2 id="template-directory-title">Explore every A4 template</h2>
+            <p>Compare each design's real layout, recommended use, and ATS parsing notes before selecting it.</p>
+            <ul>
+              {RESUME_TEMPLATES.map((template) => (
+                <li key={template.id}>
+                  <Link href={`/templates/${template.id}`}>{template.name}</Link>
+                  {' '}<span>{template.description}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
         </div>
       </div>
     </MarketingShell>

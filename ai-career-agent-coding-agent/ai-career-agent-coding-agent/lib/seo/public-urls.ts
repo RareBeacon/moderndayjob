@@ -2,20 +2,22 @@ import { SITE_URL } from '@/lib/site';
 
 export const CORE_SEO_PATHS = [
   '/',
-  '/how-it-works',
-  '/about',
-  '/pricing',
-  '/tools',
+  '/jobs',
   '/templates',
+  '/cv-examples',
+  '/tools',
+  '/how-it-works',
+  '/pricing',
   '/apply',
-  '/help',
   '/blog',
+  '/about',
+  '/help',
+  '/contact',
   '/terms',
   '/privacy',
   '/refund',
   '/dpa',
   '/msa',
-  '/contact',
 ] as const;
 
 export const FREE_TOOL_SEO_PATHS = [

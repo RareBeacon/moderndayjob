@@ -2,15 +2,19 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { indexNowSubmit, corePublicUrls } from '@/lib/seo/indexnow';
 import { SITE_URL } from '@/lib/site';
 import { BLOG_POSTS } from '@/lib/seo/blog';
+import { MASTER_UPGRADE_POSTS } from '@/lib/seo/master-upgrade-content';
 import { STRATEGIC_RESEARCH_SOURCE, STRATEGIC_RESEARCH_TIMESTAMP, STRATEGIC_SEO_POSTS } from '@/lib/seo/strategic-content';
 import { CORE_SEO_PATHS, FREE_TOOL_SEO_PATHS, canonicalPublicUrl, isAllowedPublicSeoUrl } from '@/lib/seo/public-urls';
 import { sendEmail } from '@/lib/email/resend';
 import {
   getSitemap,
+  googleServiceAccountConfigured,
   inspectUrl,
   indexingApiSupportedFor,
   listSearchConsoleSites,
   listSitemaps,
+  mintServiceAccountAccessToken,
+  publishUrlNotification,
   querySearchAnalytics,
   refreshGoogleAccessToken,
   submitSitemap,
@@ -192,6 +196,13 @@ export async function storeGoogleTokens(projectId: string, tokens: { accessToken
 }
 
 export async function getFreshGoogleTokens(project: SeoProject): Promise<StoredGoogleTokens> {
+  if (googleServiceAccountConfigured()) {
+    const sa = await mintServiceAccountAccessToken();
+    return {
+      ephemeralAccessToken: sa.accessToken,
+      expiresAt: sa.expiresAt,
+    };
+  }
   let tokens: StoredGoogleTokens = {
     accessTokenCiphertext: project.google_oauth_ciphertext,
     refreshTokenCiphertext: project.google_refresh_ciphertext,
@@ -254,9 +265,14 @@ export async function syncPastorArticles(projectId: string, actorUserId?: string
   return rows.length;
 }
 
+function inferKeywordCountry(keyword: string): string {
+  return /\b(nigeria|nigerian|nigerians|lagos|abuja|nysc|siwes|ican)\b/i.test(keyword) ? 'NG' : 'GLOBAL';
+}
+
 export async function syncStrategicSeoContent(projectId: string, actorUserId?: string | null) {
   const now = new Date().toISOString();
-  const articleRows = STRATEGIC_SEO_POSTS.map((post) => {
+  const combinedPosts = [...STRATEGIC_SEO_POSTS, ...MASTER_UPGRADE_POSTS];
+  const articleRows = combinedPosts.map((post) => {
     const url = `${SITE_URL}/blog/${post.slug}`;
     return {
       project_id: projectId,
@@ -271,7 +287,7 @@ export async function syncStrategicSeoContent(projectId: string, actorUserId?: s
       meta_description: post.metaDescription.slice(0, 160),
       canonical_url: url,
       featured_image_alt: post.featuredImageAlt,
-      featured_image_url: `${SITE_URL}/images/og-card.jpg`,
+      featured_image_url: `${SITE_URL}/api/og?title=${encodeURIComponent(post.title)}&eyebrow=${encodeURIComponent(post.cluster || 'CAREER GUIDE')}`,
       faq: post.faq,
       internal_links: post.internalLinks,
       content_cluster: post.cluster,
@@ -301,9 +317,10 @@ export async function syncStrategicSeoContent(projectId: string, actorUserId?: s
     };
   });
 
-  const keywordRows = STRATEGIC_SEO_POSTS.map((post) => ({
+  const keywordRows = combinedPosts.map((post) => ({
     project_id: projectId,
     keyword: post.targetKeyword,
+    country: inferKeywordCountry(post.targetKeyword),
     intent: post.searchIntent,
     priority: post.businessValue === 'HIGH' ? 'HIGH' : 'MEDIUM',
     target_url: `${SITE_URL}/blog/${post.slug}`,
@@ -324,7 +341,7 @@ export async function syncStrategicSeoContent(projectId: string, actorUserId?: s
   }));
 
   const baseArticleRows = articleRows.map(({ featured_image_url, faq, internal_links, content_cluster, publication_order, ...row }) => row);
-  const baseKeywordRows = keywordRows.map(({ primary_topic, related_free_tool, business_value, competition, content_type, status, publication_date, research_source, source_timestamp, ...row }) => row);
+  const baseKeywordRows = keywordRows.map(({ country, primary_topic, related_free_tool, business_value, competition, content_type, status, publication_date, research_source, source_timestamp, ...row }) => row);
 
   let articleMode = 'rich';
   let { error: articleError } = await supabaseAdmin
@@ -337,11 +354,11 @@ export async function syncStrategicSeoContent(projectId: string, actorUserId?: s
   }
   if (articleError) throw new Error(articleError.message);
 
-  let keywordMode = 'rich';
+  let keywordMode = 'rich_country';
   let { error: keywordError } = await supabaseAdmin
     .from('seo_keywords')
-    .upsert(keywordRows, { onConflict: 'project_id,keyword' });
-  if (keywordError && /column|schema cache|does not exist/i.test(keywordError.message)) {
+    .upsert(keywordRows, { onConflict: 'project_id,keyword,country' });
+  if (keywordError && /column|schema cache|does not exist|no unique or exclusion constraint/i.test(keywordError.message)) {
     keywordMode = 'base';
     const fallback = await supabaseAdmin.from('seo_keywords').upsert(baseKeywordRows, { onConflict: 'project_id,keyword' });
     keywordError = fallback.error;
@@ -349,7 +366,7 @@ export async function syncStrategicSeoContent(projectId: string, actorUserId?: s
   if (keywordError) throw new Error(keywordError.message);
 
   const projectRef = { id: projectId } as SeoProject;
-  await Promise.all(STRATEGIC_SEO_POSTS.map((post) => recordDiscoveryWorkflow(projectRef, `${SITE_URL}/blog/${post.slug}`, 'Article', actorUserId)));
+  await Promise.all(combinedPosts.map((post) => recordDiscoveryWorkflow(projectRef, `${SITE_URL}/blog/${post.slug}`, 'Article', actorUserId)));
   await recordSeoAudit({ projectId, actorUserId, action: 'SEO_STRATEGIC_CONTENT_SYNCED', targetType: 'article', metadata: { articleCount: articleRows.length, keywordCount: keywordRows.length, articleMode, keywordMode, researchSource: STRATEGIC_RESEARCH_SOURCE, note: 'No search volume, CPC, ranking or difficulty metrics fabricated.' } });
   return { articleCount: articleRows.length, keywordCount: keywordRows.length };
 }
@@ -358,13 +375,18 @@ export async function seedKeywordRoadmap(projectId: string, actorUserId?: string
   const keywords = [
     ...BLOG_POSTS.map((p) => ({ keyword: p.primaryKeyword, target_url: `${SITE_URL}/blog/${p.slug}`, intent: 'informational', priority: 'HIGH', opportunity_score: 80 })),
     { keyword: 'AI job application agent', target_url: `${SITE_URL}/`, intent: 'commercial', priority: 'HIGH', opportunity_score: 78 },
+    { keyword: 'verified jobs in Nigeria and remote', target_url: `${SITE_URL}/jobs`, intent: 'transactional', priority: 'HIGH', opportunity_score: 90 },
+    { keyword: 'ATS resume templates A4', target_url: `${SITE_URL}/templates`, intent: 'commercial', priority: 'HIGH', opportunity_score: 88 },
+    { keyword: 'CV examples Nigeria and remote', target_url: `${SITE_URL}/cv-examples`, intent: 'informational', priority: 'HIGH', opportunity_score: 86 },
     { keyword: 'free ATS resume scanner', target_url: `${SITE_URL}/free-ats-resume-scanner`, intent: 'informational', priority: 'HIGH', opportunity_score: 76 },
     { keyword: 'AI cover letter writer', target_url: `${SITE_URL}/free-cover-letter-writer`, intent: 'commercial', priority: 'MEDIUM', opportunity_score: 70 },
     { keyword: 'job description analyzer', target_url: `${SITE_URL}/free-job-description-analyzer`, intent: 'informational', priority: 'MEDIUM', opportunity_score: 68 },
   ];
-  const { error } = await supabaseAdmin.from('seo_keywords').upsert(keywords.map((k) => ({
+  const now = new Date().toISOString();
+  const richRows = keywords.map((k) => ({
     project_id: projectId,
     keyword: k.keyword,
+    country: inferKeywordCountry(k.keyword),
     intent: k.intent,
     priority: k.priority,
     target_url: k.target_url,
@@ -372,8 +394,14 @@ export async function seedKeywordRoadmap(projectId: string, actorUserId?: string
     metric_source: 'seeded_strategy_no_volume_claim',
     metric_confidence: 'relevance_only',
     cannibalization_risk: 'low',
-    last_updated: new Date().toISOString(),
-  })), { onConflict: 'project_id,keyword' });
+    last_updated: now,
+  }));
+  let { error } = await supabaseAdmin.from('seo_keywords').upsert(richRows, { onConflict: 'project_id,keyword,country' });
+  if (error && /column|schema cache|does not exist|no unique or exclusion constraint/i.test(error.message)) {
+    const legacyRows = richRows.map(({ country, ...rest }) => rest);
+    const fallback = await supabaseAdmin.from('seo_keywords').upsert(legacyRows, { onConflict: 'project_id,keyword' });
+    error = fallback.error;
+  }
   if (error) throw new Error(error.message);
   await recordSeoAudit({ projectId, actorUserId, action: 'SEO_KEYWORD_ROADMAP_SEEDED', targetType: 'keyword', metadata: { count: keywords.length, note: 'No volume, CPC, or difficulty fabricated.' } });
   return keywords.length;
@@ -954,9 +982,9 @@ export async function runSeoDailyLoop() {
     report.indexNow = { ok: false, error: error instanceof Error ? error.message : String(error) };
   }
 
-  if (project.google_oauth_ciphertext && project.search_console_property) {
+  if ((googleServiceAccountConfigured() || project.google_oauth_ciphertext) && project.search_console_property) {
     report.metrics = await importSearchConsoleMetrics(project, null, 7).catch((error) => ({ error: error instanceof Error ? error.message : String(error) }));
-    report.gscSitemaps = await listConfiguredSitemaps(project).catch((error) => ({ error: error instanceof Error ? error.message : String(error) }));
+    report.gscSitemaps = await submitConfiguredSitemap(project, null).catch((error) => ({ error: error instanceof Error ? error.message : String(error) }));
     report.urlInspection = await inspectImportantUrls(project, null, 5).catch((error) => ({ error: error instanceof Error ? error.message : String(error) }));
   } else {
     report.metrics = 'GOOGLE_SEARCH_CONSOLE_NOT_CONNECTED';
@@ -964,6 +992,57 @@ export async function runSeoDailyLoop() {
 
   await recordSeoAudit({ projectId: project.id, action: 'SEO_DAILY_LOOP_COMPLETED', targetType: 'project', metadata: report });
   return { skipped: false, report };
+}
+
+/**
+ * Notify Google Indexing API + IndexNow specifically for JobPosting URLs
+ * (the exact content type Google officially supports for urlNotifications:publish).
+ */
+export async function notifyJobPostingIndexing(urls: string[], type: 'URL_UPDATED' | 'URL_DELETED' = 'URL_UPDATED') {
+  const validUrls = urls.filter(isAllowedPublicSeoUrl);
+  if (!validUrls.length) return { indexNow: { ok: true, submitted: 0 }, googleNotified: 0 };
+
+  const indexNow = await indexNowSubmit(validUrls).catch((err) => ({
+    ok: false,
+    submitted: 0,
+    error: err instanceof Error ? err.message : String(err),
+  }));
+
+  let googleNotified = 0;
+  try {
+    const project = await ensureSeoProject().catch(() => null);
+    if (project && (googleServiceAccountConfigured() || project.google_oauth_ciphertext)) {
+      const tokens = await getFreshGoogleTokens(project);
+      for (const url of validUrls.slice(0, 25)) {
+        try {
+          const response = await publishUrlNotification(tokens, {
+            url,
+            contentType: 'JobPosting',
+            type,
+          });
+          googleNotified += 1;
+          await supabaseAdmin.from('seo_indexing_requests').upsert(
+            {
+              project_id: project.id,
+              url,
+              request_type: type,
+              mechanism: 'GOOGLE_INDEXING_API',
+              status: 'SUBMITTED',
+              google_response: response,
+              requested_at: new Date().toISOString(),
+            },
+            { onConflict: 'project_id,url,mechanism,request_type' },
+          );
+        } catch {
+          // Best-effort per URL; never block Radar ingestion if Indexing API quota/scope is absent.
+        }
+      }
+    }
+  } catch {
+    // Non-fatal best-effort notification.
+  }
+
+  return { indexNow, googleNotified };
 }
 
 export interface SeoKeywordResearchData {

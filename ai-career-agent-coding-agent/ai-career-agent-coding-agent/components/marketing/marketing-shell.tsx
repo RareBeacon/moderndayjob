@@ -101,12 +101,15 @@ export function MarketingShell({
               <Link href="/apply">Founding Team &amp; Partners</Link>
               <Link href="/blog">Blog</Link>
               <Link href="/about">About</Link>
+              <Link href="/contact">Contact</Link>
             </div>
             <div>
               <h2>Help</h2>
               <Link href="/support">Support</Link>
               <a href="mailto:support@jobiest.com">Email support</a>
               <Link href="/templates">Templates</Link>
+              <Link href="/dpa">Data Processing Addendum</Link>
+              <Link href="/msa">Master Services Agreement</Link>
             </div>
           </div>
         </div>

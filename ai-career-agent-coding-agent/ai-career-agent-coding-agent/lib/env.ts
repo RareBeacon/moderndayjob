@@ -71,6 +71,7 @@ const schema = z.object({
   GOOGLE_CLIENT_ID: z.string().default(''),
   GOOGLE_CLIENT_SECRET: z.string().default(''),
   GOOGLE_REDIRECT_URI: z.string().url().or(z.literal('')).default(''),
+  GOOGLE_SEO_SERVICE_ACCOUNT_JSON: z.string().default(''),
 });
 /**
  * `env` validates lazily: the Zod parse runs on first property access, not at
@@ -136,6 +137,7 @@ function parseEnv(): z.infer<typeof schema> {
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
   GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
+  GOOGLE_SEO_SERVICE_ACCOUNT_JSON: process.env.GOOGLE_SEO_SERVICE_ACCOUNT_JSON,
 });
   return envCache;
 }
