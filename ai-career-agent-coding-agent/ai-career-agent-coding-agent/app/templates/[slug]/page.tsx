@@ -40,10 +40,11 @@ export default async function TemplateDetailPage({ params }: { params: Promise<{
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'CreativeWork',
+    '@id': `${SITE_URL}/templates/${template.id}#template`,
     name: template.name,
     description: template.description,
     url: `${SITE_URL}/templates/${template.id}`,
-    creator: { '@type': 'Organization', name: 'Jobiest', url: SITE_URL },
+    creator: { '@type': 'Organization', '@id': `${SITE_URL}/#organization`, name: 'Jobiest', url: SITE_URL },
     genre: 'ISO A4 resume and CV template',
     keywords: template.bestFor.join(', '),
   };

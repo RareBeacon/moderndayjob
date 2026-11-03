@@ -71,6 +71,8 @@ describe('Jobiest Nov 2, 2026 Product Launch Readiness & Journeys 1-8 Integrity'
 
     for (const protectedPrefix of [
       '/dashboard',
+      '/opportunities',
+      '/portfolios',
       '/talent-pool',
       '/employer',
       '/admin',

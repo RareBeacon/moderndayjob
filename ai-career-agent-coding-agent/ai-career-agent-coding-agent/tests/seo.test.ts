@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import { BLOG_POSTS, getBlogPost } from '../lib/seo/blog';
 import { generateSeoArticleFromKeyword } from '../lib/seo/content-agent';
 import { indexingApiSupportedFor } from '../lib/seo/google';
@@ -44,8 +46,23 @@ describe('Public SEO URL allowlist', () => {
     expect(isAllowedPublicSeoUrl(`${SITE_URL}/login`)).toBe(false);
     expect(isAllowedPublicSeoUrl(`${SITE_URL}/signup`)).toBe(false);
     expect(isAllowedPublicSeoUrl(`${SITE_URL}/applications`)).toBe(false);
+    expect(isAllowedPublicSeoUrl(`${SITE_URL}/opportunities`)).toBe(false);
+    expect(isAllowedPublicSeoUrl(`${SITE_URL}/opportunities/example`)).toBe(false);
+    expect(isAllowedPublicSeoUrl(`${SITE_URL}/portfolios`)).toBe(false);
     expect(isAllowedPublicSeoUrl(`${SITE_URL}/dashboard`)).toBe(false);
     expect(isAllowedPublicSeoUrl(`${SITE_URL}/api/health`)).toBe(false);
+  });
+});
+
+describe('AI answer discovery index', () => {
+  it('contains only canonical public Jobiest links and never promises citation', () => {
+    const content = fs.readFileSync(path.join(process.cwd(), 'public/llms.txt'), 'utf8');
+    const urls = [...content.matchAll(/\]\((https:\/\/jobiest\.com[^)]+)\)/g)].map((match) => match[1]);
+    expect(urls.length).toBeGreaterThan(10);
+    for (const url of urls) expect(isAllowedPublicSeoUrl(url)).toBe(true);
+    expect(urls.some((url) => /\/(opportunities|portfolios|portfolio\/|api\/|admin)(?:\/|$)/i.test(url))).toBe(false);
+    expect(content).toContain('does not guarantee inclusion, ranking, or citation');
+    expect(content).toContain('Robots directives are not access control');
   });
 });
 

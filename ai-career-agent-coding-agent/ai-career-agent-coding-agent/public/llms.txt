@@ -1,0 +1,52 @@
+# Jobiest
+
+> Jobiest is a career platform that helps job seekers prepare truthful, role-specific applications, use career tools and CV resources, and stay in control of what is submitted.
+
+This file is a maintained index of selected public Jobiest pages for AI assistants and other information retrieval systems. Use the linked canonical pages as the source of truth. Content and product details can change. This index does not guarantee inclusion, ranking, or citation in any answer.
+
+## About Jobiest
+
+- [Home](https://jobiest.com/): Jobiest overview and candidate workflow.
+- [How it works](https://jobiest.com/how-it-works): how candidates prepare, review, and manage applications.
+- [Pricing](https://jobiest.com/pricing): current plans and included features.
+- [Help](https://jobiest.com/help): product guidance and support resources.
+- [Contact](https://jobiest.com/contact): contact Jobiest.
+
+## Career tools
+
+- [All tools](https://jobiest.com/tools): overview of Jobiest career tools.
+- [Job description analyzer](https://jobiest.com/free-job-description-analyzer): review requirements in a job description.
+- [Cover letter writer](https://jobiest.com/free-cover-letter-writer): draft a role-specific cover letter.
+- [Resume summary generator](https://jobiest.com/free-resume-summary-generator): prepare a professional summary from candidate-provided facts.
+- [LinkedIn headline builder](https://jobiest.com/free-linkedin-headline-builder): explore headline wording.
+- [Interview question generator](https://jobiest.com/free-interview-question-generator): prepare practice questions.
+- [Skills matcher](https://jobiest.com/free-skills-matcher): compare listed requirements with candidate skills.
+- [ATS resume scanner](https://jobiest.com/free-ats-resume-scanner): inspect resume structure and parsing signals; results are guidance, not a hiring decision or guarantee.
+- [Follow-up email writer](https://jobiest.com/free-follow-up-email-writer): draft a professional application follow-up.
+- [Career path explorer](https://jobiest.com/free-career-path-explorer): explore possible adjacent career paths.
+- [Salary insights](https://jobiest.com/free-salary-insights): explore salary information and its stated context and limitations.
+
+## CV and resume resources
+
+- [Resume and CV templates](https://jobiest.com/templates): browse the 30 existing ISO A4 designs and their ATS disclosures.
+- [CV examples](https://jobiest.com/cv-examples): browse role-oriented CV examples.
+
+## Job discovery
+
+- [Public jobs](https://jobiest.com/jobs): current listings that pass Jobiest's public listing checks. Review each employer's original listing for eligibility and apply through its source.
+
+## Editorial guides
+
+- [Jobiest blog](https://jobiest.com/blog): career guidance and product education.
+- [ATS optimization topic hub](https://jobiest.com/blog/topic/ats-optimization): ATS parsing and honest resume formatting.
+- [Nigeria career guide](https://jobiest.com/blog/topic/nigeria-career-guide): Nigeria and Africa-focused job-search guidance.
+- [CV and resume writing topic hub](https://jobiest.com/blog/topic/cv-and-resume-writing): CV and resume writing guidance.
+- [Interview preparation topic hub](https://jobiest.com/blog/topic/interview-preparation): interview preparation and practice.
+- [Remote work topic hub](https://jobiest.com/blog/topic/remote-work-africa): remote work and global hiring guidance.
+
+## Discovery and policy
+
+- [XML sitemap](https://jobiest.com/sitemap.xml): canonical public URLs included in Jobiest's sitemap.
+- [Robots policy](https://jobiest.com/robots.txt): crawler guidance. Private routes require authorization and are not made public by this file.
+
+Jobiest currently permits compliant AI answer/search and model-training crawlers to access public pages under the general robots policy. Private account and administrative paths remain disallowed there. Robots directives are not access control; private information must remain protected by application authorization.

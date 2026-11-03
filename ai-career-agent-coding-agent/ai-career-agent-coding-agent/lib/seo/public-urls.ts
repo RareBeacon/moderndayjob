@@ -42,6 +42,8 @@ export const EXCLUDED_SEO_PATH_PREFIXES = [
   '/settings',
   '/documents',
   '/applications',
+  '/opportunities',
+  '/portfolios',
   '/auto-apply',
   '/billing',
   '/generate',
