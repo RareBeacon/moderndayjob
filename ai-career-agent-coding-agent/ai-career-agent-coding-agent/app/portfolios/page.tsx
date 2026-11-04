@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AppShell } from '@/components/site/AppShell';
 import { PORTFOLIO_TEMPLATES } from '@/lib/portfolios.shared';
+import { EmptyState, ErrorState, LoadingState, PermissionDeniedState, SuccessState } from '@/components/ui/state-feedback';
 
 /**
  * Portfolio Studio (Milestone 6). Create, edit, publish, export. The plan's
@@ -28,6 +29,7 @@ type Draft = {
 export default function PortfoliosPage() {
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<'permission' | 'network' | null>(null);
   const [creating, setCreating] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newTemplate, setNewTemplate] = useState<string>('clean');
@@ -39,7 +41,17 @@ export default function PortfoliosPage() {
     try {
       const res = await fetch('/api/portfolios');
       const out = await res.json().catch(() => ({}));
-      setPortfolios(out.portfolios ?? []);
+      if (res.status === 401 || res.status === 403) {
+        setLoadError('permission');
+        setPortfolios([]);
+      } else if (!res.ok) {
+        setLoadError('network');
+      } else {
+        setLoadError(null);
+        setPortfolios(out.portfolios ?? []);
+      }
+    } catch {
+      setLoadError('network');
     } finally {
       setLoading(false);
     }
@@ -136,11 +148,7 @@ export default function PortfoliosPage() {
           Build a portfolio page and share it with a link. Your plan sets how many portfolios you can have (Free 1, Basic 5,
           Premium 10, Ultra 26). Creating, editing and downloading never uses an AI credit.
         </p>
-        {message && (
-          <p className="form-status" role="status">
-            {message}
-          </p>
-        )}
+        {message && (message.startsWith('Created.') || message === 'Saved.' ? <SuccessState title={message.startsWith('Created.') ? 'Portfolio created' : 'Changes saved'}>{message} Next: review its visibility and share the link when you’re ready.</SuccessState> : <p className="form-status" role="status">{message}</p>)}
 
         <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <label style={{ flex: 1, minWidth: 220 }}>
@@ -165,9 +173,13 @@ export default function PortfoliosPage() {
 
       <section style={{ marginTop: 24 }}>
         {loading ? (
-          <p>Loading your portfolios…</p>
+          <LoadingState label="Loading your portfolios" detail="Checking your saved work." />
+        ) : loadError === 'permission' ? (
+          <PermissionDeniedState title="Please sign in to view your portfolios">Your account session may have expired. Sign in and return to Portfolio Studio.</PermissionDeniedState>
+        ) : loadError ? (
+          <ErrorState onRetry={() => { setLoading(true); void load(); }}>We couldn’t load your portfolios. Your saved work hasn’t been changed.</ErrorState>
         ) : portfolios.length === 0 ? (
-          <p>No portfolios yet. Create your first one above.</p>
+          <EmptyState title="Start with your first portfolio">Create a private portfolio above to organize your experience and choose later whether to publish it.</EmptyState>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
             <thead>

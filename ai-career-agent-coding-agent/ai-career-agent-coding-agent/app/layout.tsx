@@ -8,6 +8,7 @@ import { SITE_URL } from '@/lib/site';
 import { ScrollReveal } from '@/components/site/ScrollReveal';
 import { ServiceWorkerRegistrar } from '@/components/site/ServiceWorkerRegistrar';
 import { ChatWidget } from '@/components/support/ChatWidget';
+import { ConnectionNotice } from '@/components/ui/ConnectionNotice';
 
 /* Self-hosted (next/font/local, latin variable files): the build no longer
  * fetches Google Fonts, which made CI builds fail intermittently when
@@ -76,6 +77,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${spaceGrotesk.variable} ${dmSans.variable}`}>
       <body>
+        <ConnectionNotice />
         <a href="#main" className="skip-link">Skip to content</a>
         {/* Without JS the scroll-reveal driver can't run - never hide content. */}
         <noscript>
