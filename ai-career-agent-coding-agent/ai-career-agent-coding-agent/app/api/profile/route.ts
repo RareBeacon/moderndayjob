@@ -23,7 +23,7 @@ export async function GET(req: Request) {
       .eq('user_id', user.id)
       .maybeSingle(),
   ]);
-  return NextResponse.json({ profile: profileRes.data, career: careerRes.data });
+  return NextResponse.json({ userId: user.id, profile: profileRes.data, career: careerRes.data });
 }
 
 export async function PUT(request: Request) {

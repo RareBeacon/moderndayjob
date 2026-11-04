@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { AppShell } from '@/components/site/AppShell';
+import { ErrorState, LoadingState, SuccessState } from '@/components/ui/state-feedback';
 
 type Experience = { company: string; title: string; description?: string };
 type Education = { institution: string; qualification: string };
@@ -88,11 +89,15 @@ export default function ProfilePage() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrorMap>({});
   const [submittedOnce, setSubmittedOnce] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [profileReady, setProfileReady] = useState(false);
+  const [draftRecovered, setDraftRecovered] = useState(false);
+  const [draftKey, setDraftKey] = useState('');
+  const [profileLoadFailed, setProfileLoadFailed] = useState(false);
 
   useEffect(() => {
     let active = true;
     fetch('/api/profile')
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error(`Profile request failed (${r.status})`); return r.json(); })
       .then((data) => {
         if (!active) return;
         const profile = data.profile || {};
@@ -115,17 +120,32 @@ export default function ProfilePage() {
               )
             : [],
         );
+        const key = `jobiest.profile-draft.v1.${data.userId}`;
+        setDraftKey(key);
+        try {
+          const saved = JSON.parse(sessionStorage.getItem(key) || 'null');
+          if (saved && Date.now() - saved.savedAt < 24 * 60 * 60 * 1000) {
+            setForm(saved.form);
+            setExperience(saved.experience);
+            setEducation(saved.education);
+            setNotApplicable(saved.notApplicable);
+            setDraftRecovered(true);
+          }
+        } catch { /* Ignore an invalid local draft; keep the server profile. */ }
+        setProfileReady(true);
       })
       .catch(() => {
-        if (active) {
-          setStatusTone('err');
-          setStatus('Could not load your profile.');
-        }
+        if (active) setProfileLoadFailed(true);
       });
     return () => {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!profileReady || !draftKey) return;
+    try { sessionStorage.setItem(draftKey, JSON.stringify({ savedAt: Date.now(), form, experience, education, notApplicable })); } catch { /* Storage can be unavailable; the server save remains available. */ }
+  }, [profileReady, draftKey, form, experience, education, notApplicable]);
 
   function clearFieldError(fieldKey: keyof FieldErrorMap) {
     setFieldErrors((prev) => {
@@ -287,13 +307,26 @@ export default function ProfilePage() {
 
     setFieldErrors({});
     setBusy(true);
-    const res = await fetch('/api/profile', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    let res: Response;
+    try {
+      res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      setBusy(false);
+      setStatusTone('err');
+      setStatus('Could not reach Jobiest. Your draft is still on this page; reconnect and try again.');
+      return;
+    }
     setBusy(false);
 
+    if (res.status === 401) {
+      setStatusTone('err');
+      setStatus('Your session expired. This tab keeps your unsaved draft. Sign in, then return to your profile.');
+      return;
+    }
     if (res.ok) {
       // Remove any trailing blank rows from the UI and normalize portfolio URL so UI matches saved state.
       setExperience(experience.filter((item) => !isBlankExperience(item)));
@@ -375,8 +408,10 @@ export default function ProfilePage() {
           <a className="btn-ghost" href="/profile/ai" style={{ textDecoration: 'none' }}>Manage your AI providers</a>
         </p>
       </section>
+      {!profileReady && (profileLoadFailed ? <ErrorState onRetry={() => window.location.reload()}>We couldn’t load your profile. Check your connection or sign in again, then retry. Your saved profile has not been changed.</ErrorState> : <LoadingState label="Loading your profile" detail="Your saved profile is being prepared." />)}
+      {draftRecovered && <p className="form-status ok" role="status">We restored an unsaved draft from this tab. Review it and save to keep your changes.</p>}
 
-      <form className="form-stack profile-form" onSubmit={save} noValidate>
+      <form className="form-stack profile-form" onSubmit={save} noValidate hidden={!profileReady} aria-busy={!profileReady}>
         <label>
           Full name
           <input
@@ -621,11 +656,7 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        {status && (
-          <p className={`form-status${statusTone === 'err' ? ' err' : statusTone === 'ok' ? ' ok' : ''}`}>
-            {status}
-          </p>
-        )}
+        {status && (statusTone === 'ok' ? <SuccessState title="Profile saved">Your verified career story is ready for job matching and application tailoring.</SuccessState> : <p className={`form-status${statusTone === 'err' ? ' err' : ''}`} role="alert" aria-live="assertive">{status}{status.includes('Sign in') && <> <a href="/login?next=%2Fprofile">Sign in</a></>}</p>)}
       </form>
     </AppShell>
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { EmptyState, ErrorState, LoadingState, PermissionDeniedState } from '@/components/ui/state-feedback';
 import Link from 'next/link';
 import type { CandidateRadarAlertSettings } from '@/lib/radar/alerts/dispatcher';
 import type { AssistedPreparationPack } from '@/lib/radar/forms/assisted-prep';
@@ -42,6 +43,8 @@ export function OpportunitiesClient({
   const [exclusivityOnly, setExclusivityOnly] = useState(false);
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [loadingSearch, setLoadingSearch] = useState(false);
+  const [searchError, setSearchError] = useState<'network' | 'permission' | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
 
   const [alerts, setAlerts] = useState(initialAlerts);
   const [savingAlerts, setSavingAlerts] = useState(false);
@@ -52,25 +55,25 @@ export function OpportunitiesClient({
   const [prepBusyId, setPrepBusyId] = useState<string | null>(null);
   const [prepError, setPrepError] = useState('');
 
-  async function runSearch(e?: React.FormEvent) {
+  async function runSearch(e?: React.FormEvent, clearFilters = false) {
     if (e) e.preventDefault();
     setLoadingSearch(true);
+    setSearchError(null);
     try {
       const sp = new URLSearchParams();
-      if (query.trim()) sp.set('q', query.trim());
-      if (workplace) sp.set('workplace', workplace);
-      if (exclusivityOnly) sp.set('exclusivityOnly', '1');
-      if (verifiedOnly) sp.set('verifiedOnly', '1');
+      if (!clearFilters && query.trim()) sp.set('q', query.trim());
+      if (!clearFilters && workplace) sp.set('workplace', workplace);
+      if (!clearFilters && exclusivityOnly) sp.set('exclusivityOnly', '1');
+      if (!clearFilters && verifiedOnly) sp.set('verifiedOnly', '1');
       sp.set('limit', '35');
-
       const res = await fetch(`/api/radar/opportunities?${sp.toString()}`);
-      if (!res.ok) return;
-      const json = (await res.json()) as {
-        opportunities?: RankedPublicRadarOpportunity[];
-      };
-      if (Array.isArray(json.opportunities)) {
-        setOpportunities(json.opportunities);
-      }
+      if (res.status === 401 || res.status === 403) { setSearchError('permission'); return; }
+      if (!res.ok) { setSearchError('network'); return; }
+      const json = (await res.json()) as { opportunities?: RankedPublicRadarOpportunity[] };
+      if (Array.isArray(json.opportunities)) setOpportunities(json.opportunities);
+      setHasSearched(true);
+    } catch {
+      setSearchError('network');
     } finally {
       setLoadingSearch(false);
     }
@@ -320,23 +323,14 @@ export function OpportunitiesClient({
       </section>
 
       <section style={{ display: 'grid', gap: 14 }}>
-        {opportunities.length === 0 && (
-          <div
-            style={{
-              padding: 28,
-              borderRadius: 12,
-              border: '1px solid var(--line, #e2e8f0)',
-              textAlign: 'center',
-            }}
-          >
-            <strong style={{ display: 'block', marginBottom: 6 }}>
-              No matching verified Radar opportunities right now
-            </strong>
-            <span className="muted" style={{ fontSize: 14 }}>
-              Broaden your filters or enable First-Mover Radar Alerts above so we notify you as soon as new direct
-              employer openings land.
-            </span>
-          </div>
+        {loadingSearch && <LoadingState label="Searching verified openings" detail="Checking your filters against current Radar opportunities." slowAfterMs={3500} slowMessage="Still checking matches. You can wait here or adjust your search when it finishes." />}
+        {searchError === 'permission' && <PermissionDeniedState title="Your session needs attention" href="/login?next=%2Fopportunities">Sign in again to search and manage Radar alerts. Your saved profile is unchanged.</PermissionDeniedState>}
+        {searchError === 'network' && <ErrorState onRetry={() => void runSearch()}>Radar couldn’t finish this search. Check your connection and try again; your filters are still here.</ErrorState>}
+        {!loadingSearch && !searchError && opportunities.length === 0 && (
+          <EmptyState title={hasSearched ? 'No matching opportunities found' : 'No opportunities to show yet'}>
+            {hasSearched ? 'Try a broader role name, remove workplace or verification filters, or clear all filters. New verified roles may appear as Radar updates.' : migrationPending ? 'Radar is updating its opportunity index. Try again shortly.' : 'Try another search or check back as new verified roles arrive.'}
+            {hasSearched && <button type="button" className="text-button" style={{ display: 'block', margin: '12px auto 0' }} onClick={() => { setQuery(''); setWorkplace(''); setExclusivityOnly(false); setVerifiedOnly(false); void runSearch(undefined, true); }}>Clear all filters</button>}
+          </EmptyState>
         )}
 
         {opportunities.map((rankedItem) => {
