@@ -1,6 +1,6 @@
+import React, { type ReactNode } from 'react';
 import Link from 'next/link';
 import { Logo } from './Logo';
-import type { ReactNode } from 'react';
 
 export function AuthShell({
   title,
@@ -53,7 +53,7 @@ export function AuthShell({
               {(promoPoints ?? defaultPoints).map((point, i) => (
                 <li key={i}>
                   <span className="auth-check-icon" aria-hidden="true">✓</span>
-                  <span>{point}</span>
+                  <span className="auth-check-text">{point}</span>
                 </li>
               ))}
             </ul>
