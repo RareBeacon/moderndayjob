@@ -715,3 +715,77 @@
   margin-bottom: 4px;
 }
 
+
+/* Candidate Talent Pool workspace layout */
+.wrap { max-width: 1240px; padding-top: 22px; }
+.hero { grid-template-columns: minmax(0, 1.2fr) minmax(330px, .9fr); padding: 28px 32px; align-items: center; }
+.heroTitle { max-width: 18ch; }
+.heroLead { max-width: 54ch; margin-bottom: 0; }
+.heroCopy .eyebrow { margin: 0; }
+.ctaRow { margin-top: 20px; }
+.howLink { color: #235b87; font-size: 14px; font-weight: 600; text-underline-offset: 3px; }
+.howLink span { margin-left: 5px; font-size: 18px; }
+.planContext { margin: 10px 0 0; color: var(--color-muted, #5d6b85); font-size: 11px; }
+.requestLink { display: inline-flex; margin-top: 8px; color: var(--color-muted, #5d6b85); font-size: 12.5px; font-weight: 600; text-decoration: none; }
+.requestLink:hover { color: var(--color-primary-navy, #111d35); text-decoration: underline; }
+.statusCard { padding: 22px; }
+.statusLabel { letter-spacing: .08em; }
+.readinessLine { display: flex; align-items: center; gap: 14px; margin-top: 12px; }
+.readinessLine > strong { min-width: 36px; font-size: 15px; color: var(--color-primary-navy, #111d35); }
+.readinessTrack { height: 16px; flex: 1; overflow: hidden; border-radius: 999px; background: #e2e7ed; }
+.readinessTrack span { display: block; height: 100%; min-width: 4px; border-radius: inherit; background: linear-gradient(90deg, #a9d831, #c8ed54); }
+.readinessHelp { margin: 12px 0 16px; color: var(--color-ink, #17223b); font-size: 13.5px; line-height: 1.55; }
+.missingDetails { overflow: hidden; border: 1px solid var(--color-line, #e2e6ed); border-radius: 11px; background: #fff; }
+.missingDetails summary { display: grid; grid-template-columns: 25px 1fr 18px; align-items: center; gap: 10px; min-height: 64px; padding: 10px 13px; list-style: none; cursor: pointer; color: var(--color-ink, #17223b); font-size: 13px; line-height: 1.5; }
+.missingDetails summary::-webkit-details-marker { display: none; }
+.missingIcon { color: var(--color-primary-navy, #111d35); font-size: 20px; }
+.detailsChevron { justify-self: end; font-size: 20px; transition: transform .15s ease; }
+.missingDetails[open] .detailsChevron { transform: rotate(180deg); }
+.missingDetails ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 14px; margin: 0; padding: 0 18px 14px 48px; color: var(--color-muted, #5d6b85); font-size: 12px; }
+.statusSummary { margin-top: 13px; padding: 12px; border-radius: 10px; background: #fff; color: var(--color-muted, #5d6b85); font-size: 13px; line-height: 1.5; }
+.reviewerNote { margin: 12px 0 0; color: var(--color-ink, #17223b); font-size: 13px; line-height: 1.5; }
+.section { margin-top: 22px; }
+.section > .panel { padding: 20px 24px; }
+.sectionHeader { margin-bottom: 12px; }
+.journeyCards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.journeyCards article { display: grid; grid-template-columns: 48px 1fr; gap: 15px; min-height: 96px; padding: 0 20px; border-right: 1px solid var(--color-line, #e2e6ed); }
+.journeyCards article:first-child { padding-left: 6px; }
+.journeyCards article:last-child { padding-right: 0; border-right: 0; }
+.journeyCards article > span { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #edf6fc; color: #1d4c78; font-size: 18px; font-weight: 800; }
+.journeyCards h3 { margin: 7px 0 6px; color: var(--color-primary-navy, #111d35); font-size: 14px; }
+.journeyCards p { margin: 0; color: var(--color-muted, #5d6b85); font-size: 13px; line-height: 1.6; }
+.moreExplainers { margin-top: 16px; border-top: 1px solid var(--color-line, #e2e6ed); padding-top: 12px; }
+.moreExplainers summary, .allStatuses summary { color: #235b87; cursor: pointer; font-size: 12px; font-weight: 700; }
+.moreExplainers .explainerGrid { margin-top: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.moreExplainers .infoCard { padding: 14px; }
+.moreExplainers .infoCard h3 { font-size: 14px; }
+.moreExplainers .infoCard p { font-size: 12.5px; }
+.journeyTrack { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); position: relative; margin: 20px 0 2px; padding: 0; list-style: none; }
+.journeyTrack::before { position: absolute; z-index: 0; top: 15px; left: 12.5%; right: 12.5%; height: 2px; content: ''; background: #d9dee5; }
+.journeyTrack li { z-index: 1; display: grid; justify-items: center; align-content: start; gap: 7px; min-width: 0; text-align: center; }
+.journeyNode { display: grid; place-items: center; width: 31px; height: 31px; border: 2px solid #cfd5dd; border-radius: 50%; background: #fff; color: #fff; font-size: 13px; font-weight: 800; }
+.journeyCurrent .journeyNode { border-color: #e2a020; color: #d58b09; box-shadow: inset 0 0 0 4px #fff; background: #e2a020; }
+.journeyDone .journeyNode { border-color: #a8d637; background: #a8d637; }
+.journeyLabel { color: var(--color-muted, #5d6b85); font-size: 13px; }
+.journeyCurrent .journeyLabel { color: var(--color-primary-navy, #111d35); font-weight: 700; }
+.journeyStatus { max-width: 100%; padding: 4px 10px; border-radius: 999px; background: #fff8e6; color: #8a611a; font-size: 11px; font-weight: 700; }
+.allStatuses { margin-top: 14px; }
+.statusList { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+.emptyHistory { display: grid; justify-items: center; gap: 9px; min-height: 165px; padding: 18px; border: 1px solid var(--color-line, #e2e6ed); border-radius: 12px; background: #fff; text-align: center; }
+.emptyHistoryIcon { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: #edf6fc; color: #1d4c78; font-size: 22px; }
+.emptyHistory > strong { color: var(--color-primary-navy, #111d35); font-size: 15px; }
+.emptyHistory > p { max-width: 62ch; margin: 0; color: var(--color-muted, #5d6b85); font-size: 13.5px; line-height: 1.55; }
+.emptyHistory .secondaryBtn { min-height: 36px; padding: 7px 12px; font-size: 12px; }
+@media (max-width: 920px) {
+  .hero { grid-template-columns: 1fr; }
+  .journeyCards { grid-template-columns: 1fr; gap: 14px; }
+  .journeyCards article, .journeyCards article:first-child, .journeyCards article:last-child { min-height: 0; padding: 0; border: 0; }
+}
+@media (max-width: 600px) {
+  .hero { padding: 20px; }
+  .journeyTrack { grid-template-columns: repeat(4, minmax(64px, 1fr)); overflow-x: auto; padding-bottom: 7px; }
+  .journeyTrack::before { left: 32px; right: 32px; }
+  .journeyStatus { font-size: 10px; }
+  .missingDetails ul { grid-template-columns: 1fr; }
+  .moreExplainers .explainerGrid { grid-template-columns: 1fr; }
+}

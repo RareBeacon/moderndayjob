@@ -59,6 +59,8 @@ export function TalentPoolHubClient({ initialOverview, planCode }: Props) {
   const statusMeta = TALENT_STATUS_META[overview.displayStatus] ?? TALENT_STATUS_META.NOT_APPLIED;
   const activeApp = overview.activeApplication;
   const activeSession = activeApp?.latest_session ?? null;
+  const journeyIndex = overview.displayStatus === 'UNDER_ADMIN_REVIEW' ? 2 : ['APPROVED', 'REJECTED'].includes(overview.displayStatus) ? 3 : ['NOT_APPLIED', 'PROFILE_INCOMPLETE', 'WITHDRAWN'].includes(overview.displayStatus) ? 0 : 1;
+  const journeyLabels = ['Profile', 'Application', 'Review', 'Decision'];
 
   const canApplyOrUpdate =
     overview.displayStatus === 'NOT_APPLIED' ||
@@ -178,143 +180,117 @@ export function TalentPoolHubClient({ initialOverview, planCode }: Props) {
       )}
 
       <section className={styles.hero} aria-labelledby="tp-hero-heading">
-        <div>
-          <span className={styles.eyebrow}>Jobiest Talent Pool · Included on {planCode} Plan</span>
-          <h1 id="tp-hero-heading" className={styles.heroTitle}>
-            Get discovered by verified employers for what you can actually do.
-          </h1>
+        <div className={styles.heroCopy}>
+          <span className={styles.eyebrow}>Jobiest Talent Pool</span>
+          <h1 id="tp-hero-heading" className={styles.heroTitle}>Get discovered by verified employers</h1>
           <p className={styles.heroLead}>
-            Complete one structured competency assessment grounded in your real experience. Every application is
-            reviewed by a human specialist before your profile becomes discoverable, and you control visibility, CV
-            permissions, and employer outreach at every step.
+            Complete your profile, choose what employers can see, and control every request.
           </p>
-
           <div className={styles.ctaRow}>
-            {canApplyOrUpdate && (
-              <Link href="/talent-pool/apply" className={styles.primaryBtn}>
-                Apply to Join Talent Pool
-              </Link>
-            )}
+            {canApplyOrUpdate && (overview.onboarding.readyToApply ? (
+              <Link href="/talent-pool/apply" className={styles.primaryBtn}>Apply to Join Talent Pool</Link>
+            ) : (
+              <>
+                <Link href="/profile" className={styles.primaryBtn}>Complete profile</Link>
+                <Link href="/talent-pool/apply" className={styles.secondaryBtn}>Continue to application</Link>
+              </>
+            ))}
             {canLaunchOrResumeInterview && (
-              <button
-                type="button"
-                onClick={() => void handleStartOrResumeAssessment()}
-                disabled={startingInterview}
-                className={styles.primaryBtn}
-              >
-                {startingInterview
-                  ? 'Opening assessment...'
-                  : overview.displayStatus === 'ASSESSMENT_IN_PROGRESS'
-                    ? 'Resume AI Assessment'
-                    : 'Start AI Assessment'}
+              <button type="button" onClick={() => void handleStartOrResumeAssessment()} disabled={startingInterview} className={styles.primaryBtn}>
+                {startingInterview ? 'Opening assessment...' : overview.displayStatus === 'ASSESSMENT_IN_PROGRESS' ? 'Resume AI Assessment' : 'Start AI Assessment'}
               </button>
             )}
-            <Link href="/talent-pool/requests" className={styles.secondaryBtn}>
-              Employer Requests &amp; Messages
-              {overview.pendingContactRequestsCount > 0 ? ` (${overview.pendingContactRequestsCount} new)` : ''}
-            </Link>
+            <a href="#tp-how-heading" className={styles.howLink}>How the Talent Pool works <span aria-hidden="true">→</span></a>
           </div>
+          <p className={styles.planContext}>Talent Pool is included on your {planCode} plan.</p>
+          <Link href="/talent-pool/requests" className={styles.requestLink}>
+            Employer Requests &amp; Messages{overview.pendingContactRequestsCount > 0 ? ` (${overview.pendingContactRequestsCount} new)` : ''}
+          </Link>
         </div>
 
-        <aside className={styles.statusCard} aria-label="Your Talent Pool status">
+        <aside className={styles.statusCard} aria-label="Your Talent Pool profile readiness">
           <div className={styles.statusHeader}>
-            <span className={styles.statusLabel}>Current status</span>
+            <span className={styles.statusLabel}>Profile readiness</span>
             <span className={`${styles.statusPill} ${styles[`tone_${statusMeta.tone}`]}`}>{statusMeta.label}</span>
           </div>
-          <p style={{ fontSize: 14.5, color: 'var(--color-ink)', lineHeight: 1.55 }}>{statusMeta.summary}</p>
-
-          <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--color-line)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5, marginBottom: 6 }}>
-              <span className="muted">Profile readiness</span>
-              <strong>{overview.onboarding.completenessScore}%</strong>
+          <div className={styles.readinessLine}>
+            <div className={styles.readinessTrack} role="progressbar" aria-label="Profile readiness" aria-valuemin={0} aria-valuemax={100} aria-valuenow={overview.onboarding.completenessScore}>
+              <span style={{ width: `${overview.onboarding.completenessScore}%` }} />
             </div>
-            <div
-              style={{
-                height: 8,
-                borderRadius: 999,
-                background: '#e2e6ed',
-                overflow: 'hidden',
-              }}
-            >
-              <div
-                style={{
-                  width: `${overview.onboarding.completenessScore}%`,
-                  height: '100%',
-                  background: 'var(--color-primary-navy)',
-                }}
-              />
-            </div>
-            {overview.onboarding.missingRequired.length > 0 && (
-              <p className={styles.hint} style={{ marginTop: 8 }}>
-                Missing required items: {overview.onboarding.missingRequired.map((f) => f.label).join(', ')}.
-              </p>
-            )}
+            <strong>{overview.onboarding.completenessScore}%</strong>
           </div>
-
+          <p className={styles.readinessHelp}>
+            {overview.onboarding.missingRequired.length > 0
+              ? 'Add the required career details before applying.'
+              : statusMeta.summary}
+          </p>
+          {overview.onboarding.missingRequired.length > 0 && (
+            <details className={styles.missingDetails}>
+              <summary>
+                <span className={styles.missingIcon} aria-hidden="true">▤</span>
+                <span>{overview.onboarding.missingRequired.map((field) => field.label).join(' · ')}</span>
+                <span className={styles.detailsChevron} aria-hidden="true">⌄</span>
+              </summary>
+              <ul>
+                {overview.onboarding.missingRequired.map((field) => <li key={field.key}>{field.label}</li>)}
+              </ul>
+            </details>
+          )}
+          {overview.onboarding.missingRequired.length === 0 && (
+            <div className={styles.statusSummary}>{statusMeta.summary}</div>
+          )}
           {activeApp?.reassessment_instructions && overview.displayStatus === 'REASSESSMENT_REQUESTED' && (
-            <div className={styles.alertInfo} style={{ marginTop: 14, marginBottom: 0 }}>
-              <strong>Reassessment guidance:</strong> {activeApp.reassessment_instructions}
-            </div>
+            <div className={styles.alertInfo} style={{ marginTop: 14, marginBottom: 0 }}><strong>Reassessment guidance:</strong> {activeApp.reassessment_instructions}</div>
           )}
-
-          {activeApp?.candidate_feedback && (
-            <div style={{ marginTop: 12, fontSize: 13.5, color: 'var(--color-ink)' }}>
-              <strong>Reviewer note:</strong> {activeApp.candidate_feedback}
-            </div>
-          )}
+          {activeApp?.candidate_feedback && <p className={styles.reviewerNote}><strong>Reviewer note:</strong> {activeApp.candidate_feedback}</p>}
         </aside>
       </section>
 
       <section className={styles.section} aria-labelledby="tp-how-heading">
-        <div className={styles.sectionHeader}>
-          <div>
-            <h2 id="tp-how-heading" className={styles.sectionTitle}>
-              How the Jobiest Talent Pool works
-            </h2>
-            <p className={styles.sectionSub}>
-              Transparent evaluation, human review, and strict candidate privacy from application to placement.
-            </p>
+        <div className={styles.panel}>
+          <div className={styles.sectionHeader}>
+            <div>
+              <h2 id="tp-how-heading" className={styles.sectionTitle}>How it works</h2>
+              <p className={styles.sectionSub}>A simple path to new opportunities through verified employers.</p>
+            </div>
           </div>
-        </div>
-
-        <div className={styles.explainerGrid}>
-          {EXPLAINER_ITEMS.map((item) => (
-            <article key={item.title} className={styles.infoCard}>
-              <h3>{item.title}</h3>
-              <p>{item.body}</p>
-            </article>
-          ))}
+          <div className={styles.journeyCards}>
+            <article><span>1</span><div><h3>Complete your profile</h3><p>Tell us about your experience, skills, and target roles.</p></div></article>
+            <article><span>2</span><div><h3>Join &amp; get reviewed</h3><p>Your profile is reviewed by our team before it’s visible to employers.</p></div></article>
+            <article><span>3</span><div><h3>Choose your visibility</h3><p>Control who can find you and manage every contact request or interview invitation.</p></div></article>
+          </div>
+          <details className={styles.moreExplainers}>
+            <summary>Assessment, human review and candidate privacy details</summary>
+            <div className={styles.explainerGrid}>
+              {EXPLAINER_ITEMS.map((item) => <article key={item.title} className={styles.infoCard}><h3>{item.title}</h3><p>{item.body}</p></article>)}
+            </div>
+          </details>
         </div>
       </section>
 
       <section className={styles.section} aria-labelledby="tp-stages-heading">
         <div className={styles.panel}>
-          <h2 id="tp-stages-heading" className={styles.sectionTitle} style={{ fontSize: 18 }}>
-            Application lifecycle stages
-          </h2>
-          <p className={styles.sectionSub}>
-            Every candidate progresses through clear, auditable states. Your active stage is highlighted.
-          </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
-            {TALENT_DISPLAY_STATUSES.map((st: TalentDisplayStatus) => {
-              const meta = TALENT_STATUS_META[st];
-              const isCurrent = st === overview.displayStatus;
-              return (
-                <span
-                  key={st}
-                  aria-current={isCurrent ? 'step' : undefined}
-                  className={`${styles.statusPill} ${isCurrent ? styles[`tone_${meta.tone}`] : ''}`}
-                  style={{
-                    opacity: isCurrent ? 1 : 0.68,
-                    fontWeight: isCurrent ? 700 : 500,
-                    outline: isCurrent ? '2px solid var(--color-primary-navy)' : 'none',
-                  }}
-                >
-                  {meta.label}
-                </span>
-              );
-            })}
-          </div>
+          <h2 id="tp-stages-heading" className={styles.sectionTitle}>Application journey</h2>
+          <p className={styles.sectionSub}>Track your progress from profile to opportunities.</p>
+          <ol className={styles.journeyTrack} aria-label={`Current journey stage: ${journeyLabels[journeyIndex]}`}>
+            {journeyLabels.map((label, index) => (
+              <li key={label} className={index < journeyIndex ? styles.journeyDone : index === journeyIndex ? styles.journeyCurrent : ''}>
+                <span className={styles.journeyNode}>{index < journeyIndex ? '✓' : ''}</span>
+                <span className={styles.journeyLabel}>{label}</span>
+                {index === journeyIndex && <span className={styles.journeyStatus}>{statusMeta.label}</span>}
+              </li>
+            ))}
+          </ol>
+          <details className={styles.allStatuses}>
+            <summary>View all application statuses</summary>
+            <div className={styles.statusList}>
+              {TALENT_DISPLAY_STATUSES.map((st: TalentDisplayStatus) => {
+                const meta = TALENT_STATUS_META[st];
+                const isCurrent = st === overview.displayStatus;
+                return <span key={st} aria-current={isCurrent ? 'step' : undefined} className={`${styles.statusPill} ${isCurrent ? styles[`tone_${meta.tone}`] : ''}`} style={{ opacity: isCurrent ? 1 : 0.68 }}>{meta.label}</span>;
+              })}
+            </div>
+          </details>
         </div>
       </section>
 
@@ -331,13 +307,12 @@ export function TalentPoolHubClient({ initialOverview, planCode }: Props) {
         </div>
 
         {overview.history.length === 0 ? (
-          <div className={styles.panel}>
-            <p style={{ fontWeight: 600, color: 'var(--color-ink)' }}>No Talent Pool applications yet</p>
-            <p className={styles.sectionSub} style={{ marginBottom: 16 }}>
-              Start your application to confirm your career details and unlock your personalized competency interview.
-            </p>
-            <Link href="/talent-pool/apply" className={styles.primaryBtn}>
-              Apply to Join Talent Pool
+          <div className={styles.emptyHistory}>
+            <span className={styles.emptyHistoryIcon} aria-hidden="true">▤</span>
+            <strong>No Talent Pool applications yet</strong>
+            <p>Complete your profile to join the Talent Pool and start applying for opportunities with verified employers.</p>
+            <Link href={overview.onboarding.readyToApply ? '/talent-pool/apply' : '/profile'} className={styles.secondaryBtn}>
+              {overview.onboarding.readyToApply ? 'Apply to Join Talent Pool' : 'Complete your profile'}
             </Link>
           </div>
         ) : (
@@ -414,10 +389,10 @@ export function TalentPoolHubClient({ initialOverview, planCode }: Props) {
           <div className={styles.sectionHeader}>
             <div>
               <h2 id="tp-privacy-heading" className={styles.sectionTitle}>
-                Visibility, CV access &amp; contact preferences
+                Visibility &amp; contact preferences
               </h2>
               <p className={styles.sectionSub}>
-                Even after approval, you stay in full control of who can discover you, view your CV, or reach out.
+                You control who can discover you, view your information, and reach out. These settings can be changed later.
               </p>
             </div>
           </div>
@@ -449,7 +424,7 @@ export function TalentPoolHubClient({ initialOverview, planCode }: Props) {
                 id="tp-blocked-domains"
                 value={blockedInput}
                 onChange={(e) => setBlockedInput(e.target.value)}
-                placeholder="currentemployer.com, subsidiary.org"
+                placeholder="company.com, subsidiary.org"
               />
               <span className={styles.hint}>Comma-separated company domains that will never see your profile.</span>
             </div>
@@ -501,7 +476,7 @@ export function TalentPoolHubClient({ initialOverview, planCode }: Props) {
               disabled={savingPrefs}
               onClick={() => void handleSavePreferences({})}
             >
-              {savingPrefs ? 'Saving settings...' : 'Save visibility preferences'}
+              {savingPrefs ? 'Saving settings...' : 'Save preferences'}
             </button>
 
             {overview.activeApplication && overview.displayStatus !== 'WITHDRAWN' && (
