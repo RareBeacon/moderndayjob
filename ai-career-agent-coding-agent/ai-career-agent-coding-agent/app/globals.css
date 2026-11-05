@@ -2689,18 +2689,8 @@ body { background: var(--background); color: var(--foreground); font-family: var
 }
 
 /* Unified Jobiest authentication experience */
-.auth-page-login { min-height: 100svh; padding: 40px 20px; background: #f4f6fa; }
-.auth-page-login .auth-main { display: grid; place-items: center; width: 100%; }
-.auth-page-login .auth-card { max-width: 430px; padding: 30px; border-radius: 16px; box-shadow: 0 18px 54px rgb(17 29 53 / 12%); }
-.auth-brand { display: inline-flex; align-items: center; text-decoration: none; }
-.auth-logo { display: block; width: 124px; height: auto; object-fit: contain; }
-.auth-page-login .auth-card h1 { margin-top: 22px; font-size: 24px; }
-.auth-page-login .auth-card .sub { margin-top: 8px; }
-.auth-page-login .auth-form { gap: 16px; margin-top: 22px; }
-.auth-page-login .auth-form input { background: #f8faff; border-radius: 9px; min-height: 44px; }
-.auth-page-login .google-btn,
-.auth-card-signup .google-btn { min-height: 44px; border-radius: 11px; font-size: 14px; }
-.auth-page-login .auth-form .btn-block { min-height: 46px; margin-top: 2px; border-radius: 11px; }
+.auth-page-split,
+.auth-page-login,
 .auth-page-signup {
   display: grid;
   grid-template-columns: minmax(380px, 40.5%) minmax(0, 1fr);
@@ -2709,6 +2699,23 @@ body { background: var(--background); color: var(--foreground); font-family: var
   min-height: 100svh;
   padding: 0;
   background: #f3f5f9;
+}
+.auth-brand { display: inline-flex; align-items: center; text-decoration: none; }
+.auth-logo { display: block; width: 124px; height: auto; object-fit: contain; }
+.auth-page-centered {
+  min-height: 100svh;
+  padding: 40px 20px;
+  background: #f4f6fa;
+  display: grid;
+  place-items: center;
+}
+.auth-page-centered .auth-card {
+  max-width: 440px;
+  width: 100%;
+  padding: 34px 28px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 18px 54px rgb(17 29 53 / 12%);
 }
 .auth-promo {
   position: relative;
@@ -2732,15 +2739,45 @@ body { background: var(--background); color: var(--foreground); font-family: var
 .auth-promo-orbit { position: absolute; left: -72px; bottom: -250px; width: 465px; height: 465px; border: 1px solid #d7f94b; border-radius: 50%; pointer-events: none; }
 .auth-promo-orbit::before { position: absolute; inset: -48px; border-radius: inherit; background: rgb(89 117 165 / 13%); content: ''; }
 .auth-main { display: grid; place-items: center; min-width: 0; padding: clamp(24px, 4.5vw, 64px); }
-.auth-card-signup { width: min(100%, 570px); max-width: 570px; padding: clamp(28px, 3.2vw, 44px); border-radius: 16px; box-shadow: 0 14px 42px rgb(17 29 53 / 9%); }
+.auth-card-split,
+.auth-card-login,
+.auth-card-signup {
+  width: min(100%, 570px);
+  max-width: 570px;
+  padding: clamp(28px, 3.2vw, 44px);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 14px 42px rgb(17 29 53 / 9%);
+}
+.auth-card-split h1,
+.auth-card-login h1,
 .auth-card-signup h1 { margin-top: 0; font-size: clamp(28px, 2.7vw, 36px); line-height: 1.12; letter-spacing: -.04em; }
+.auth-card-split .sub,
+.auth-card-login .sub,
 .auth-card-signup .sub { margin-top: 7px; font-size: 17px; }
+.auth-card-split .auth-form,
+.auth-card-login .auth-form,
 .auth-card-signup .auth-form { gap: 13px; margin-top: 22px; }
+.auth-card-split .auth-form label,
+.auth-card-login .auth-form label,
 .auth-card-signup .auth-form label { gap: 6px; }
+.auth-card-split .auth-form input,
+.auth-card-login .auth-form input,
 .auth-card-signup .auth-form input { min-height: 43px; padding: 10px 13px; border-radius: 9px; background: #fff; }
+.auth-card-split .auth-form select,
+.auth-card-login .auth-form select,
 .auth-card-signup .auth-form select { min-height: 43px; height: 43px; border-radius: 9px; }
+.auth-card-split .auth-form .hint,
+.auth-card-login .auth-form .hint,
 .auth-card-signup .auth-form .hint { line-height: 1.4; }
+.auth-card-split .auth-divider,
+.auth-card-login .auth-divider,
 .auth-card-signup .auth-divider { margin: 17px 0 !important; }
+.auth-card-split .google-btn,
+.auth-card-login .google-btn,
+.auth-card-signup .google-btn { min-height: 44px; border-radius: 11px; font-size: 14px; }
+.auth-card-split .auth-form .btn-block,
+.auth-card-login .auth-form .btn-block,
 .auth-card-signup .auth-form .btn-block { min-height: 48px; margin-top: 1px; border-radius: 11px; font-size: 15px; }
 .auth-card-signup .password-rules { display: flex; flex-wrap: wrap; column-gap: 14px; row-gap: 4px; margin-top: 5px; }
 .auth-card-signup .password-rules li { font-size: 11px; }
@@ -2748,18 +2785,28 @@ body { background: var(--background); color: var(--foreground); font-family: var
 .signup-consent input { width: 18px; height: 18px; min-height: 18px !important; margin: 2px 0 0; accent-color: #111d35; }
 .signup-consent label { color: var(--ink-2); font-size: 12.5px; font-weight: 500; line-height: 1.55; }
 .signup-consent a { color: #235b87; text-decoration: underline; text-underline-offset: 2px; }
+.auth-card-split .auth-foot,
+.auth-card-login .auth-foot,
 .auth-card-signup .auth-foot { margin-top: 17px; }
+.auth-card-split .auth-foot.legal,
+.auth-card-login .auth-foot.legal,
 .auth-card-signup .auth-foot.legal { display: none; }
 @media (max-width: 900px) {
+  .auth-page-split,
+  .auth-page-login,
   .auth-page-signup { grid-template-columns: minmax(300px, 38%) minmax(0, 1fr); }
   .auth-promo { padding: 34px 28px; }
   .auth-promo-logo { width: 145px; }
   .auth-promo-copy h2 { font-size: clamp(36px, 5vw, 48px); }
   .auth-promo-copy > p { font-size: 16px; }
   .auth-main { padding: 22px; }
+  .auth-card-split,
+  .auth-card-login,
   .auth-card-signup { padding: 28px; }
 }
 @media (max-width: 700px) {
+  .auth-page-split,
+  .auth-page-login,
   .auth-page-signup { display: flex; flex-direction: column; }
   .auth-promo { min-height: auto; padding: 24px 22px 26px; }
   .auth-promo-logo { width: 126px; }
@@ -2771,11 +2818,13 @@ body { background: var(--background); color: var(--foreground); font-family: var
   .auth-promo-copy li > span { flex-basis: 22px; width: 22px; height: 22px; font-size: 13px; }
   .auth-promo-orbit { left: auto; right: -180px; bottom: -260px; width: 360px; height: 360px; }
   .auth-main { padding: 20px 14px 34px; }
+  .auth-card-split,
+  .auth-card-login,
   .auth-card-signup { padding: 26px 22px; }
 }
 @media (max-width: 420px) {
-  .auth-page-login { padding: 20px 12px; }
-  .auth-page-login .auth-card { padding: 25px 21px; }
+  .auth-card-split h1,
+  .auth-card-login h1,
   .auth-card-signup h1 { font-size: 28px; }
   .auth-card-signup .password-rules { display: grid; }
 }
