@@ -35,7 +35,7 @@ export default async function FreeCareerPathsPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(faqJsonLd([
     { q: "How does the career path explorer work?", a: "You enter your current skills; the explorer maps realistic roles those skills apply to and shows the gaps between where you are and each role." },
     { q: "Is it free?", a: "Yes, exploration is free. A free account lets you save the paths you want to pursue." },
-    { q: "Does it guarantee a career change?", a: "No. It shows plausible directions grounded in your skills \u2014 the work of closing each gap stays yours." },
+    { q: "Does it guarantee a career change?", a: "No. It shows plausible directions grounded in your skills - the work of closing each gap stays yours." },
       ]))} />
       <section className="mk-section tight">
         <div className="mk-shell" style={{ maxWidth: 920 }}>

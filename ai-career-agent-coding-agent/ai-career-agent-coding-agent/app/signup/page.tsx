@@ -6,23 +6,13 @@ import { AuthShell } from '@/components/site/AuthShell';
 import { GoogleButton } from '@/components/site/GoogleButton';
 import { LinkedInButton } from '@/components/site/LinkedInButton';
 
-const COUNTRY_CODES = [
-  { code: '+234', label: '🇳🇬 +234' },
-  { code: '+233', label: '🇬🇭 +233' },
-  { code: '+254', label: '🇰🇪 +254' },
-  { code: '+27', label: '🇿🇦 +27' },
-  { code: '+44', label: '🇬🇧 +44' },
-  { code: '+1', label: '🇺🇸 +1' },
-];
-
 export default function SignupPage() {
   const router = useRouter();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  const [countryCode, setCountryCode] = useState('+234'); // Nigeria by default
-  const [localPhone, setLocalPhone] = useState('');
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [oauthNotice, setOauthNotice] = useState<string | null>(null);
@@ -55,21 +45,24 @@ export default function SignupPage() {
     setError('');
 
     const name = fullName.trim().replace(/\s+/g, ' ');
-    const digits = localPhone.replace(/\D/g, '');
     if (name.length < 2) {
       setError('Please enter your full name.');
       return;
     }
-    if (digits.length < 7 || digits.length > 12) {
-      setError('Please enter your phone number without the country code, e.g. 801 234 5678.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) {
+      setError('Please enter a valid email address.');
       return;
     }
     if (!hasLength || !hasNumber || !hasSpecial) {
       setError('Your password needs at least 8 characters, including a number and a special character.');
       return;
     }
+    if (!termsAccepted) {
+      setError('Please agree to the Terms of Service and Privacy Policy to continue.');
+      return;
+    }
+
     setBusy(true);
-    const phone = `${countryCode}${digits}`;
 
     const attribution = (() => {
       if (typeof window === 'undefined') return undefined;
@@ -89,7 +82,7 @@ export default function SignupPage() {
     const res = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, fullName: name, phone, attribution }),
+      body: JSON.stringify({ email: email.trim().toLowerCase(), password, fullName: name, attribution }),
     }).catch(() => null);
 
     if (res && res.status === 409) {
@@ -122,7 +115,11 @@ export default function SignupPage() {
   }
 
   return (
-    <AuthShell title="Create your account" subtitle="One step. Your career profile comes later, when it matters.">
+    <AuthShell
+      variant="signup"
+      title="Create your free account"
+      subtitle="Start building stronger applications with Jobiest."
+    >
       {oauthNotice ? (
         <div className="auth-error" role="alert" style={{ marginTop: 16 }}>
           {oauthNotice}
@@ -132,7 +129,7 @@ export default function SignupPage() {
         <LinkedInButton />
         <GoogleButton />
       </div>
-      <div className="auth-divider" style={{ margin: '18px 0' }}><span>or with email</span></div>
+      <div className="auth-divider" style={{ margin: '18px 0' }}><span>or sign up with email</span></div>
       <form onSubmit={submit} className="auth-form" noValidate>
         {error ? <div className="auth-error" role="alert">{error}</div> : null}
         <label>
@@ -140,7 +137,7 @@ export default function SignupPage() {
           <input
             type="text"
             autoComplete="name"
-            placeholder="e.g. Adaeze Okafor"
+            placeholder="Your name"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             maxLength={80}
@@ -152,35 +149,11 @@ export default function SignupPage() {
           <input
             type="email"
             autoComplete="email"
+            placeholder="name@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
-        </label>
-        <label>
-          Phone number
-          <div style={{ display: 'flex', gap: 8 }}>
-            <select
-              aria-label="Country code"
-              value={countryCode}
-              onChange={(e) => setCountryCode(e.target.value)}
-              style={{ flex: 'none', width: 110 }}
-            >
-              {COUNTRY_CODES.map((c) => (
-                <option key={c.code} value={c.code}>{c.label}</option>
-              ))}
-            </select>
-            <input
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel-national"
-              placeholder="801 234 5678"
-              value={localPhone}
-              onChange={(e) => setLocalPhone(e.target.value.replace(/[^\d\s]/g, '').slice(0, 14))}
-              required
-            />
-          </div>
-          <span className="hint">We only use this if we need to reach you about your account.</span>
         </label>
         <label>
           Password
@@ -188,6 +161,7 @@ export default function SignupPage() {
             <input
               type={show ? 'text' : 'password'}
               autoComplete="new-password"
+              placeholder="Create a password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -201,21 +175,31 @@ export default function SignupPage() {
               {show ? 'Hide' : 'Show'}
             </button>
           </div>
-          <ul className="password-rules" aria-live="polite">
-            <li className={hasLength ? 'rule-ok' : ''}>{hasLength ? '✓' : '•'} At least 8 characters</li>
-            <li className={hasNumber ? 'rule-ok' : ''}>{hasNumber ? '✓' : '•'} At least one number</li>
-            <li className={hasSpecial ? 'rule-ok' : ''}>{hasSpecial ? '✓' : '•'} At least one special character</li>
-          </ul>
+          <span className="hint">Use at least 8 characters.</span>
         </label>
-        <button type="submit" className="btn btn-block" disabled={busy}>
-          {busy ? 'Creating account…' : 'Create account'}
+        <div className="signup-consent">
+          <input
+            type="checkbox"
+            id="terms-consent"
+            checked={termsAccepted}
+            onChange={(e) => setTermsAccepted(e.target.checked)}
+            required
+          />
+          <label htmlFor="terms-consent">
+            I agree to the <Link href="/terms">Terms of Service</Link> and <Link href="/privacy">Privacy Policy</Link>.
+          </label>
+        </div>
+        <button
+          type="submit"
+          className="btn btn-block"
+          disabled={busy}
+          aria-label="Create account"
+        >
+          {busy ? 'Creating account…' : 'Create free account'}
         </button>
       </form>
       <p className="auth-foot">
         Already have an account? <Link href="/login">Sign in</Link>
-      </p>
-      <p className="auth-foot legal">
-        By continuing you agree to our <Link href="/terms">Terms</Link> and <Link href="/privacy">Privacy Policy</Link>.
       </p>
     </AuthShell>
   );

@@ -69,6 +69,15 @@ describe('POST /api/auth/signup', () => {
     });
   });
 
+  it('creates an account when phone is omitted', async () => {
+    const { phone: _phone, ...withoutPhone } = VALID;
+    const res = await POST(req(withoutPhone));
+    expect(res.status).toBe(200);
+    expect(createUser).toHaveBeenCalledWith(
+      expect.objectContaining({ user_metadata: { full_name: 'Ada Lovelace', phone: null } }),
+    );
+  });
+
   it('normalizes phone spacing/dashes to canonical E.164', async () => {
     const res = await POST(req({ ...VALID, email: 'a@b.co', phone: '+234 801-234. 5678' }));
     expect(res.status).toBe(200);

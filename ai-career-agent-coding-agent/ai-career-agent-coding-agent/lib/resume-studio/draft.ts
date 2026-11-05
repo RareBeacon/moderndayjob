@@ -115,19 +115,19 @@ export const EMPTY_STUDIO_DRAFT: StudioDraft = {
 };
 
 export function stripResumeUnsafePunctuation(text: string) {
-  return text.replace(/[\u2013\u2014]/g, '-').replace(/\s+/g, ' ').trim();
+  return text.replace(/[\u2013\u2014]/g, '-');
 }
 
 export function cleanText(value: unknown, max = 1200) {
   if (typeof value !== 'string') return '';
-  return stripResumeUnsafePunctuation(value).slice(0, max).trim();
+  return stripResumeUnsafePunctuation(value).slice(0, max);
 }
 
 export function uniqueStrings(values: string[], max = 50) {
   const out: string[] = [];
   const seen = new Set<string>();
   for (const value of values) {
-    const cleaned = cleanText(value, 120);
+    const cleaned = cleanText(value, 120).trim();
     if (!cleaned) continue;
     const key = cleaned.toLowerCase();
     if (seen.has(key)) continue;
@@ -153,7 +153,7 @@ export function normalizeStudioDraft(input: Partial<StudioDraft> | null | undefi
       photoDataUrl: typeof d.personal?.photoDataUrl === 'string' && /^data:image\/(jpeg|png);base64,/.test(d.personal.photoDataUrl) ? d.personal.photoDataUrl.slice(0, 3_000_000) : '',
     },
     career: { ...EMPTY_STUDIO_DRAFT.career, ...(d.career ?? {}) },
-    skills: Array.isArray(d.skills) ? d.skills.map((s, index) => ({ name: cleanText(s.name, 80), category: cleanText(s.category, 80) || 'Core', priority: Number(s.priority ?? index + 1) || index + 1 })).filter((s) => s.name).slice(0, 80) : [],
+    skills: Array.isArray(d.skills) ? d.skills.map((s, index) => ({ name: cleanText(s.name, 80), category: cleanText(s.category, 80) || 'Core', priority: Number(s.priority ?? index + 1) || index + 1 })).filter((s) => s.name.trim()).slice(0, 80) : [],
     experiences: Array.isArray(d.experiences) ? d.experiences.map((e, index) => ({
       id: cleanText(e.id, 80) || `exp-${index}`,
       company: cleanText(e.company, 120),
@@ -166,7 +166,7 @@ export function normalizeStudioDraft(input: Partial<StudioDraft> | null | undefi
       tools: uniqueStrings(e.tools ?? [], 30),
       impact: cleanText(e.impact, 1000),
       bullets: uniqueStrings(e.bullets ?? [], 8),
-    })).filter((e) => e.company || e.role || e.roughNotes || e.bullets.length).slice(0, 20) : [],
+    })).slice(0, 20) : [],
     education: Array.isArray(d.education) ? d.education.map((e, index) => ({
       id: cleanText(e.id, 80) || `edu-${index}`,
       institution: cleanText(e.institution, 160),
@@ -175,7 +175,7 @@ export function normalizeStudioDraft(input: Partial<StudioDraft> | null | undefi
       startDate: cleanText(e.startDate, 40),
       endDate: cleanText(e.endDate, 40),
       achievements: cleanText(e.achievements, 800),
-    })).filter((e) => e.institution || e.degree || e.field).slice(0, 12) : [],
+    })).slice(0, 12) : [],
     projects: Array.isArray(d.projects) ? d.projects.map((p, index) => ({
       id: cleanText(p.id, 80) || `project-${index}`,
       name: cleanText(p.name, 140),
@@ -183,31 +183,31 @@ export function normalizeStudioDraft(input: Partial<StudioDraft> | null | undefi
       technologies: uniqueStrings(p.technologies ?? [], 30),
       url: cleanText(p.url, 240),
       achievements: uniqueStrings(p.achievements ?? [], 8),
-    })).filter((p) => p.name || p.description).slice(0, 15) : [],
+    })).slice(0, 15) : [],
     certifications: Array.isArray(d.certifications) ? d.certifications.map((c, index) => ({
       id: cleanText(c.id, 80) || `cert-${index}`,
       name: cleanText(c.name, 160),
       issuer: cleanText(c.issuer, 160),
       date: cleanText(c.date, 80),
-    })).filter((c) => c.name).slice(0, 20) : [],
+    })).slice(0, 20) : [],
     languages: Array.isArray(d.languages) ? d.languages.map((l) => ({
       language: cleanText(l.language, 60),
       proficiency: cleanText(l.proficiency, 80),
-    })).filter((l) => l.language).slice(0, 12) : [],
+    })).slice(0, 12) : [],
     publications: Array.isArray(d.publications) ? d.publications.map((p, index) => ({
       id: cleanText(p.id, 80) || `pub-${index}`,
       title: cleanText(p.title, 220),
       venue: cleanText(p.venue, 160),
       date: cleanText(p.date, 80),
       url: cleanText(p.url, 240),
-    })).filter((p) => p.title).slice(0, 20) : [],
+    })).slice(0, 20) : [],
     volunteer: Array.isArray(d.volunteer) ? d.volunteer.map((v, index) => ({
       id: cleanText(v.id, 80) || `vol-${index}`,
       role: cleanText(v.role, 140),
       organization: cleanText(v.organization, 140),
       dates: cleanText(v.dates, 80),
       summary: cleanText(v.summary, 400),
-    })).filter((v) => v.role || v.organization).slice(0, 10) : [],
+    })).slice(0, 10) : [],
     memberships: uniqueStrings(d.memberships ?? [], 15),
     achievements: uniqueStrings(d.achievements ?? [], 20),
     references: cleanText(d.references, 1000),

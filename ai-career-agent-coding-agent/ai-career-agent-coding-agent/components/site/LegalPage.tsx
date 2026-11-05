@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react';
 import { MarketingShell } from '@/components/marketing/marketing-shell';
-import { getUser } from '@/lib/auth';
+import { getOptionalUser } from '@/lib/auth';
 import styles from '@/app/marketing.module.css';
 
 /** Shared shell for legal pages (Terms, Privacy, Refund) and Contact. Uses the
  *  redesigned marketing shell (header + footer) and renders prose in a readable column. */
 export async function LegalPage({ title, updated, kicker = 'Legal', children }: { title: string; updated?: string; kicker?: string; children: ReactNode }) {
-  const user = await getUser();
+  const user = await getOptionalUser().catch(() => null);
   return (
     <MarketingShell authenticated={!!user}>
       <main className={styles.page} id="main">
