@@ -16,7 +16,7 @@ export default async function TalentPoolPage() {
 
   if (!overview) {
     return (
-      <AppShell active="talent-pool" title="Talent Pool">
+      <AppShell active="talent-pool" title="Talent Pool" variant="dashboard" userName={user.email?.split('@')[0] || 'Profile'}>
         <section className="workspace-hero">
           <p className="eyebrow">TALENT POOL</p>
           <h1>Jobiest Talent Pool is activating</h1>
@@ -29,7 +29,12 @@ export default async function TalentPoolPage() {
   }
 
   return (
-    <AppShell active="talent-pool" title="Talent Pool">
+    <AppShell
+      active="talent-pool"
+      title="Talent Pool"
+      variant="dashboard"
+      userName={overview.onboarding.snapshot.full_name?.trim().split(/\s+/)[0] || user.email?.split('@')[0] || 'Profile'}
+    >
       <TalentPoolHubClient initialOverview={overview} planCode={entitlement.plan ?? 'FREE'} />
     </AppShell>
   );
