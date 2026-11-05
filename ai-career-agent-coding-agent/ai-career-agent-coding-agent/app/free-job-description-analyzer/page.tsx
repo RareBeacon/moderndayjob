@@ -35,7 +35,7 @@ export default async function FreeJDAnalyzerPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(faqJsonLd([
     { q: "What does the job description analyzer show?", a: "A structured breakdown of the posting: the skills it requires, the keywords it uses, the responsibilities it lists, and which requirements your profile already matches." },
     { q: "Is it free?", a: "Yes, the analysis is free to run on any job description." },
-    { q: "Can it tell me if I will get the job?", a: "No. It shows the gap between you and the stated requirements \u2014 it never predicts hiring decisions." },
+    { q: "Can it tell me if I will get the job?", a: "No. It shows the gap between you and the stated requirements - it never predicts hiring decisions." },
       ]))} />
       {/* Composition A: tool first, editorial steps below */}
       <section className="mk-section tight">

@@ -35,7 +35,7 @@ export default async function FreeResumeSummaryPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(faqJsonLd([
     { q: "What does the resume summary generator write?", a: "A short professional summary built only from the experience and facts you provide. It does not add metrics, titles or achievements you have not entered." },
     { q: "Is it free?", a: "Yes, you can generate the summary for free. A free account unlocks copying, downloading and saving the result." },
-    { q: "Will it exaggerate my experience?", a: "No. Jobiest rejects claims your own facts cannot support \u2014 the summary stays truthful to what you entered." },
+    { q: "Will it exaggerate my experience?", a: "No. Jobiest rejects claims your own facts cannot support - the summary stays truthful to what you entered." },
       ]))} />
       <section className="mk-section tight">
         <div className="mk-shell ft-split">

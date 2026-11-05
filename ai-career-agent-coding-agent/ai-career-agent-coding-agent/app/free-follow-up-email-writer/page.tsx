@@ -28,7 +28,7 @@ export default async function FreeFollowupPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(softwareAppJsonLd('Free Follow-up Email Writer', 'Draft a short, polite follow-up email after a job application, built only from the facts you provide. No invented names, dates, or conversations. Free.', '/free-follow-up-email-writer'))} />
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(faqJsonLd([
     { q: "What does the follow-up email writer produce?", a: "A short, polite follow-up email you can send after a job application, referencing the real role and your actual application details." },
-    { q: "When should I follow up on a job application?", a: "Most recruiters suggest roughly one to two weeks after applying. The writer keeps the tone professional and the ask simple \u2014 a status check, never pressure." },
+    { q: "When should I follow up on a job application?", a: "Most recruiters suggest roughly one to two weeks after applying. The writer keeps the tone professional and the ask simple - a status check, never pressure." },
     { q: "Is it free?", a: "Yes, the follow-up email is free to generate. A free account unlocks copying, downloading and saving." },
       ]))} />
       <section className="mk-section tight">

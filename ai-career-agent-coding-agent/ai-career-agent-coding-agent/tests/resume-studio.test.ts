@@ -48,4 +48,28 @@ describe('Resume Studio AI safety', () => {
     expect(score.fixes.length).toBeGreaterThan(0);
     expect(score.fixes.map((f) => f.step)).toContain('about');
   });
+
+  it('preserves trailing spaces and newlines while editing inputs without eating spaces', () => {
+    const draft = normalizeStudioDraft({
+      personal: { name: 'Alex ', email: 'alex@example.com ', phone: '', location: '', website: '', linkedin: '', github: '' },
+      career: { headline: 'Senior ', targetRole: 'Engineer ', yearsExperience: '5', seniority: 'senior', summary: 'Line 1\nLine 2 ' },
+    });
+    expect(draft.personal.name).toBe('Alex ');
+    expect(draft.career.headline).toBe('Senior ');
+    expect(draft.career.summary).toBe('Line 1\nLine 2 ');
+  });
+
+  it('preserves newly added empty experiences, education, and projects for editing', () => {
+    const draft = normalizeStudioDraft({
+      experiences: [{ id: 'exp-empty', company: '', role: '', roughNotes: '', tools: [], impact: '', bullets: [] }],
+      education: [{ id: 'edu-empty', institution: '', degree: '', field: '' }],
+      projects: [{ id: 'proj-empty', name: '', description: '', technologies: [], achievements: [] }],
+    });
+    expect(draft.experiences).toHaveLength(1);
+    expect(draft.experiences[0].id).toBe('exp-empty');
+    expect(draft.education).toHaveLength(1);
+    expect(draft.education[0].id).toBe('edu-empty');
+    expect(draft.projects).toHaveLength(1);
+    expect(draft.projects[0].id).toBe('proj-empty');
+  });
 });

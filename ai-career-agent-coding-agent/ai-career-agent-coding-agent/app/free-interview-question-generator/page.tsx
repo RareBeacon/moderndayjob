@@ -34,7 +34,7 @@ export default async function FreeInterviewQuestionsPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdTag(faqJsonLd([
     { q: "How are the interview questions generated?", a: "From the job description you paste. Each question maps to something the listing actually asks for, with a note on what the question is testing." },
     { q: "Is it free?", a: "Yes, the practice questions are free to generate. A free account unlocks copying and saving." },
-    { q: "Are these the exact questions I will be asked?", a: "No \u2014 no one can promise that. They are realistic practice questions derived from the stated requirements." },
+    { q: "Are these the exact questions I will be asked?", a: "No - no one can promise that. They are realistic practice questions derived from the stated requirements." },
       ]))} />
       <section className="mk-section tight">
         <div className="mk-shell" style={{ maxWidth: 920 }}>

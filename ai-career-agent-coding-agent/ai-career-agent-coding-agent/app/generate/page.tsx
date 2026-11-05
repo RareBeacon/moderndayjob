@@ -512,6 +512,15 @@ export default function GeneratePage() {
     );
   }
 
+  function removeEducation(id: string) {
+    setDraft((current) =>
+      normalizeStudioDraft({
+        ...current,
+        education: current.education.filter((e) => e.id !== id),
+      }),
+    );
+  }
+
   function upsertProject(id: string, patch: Partial<StudioProject>) {
     setDraft((current) =>
       normalizeStudioDraft({
@@ -529,6 +538,15 @@ export default function GeneratePage() {
           ...current.projects,
           { id: newId('project'), name: '', description: '', technologies: [], achievements: [] },
         ],
+      }),
+    );
+  }
+
+  function removeProject(id: string) {
+    setDraft((current) =>
+      normalizeStudioDraft({
+        ...current,
+        projects: current.projects.filter((p) => p.id !== id),
       }),
     );
   }
@@ -706,8 +724,10 @@ export default function GeneratePage() {
                   improveExperience={improveExperience}
                   addEducation={addEducation}
                   upsertEducation={upsertEducation}
+                  removeEducation={removeEducation}
                   addProject={addProject}
                   upsertProject={upsertProject}
+                  removeProject={removeProject}
                   optimizeForJob={optimizeForJob}
                   runFinalReview={runFinalReview}
                   generateFinalResume={generateFinalResume}
@@ -971,8 +991,10 @@ interface StepContentProps {
   improveExperience: (experience: StudioExperience, mode: AiMode) => void;
   addEducation: () => void;
   upsertEducation: (id: string, patch: Partial<StudioEducation>) => void;
+  removeEducation: (id: string) => void;
   addProject: () => void;
   upsertProject: (id: string, patch: Partial<StudioProject>) => void;
+  removeProject: (id: string) => void;
   optimizeForJob: () => void;
   runFinalReview: () => void;
   generateFinalResume: () => void;
@@ -1192,17 +1214,10 @@ function ExperienceStep({
                 placeholder="I built AI agents and automation systems for companies."
               />
             </label>
-            <Field
+            <CommaSeparatedField
               label="Tools, comma separated"
-              value={exp.tools.join(', ')}
-              onChange={(v) =>
-                upsertExperience(exp.id, {
-                  tools: v
-                    .split(',')
-                    .map((x) => x.trim())
-                    .filter(Boolean),
-                })
-              }
+              values={exp.tools}
+              onChange={(v) => upsertExperience(exp.id, { tools: v })}
               placeholder="Python, LangChain, APIs, n8n"
             />
             <label className="resume2-field full">
@@ -1316,8 +1331,10 @@ function EducationStep({
   draft,
   addEducation,
   upsertEducation,
+  removeEducation,
   addProject,
   upsertProject,
+  removeProject,
   patchDraft,
   setDocumentMode,
   prevStep,
@@ -1355,16 +1372,24 @@ function EducationStep({
       </div>
       {draft.education.map((edu) => (
         <div className="resume2-item" key={edu.id}>
+          <div className="resume2-item-head">
+            <strong>
+              {edu.degree || edu.institution || 'New education'} {edu.institution && edu.degree ? `| ${edu.institution}` : ''}
+            </strong>
+            <button type="button" className="link-button" onClick={() => removeEducation(edu.id)} aria-label="Remove education">
+              Remove
+            </button>
+          </div>
           <div className="resume2-form-grid">
-            <Field label="Institution" value={edu.institution} onChange={(v) => upsertEducation(edu.id, { institution: v })} />
-            <Field label="Degree or qualification" value={edu.degree} onChange={(v) => upsertEducation(edu.id, { degree: v })} />
-            <Field label="Field" value={edu.field ?? ''} onChange={(v) => upsertEducation(edu.id, { field: v })} />
-            <Field label="Start" value={edu.startDate ?? ''} onChange={(v) => upsertEducation(edu.id, { startDate: v })} />
-            <Field label="End" value={edu.endDate ?? ''} onChange={(v) => upsertEducation(edu.id, { endDate: v })} />
+            <Field label="Institution" value={edu.institution} onChange={(v) => upsertEducation(edu.id, { institution: v })} placeholder="University of Lagos" />
+            <Field label="Degree or qualification" value={edu.degree} onChange={(v) => upsertEducation(edu.id, { degree: v })} placeholder="B.Sc. Computer Science" />
+            <Field label="Field" value={edu.field ?? ''} onChange={(v) => upsertEducation(edu.id, { field: v })} placeholder="Software Engineering" />
+            <Field label="Start" value={edu.startDate ?? ''} onChange={(v) => upsertEducation(edu.id, { startDate: v })} placeholder="2019" />
+            <Field label="End" value={edu.endDate ?? ''} onChange={(v) => upsertEducation(edu.id, { endDate: v })} placeholder="2023" />
           </div>
           <label className="resume2-field full">
             <span>Education notes or achievements</span>
-            <textarea rows={2} value={edu.achievements ?? ''} onChange={(e) => upsertEducation(edu.id, { achievements: e.target.value })} />
+            <textarea rows={2} value={edu.achievements ?? ''} onChange={(e) => upsertEducation(edu.id, { achievements: e.target.value })} placeholder="First Class Honours, Dean's List" />
           </label>
         </div>
       ))}
@@ -1376,165 +1401,115 @@ function EducationStep({
       </div>
       {draft.projects.map((project) => (
         <div className="resume2-item" key={project.id}>
+          <div className="resume2-item-head">
+            <strong>{project.name || 'New project'}</strong>
+            <button type="button" className="link-button" onClick={() => removeProject(project.id)} aria-label="Remove project">
+              Remove
+            </button>
+          </div>
           <div className="resume2-form-grid">
-            <Field label="Project name" value={project.name} onChange={(v) => upsertProject(project.id, { name: v })} />
-            <Field label="Project URL" value={project.url ?? ''} onChange={(v) => upsertProject(project.id, { url: v })} />
-            <Field
+            <Field label="Project name" value={project.name} onChange={(v) => upsertProject(project.id, { name: v })} placeholder="AI Career Agent" />
+            <Field label="Project URL" value={project.url ?? ''} onChange={(v) => upsertProject(project.id, { url: v })} placeholder="https://github.com/..." />
+            <CommaSeparatedField
               label="Technologies"
-              value={project.technologies.join(', ')}
-              onChange={(v) =>
-                upsertProject(project.id, {
-                  technologies: v
-                    .split(',')
-                    .map((x) => x.trim())
-                    .filter(Boolean),
-                })
-              }
+              values={project.technologies}
+              onChange={(v) => upsertProject(project.id, { technologies: v })}
+              placeholder="Next.js, TypeScript, Supabase"
             />
           </div>
           <label className="resume2-field full">
             <span>Description</span>
-            <textarea rows={3} value={project.description} onChange={(e) => upsertProject(project.id, { description: e.target.value })} />
+            <textarea rows={3} value={project.description} onChange={(e) => upsertProject(project.id, { description: e.target.value })} placeholder="Autonomous job search and application preparation platform." />
           </label>
-          <label className="resume2-field full">
-            <span>Project achievements, one per line</span>
-            <textarea
-              rows={3}
-              value={project.achievements.join('\n')}
-              onChange={(e) =>
-                upsertProject(project.id, {
-                  achievements: e.target.value
-                    .split('\n')
-                    .map((x) => x.trim())
-                    .filter(Boolean),
-                })
-              }
-            />
-          </label>
+          <MultilineField
+            label="Project achievements, one per line"
+            values={project.achievements}
+            onChange={(v) => upsertProject(project.id, { achievements: v })}
+            rows={3}
+            placeholder="Built MVP in 2 weeks&#10;Onboarded first 100 active candidates"
+          />
         </div>
       ))}
-      <label className="resume2-field full">
-        <span>Achievements &amp; awards, one per line</span>
-        <textarea
-          rows={3}
-          value={draft.achievements.join('\n')}
-          onChange={(e) =>
-            patchDraft({
-              achievements: e.target.value
-                .split('\n')
-                .map((x) => x.trim())
-                .filter(Boolean),
+      <MultilineField
+        label="Achievements & awards, one per line"
+        values={draft.achievements}
+        onChange={(v) => patchDraft({ achievements: v })}
+        rows={3}
+        placeholder="National Hackathon Winner 2024&#10;Dean's List for Academic Excellence"
+      />
+      <TextareaLineItemsField
+        label="Certifications, one per line"
+        rows={3}
+        placeholder="AWS Certified Solutions Architect - Amazon - 2024"
+        serialized={draft.certifications.map((c) => [c.name, c.issuer, c.date].filter(Boolean).join(' - ')).join('\n')}
+        onParsedChange={(lines) => {
+          const parsed = lines
+            .map((line) => {
+              const parts = line.split(/\s+-\s+/).map((x) => x.trim()).filter(Boolean);
+              return { id: newId('cert'), name: parts[0] ?? '', issuer: parts[1], date: parts[2] };
             })
-          }
-        />
-      </label>
-      <label className="resume2-field full">
-        <span>Certifications, one per line</span>
-        <textarea
-          rows={3}
-          value={draft.certifications.map((c) => [c.name, c.issuer, c.date].filter(Boolean).join(' - ')).join('\n')}
-          onChange={(e) =>
-            patchDraft({
-              certifications: e.target.value
-                .split('\n')
-                .map((line) => {
-                  const parts = line
-                    .split(/\s+-\s+/)
-                    .map((x) => x.trim())
-                    .filter(Boolean);
-                  return { id: newId('cert'), name: parts[0] ?? '', issuer: parts[1], date: parts[2] };
-                })
-                .filter((c) => c.name),
+            .filter((c) => c.name);
+          patchDraft({ certifications: parsed });
+        }}
+      />
+      <TextareaLineItemsField
+        label="Languages, optional (one per line, e.g. English - Native)"
+        rows={2}
+        placeholder={'English - Native\nFrench - Conversational'}
+        serialized={(draft.languages ?? []).map((l) => [l.language, l.proficiency].filter(Boolean).join(' - ')).join('\n')}
+        onParsedChange={(lines) => {
+          const parsed = lines
+            .map((line) => {
+              const parts = line.split(/\s+-\s+/).map((x) => x.trim()).filter(Boolean);
+              return { language: parts[0] ?? '', proficiency: parts[1] ?? '' };
             })
-          }
-          placeholder="AWS Certified Developer - Associate - 2024"
-        />
-      </label>
-      <label className="resume2-field full">
-        <span>Languages, optional (one per line, e.g. English - Native)</span>
-        <textarea
-          rows={2}
-          value={(draft.languages ?? []).map((l) => [l.language, l.proficiency].filter(Boolean).join(' - ')).join('\n')}
-          onChange={(e) =>
-            patchDraft({
-              languages: e.target.value
-                .split('\n')
-                .map((line) => {
-                  const parts = line
-                    .split(/\s+-\s+/)
-                    .map((x) => x.trim())
-                    .filter(Boolean);
-                  return { language: parts[0] ?? '', proficiency: parts[1] ?? '' };
-                })
-                .filter((l) => l.language),
+            .filter((l) => l.language);
+          patchDraft({ languages: parsed });
+        }}
+      />
+      <TextareaLineItemsField
+        label="Publications, optional (one per line: Title - Venue - Year)"
+        rows={2}
+        placeholder="Evaluating Agentic AI Systems - IEEE Conference - 2025"
+        serialized={(draft.publications ?? []).map((p) => [p.title, p.venue, p.date].filter(Boolean).join(' - ')).join('\n')}
+        onParsedChange={(lines) => {
+          const parsed = lines
+            .map((line) => {
+              const parts = line.split(/\s+-\s+/).map((x) => x.trim()).filter(Boolean);
+              return { id: newId('pub'), title: parts[0] ?? '', venue: parts[1] ?? '', date: parts[2] ?? '', url: parts[3] ?? '' };
             })
-          }
-          placeholder={'English - Native\nFrench - Conversational'}
-        />
-      </label>
-      <label className="resume2-field full">
-        <span>Publications, optional (one per line: Title - Venue - Year)</span>
-        <textarea
-          rows={2}
-          value={(draft.publications ?? []).map((p) => [p.title, p.venue, p.date].filter(Boolean).join(' - ')).join('\n')}
-          onChange={(e) =>
-            patchDraft({
-              publications: e.target.value
-                .split('\n')
-                .map((line) => {
-                  const parts = line
-                    .split(/\s+-\s+/)
-                    .map((x) => x.trim())
-                    .filter(Boolean);
-                  return { id: newId('pub'), title: parts[0] ?? '', venue: parts[1] ?? '', date: parts[2] ?? '', url: parts[3] ?? '' };
-                })
-                .filter((p) => p.title),
+            .filter((p) => p.title);
+          patchDraft({ publications: parsed });
+        }}
+      />
+      <TextareaLineItemsField
+        label="Volunteer leadership, optional (one per line: Role - Organization - Dates - Summary)"
+        rows={2}
+        placeholder="Youth Mentor - Code For All - 2023-Present - Mentored 30 junior developers"
+        serialized={(draft.volunteer ?? []).map((v) => [v.role, v.organization, v.dates, v.summary].filter(Boolean).join(' - ')).join('\n')}
+        onParsedChange={(lines) => {
+          const parsed = lines
+            .map((line) => {
+              const parts = line.split(/\s+-\s+/).map((x) => x.trim()).filter(Boolean);
+              return {
+                id: newId('vol'),
+                role: parts[0] ?? '',
+                organization: parts[1] ?? '',
+                dates: parts[2] ?? '',
+                summary: parts[3] ?? '',
+              };
             })
-          }
-        />
-      </label>
-      <label className="resume2-field full">
-        <span>Volunteer leadership, optional (one per line: Role - Organization - Dates - Summary)</span>
-        <textarea
-          rows={2}
-          value={(draft.volunteer ?? []).map((v) => [v.role, v.organization, v.dates, v.summary].filter(Boolean).join(' - ')).join('\n')}
-          onChange={(e) =>
-            patchDraft({
-              volunteer: e.target.value
-                .split('\n')
-                .map((line) => {
-                  const parts = line
-                    .split(/\s+-\s+/)
-                    .map((x) => x.trim())
-                    .filter(Boolean);
-                  return {
-                    id: newId('vol'),
-                    role: parts[0] ?? '',
-                    organization: parts[1] ?? '',
-                    dates: parts[2] ?? '',
-                    summary: parts[3] ?? '',
-                  };
-                })
-                .filter((v) => v.role || v.organization),
-            })
-          }
-        />
-      </label>
-      <label className="resume2-field full">
-        <span>Professional memberships, optional (one per line)</span>
-        <textarea
-          rows={2}
-          value={(draft.memberships ?? []).join('\n')}
-          onChange={(e) =>
-            patchDraft({
-              memberships: e.target.value
-                .split('\n')
-                .map((x) => x.trim())
-                .filter(Boolean),
-            })
-          }
-        />
-      </label>
+            .filter((v) => v.role || v.organization);
+          patchDraft({ volunteer: parsed });
+        }}
+      />
+      <MultilineField
+        label="Professional memberships, optional (one per line)"
+        values={draft.memberships ?? []}
+        onChange={(v) => patchDraft({ memberships: v })}
+        rows={2}
+        placeholder="IEEE Computer Society&#10;Association for Computing Machinery"
+      />
       <label className="resume2-field full">
         <span>References</span>
         <textarea
@@ -2011,6 +1986,125 @@ function Field({
     <label className="resume2-field">
       <span>{label}</span>
       <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+    </label>
+  );
+}
+
+function CommaSeparatedField({
+  label,
+  values,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  values: string[];
+  onChange: (values: string[]) => void;
+  placeholder?: string;
+}) {
+  const serialized = values.join(', ');
+  const [text, setText] = useState(serialized);
+
+  useEffect(() => {
+    setText(serialized);
+  }, [serialized]);
+
+  return (
+    <label className="resume2-field">
+      <span>{label}</span>
+      <input
+        value={text}
+        placeholder={placeholder}
+        onChange={(e) => {
+          const val = e.target.value;
+          setText(val);
+          const parsed = val.split(',').map((x) => x.trim()).filter(Boolean);
+          onChange(parsed);
+        }}
+        onBlur={() => {
+          setText(serialized);
+        }}
+      />
+    </label>
+  );
+}
+
+function MultilineField({
+  label,
+  values,
+  onChange,
+  rows = 3,
+  placeholder,
+}: {
+  label: string;
+  values: string[];
+  onChange: (values: string[]) => void;
+  rows?: number;
+  placeholder?: string;
+}) {
+  const serialized = values.join('\n');
+  const [text, setText] = useState(serialized);
+
+  useEffect(() => {
+    setText(serialized);
+  }, [serialized]);
+
+  return (
+    <label className="resume2-field full">
+      <span>{label}</span>
+      <textarea
+        rows={rows}
+        value={text}
+        placeholder={placeholder}
+        onChange={(e) => {
+          const val = e.target.value;
+          setText(val);
+          const parsed = val.split('\n').map((x) => x.trim()).filter(Boolean);
+          onChange(parsed);
+        }}
+        onBlur={() => {
+          setText(serialized);
+        }}
+      />
+    </label>
+  );
+}
+
+function TextareaLineItemsField({
+  label,
+  serialized,
+  placeholder,
+  rows = 2,
+  onParsedChange,
+}: {
+  label: string;
+  serialized: string;
+  placeholder?: string;
+  rows?: number;
+  onParsedChange: (lines: string[]) => void;
+}) {
+  const [text, setText] = useState(serialized);
+
+  useEffect(() => {
+    setText(serialized);
+  }, [serialized]);
+
+  return (
+    <label className="resume2-field full">
+      <span>{label}</span>
+      <textarea
+        rows={rows}
+        value={text}
+        placeholder={placeholder}
+        onChange={(e) => {
+          const val = e.target.value;
+          setText(val);
+          const lines = val.split('\n');
+          onParsedChange(lines);
+        }}
+        onBlur={() => {
+          setText(serialized);
+        }}
+      />
     </label>
   );
 }
