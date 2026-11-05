@@ -2,6 +2,7 @@ import { AppShell } from '@/components/site/AppShell';
 import { DashboardView } from '@/components/dashboard/DashboardView';
 import { PLANS } from '@/lib/billing/pricing';
 import { requireUserOrRedirect } from '@/lib/auth';
+import { getAdminContext } from '@/lib/admin';
 import { auditEvent } from '@/lib/audit';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getEntitlement } from '@packages/security/entitlements';
@@ -308,12 +309,18 @@ async function DashboardBodyInner(user: Awaited<ReturnType<typeof requireUserOrR
     autoLocked = !(entitlement as any)?.automation_enabled && !activationActive;
   } catch {}
 
+  let isAdmin = false;
+  try {
+    const admin = await getAdminContext(user.id, user.email ?? null);
+    isAdmin = Boolean(admin?.isActive);
+  } catch {}
+
   const profileNextSteps = Array.isArray((completeness as any)?.next)
     ? ((completeness as any).next as string[]).filter((s) => typeof s === 'string')
     : [];
 
   return (
-    <AppShell active="dashboard" title="Workspace" variant="dashboard" userName={firstName}>
+    <AppShell active="dashboard" title="Workspace" variant="dashboard" userName={firstName} isAdmin={isAdmin}>
       <DashboardView
         greeting={greeting}
         firstName={firstName}

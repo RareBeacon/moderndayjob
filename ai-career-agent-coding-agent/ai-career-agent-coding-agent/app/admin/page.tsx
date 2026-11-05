@@ -104,7 +104,7 @@ export default async function AdminControlCentrePage({
       : Promise.resolve({ data: [] }),
     supabaseAdmin
       .from('programme_applications')
-      .select('track, status, priority_band, partnership_market, partnership_verified'),
+      .select('track, status, priority_band, partnership_market, verified_partner, partnership_verified'),
     supabaseAdmin
       .from('admin_users')
       .select('user_id, role, is_owner, is_active, require_mfa'),
@@ -189,13 +189,16 @@ export default async function AdminControlCentrePage({
     status: string;
     priority_band: string;
     partnership_market: string | null;
-    partnership_verified: boolean;
+    partnership_verified?: boolean;
+    verified_partner?: boolean;
   }>;
+  const isVerified = (r: { verified_partner?: boolean; partnership_verified?: boolean }) =>
+    Boolean(r.partnership_verified ?? r.verified_partner);
   const verifiedUsPartners = progRows.filter(
-    (r) => r.track === 'PARTNER' && r.partnership_market === 'US' && r.partnership_verified,
+    (r) => r.track === 'PARTNER' && r.partnership_market === 'US' && isVerified(r),
   ).length;
   const verifiedUkPartners = progRows.filter(
-    (r) => r.track === 'PARTNER' && r.partnership_market === 'UK' && r.partnership_verified,
+    (r) => r.track === 'PARTNER' && r.partnership_market === 'UK' && isVerified(r),
   ).length;
   const verifiedTotalUsUkPartners = verifiedUsPartners + verifiedUkPartners;
   const activeFoundingContributors = progRows.filter(

@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
+import Link from 'next/link';
 import { AppShell } from '@/components/site/AppShell';
 import { ErrorState, LoadingState, SuccessState } from '@/components/ui/state-feedback';
 
@@ -399,14 +400,32 @@ export default function ProfilePage() {
   const summaryLen = form.summary.trim().length;
 
   return (
-    <AppShell active="profile" title="Profile">
+    <AppShell active="profile" title="Career profile" userName={form.full_name.trim() || undefined}>
       <section className="workspace-hero">
-        <p className="eyebrow">PROFILE</p>
+        <p className="eyebrow">CAREER PROFILE</p>
         <h1>Your verified career story.</h1>
         <p>Add only information that is true. Future career tools will use this profile as their factual source.</p>
-        <p style={{ marginTop: 10 }}>
-          <a className="btn-ghost" href="/profile/ai" style={{ textDecoration: 'none' }}>Manage your AI providers</a>
-        </p>
+        <div style={{ marginTop: 14 }}>
+          <Link
+            className="btn btn-ghost"
+            href="/profile/ai"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '9px 18px',
+              borderRadius: 10,
+              fontSize: 14,
+              fontWeight: 600,
+              textDecoration: 'none',
+              background: '#fff',
+              border: '1px solid #cbd5e1',
+              boxShadow: '0 1px 3px rgba(17, 29, 53, 0.05)',
+            }}
+          >
+            <span aria-hidden="true">⚙️</span> Manage your AI providers →
+          </Link>
+        </div>
       </section>
       {!profileReady && (profileLoadFailed ? <ErrorState onRetry={() => window.location.reload()}>We couldn’t load your profile. Check your connection or sign in again, then retry. Your saved profile has not been changed.</ErrorState> : <LoadingState label="Loading your profile" detail="Your saved profile is being prepared." />)}
       {draftRecovered && <p className="form-status ok" role="status">We restored an unsaved draft from this tab. Review it and save to keep your changes.</p>}
