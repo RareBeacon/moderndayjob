@@ -2733,11 +2733,14 @@ body { background: var(--background); color: var(--foreground); font-family: var
 .auth-promo-copy h2 { margin: 0; font-family: var(--font-display); font-size: clamp(42px, 4.4vw, 66px); font-weight: 750; line-height: .99; letter-spacing: -.055em; color: #fff; }
 .auth-promo-copy h2 span { color: #d7f94b; }
 .auth-promo-copy > p { max-width: 450px; margin: 18px 0 30px; color: #c7d0e0; font-size: clamp(17px, 1.7vw, 23px); line-height: 1.48; }
-.auth-promo-copy ul { display: grid; gap: 13px; margin: 0; padding: 0; list-style: none; }
-.auth-promo-copy li { display: flex; align-items: center; gap: 13px; color: #f4f6fa; font-size: clamp(14px, 1.2vw, 18px); }
-.auth-promo-copy li > span { display: grid; flex: 0 0 27px; place-items: center; width: 27px; height: 27px; border-radius: 50%; background: #d7f94b; color: #111d35; font-size: 16px; font-weight: 900; }
-.auth-promo-orbit { position: absolute; left: -72px; bottom: -250px; width: 465px; height: 465px; border: 1px solid #d7f94b; border-radius: 50%; pointer-events: none; }
-.auth-promo-orbit::before { position: absolute; inset: -48px; border-radius: inherit; background: rgb(89 117 165 / 13%); content: ''; }
+.auth-promo-copy ul,
+.auth-promo-checklist { display: flex; flex-direction: column; gap: 16px; margin: 32px 0 0; padding: 0; list-style: none; }
+.auth-promo-copy li,
+.auth-promo-checklist li { display: flex; align-items: center; gap: 14px; color: #f4f6fa; font-size: clamp(14px, 1.15vw, 17px); line-height: 1.4; }
+.auth-check-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 24px; width: 24px; height: 24px; border-radius: 50%; background: #d7f94b; color: #111d35; font-size: 13px; font-weight: 900; line-height: 1; }
+.auth-check-text { flex: 1 1 auto; color: #f4f6fa; font-size: clamp(14px, 1.15vw, 17px); font-weight: 400; line-height: 1.4; white-space: normal; }
+.auth-promo-orbit { position: absolute; left: -72px; bottom: -250px; width: 465px; height: 465px; border: 1px solid rgba(215, 249, 75, 0.22); border-radius: 50%; pointer-events: none; z-index: 0; }
+.auth-promo-orbit::before { position: absolute; inset: -48px; border-radius: inherit; border: 1px solid rgba(148, 163, 184, 0.12); background: radial-gradient(circle, rgba(215, 249, 75, 0.04) 0%, transparent 70%); content: ''; }
 .auth-main { display: grid; place-items: center; min-width: 0; padding: clamp(24px, 4.5vw, 64px); }
 .auth-card-split,
 .auth-card-login,
@@ -2781,10 +2784,10 @@ body { background: var(--background); color: var(--foreground); font-family: var
 .auth-card-signup .auth-form .btn-block { min-height: 48px; margin-top: 1px; border-radius: 11px; font-size: 15px; }
 .auth-card-signup .password-rules { display: flex; flex-wrap: wrap; column-gap: 14px; row-gap: 4px; margin-top: 5px; }
 .auth-card-signup .password-rules li { font-size: 11px; }
-.signup-consent { display: grid; grid-template-columns: 20px 1fr; align-items: start; gap: 10px; margin-top: 1px; }
-.signup-consent input { width: 18px; height: 18px; min-height: 18px !important; margin: 2px 0 0; accent-color: #111d35; }
-.signup-consent label { color: var(--ink-2); font-size: 12.5px; font-weight: 500; line-height: 1.55; }
-.signup-consent a { color: #235b87; text-decoration: underline; text-underline-offset: 2px; }
+.signup-consent { display: flex; align-items: flex-start; gap: 10px; margin: 10px 0 4px; }
+.signup-consent input { width: 18px; height: 18px; min-height: 18px !important; max-width: 18px; margin: 2px 0 0; flex: 0 0 18px; accent-color: #111d35; cursor: pointer; }
+.signup-consent label { display: inline !important; color: var(--ink-2); font-size: 13px; font-weight: 400; line-height: 1.5; cursor: pointer; }
+.signup-consent a { color: #111d35; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
 .auth-card-split .auth-foot,
 .auth-card-login .auth-foot,
 .auth-card-signup .auth-foot { margin-top: 17px; }
@@ -2813,9 +2816,12 @@ body { background: var(--background); color: var(--foreground); font-family: var
   .auth-promo-copy { margin: 24px 0 0; }
   .auth-promo-copy h2 { font-size: 37px; }
   .auth-promo-copy > p { max-width: 42ch; margin: 11px 0 15px; font-size: 15px; }
-  .auth-promo-copy ul { grid-template-columns: 1fr; gap: 8px; }
-  .auth-promo-copy li { font-size: 13px; }
-  .auth-promo-copy li > span { flex-basis: 22px; width: 22px; height: 22px; font-size: 13px; }
+  .auth-promo-copy ul,
+  .auth-promo-checklist { gap: 10px; margin: 16px 0 0; }
+  .auth-promo-copy li,
+  .auth-promo-checklist li { font-size: 13.5px; }
+  .auth-check-icon { flex: 0 0 20px; width: 20px; height: 20px; font-size: 11px; }
+  .auth-check-text { font-size: 13.5px; }
   .auth-promo-orbit { left: auto; right: -180px; bottom: -260px; width: 360px; height: 360px; }
   .auth-main { padding: 20px 14px 34px; }
   .auth-card-split,
