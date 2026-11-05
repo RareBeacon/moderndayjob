@@ -85,7 +85,11 @@ function LoginInner() {
   }
 
   return (
-    <AuthShell title="Welcome back" subtitle="Sign in to your Jobiest workspace.">
+    <AuthShell
+      variant="login"
+      title="Welcome back"
+      subtitle="Sign in to your Jobiest workspace."
+    >
       <AnimatePresence>
         {verified ? (
           <motion.div className="auth-success" role="status" style={{ marginTop: 16 }} initial={reduce ? false : { opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
@@ -112,6 +116,7 @@ function LoginInner() {
           <input
             type="email"
             autoComplete="email"
+            placeholder="name@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -123,6 +128,7 @@ function LoginInner() {
             <input
               type={show ? 'text' : 'password'}
               autoComplete="current-password"
+              placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required

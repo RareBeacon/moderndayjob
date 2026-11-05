@@ -6,41 +6,56 @@ export function AuthShell({
   title,
   subtitle,
   children,
-  variant = 'centered',
+  variant = 'split',
+  promoHeadline,
+  promoSubtitle,
+  promoPoints,
 }: {
   title: string;
   subtitle?: string;
   children: ReactNode;
-  variant?: 'centered' | 'signup';
+  variant?: 'centered' | 'signup' | 'login' | 'split';
+  promoHeadline?: ReactNode;
+  promoSubtitle?: string;
+  promoPoints?: string[];
 }) {
-  const isSignup = variant === 'signup';
+  const isCentered = variant === 'centered';
+  const isSplit = !isCentered;
+
+  const defaultPoints = [
+    '3 free tailored documents included',
+    'Every draft stays editable',
+    'Nothing is sent without your approval',
+  ];
+
   return (
-    <main className={`auth-page${isSignup ? ' auth-page-signup' : ' auth-page-login'}`}>
-      {isSignup && (
+    <main className={`auth-page${isSplit ? ` auth-page-split auth-page-${variant}` : ' auth-page-centered'}`}>
+      {isSplit && (
         <aside className="auth-promo" aria-label="Jobiest account benefits">
           <Link href="/" aria-label="Jobiest home" className="auth-promo-brand">
             <Logo variant="dark" className="auth-promo-logo" size={24} />
           </Link>
           <div className="auth-promo-copy">
             <h2>
-              Make your<br />
-              <span>next application</span><br />
-              count.
+              {promoHeadline ?? (
+                <>
+                  Make your<br />
+                  <span>next application</span><br />
+                  count.
+                </>
+              )}
             </h2>
-            <p>Create your profile once. Prepare role-specific applications from your real experience.</p>
+            <p>
+              {promoSubtitle ??
+                'Create your profile once. Prepare role-specific applications from your real experience.'}
+            </p>
             <ul className="auth-promo-checklist">
-              <li>
-                <span className="auth-check-icon" aria-hidden="true">✓</span>
-                <span>3 free tailored documents included</span>
-              </li>
-              <li>
-                <span className="auth-check-icon" aria-hidden="true">✓</span>
-                <span>Every draft stays editable</span>
-              </li>
-              <li>
-                <span className="auth-check-icon" aria-hidden="true">✓</span>
-                <span>Nothing is sent without your approval</span>
-              </li>
+              {(promoPoints ?? defaultPoints).map((point, i) => (
+                <li key={i}>
+                  <span className="auth-check-icon" aria-hidden="true">✓</span>
+                  <span>{point}</span>
+                </li>
+              ))}
             </ul>
           </div>
           <div className="auth-promo-orbit" aria-hidden="true">
@@ -49,8 +64,8 @@ export function AuthShell({
         </aside>
       )}
       <div className="auth-main">
-        <div className={`auth-card${isSignup ? ' auth-card-signup' : ''}`}>
-          {!isSignup && (
+        <div className={`auth-card${isSplit ? ` auth-card-split auth-card-${variant}` : ''}`}>
+          {isCentered && (
             <Link href="/" aria-label="Jobiest home" className="auth-brand">
               <Logo className="auth-logo" size={22} />
             </Link>
