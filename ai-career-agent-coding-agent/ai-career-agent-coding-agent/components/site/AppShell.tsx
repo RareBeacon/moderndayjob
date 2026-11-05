@@ -75,13 +75,17 @@ export function AppShell({
   active,
   title,
   children,
+  variant = 'default',
+  userName,
 }: {
   active: string;
   title?: string;
   children: ReactNode;
+  variant?: 'default' | 'dashboard';
+  userName?: string;
 }) {
   return (
-    <div className="app-shell">
+    <div className={`app-shell${variant === 'dashboard' ? ' dashboard-shell' : ''}`}>
       {/* CSS-only mobile drawer toggle (no client JS) */}
       <input id="appnav-toggle" type="checkbox" className="app-nav-toggle" aria-hidden="true" />
 
@@ -131,8 +135,18 @@ export function AppShell({
           </label>
           <p className="app-title">{title ?? ALL_NAV.find((n) => n.key === active)?.label ?? 'Workspace'}</p>
           <div className="app-topbar-actions">
-            <Link className="app-top-ghost" href="/generate">Resume Studio</Link>
-            <Link className="app-top-cta" href="/applications?openTarget=1">New application</Link>
+            {variant === 'dashboard' && userName ? (
+              <Link className="app-user-chip" href="/profile" aria-label={`Open ${userName}'s career profile`}>
+                <span className="app-user-avatar" aria-hidden="true">{userName.trim().charAt(0).toUpperCase()}</span>
+                <span>{userName}</span>
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </Link>
+            ) : (
+              <>
+                <Link className="app-top-ghost" href="/generate">Resume Studio</Link>
+                <Link className="app-top-cta" href="/applications?openTarget=1">New application</Link>
+              </>
+            )}
           </div>
         </header>
 

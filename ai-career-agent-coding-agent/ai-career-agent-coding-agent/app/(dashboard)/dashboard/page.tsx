@@ -145,7 +145,6 @@ async function DashboardBodyInner(user: Awaited<ReturnType<typeof requireUserOrR
 
   const [
     { data: profile },
-    { data: career },
     { data: preferences },
     entitlement,
     completeness,
@@ -163,10 +162,6 @@ async function DashboardBodyInner(user: Awaited<ReturnType<typeof requireUserOrR
     supabaseAdmin.from('profiles').select('full_name,target_roles,account_status').eq('user_id', user.id).maybeSingle().then(
       (r) => r,
       () => ({ data: null, error: { message: 'profiles_fallback' } }) as any,
-    ),
-    supabaseAdmin.from('career_profiles').select('headline,skills').eq('user_id', user.id).maybeSingle().then(
-      (r) => r,
-      () => ({ data: null, error: null }) as any,
     ),
     supabaseAdmin.from('job_preferences').select('remote_types,locations,application_mode').eq('user_id', user.id).maybeSingle().then(
       (r) => r,
@@ -318,7 +313,7 @@ async function DashboardBodyInner(user: Awaited<ReturnType<typeof requireUserOrR
     : [];
 
   return (
-    <AppShell active="dashboard" title="Workspace">
+    <AppShell active="dashboard" title="Workspace" variant="dashboard" userName={firstName}>
       <DashboardView
         greeting={greeting}
         firstName={firstName}
@@ -326,6 +321,7 @@ async function DashboardBodyInner(user: Awaited<ReturnType<typeof requireUserOrR
         planLabel={(entitlement as any)?.plan ?? 'FREE'}
         quotaLine={quotaLine}
         profilePercent={(completeness as any)?.percent ?? 0}
+        hasTargetRoles={Boolean((profileSafe as any)?.target_roles?.length)}
         profileNextSteps={profileNextSteps}
         stats={{ applications: applicationCount ?? 0, interviews, responseRate }}
         pipeline={{ prepared: preparedCount, checking: checkingCount, sent: sentCount, interviews }}
@@ -357,7 +353,6 @@ async function DashboardBodyInner(user: Awaited<ReturnType<typeof requireUserOrR
         boardLinks={boardLinks}
         suggestions={suggestions}
         setup={{ needsSetup: !(profileSafe as any)?.target_roles?.length, required: setupRequired }}
-        careerHeadline={(career as any)?.headline ?? null}
       />
     </AppShell>
   );

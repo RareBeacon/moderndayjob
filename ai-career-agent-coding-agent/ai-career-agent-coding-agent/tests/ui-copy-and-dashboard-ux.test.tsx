@@ -28,6 +28,7 @@ function makeDashboardProps(overrides: Partial<DashboardViewProps> = {}): Dashbo
     planLabel: 'FREE',
     quotaLine: '3 of 3 free tailored documents left',
     profilePercent: 60,
+    hasTargetRoles: false,
     profileNextSteps: ['Add target roles', 'Upload a master CV'],
     stats: { applications: 0, interviews: 0, responseRate: 0 },
     pipeline: { prepared: 0, checking: 0, sent: 0, interviews: 0 },
@@ -49,7 +50,6 @@ function makeDashboardProps(overrides: Partial<DashboardViewProps> = {}): Dashbo
     boardLinks: [{ url: 'https://boards.greenhouse.io/example', boardLabel: 'Greenhouse', role: 'Frontend Engineer' }],
     suggestions: [{ text: 'Complete your career profile (60% ready) for stronger role tailoring.', href: '/profile' }],
     setup: { needsSetup: false, required: false },
-    careerHeadline: 'Senior Frontend Engineer',
     ...overrides,
   };
 }
@@ -91,10 +91,15 @@ describe('Dashboard UI/UX and human-centred copy', () => {
   it('greets new users with a 3-step getting-started guide instead of empty zero counters', () => {
     const html = renderToStaticMarkup(<DashboardViewComp {...makeDashboardProps()} />);
     expect(html).toContain('Good morning, Adaora.');
-    expect(html).toContain('Prepare a tailored application');
+    expect(html).toContain('A clear place to prepare your next application.');
+    expect(html).toContain('Start with a job');
+    expect(html).toContain('Prepare application');
+    expect(html).toContain('Build your career profile');
+    expect(html).toContain('Add your target roles');
+    expect(html).toContain('Your applications');
+    expect(html).toContain('Your saved applications will appear here.');
     expect(html).toContain('Prepare your first tailored application in 3 steps');
-    expect(html).toContain('Add target roles');
-    expect(html).toContain('Upload a master CV');
+    expect(html).toContain('Upload your current CV');
     expect(html).not.toContain('Application progress');
     expect(html).not.toContain('Command deck');
     expect(html).not.toContain('Checking send');

@@ -2574,3 +2574,34 @@ body { background: var(--background); color: var(--foreground); font-family: var
 .blog-internal-links ul { list-style: none; padding: 0; display: grid; gap: 10px; }
 .blog-internal-links li { padding-left: 22px; position: relative; }
 .blog-internal-links li::before { content: "\2192"; position: absolute; left: 0; color: var(--brand, #0a66ff); }
+
+/* Dashboard reference shell: scoped to the signed-in workspace only. */
+.dashboard-shell { background: #f5f8fc; }
+.dashboard-shell .app-sidebar { width: 286px; background: #0b1933; border-right-color: #1b2b49; }
+.dashboard-shell .app-side-top { min-height: 80px; padding: 16px 25px; border-bottom-color: #1b2b49; }
+.dashboard-shell .app-nav { padding: 24px 15px; gap: 17px; }
+.dashboard-shell .app-nav-heading { color: #93a1bb; padding-left: 13px; }
+.dashboard-shell .app-link { color: #d8e0ee; min-height: 48px; border-radius: 11px; font-size: 15px; }
+.dashboard-shell .app-link:hover { background: #172846; color: #fff; }
+.dashboard-shell .app-link.active { background: #c9f044; color: #10203b; box-shadow: none; }
+.dashboard-shell .app-link.active .app-ico { color: #10203b; }
+.dashboard-shell .app-side-foot { border-top-color: #1b2b49; }
+.dashboard-shell .app-foot-card { background: #122341; border-color: #253756; }
+.dashboard-shell .app-foot-card strong { color: #fff; }
+.dashboard-shell .app-foot-card span { color: #b5c0d2; }
+.dashboard-shell .app-signout { background: #122341; border-color: #253756; color: #d8e0ee; }
+.dashboard-shell .app-signout:hover { border-color: #c9f044; color: #fff; }
+.dashboard-shell .app-topbar { height: 80px; padding: 0 38px; background: #fff; }
+.dashboard-shell .app-content { max-width: 1360px; padding: 38px 42px 56px; }
+.app-user-chip { display: inline-flex; align-items: center; gap: 12px; min-height: 48px; color: var(--color-ink); font-size: 15px; font-weight: 650; text-decoration: none; }
+.app-user-chip:hover { color: #0b7a61; }
+.app-user-avatar { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%; background: #e9eef7; color: #14223c; font: 600 19px / 1 var(--font-display); }
+@media (max-width: 960px) {
+  .dashboard-shell .app-content { padding: 30px 24px 48px; }
+  .dashboard-shell .app-topbar { padding: 0 24px; }
+}
+@media (max-width: 640px) {
+  .dashboard-shell .app-content { padding: 24px 16px 40px; }
+  .dashboard-shell .app-topbar { padding: 0 16px; }
+  .dashboard-shell .app-user-chip > span:not(.app-user-avatar), .dashboard-shell .app-user-chip > svg { display: none; }
+}

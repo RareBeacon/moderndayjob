@@ -20,6 +20,7 @@ export type DashboardViewProps = {
   planLabel: string;
   quotaLine: string;
   profilePercent: number;
+  hasTargetRoles: boolean;
   profileNextSteps?: string[];
   stats: { applications: number; interviews: number; responseRate: number };
   pipeline: { prepared: number; checking: number; sent: number; interviews: number };
@@ -33,7 +34,6 @@ export type DashboardViewProps = {
   boardLinks: DashboardBoardLink[];
   suggestions: DashboardSuggestion[];
   setup: { needsSetup: boolean; required: boolean };
-  careerHeadline?: string | null;
 };
 
 /**
@@ -54,6 +54,7 @@ export function DashboardView(props: DashboardViewProps) {
     planLabel,
     quotaLine,
     profilePercent,
+    hasTargetRoles,
     profileNextSteps = [],
     stats,
     pipeline,
@@ -63,7 +64,6 @@ export function DashboardView(props: DashboardViewProps) {
     boardLinks,
     suggestions,
     setup,
-    careerHeadline,
   } = props;
 
   const submittedTotal = pipeline.sent + pipeline.checking;
@@ -73,13 +73,6 @@ export function DashboardView(props: DashboardViewProps) {
     submittedTotal > 0 ||
     pipeline.interviews > 0 ||
     drafts.length > 0;
-
-  const statusSummary =
-    drafts.length > 0
-      ? `You have ${drafts.length} tailored application${drafts.length === 1 ? '' : 's'} waiting for your approval.`
-      : hasActivity
-        ? 'Paste a job link below to prepare your next role-specific CV and cover letter.'
-        : 'Set up your profile once, then paste any job link below to prepare your first tailored package.';
 
   function handleQuickStart(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -144,66 +137,93 @@ export function DashboardView(props: DashboardViewProps) {
           <h1 id="deck-title" className={styles.greetingTitle}>
             {greeting}, {firstName}.
           </h1>
-          <p className={styles.greetingLead}>{statusSummary}</p>
+          <p className={styles.greetingLead}>A clear place to prepare your next application.</p>
         </div>
         <div className={styles.headerPills}>
           <Link href="/billing" className={styles.planPill}>
-            <span className={styles.planBadge}>{planLabel}</span>
-            <span>{quotaLine}</span>
+            <Icon name="file" width={18} height={18} />
+            <span>{planLabel === 'FREE' ? `${allowances.documents.left} free documents left` : quotaLine}</span>
           </Link>
           <span className={styles.modePill}>
-            <Icon name="shield" width={14} height={14} />
-            {autoMode ? 'Auto-submit active' : 'Review before send'}
+            <Icon name="shield" width={18} height={18} />
+            {autoMode && autoSubmit.sendingLive ? 'Agent Mode follows your rules' : 'Nothing is sent without your approval.'}
           </span>
         </div>
       </header>
 
-      {/* Inline Job-Link Quick-Start Card (Signature Jobiest Deep Navy + Lime) */}
       <section className={styles.quickStart} data-animate aria-labelledby="quickstart-title">
         <div className={styles.quickStartTop}>
           <div>
-            <h2 id="quickstart-title" className={styles.quickStartTitle}>
-              Prepare a tailored application
-            </h2>
-            <p className={styles.quickStartSub}>
-              Paste a public job link to draft a truthful, role-specific CV and cover letter, or open Resume Studio.
-            </p>
+            <h2 id="quickstart-title" className={styles.quickStartTitle}>Start with a job</h2>
+            <p className={styles.quickStartSub}>Add a job posting to prepare your application.</p>
           </div>
-          <Link href="/generate" className={styles.studioGhost}>
-            <Icon name="file" width={15} height={15} />
-            Open Resume Studio
-          </Link>
         </div>
 
         <form className={styles.quickForm} onSubmit={handleQuickStart}>
-          <label htmlFor="dashboard-job-url" className={styles.srOnly}>
-            Job posting link
-          </label>
+          <label htmlFor="dashboard-job-url" className={styles.srOnly}>Job posting URL</label>
           <div className={styles.inputWrap}>
-            <Icon name="search" width={17} height={17} />
+            <Icon name="link" width={19} height={19} />
             <input
               id="dashboard-job-url"
-              type="text"
+              type="url"
               inputMode="url"
               value={jobUrl}
               onChange={(e) => setJobUrl(e.target.value)}
-              placeholder="Paste any job posting URL (Greenhouse, Lever, Ashby, Workable, or company site)..."
+              placeholder="Paste a job posting URL"
               className={styles.urlInput}
             />
           </div>
           <button type="submit" className={styles.quickCta}>
-            Tailor application
+            Prepare application
             <Icon name="arrow-right" width={17} height={17} />
           </button>
         </form>
-
-        <p className={styles.quickFoot}>
-          <Icon name="check-circle" width={14} height={14} />
-          {autoMode
-            ? 'Jobiest never charges candidates to apply. Eligible submissions trigger an email confirmation.'
-            : 'Jobiest never charges candidates to apply, and nothing is ever sent without your approval.'}
-        </p>
       </section>
+
+      <div className={styles.summaryGrid}>
+        <section className={styles.summaryCard} aria-labelledby="profile-summary-title">
+          <p className={styles.cardKicker}>Profile</p>
+          <div className={styles.summaryHeading}>
+            <h2 className={styles.cardTitle} id="profile-summary-title">Build your career profile</h2>
+            <strong>{clampedProfilePct}%</strong>
+          </div>
+          <div className={styles.summaryMeter} role="progressbar" aria-valuenow={clampedProfilePct} aria-valuemin={0} aria-valuemax={100} aria-label="Career profile completion">
+            <span style={{ width: `${clampedProfilePct}%` }} />
+          </div>
+          <p className={styles.summaryDescription}>
+            {clampedProfilePct >= 100
+              ? 'Your profile is ready to support more relevant applications.'
+              : !hasTargetRoles
+                ? 'Add your target roles to get stronger, more relevant applications.'
+                : profileNextSteps.length > 0
+                  ? `${profileNextSteps[0]}. Complete your profile for stronger applications.`
+                  : 'Add verified career details to get stronger, more relevant applications.'}
+          </p>
+          <Link className={styles.profileCta} href="/profile">
+            {clampedProfilePct >= 100 ? 'Review profile' : 'Complete profile'}
+          </Link>
+        </section>
+
+        <section className={styles.summaryCard} aria-labelledby="applications-summary-title">
+          <p className={styles.cardKicker}>Applications</p>
+          <h2 className={styles.cardTitle} id="applications-summary-title">Your applications</h2>
+          {stats.applications === 0 ? (
+            <div className={styles.applicationsEmpty}>
+              <span className={styles.emptyIcon}><Icon name="file" width={26} height={26} /></span>
+              <p>Your saved applications will appear here.</p>
+            </div>
+          ) : (
+            <div className={styles.applicationSummary}>
+              <strong>{stats.applications}</strong>
+              <span>{stats.applications === 1 ? 'application in your tracker' : 'applications in your tracker'}</span>
+              {drafts.length > 0 && <small>{drafts.length} {drafts.length === 1 ? 'draft needs' : 'drafts need'} your review.</small>}
+            </div>
+          )}
+          <Link className={styles.applicationsLink} href="/applications">
+            View applications <Icon name="arrow-right" width={16} height={16} />
+          </Link>
+        </section>
+      </div>
 
       <DashboardSetup needsSetup={setup.needsSetup} required={setup.required} />
 
@@ -426,62 +446,7 @@ export function DashboardView(props: DashboardViewProps) {
           ) : null}
         </div>
 
-        {/* Right Foundation & Controls Column */}
-        <aside className={styles.sideCol} aria-label="Profile readiness and account controls">
-          {/* Unified Server-Rendered Career Profile Card */}
-          <section className={styles.card} data-animate aria-labelledby="ready-title">
-            <div className={styles.cardHeader}>
-              <p className={styles.cardKicker}>Your foundation</p>
-              <span className={`${styles.pctBadge}${clampedProfilePct === 100 ? ` ${styles.pctComplete}` : ''}`}>
-                {clampedProfilePct}% complete
-              </span>
-            </div>
-            <h2 className={styles.cardTitle} id="ready-title">
-              Career profile readiness
-            </h2>
-            {careerHeadline ? <p className={styles.headlineText}>{careerHeadline}</p> : null}
-
-            <div
-              className={styles.meterBar}
-              role="progressbar"
-              aria-valuenow={clampedProfilePct}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label="Career profile completion"
-            >
-              <div
-                className={`${styles.meterFill}${clampedProfilePct >= 85 ? ` ${styles.meterLime}` : ''}`}
-                style={{ width: `${Math.max(4, clampedProfilePct)}%` }}
-              />
-            </div>
-
-            {profileNextSteps.length > 0 ? (
-              <div className={styles.missingList}>
-                <span className={styles.missingIntro}>Add next for stronger tailoring:</span>
-                {profileNextSteps.slice(0, 3).map((step) => (
-                  <Link href="/profile" key={step} className={styles.missingItem}>
-                    <span className={styles.missingBullet} aria-hidden="true">+</span>
-                    <span>{step}</span>
-                  </Link>
-                ))}
-                {profileNextSteps.length > 3 ? (
-                  <span className={styles.cardNote}>
-                    +{profileNextSteps.length - 3} more optional item{profileNextSteps.length - 3 === 1 ? '' : 's'} on your profile
-                  </span>
-                ) : null}
-              </div>
-            ) : (
-              <p className={styles.cardNote}>
-                Your profile foundation is complete and ready for role-specific tailoring.
-              </p>
-            )}
-
-            <Link href="/profile" className={styles.cardFooterLink}>
-              Edit career profile
-              <Icon name="arrow-right" width={15} height={15} />
-            </Link>
-          </section>
-
+        <aside className={styles.sideCol} aria-label="Plan, usage, and submission controls">
           {/* Honest Plan & Remaining Credits Card */}
           <section className={styles.card} data-animate aria-labelledby="allow-title">
             <div className={styles.cardHeader}>

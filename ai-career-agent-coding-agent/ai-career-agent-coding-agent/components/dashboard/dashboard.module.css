@@ -909,3 +909,229 @@
     transform: none;
   }
 }
+
+/* Dashboard reference layout: calm workspace, compact navigation, and clear first action. */
+.desk {
+  gap: 22px;
+}
+
+.greetingTitle {
+  font-size: clamp(32px, 3.6vw, 44px);
+  letter-spacing: -0.035em;
+}
+
+.greetingLead {
+  font-size: clamp(17px, 1.8vw, 20px);
+}
+
+.planPill {
+  border-color: transparent;
+  background: #f0f7e8;
+  color: #18342a;
+  padding: 10px 15px;
+  min-height: 42px;
+}
+
+.planPill > svg {
+  color: #24423a;
+  flex: none;
+}
+
+.modePill {
+  border-color: transparent;
+  background: transparent;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.quickStart {
+  background: #ffffff;
+  color: var(--color-ink);
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  padding: clamp(22px, 3vw, 30px);
+  gap: 18px;
+  box-shadow: 0 2px 8px rgb(17 29 53 / 4%);
+}
+
+.quickStart::before {
+  display: none;
+}
+
+.quickStartTitle {
+  color: var(--color-ink);
+  font-size: clamp(22px, 2.4vw, 28px);
+}
+
+.quickStartSub {
+  color: var(--color-muted);
+  font-size: 16px;
+  margin-top: 7px;
+}
+
+.quickForm {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+}
+
+.inputWrap {
+  border-color: #d7dde7;
+  border-radius: 12px;
+  min-height: 58px;
+  padding: 0 18px;
+}
+
+.urlInput {
+  font-size: 16px;
+}
+
+.quickCta {
+  min-height: 58px;
+  min-width: 230px;
+  border-radius: 12px;
+  font-size: 16px;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  align-items: stretch;
+}
+
+.summaryCard {
+  min-width: 0;
+  min-height: 268px;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 26px 28px;
+  background: #ffffff;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgb(17 29 53 / 4%);
+}
+
+.summaryHeading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.summaryHeading strong {
+  color: var(--color-ink);
+  font: 700 18px / 1 var(--font-display);
+}
+
+.summaryMeter {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #edf0f5;
+}
+
+.summaryMeter span {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #8bbd59, #b7d989);
+  transition: width 0.25s ease;
+}
+
+.summaryDescription {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.profileCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: start;
+  min-height: 48px;
+  margin-top: 2px;
+  padding: 0 20px;
+  border-radius: 11px;
+  background: #f0f7e8;
+  color: #17372c;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.profileCta:hover {
+  background: #e4f1d5;
+  transform: translateY(-1px);
+}
+
+.applicationsEmpty {
+  flex: 1;
+  min-height: 94px;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 8px;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.applicationsEmpty p {
+  margin: 0;
+  font-size: 15px;
+}
+
+.emptyIcon {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #eef6fb;
+  color: #274760;
+}
+
+.applicationSummary {
+  min-height: 94px;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  color: var(--color-muted);
+}
+
+.applicationSummary strong {
+  color: var(--color-ink);
+  font: 700 30px / 1.1 var(--font-display);
+}
+
+.applicationSummary small {
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.applicationsLink {
+  display: inline-flex;
+  justify-self: center;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  color: #183b30;
+  font-weight: 600;
+  text-underline-offset: 4px;
+}
+
+@media (max-width: 720px) {
+  .summaryGrid { grid-template-columns: 1fr; gap: 14px; }
+  .summaryCard { min-height: 230px; padding: 22px; }
+}
+@media (max-width: 640px) {
+  .greetingTitle { font-size: clamp(30px, 8vw, 38px); }
+  .headerPills { align-items: stretch; width: 100%; }
+  .modePill { padding-left: 2px; }
+  .quickForm { grid-template-columns: 1fr; }
+  .quickCta, .profileCta { width: 100%; }
+}
