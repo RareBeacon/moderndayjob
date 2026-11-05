@@ -586,8 +586,13 @@ export default function GeneratePage() {
   }
 
   return (
-    <AppShell active="generate" title="Generate">
-      <div className="resume2-hero">
+    <AppShell
+      active="generate"
+      title={activeStep === 'templates' ? 'Resume Studio' : 'Generate'}
+      variant={activeStep === 'templates' ? 'dashboard' : 'default'}
+      userName={draft.personal.name.trim().split(/\s+/)[0] || 'Profile'}
+    >
+      {(mode !== 'builder' || activeStep !== 'templates') && <div className="resume2-hero">
         <div>
           <p className="eyebrow">Resume Studio 2.0</p>
           <h1>Build your resume or CV with an AI career assistant, not a boring form.</h1>
@@ -619,11 +624,11 @@ export default function GeneratePage() {
             body="Watch your document update while you build. Desktop gets side-by-side preview. Mobile gets a focused preview button."
           />
         </div>
-      </div>
+      </div>}
 
       {mode === 'builder' ? (
         <>
-          <div className="resume2-shell">
+          <div className={`resume2-shell${activeStep === 'templates' ? ' resume2-template-mode' : ''}`}>
             <aside className="resume2-left">
               <div className="resume2-docformat-bar" role="region" aria-label="Document output format">
                 <div>
@@ -668,7 +673,7 @@ export default function GeneratePage() {
                 score={score.total}
                 saveState={saveState}
               />
-              <AssistantBubble step={activeStep} draft={draft} />
+              {activeStep !== 'templates' && <AssistantBubble step={activeStep} draft={draft} />}
               {message && <div className="resume2-message">{message}</div>}
               <div className="resume2-panel">
                 <StepContent
@@ -1626,6 +1631,7 @@ function TemplatesStep({
 }: StepContentProps) {
   const [tplSearch, setTplSearch] = useState('');
   const [showAllCats, setShowAllCats] = useState(true);
+  const [browseAll, setBrowseAll] = useState(false);
   const allVisible = CURATED_TEMPLATES.filter((t) => {
     if (!showAllCats && t.category !== selectedCategory) return false;
     if (!tplSearch.trim()) return true;
@@ -1687,21 +1693,24 @@ function TemplatesStep({
 
   return (
     <div className="resume2-step">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <p className="eyebrow" style={{ fontSize: '12px', letterSpacing: '0.12em', margin: 0 }}>
-          CAREER TOOLS / RESUME &amp; CV BUILDER
-        </p>
-        <Link href="/templates" style={{ fontSize: 13, fontWeight: 700, color: '#111d35' }}>
-          Open full-screen 30-template gallery &rarr;
-        </Link>
+      <div className="resume2-template-heading">
+        <div>
+          <p className="eyebrow">STEP 8 OF 9 · TEMPLATES</p>
+          <h2>Choose your resume template</h2>
+          <p className="resume2-copy">Select a layout that fits your story. Your profile details stay yours and update in the live preview.</p>
+          <Link className="resume2-full-gallery" href="/templates">Open full 30-template gallery <span aria-hidden="true">→</span></Link>
+        </div>
+        <div className="resume2-docformat-seg resume2-template-format" role="group" aria-label="Choose Resume or CV">
+          <button type="button" className={draft.documentMode !== 'cv' ? 'active' : ''} aria-pressed={draft.documentMode !== 'cv'} onClick={() => patchDraft({ documentMode: 'resume' })}>Resume</button>
+          <button type="button" className={draft.documentMode === 'cv' ? 'active' : ''} aria-pressed={draft.documentMode === 'cv'} onClick={() => patchDraft({ documentMode: 'cv' })}>Full CV</button>
+        </div>
       </div>
-      <h2>Choose your template</h2>
-      <p className="resume2-copy" style={{ maxWidth: '65ch', margin: '0 0 18px' }}>
-        Explore 30 ISO A4 architectures for both concise Resumes and multi-page CVs. Switching templates preserves all of
-        your data. Card miniatures show sample layout data; the live preview shows your own draft.
-      </p>
-      <div className="resume2-subhead">
+      <div className="resume2-template-recommendations-head">
         <strong>Recommended for you</strong>
+        <label className="resume2-template-search">
+          <svg aria-hidden="true" viewBox="0 0 20 20"><circle cx="8.7" cy="8.7" r="5.7"/><path d="m13 13 4 4"/></svg>
+          <input type="search" value={tplSearch} onChange={(e) => { setTplSearch(e.target.value); if (e.target.value) setBrowseAll(true); }} placeholder="Search templates" aria-label="Search Resume Studio templates" />
+        </label>
       </div>
       <div className="resume2-template-grid recommended">
         {recommended.map((templateItem) => (
@@ -1713,18 +1722,8 @@ function TemplatesStep({
           />
         ))}
       </div>
-      <div style={{ margin: '14px 0 10px' }}>
-        <input
-          type="search"
-          value={tplSearch}
-          onChange={(e) => setTplSearch(e.target.value)}
-          placeholder="Search all 30 templates by role, group, or style..."
-          aria-label="Search Resume Studio templates"
-          style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #cbd5e1', fontSize: 14 }}
-        />
-      </div>
       <div className="resume2-category-row">
-        <button className={showAllCats ? 'active' : ''} onClick={() => setShowAllCats(true)}>
+        <button className={showAllCats ? 'active' : ''} onClick={() => { setShowAllCats(true); setBrowseAll(false); setTplSearch(''); }}>
           All <span>{CURATED_TEMPLATES.length}</span>
         </button>
         {TEMPLATE_CATEGORIES.map((cat) => (
@@ -1733,6 +1732,7 @@ function TemplatesStep({
             className={!showAllCats && selectedCategory === cat ? 'active' : ''}
             onClick={() => {
               setShowAllCats(false);
+              setBrowseAll(true);
               setSelectedCategory(cat);
             }}
           >
@@ -1740,7 +1740,7 @@ function TemplatesStep({
           </button>
         ))}
       </div>
-      <div className="resume2-template-grid">
+      {browseAll && <div className="resume2-template-grid">
         {visible.map((templateItem) => (
           <TemplateCard
             key={templateItem.id}
@@ -1749,8 +1749,9 @@ function TemplatesStep({
             onSelect={() => patchDraft({ selectedTemplate: templateItem.id })}
           />
         ))}
-      </div>
-      {allVisible.length > visible.length && (
+      </div>}
+      {!browseAll && <button className="resume2-browse-all" type="button" onClick={() => { setBrowseAll(true); setShowCount(pageSize); }}>Browse all 30 templates <span aria-hidden="true">→</span></button>}
+      {browseAll && allVisible.length > visible.length && (
         <div style={{ display: 'grid', placeItems: 'center', marginTop: 16 }}>
           <button
             className="btn secondary"
@@ -1760,7 +1761,7 @@ function TemplatesStep({
           </button>
         </div>
       )}
-      {allVisible.length > 6 && visible.length === allVisible.length && (
+      {browseAll && allVisible.length > 6 && visible.length === allVisible.length && (
         <div style={{ display: 'grid', placeItems: 'center', marginTop: 16 }}>
           <button className="btn secondary" onClick={() => setShowCount(pageSize)}>
             Show less
@@ -1807,6 +1808,10 @@ function TemplatesStep({
           {photoError && <p className="resume2-photo-error">{photoError}</p>}
         </div>
       )}
+      <div className="resume2-template-trust">
+        <span aria-hidden="true">✓</span>
+        <p>Built from your profile facts. Nothing is sent without your approval.</p>
+      </div>
       <StepActions prevStep={prevStep} nextStep={nextStep} />
     </div>
   );
