@@ -1,6 +1,7 @@
+import React, { type ReactNode } from 'react';
 import Link from 'next/link';
 import { Logo } from './Logo';
-import type { ReactNode } from 'react';
+import { AdminNavSlot } from './AdminNavSlot';
 
 /* AppShell: the authenticated workspace chrome.
    A calm, receding sidebar on desktop with clear human navigation groups,
@@ -75,23 +76,25 @@ export function AppShell({
   active,
   title,
   children,
-  variant = 'default',
+  variant = 'dashboard',
   userName,
+  isAdmin,
 }: {
   active: string;
   title?: string;
   children: ReactNode;
   variant?: 'default' | 'dashboard';
   userName?: string;
+  isAdmin?: boolean;
 }) {
   return (
-    <div className={`app-shell${variant === 'dashboard' ? ' dashboard-shell' : ''}`}>
+    <div className="app-shell dashboard-shell">
       {/* CSS-only mobile drawer toggle (no client JS) */}
       <input id="appnav-toggle" type="checkbox" className="app-nav-toggle" aria-hidden="true" />
 
       <aside className="app-sidebar" aria-label="Primary">
         <div className="app-side-top">
-          <Link href="/"><Logo /></Link>
+          <Link href="/"><Logo variant="dark" size={28} /></Link>
           <label htmlFor="appnav-toggle" className="app-drawer-close" aria-label="Close navigation">
             &#x2715;
           </label>
@@ -100,6 +103,9 @@ export function AppShell({
           {NAV_GROUPS.map((group) => (
             <div className="app-nav-group" key={group.heading}>
               <span className="app-nav-heading">{group.heading}</span>
+              {group.heading === 'Account' && (
+                <AdminNavSlot active={active} initialIsAdmin={isAdmin} />
+              )}
               {group.items.map((n) => (
                 <Link
                   key={n.key}
@@ -135,7 +141,7 @@ export function AppShell({
           </label>
           <p className="app-title">{title ?? ALL_NAV.find((n) => n.key === active)?.label ?? 'Workspace'}</p>
           <div className="app-topbar-actions">
-            {variant === 'dashboard' && userName ? (
+            {userName ? (
               <Link className="app-user-chip" href="/profile" aria-label={`Open ${userName}'s career profile`}>
                 <span className="app-user-avatar" aria-hidden="true">{userName.trim().charAt(0).toUpperCase()}</span>
                 <span>{userName}</span>
