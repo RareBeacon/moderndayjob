@@ -96,7 +96,7 @@ export async function POST(req: Request) {
   if (fullName.length < 2 || fullName.length > 80 || !/^[\p{L}\s'.-]+$/u.test(fullName)) {
     return NextResponse.json({ error: 'Please enter your full name (letters only, 2 to 80 characters).' }, { status: 400 });
   }
-  if (!/^\+[1-9]\d{7,14}$/.test(phone)) {
+  if (phone && !/^\+[1-9]\d{7,14}$/.test(phone)) {
     return NextResponse.json({ error: 'Please enter a valid phone number with its country code, e.g. +234 801 234 5678.' }, { status: 400 });
   }
   if (
@@ -157,7 +157,7 @@ export async function POST(req: Request) {
     password,
     email_confirm: false,
     // handle_new_user copies these into the profiles row (full_name + phone).
-    user_metadata: { full_name: fullName, phone },
+    user_metadata: { full_name: fullName, phone: phone || null },
   });
 
   if (error) {

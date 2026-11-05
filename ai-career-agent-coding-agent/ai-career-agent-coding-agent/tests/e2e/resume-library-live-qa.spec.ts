@@ -148,9 +148,8 @@ test('on-demand live QA validation: Alex Morgan profile & 30 A4 PDF exports', as
   await page.goto('/signup', { waitUntil: 'networkidle' });
   await page.getByLabel('Full name').fill('Alex Morgan');
   await page.getByLabel('Email', { exact: true }).fill(qaEmail);
-  await page.getByLabel('Country code').selectOption('+44');
-  await page.getByPlaceholder('801 234 5678').fill('7700900123');
   await page.locator('input[autocomplete="new-password"]').fill(ephemeralPassword);
+  await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Create account', exact: true }).click();
   await page.waitForURL(/\/verify-email/, { timeout: 30_000 });
   await page.screenshot({ path: path.join(shotsDir, '12-signup-verify-email-gate.jpg'), type: 'jpeg', quality: 84 });

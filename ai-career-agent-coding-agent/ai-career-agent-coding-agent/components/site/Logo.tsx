@@ -12,11 +12,11 @@ export function LogoMark({ size = 20 }: { size?: number }) {
   );
 }
 
-export function Logo({ className = 'mk-logo', size }: { className?: string; size?: number }) {
+export function Logo({ className = 'mk-logo', size, variant = 'light' }: { className?: string; size?: number; variant?: 'light' | 'dark' }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src="/images/logo-wordmark-light.png"
+      src={variant === 'dark' ? '/images/logo-wordmark-dark.png' : '/images/logo-wordmark-light.png'}
       alt="Jobiest"
       className={className}
       width={size ? size * 2.6 : 130}

@@ -49,8 +49,8 @@ test('signup failed delivery can resend; a manual code submits only on click', a
   await page.goto('/signup');
   await page.getByLabel('Full name').fill('Ada Example');
   await page.getByLabel('Email', { exact: true }).fill('ada@example.com');
-  await page.getByPlaceholder('801 234 5678').fill('8012345678');
   await page.locator('input[autocomplete="new-password"]').fill('longenough1!');
+  await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Create account', exact: true }).click();
   await expect(page).toHaveURL(/\/verify-email\?email=ada%40example.com&delivery=failed/);
   await expect(page.locator('.auth-error')).toContainText('could not send the code yet');
