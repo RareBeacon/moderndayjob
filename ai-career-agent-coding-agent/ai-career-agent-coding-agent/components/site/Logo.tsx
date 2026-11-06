@@ -1,3 +1,5 @@
+import React from 'react';
+
 /**
  * Logo, the single source of truth for the Jobiest mark (2026 refresh).
  * The wordmark and icon are served as images from /public/images so every
