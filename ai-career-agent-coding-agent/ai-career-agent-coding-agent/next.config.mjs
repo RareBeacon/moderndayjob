@@ -95,7 +95,34 @@ const interviewMediaPermissions = {
 const nextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
-  experimental: { serverActions: { bodySizeLimit: '5mb' } },
+  outputFileTracingExcludes: {
+    '*': [
+      'node_modules/@playwright/**/*',
+      'node_modules/playwright/**/*',
+      'node_modules/playwright-core/**/*',
+      'node_modules/typescript/**/*',
+      'node_modules/@types/**/*',
+      'node_modules/vitest/**/*',
+      'node_modules/@esbuild/**/*',
+      'node_modules/tsx/**/*',
+      'node_modules/caniuse-lite/**/*',
+      'docs/**/*',
+      'tests/**/*',
+      'qa/**/*',
+      'reports/**/*',
+    ],
+  },
+  experimental: {
+    serverActions: { bodySizeLimit: '5mb' },
+    optimizePackageImports: [
+      'lucide-react',
+      'framer-motion',
+      '@supabase/supabase-js',
+      'docx',
+      'pdf-lib',
+      'zod',
+    ],
+  },
   async headers() {
     return [
       { source: '/(.*)', headers: securityHeaders },
