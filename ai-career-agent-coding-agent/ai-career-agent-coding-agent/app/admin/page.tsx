@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { AdminForbidden, AdminShell } from '@/components/site/AdminShell';
+import { AdminFallbackView, AdminForbidden, AdminShell } from '@/components/site/AdminShell';
 import { getAdminContext, hasAdminPermission } from '@/lib/admin';
 import { requireUserOrRedirect } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
@@ -24,7 +24,26 @@ function fmtMoney(amount: number, currency: 'NGN' | 'USD'): string {
   return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export default async function AdminControlCentrePage({
+export default async function AdminControlCentrePage(props: {
+  searchParams: Promise<{ range?: string }>;
+}) {
+  try {
+    return await AdminControlCentreBody(props);
+  } catch (error) {
+    const msg = String((error as any)?.message ?? error);
+    if (msg === 'NEXT_REDIRECT' || (error as any)?.digest?.startsWith?.('NEXT_REDIRECT')) {
+      throw error;
+    }
+    console.error('[admin:control-centre] page render error', {
+      message: msg.slice(0, 500),
+      digest: (error as any)?.digest,
+      stack: String((error as Error)?.stack ?? '').slice(0, 600),
+    });
+    return <AdminFallbackView error={msg} />;
+  }
+}
+
+async function AdminControlCentreBody({
   searchParams,
 }: {
   searchParams: Promise<{ range?: string }>;
@@ -33,7 +52,7 @@ export default async function AdminControlCentrePage({
   const admin = await getAdminContext(user.id, user.email ?? null);
   if (!admin) return <AdminForbidden />;
 
-  const sp = await searchParams;
+  const sp = await Promise.resolve(searchParams).catch(() => ({} as { range?: string }));
   const range: RangeKey =
     sp?.range === 'today' || sp?.range === '7d' || sp?.range === '30d' || sp?.range === 'all'
       ? sp.range
@@ -43,18 +62,26 @@ export default async function AdminControlCentrePage({
   const canViewAudit = hasAdminPermission(admin, 'can_view_audit_logs');
 
   const countSince = async (table: string, col = 'created_at', extraEq?: [string, string | boolean]) => {
-    let q = supabaseAdmin.from(table).select('*', { count: 'exact', head: true });
-    if (sinceIso) q = q.gte(col, sinceIso);
-    if (extraEq) q = q.eq(extraEq[0], extraEq[1]);
-    const { count } = await q;
-    return count ?? 0;
+    try {
+      let q = supabaseAdmin.from(table).select('*', { count: 'exact', head: true });
+      if (sinceIso) q = q.gte(col, sinceIso);
+      if (extraEq) q = q.eq(extraEq[0], extraEq[1]);
+      const { count } = await q;
+      return count ?? 0;
+    } catch {
+      return 0;
+    }
   };
 
   const countTotal = async (table: string, extraEq?: [string, string | boolean]) => {
-    let q = supabaseAdmin.from(table).select('*', { count: 'exact', head: true });
-    if (extraEq) q = q.eq(extraEq[0], extraEq[1]);
-    const { count } = await q;
-    return count ?? 0;
+    try {
+      let q = supabaseAdmin.from(table).select('*', { count: 'exact', head: true });
+      if (extraEq) q = q.eq(extraEq[0], extraEq[1]);
+      const { count } = await q;
+      return count ?? 0;
+    } catch {
+      return 0;
+    }
   };
 
   const [
@@ -94,26 +121,31 @@ export default async function AdminControlCentrePage({
     countTotal('support_tickets', ['status', 'OPEN']),
     supabaseAdmin
       .from('subscriptions')
-      .select('plan, status, source, current_period_end'),
+      .select('plan, status, source, current_period_end')
+      .then((res) => res, () => ({ data: [] })),
     canViewAnalytics
       ? supabaseAdmin
           .from('payments')
           .select('amount, currency, status, provider, created_at')
           .order('created_at', { ascending: false })
           .limit(2000)
+          .then((res) => res, () => ({ data: [] }))
       : Promise.resolve({ data: [] }),
     supabaseAdmin
       .from('programme_applications')
-      .select('track, status, priority_band, partnership_market, verified_partner, partnership_verified'),
+      .select('track, status, priority_band, partnership_market, verified_partner, partnership_verified')
+      .then((res) => res, () => ({ data: [] })),
     supabaseAdmin
       .from('admin_users')
-      .select('user_id, role, is_owner, is_active, require_mfa'),
+      .select('user_id, role, is_owner, is_active, require_mfa')
+      .then((res) => res, () => ({ data: [] })),
     canViewAudit
       ? supabaseAdmin
           .from('admin_audit_logs')
           .select('id, actor_role, action, target_type, target_id, reason, created_at')
           .order('created_at', { ascending: false })
           .limit(12)
+          .then((res) => res, () => ({ data: [] }))
       : Promise.resolve({ data: [] }),
   ]);
 

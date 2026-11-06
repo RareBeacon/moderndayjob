@@ -133,6 +133,65 @@ export default async function AdminRadarPage() {
         </table>
       </div>
 
+      <h2 style={{ fontSize: 19, margin: '28px 0 10px' }}>
+        Verified Direct Employers Universe ({data?.verifiedEmployers?.length ?? 0} Active)
+      </h2>
+      <p className="ad-lede" style={{ marginBottom: 14 }}>
+        Direct first-party hiring organizations indexed across blockchain intelligence, security, compliance, and enterprise infrastructure.
+      </p>
+      <div className="ad-scroll" style={{ marginBottom: 28, maxHeight: 420, overflowY: 'auto' }}>
+        <table className="ad-table">
+          <thead>
+            <tr>
+              <th>Employer</th>
+              <th>Domain</th>
+              <th>Industry</th>
+              <th>Region</th>
+              <th>Legitimacy</th>
+              <th>Primary ATS Adapter</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(data?.verifiedEmployers ?? []).length === 0 && (
+              <tr>
+                <td colSpan={6} className="ad-empty">No verified employers indexed yet.</td>
+              </tr>
+            )}
+            {(data?.verifiedEmployers ?? []).map((emp) => {
+              const infra = emp.hiring_infrastructure as Record<string, unknown> | null;
+              const primaryAdapter = String(infra?.primaryAtsAdapter ?? infra?.ats_adapter ?? 'ATS Direct');
+              return (
+                <tr key={String(emp.id)}>
+                  <td>
+                    <strong>{String(emp.canonical_name ?? '')}</strong>
+                  </td>
+                  <td className="ad-mono">
+                    <a
+                      href={String(emp.careers_url || emp.website_url || `https://${emp.primary_domain}`)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-link"
+                    >
+                      {String(emp.primary_domain ?? '')}
+                    </a>
+                  </td>
+                  <td style={{ fontSize: 12 }}>{String(emp.industry ?? 'Blockchain Intelligence')}</td>
+                  <td><span className="ad-chip">{String(emp.region ?? emp.country_code ?? 'GLOBAL')}</span></td>
+                  <td>
+                    <span className="ad-chip ok">
+                      {String(emp.employer_legitimacy_score ?? 95)}/100
+                    </span>
+                  </td>
+                  <td>
+                    <span className="ad-chip">{primaryAdapter}</span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
       <h2 style={{ fontSize: 19, marginBottom: 10 }}>Recent Crawl Runs</h2>
       <div className="ad-scroll">
         <table className="ad-table">

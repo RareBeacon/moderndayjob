@@ -623,6 +623,7 @@ export interface AdminRadarDashboardData {
   recentRuns: Array<Record<string, unknown>>;
   pendingCandidates: Array<Record<string, unknown>>;
   exclusions: Array<Record<string, unknown>>;
+  verifiedEmployers: Array<Record<string, unknown>>;
 }
 
 const EMPTY_SUMMARY: AdminRadarDashboardData['summary'] = {
@@ -657,11 +658,12 @@ export async function getAdminRadarDashboardData(
         recentRuns: [],
         pendingCandidates: [],
         exclusions: [],
+        verifiedEmployers: [],
       };
     }
   }
 
-  const [policiesRes, runsRes, candidatesRes, exclusionsRes] = await Promise.all([
+  const [policiesRes, runsRes, candidatesRes, exclusionsRes, employersRes] = await Promise.all([
     db.from('radar_provider_policies').select('*').order('provider_key', { ascending: true }),
     db.from('radar_crawl_runs').select('*').order('started_at', { ascending: false }).limit(25),
     db
@@ -671,6 +673,11 @@ export async function getAdminRadarDashboardData(
       .order('first_seen_at', { ascending: false })
       .limit(30),
     db.from('radar_exclusions').select('*').eq('active', true).order('created_at', { ascending: false }).limit(30),
+    db
+      .from('radar_employers')
+      .select('id, canonical_name, normalized_slug, primary_domain, website_url, careers_url, country_code, region, industry, company_size_band, employer_legitimacy_score, employer_verification_status, hiring_infrastructure, created_at')
+      .order('canonical_name', { ascending: true })
+      .limit(120),
   ]);
 
   if (policiesRes.error && isRadarSchemaMissingError(policiesRes.error)) {
@@ -681,6 +688,7 @@ export async function getAdminRadarDashboardData(
       recentRuns: [],
       pendingCandidates: [],
       exclusions: [],
+      verifiedEmployers: [],
     };
   }
 
@@ -696,5 +704,6 @@ export async function getAdminRadarDashboardData(
     recentRuns: (runsRes.data ?? []) as Array<Record<string, unknown>>,
     pendingCandidates: (candidatesRes.data ?? []) as Array<Record<string, unknown>>,
     exclusions: (exclusionsRes.data ?? []) as Array<Record<string, unknown>>,
+    verifiedEmployers: (employersRes.data ?? []) as Array<Record<string, unknown>>,
   };
 }
