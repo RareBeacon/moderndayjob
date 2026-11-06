@@ -1,23 +1,30 @@
 'use client';
-import { useEffect, useState, type ChangeEvent } from 'react';
-import { useRouter } from 'next/navigation';
 
-type Experience = { company: string; title: string; description?: string };
+import React, { useEffect, useState, type ChangeEvent } from 'react';
+import { useRouter } from 'next/navigation';
+import { JobTitleAutocomplete } from '@/components/ui/JobTitleAutocomplete';
+import { SkillAutocomplete } from '@/components/ui/SkillAutocomplete';
+import { StrengthAutocomplete } from '@/components/ui/StrengthAutocomplete';
+import { LocationAutocomplete } from '@/components/ui/LocationAutocomplete';
+import { ExperienceBuilder, type StructuredExperience } from '@/components/ui/ExperienceBuilder';
+
 type Education = { institution: string; qualification: string };
 type Mode = 'draft' | 'assist' | 'approval' | 'auto';
 
 type FormState = {
   full_name: string;
-  target_roles: string;
+  target_roles: string[];
   headline: string;
   summary: string;
-  skills: string;
+  skills: string[];
+  strengths: string[];
+  strength_reflection: string;
   application_email: string;
-  experience: Experience[];
+  experience: StructuredExperience[];
   education: Education[];
   portfolio: string;
   remote_types: string[];
-  locations: string;
+  locations: string[];
   employment_types: string[];
   salary_min: string;
   currency: string;
@@ -26,43 +33,60 @@ type FormState = {
   not_applicable: string[];
 };
 
-const split = (s: string) => s.split(/[,;\n]+/).map((x) => x.trim()).filter(Boolean);
-
 const REMOTE_OPTIONS = [
   { value: 'remote', label: 'Remote' },
   { value: 'hybrid', label: 'Hybrid' },
   { value: 'onsite', label: 'On-site' },
 ];
+
 const EMP_OPTIONS = [
   { value: 'full-time', label: 'Full-time' },
   { value: 'contract', label: 'Contract' },
   { value: 'part-time', label: 'Part-time' },
   { value: 'internship', label: 'Internship' },
 ];
+
 const MODES: { value: Mode; label: string; desc: string }[] = [
   { value: 'draft', label: 'Draft only', desc: 'Generate materials. You handle the rest.' },
   { value: 'assist', label: 'Assist', desc: 'Prepare and fill where possible, stop before submitting.' },
   { value: 'approval', label: 'Approval (recommended)', desc: 'Prepare complete applications. You approve each one before it is sent.' },
   { value: 'auto', label: 'Auto', desc: 'Paid plans: submit eligible applications within your rules, then email you each one. Still stops on CAPTCHA or unsupported sites.' },
 ];
-// 6 steps per design plan §6.2 (Gmail removed per D-001)
-const STEPS = ['You', 'Targets', 'Where & how', 'Your CV', 'Experience', 'Ready'];
 
+const STEPS = ['You', 'Targets & Skills', 'Strengths', 'Where & how', 'Your CV', 'Experience', 'Ready'];
 const CURRENCIES = ['NGN', 'USD', 'GBP', 'EUR', 'GHS', 'KES', 'ZAR', 'CAD'];
 
 const EMPTY: FormState = {
-  full_name: '', target_roles: '', headline: '', summary: '', skills: '', application_email: '',
-  experience: [], education: [], portfolio: '', not_applicable: [],
-  remote_types: [], locations: '', employment_types: [], salary_min: '', currency: 'NGN', application_mode: 'approval', daily_target: '10',
+  full_name: '',
+  target_roles: [],
+  headline: '',
+  summary: '',
+  skills: [],
+  strengths: [],
+  strength_reflection: '',
+  application_email: '',
+  experience: [],
+  education: [],
+  portfolio: '',
+  not_applicable: [],
+  remote_types: ['remote'],
+  locations: [],
+  employment_types: ['full-time'],
+  salary_min: '',
+  currency: 'NGN',
+  application_mode: 'approval',
+  daily_target: '10',
 };
 
-/**
- * SetupWizard · the onboarding questions, now living inside the dashboard
- * instead of gating the first visit. Same six steps, same honest save to
- * /api/profile + /api/preferences. onFinish/skip hand control back to the
- * dashboard, which refreshes its own numbers from the server.
- */
-export function SetupWizard({ onFinish, onSkip, required = false }: { onFinish: () => void; onSkip: () => void; required?: boolean }) {
+export function SetupWizard({
+  onFinish,
+  onSkip,
+  required = false,
+}: {
+  onFinish: () => void;
+  onSkip: () => void;
+  required?: boolean;
+}) {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(EMPTY);
   const [step, setStep] = useState(0);
@@ -75,27 +99,62 @@ export function SetupWizard({ onFinish, onSkip, required = false }: { onFinish: 
   useEffect(() => {
     let active = true;
     Promise.all([
-      fetch('/api/profile').then((r) => r.json()),
-      fetch('/api/preferences').then((r) => r.json()),
+      fetch('/api/profile').then((r) => r.json()).catch(() => ({})),
+      fetch('/api/preferences').then((r) => r.json()).catch(() => ({})),
     ])
       .then(([pData, prefData]) => {
         if (!active) return;
         const p = pData.profile || {};
         const c = pData.career || {};
         const pr = prefData.preferences || {};
+
         setForm({
           full_name: p.full_name || '',
-          target_roles: Array.isArray(p.target_roles) ? p.target_roles.join(', ') : '',
+          target_roles: Array.isArray(p.target_roles)
+            ? p.target_roles
+            : typeof p.target_roles === 'string'
+              ? p.target_roles.split(',').map((x: string) => x.trim()).filter(Boolean)
+              : [],
           headline: c.headline || '',
           summary: c.summary || '',
-          skills: Array.isArray(c.skills) ? c.skills.join(', ') : '',
+          skills: Array.isArray(c.skills)
+            ? c.skills
+            : typeof c.skills === 'string'
+              ? c.skills.split(',').map((x: string) => x.trim()).filter(Boolean)
+              : [],
+          strengths: Array.isArray(c.strengths) ? c.strengths : [],
+          strength_reflection: c.strength_reflection || '',
           application_email: p.application_email || '',
-          experience: Array.isArray(c.experience) ? c.experience : [],
+          experience: Array.isArray(c.experience)
+            ? c.experience.map((e: Record<string, unknown>, idx: number) => ({
+                id: (e.id as string) || `exp_${idx}`,
+                company: (e.company as string) || (e.company_name as string) || '',
+                title: (e.title as string) || (e.job_title as string) || '',
+                location: (e.location as string) || undefined,
+                employment_type: (e.employment_type as string) || 'Full-time',
+                workplace_type: (e.workplace_type as string) || 'Remote',
+                start_month: typeof e.start_month === 'number' ? e.start_month : null,
+                start_year: typeof e.start_year === 'number' ? e.start_year : null,
+                end_month: typeof e.end_month === 'number' ? e.end_month : null,
+                end_year: typeof e.end_year === 'number' ? e.end_year : null,
+                is_current: Boolean(e.is_current),
+                bullets: Array.isArray(e.bullets)
+                  ? (e.bullets as string[])
+                  : typeof e.description === 'string' && e.description
+                    ? e.description.split('\n').map((s) => s.trim()).filter(Boolean)
+                    : [],
+                description: (e.description as string) || '',
+              }))
+            : [],
           education: Array.isArray(c.education) ? c.education : [],
           portfolio: c.links?.portfolio || '',
-          remote_types: Array.isArray(pr.remote_types) ? pr.remote_types : [],
-          locations: Array.isArray(pr.locations) ? pr.locations.join(', ') : '',
-          employment_types: Array.isArray(pr.employment_types) ? pr.employment_types : [],
+          remote_types: Array.isArray(pr.remote_types) ? pr.remote_types : ['remote'],
+          locations: Array.isArray(pr.locations)
+            ? pr.locations
+            : typeof pr.locations === 'string'
+              ? pr.locations.split(',').map((x: string) => x.trim()).filter(Boolean)
+              : [],
+          employment_types: Array.isArray(pr.employment_types) ? pr.employment_types : ['full-time'],
           salary_min: pr.salary_min != null ? String(pr.salary_min) : '',
           currency: pr.currency || 'NGN',
           application_mode: (pr.application_mode as Mode) || 'approval',
@@ -106,8 +165,13 @@ export function SetupWizard({ onFinish, onSkip, required = false }: { onFinish: 
         });
       })
       .catch(() => {})
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   function field<K extends keyof FormState>(key: K) {
@@ -133,12 +197,9 @@ export function SetupWizard({ onFinish, onSkip, required = false }: { onFinish: 
 
   function canProceed(s: number): boolean {
     if (s === 0) return form.full_name.trim().length >= 2 && form.headline.trim().length <= 160 && form.summary.trim().length <= 3000;
-    if (s === 1) {
-      const roles = split(form.target_roles);
-      return roles.length >= 1 && roles.length <= 20;
-    }
-    if (s === 2) return form.remote_types.length >= 1;
-    if (s === 4) {
+    if (s === 1) return form.target_roles.length >= 1;
+    if (s === 3) return form.remote_types.length >= 1;
+    if (s === 5) {
       const email = form.application_email.trim();
       const emailOk = email === '' || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
       const dt = Number(form.daily_target);
@@ -150,43 +211,70 @@ export function SetupWizard({ onFinish, onSkip, required = false }: { onFinish: 
   async function finish() {
     setSaving(true);
     setError('');
+
     const profileBody = {
       full_name: form.full_name.trim(),
-      target_roles: split(form.target_roles),
+      target_roles: form.target_roles,
       headline: form.headline,
       summary: form.summary,
       application_email: form.application_email.trim(),
-      skills: split(form.skills),
-      experience: form.experience
-        .filter((x) => x.company.trim() && x.title.trim())
-        .map((x) => ({ company: x.company.trim(), title: x.title.trim(), description: x.description?.trim() || undefined })),
+      skills: form.skills,
+      strengths: form.strengths,
+      strength_reflection: form.strength_reflection,
+      experience: form.experience.map((x) => ({
+        company: x.company.trim(),
+        title: x.title.trim(),
+        location: x.location?.trim() || undefined,
+        employment_type: x.employment_type || undefined,
+        workplace_type: x.workplace_type || undefined,
+        start_month: x.start_month,
+        start_year: x.start_year,
+        end_month: x.end_month,
+        end_year: x.end_year,
+        is_current: x.is_current,
+        bullets: x.bullets || [],
+        description: x.description?.trim() || undefined,
+      })),
       education: form.education
         .filter((x) => x.institution.trim() && x.qualification.trim())
         .map((x) => ({ institution: x.institution.trim(), qualification: x.qualification.trim() })),
       links: form.portfolio ? { portfolio: form.portfolio } : {},
       not_applicable: form.not_applicable,
     };
+
     const prefBody = {
       remote_types: form.remote_types,
-      locations: split(form.locations),
+      locations: form.locations,
       employment_types: form.employment_types,
       salary_min: form.salary_min ? Number(form.salary_min) : null,
       currency: form.currency || 'NGN',
       application_mode: form.application_mode,
       daily_target: Number(form.daily_target) || 10,
     };
+
     try {
       const [pr, qr] = await Promise.all([
-        fetch('/api/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(profileBody) }),
-        fetch('/api/preferences', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(prefBody) }),
+        fetch('/api/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(profileBody),
+        }),
+        fetch('/api/preferences', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(prefBody),
+        }),
       ]);
+
       if (!pr.ok) {
         const errData = await pr.json().catch(() => ({}));
-        const firstMsg = (Object.values(errData.issues?.fieldErrors ?? {}).flat()[0] ?? errData.issues?.formErrors?.[0]) as string | undefined;
+        const firstMsg = (Object.values(errData.issues?.fieldErrors ?? {}).flat()[0] ??
+          errData.issues?.formErrors?.[0]) as string | undefined;
         throw new Error(firstMsg || 'We could not save your profile details. Please review your entries and try again.');
       }
       if (!qr.ok) throw new Error('We could not save your preferences. Please try again.');
-      router.refresh(); // pull fresh server data before the wizard unmounts
+
+      router.refresh();
       onFinish();
     } catch (err) {
       setError(err instanceof Error && err.message ? err.message : 'We could not save your details. Please try again.');
@@ -200,7 +288,10 @@ export function SetupWizard({ onFinish, onSkip, required = false }: { onFinish: 
     if (step < STEPS.length - 1) setStep(step + 1);
     else finish();
   }
-  function back() { if (step > 0) setStep(step - 1); }
+
+  function back() {
+    if (step > 0) setStep(step - 1);
+  }
 
   async function onUpload(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -214,34 +305,42 @@ export function SetupWizard({ onFinish, onSkip, required = false }: { onFinish: 
       setCvUploaded(true);
       setUpload({ busy: false, status: 'Your CV is stored privately.' });
     } else {
-      setUpload({ busy: false, status: x.error === 'PDF_REQUIRED' ? 'Please choose a PDF file.' : 'Upload could not be completed.' });
+      setUpload({
+        busy: false,
+        status: x.error === 'PDF_REQUIRED' ? 'Please choose a PDF file.' : 'Upload could not be completed.',
+      });
     }
     e.target.value = '';
   }
 
-  const isLast = step === STEPS.length - 1;
-  const progress = ((step + 1) / STEPS.length) * 100;
-  const modeLabel = MODES.find((m) => m.value === form.application_mode)?.label ?? 'Approval';
+  const progress = Math.round(((step + 1) / STEPS.length) * 100);
 
   return (
-    <section className="wizard-card dd-wizard" aria-label="Profile setup">
-      <div className="dd-wizard-head">
-        <p className="eyebrow">SET UP YOUR CAREER WORKSPACE</p>
-        {required ? null : <button type="button" className="text-button" onClick={onSkip} disabled={saving}>Skip for now</button>}
+    <section className="setup-wizard" aria-label="Account setup wizard">
+      <div className="wizard-head">
+        <div>
+          <span className="wizard-kicker">GETTING STARTED · STEP {step + 1} OF {STEPS.length}</span>
+          <h2>{STEPS[step]}</h2>
+        </div>
+        {!required && (
+          <button type="button" className="btn btn-ghost" onClick={onSkip} aria-label="Close setup wizard">
+            Dismiss
+          </button>
+        )}
       </div>
-      <h1>Let’s tailor your agent.</h1>
-      <p className="step-sub">Six quick steps. Your profile is the source of facts we use, we never invent.</p>
 
-      <div className="stepper" role="list">
+      <div className="stepper" aria-hidden="true">
         {STEPS.map((label, i) => (
-          <div className={`seg${i === step ? ' active' : ''}`} role="listitem" key={label}>
-            <span className={`pip${i === step ? ' active' : i < step ? ' done' : ''}`}>{i < step ? '✓' : i + 1}</span>
-            <span className="seg-label">{label}</span>
+          <div key={label} className={`step-item${i < step ? ' is-complete' : i === step ? ' is-active' : ''}`}>
+            <span className="dot">{i < step ? '✓' : i + 1}</span>
+            <span className="label">{label}</span>
             {i < STEPS.length - 1 ? <span className="bar" aria-hidden="true" /> : null}
           </div>
         ))}
       </div>
-      <div className="progress" aria-hidden="true"><i style={{ width: `${progress}%` }} /></div>
+      <div className="progress" aria-hidden="true">
+        <i style={{ width: `${progress}%` }} />
+      </div>
 
       {loading ? (
         <p className="muted">Loading your workspace…</p>
@@ -249,7 +348,10 @@ export function SetupWizard({ onFinish, onSkip, required = false }: { onFinish: 
         <div className="wizard-body">
           {step === 0 && (
             <div className="form-stack">
-              <label>What’s your name?<input value={form.full_name} onChange={field('full_name')} placeholder="Your name" /></label>
+              <label>
+                What’s your name?
+                <input value={form.full_name} onChange={field('full_name')} placeholder="Your name" />
+              </label>
               <label>
                 <span className="field-hint-row">
                   <span>What do you do?</span>
@@ -258,92 +360,177 @@ export function SetupWizard({ onFinish, onSkip, required = false }: { onFinish: 
                   </small>
                 </span>
                 <span>A short headline in your own words, any profession.</span>
-                <input value={form.headline} onChange={field('headline')} maxLength={160} placeholder="e.g. Senior Product Designer" />
+                <input
+                  value={form.headline}
+                  onChange={field('headline')}
+                  maxLength={160}
+                  placeholder="e.g. Senior Product Designer"
+                />
               </label>
-              <label>Short professional summary<span>The experience you want your agent to understand.</span><textarea value={form.summary} onChange={field('summary')} rows={3} maxLength={3000} placeholder="A few lines about your work and strengths." /></label>
+              <label>
+                Short professional summary
+                <span>The experience you want your agent to understand.</span>
+                <textarea
+                  value={form.summary}
+                  onChange={field('summary')}
+                  rows={3}
+                  maxLength={3000}
+                  placeholder="A few lines about your work and strengths."
+                />
+              </label>
             </div>
           )}
 
           {step === 1 && (
-            <div className="form-stack">
-              <label>Which roles are you targeting?<span>Comma-separated, e.g. Product Designer, UX Researcher</span><input value={form.target_roles} onChange={field('target_roles')} placeholder="e.g. Product Designer, UX Researcher" /></label>
-              <label>Your key skills<span>Comma-separated, these power matching and truthful applications.</span><input value={form.skills} onChange={field('skills')} placeholder="e.g. Figma, research, strategy" /></label>
+            <div className="form-stack space-y-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase text-zinc-300 mb-1">
+                  Which roles are you targeting?
+                </label>
+                <JobTitleAutocomplete
+                  value={form.target_roles}
+                  onChange={(roles) => setForm((f) => ({ ...f, target_roles: roles }))}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase text-zinc-300 mb-1">
+                  Your key skills
+                </label>
+                <SkillAutocomplete
+                  value={form.skills}
+                  onChange={(skills) => setForm((f) => ({ ...f, skills }))}
+                />
+              </div>
             </div>
           )}
 
           {step === 2 && (
-            <div className="form-stack">
-              <label>Work arrangement</label>
-              <div className="chip-group">
-                {REMOTE_OPTIONS.map((o) => (
-                  <button type="button" key={o.value} className="chip" aria-pressed={form.remote_types.includes(o.value)} onClick={() => toggle('remote_types', o.value)}>{o.label}</button>
-                ))}
-              </div>
-              <label>Locations<span>Comma-separated, e.g. Lagos, Nigeria; Remote</span><input value={form.locations} onChange={field('locations')} placeholder="Lagos, Nigeria" /></label>
-              <label>Employment type</label>
-              <div className="chip-group">
-                {EMP_OPTIONS.map((o) => (
-                  <button type="button" key={o.value} className="chip" aria-pressed={form.employment_types.includes(o.value)} onClick={() => toggle('employment_types', o.value)}>{o.label}</button>
-                ))}
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 132px', gap: 10 }}>
-                <label>Salary floor (optional)<input type="number" min={0} value={form.salary_min} onChange={field('salary_min')} placeholder="e.g. 250000" /></label>
-                <label>Currency<select value={form.currency} onChange={field('currency')}>{CURRENCIES.map((c) => (<option key={c} value={c}>{c}</option>))}</select></label>
+            <div className="form-stack space-y-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase text-zinc-300 mb-1">
+                  What are your personal strengths?
+                </label>
+                <StrengthAutocomplete
+                  value={form.strengths}
+                  onChange={(strengths) => setForm((f) => ({ ...f, strengths }))}
+                  reflection={form.strength_reflection}
+                  onReflectionChange={(strength_reflection) => setForm((f) => ({ ...f, strength_reflection }))}
+                  showReflection={true}
+                />
               </div>
             </div>
           )}
 
           {step === 3 && (
             <div className="form-stack">
-              <p className="muted">Optional: upload your master CV (PDF, max 5 MB). It stays private to your account and is the source for future materials.</p>
+              <label>Work arrangement</label>
+              <div className="chip-group">
+                {REMOTE_OPTIONS.map((o) => (
+                  <button
+                    type="button"
+                    key={o.value}
+                    className="chip"
+                    aria-pressed={form.remote_types.includes(o.value)}
+                    onClick={() => toggle('remote_types', o.value)}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase text-zinc-300 mb-1">Locations</label>
+                <LocationAutocomplete
+                  value={form.locations}
+                  onChange={(locs) => setForm((f) => ({ ...f, locations: locs }))}
+                  placeholder="Search cities or select Remote..."
+                />
+              </div>
+
+              <label>Employment type</label>
+              <div className="chip-group">
+                {EMP_OPTIONS.map((o) => (
+                  <button
+                    type="button"
+                    key={o.value}
+                    className="chip"
+                    aria-pressed={form.employment_types.includes(o.value)}
+                    onClick={() => toggle('employment_types', o.value)}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 132px', gap: 10 }}>
+                <label>
+                  Salary floor (optional)
+                  <input
+                    type="number"
+                    min={0}
+                    value={form.salary_min}
+                    onChange={field('salary_min')}
+                    placeholder="e.g. 250000"
+                  />
+                </label>
+                <label>
+                  Currency
+                  <select value={form.currency} onChange={field('currency')}>
+                    {CURRENCIES.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div className="form-stack">
+              <p className="muted">Optional: upload your master CV (PDF, max 5 MB). It stays private to your account.</p>
               <label className={`upload-card${upload.busy ? ' is-busy' : ''}`}>
                 <input type="file" accept="application/pdf,.pdf" onChange={onUpload} disabled={upload.busy} />
                 <strong>{upload.busy ? 'Uploading…' : cvUploaded ? 'Upload another CV' : 'Upload your master CV'}</strong>
                 <span>PDF only · maximum 5 MB</span>
               </label>
               {upload.status ? <p className="form-status">{upload.status}</p> : null}
-              <p className="muted">You can skip this and upload later from Documents.</p>
             </div>
           )}
 
-          {step === 4 && (
-            <div className="form-stack">
+          {step === 5 && (
+            <div className="form-stack space-y-4">
               <div>
-                <div className="section-title"><h2>Experience</h2>{form.not_applicable.includes('experience') ? null : <button type="button" className="text-button" onClick={() => setForm((f) => ({ ...f, experience: [...f.experience, { company: '', title: '', description: '' }] }))}>Add</button>}</div>
-                {!form.not_applicable.includes('experience') && form.experience.map((x, i) => (
-                  <div className="repeat-row" key={i}>
-                    <div className="repeat-row-header">
-                      <span>Experience #{i + 1}</span>
-                      <button type="button" className="text-button danger" onClick={() => setForm((f) => ({ ...f, experience: f.experience.filter((_, j) => j !== i) }))}>Remove</button>
-                    </div>
-                    <input placeholder="Company" value={x.company} onChange={(e) => setForm((f) => ({ ...f, experience: f.experience.map((v, j) => (j === i ? { ...v, company: e.target.value } : v)) }))} />
-                    <input placeholder="Role title" value={x.title} onChange={(e) => setForm((f) => ({ ...f, experience: f.experience.map((v, j) => (j === i ? { ...v, title: e.target.value } : v)) }))} />
-                    <textarea placeholder="What did you do?" value={x.description || ''} onChange={(e) => setForm((f) => ({ ...f, experience: f.experience.map((v, j) => (j === i ? { ...v, description: e.target.value } : v)) }))} />
-                  </div>
-                ))}
+                <label className="block text-xs font-semibold uppercase text-zinc-300 mb-2">
+                  Professional Experience
+                </label>
+                {!form.not_applicable.includes('experience') && (
+                  <ExperienceBuilder
+                    experiences={form.experience}
+                    onChange={(exp) => setForm((f) => ({ ...f, experience: exp }))}
+                  />
+                )}
               </div>
-              <div>
-                <div className="section-title"><h2>Education</h2>{form.not_applicable.includes('education') ? null : <button type="button" className="text-button" onClick={() => setForm((f) => ({ ...f, education: [...f.education, { institution: '', qualification: '' }] }))}>Add</button>}</div>
-                {!form.not_applicable.includes('education') && form.education.map((x, i) => (
-                  <div className="repeat-row two" key={i}>
-                    <div className="repeat-row-header">
-                      <span>Education #{i + 1}</span>
-                      <button type="button" className="text-button danger" onClick={() => setForm((f) => ({ ...f, education: f.education.filter((_, j) => j !== i) }))}>Remove</button>
-                    </div>
-                    <input placeholder="Institution" value={x.institution} onChange={(e) => setForm((f) => ({ ...f, education: f.education.map((v, j) => (j === i ? { ...v, institution: e.target.value } : v)) }))} />
-                    <input placeholder="Qualification" value={x.qualification} onChange={(e) => setForm((f) => ({ ...f, education: f.education.map((v, j) => (j === i ? { ...v, qualification: e.target.value } : v)) }))} />
-                  </div>
-                ))}
-              </div>
+
               <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <input type="checkbox" checked={form.not_applicable.includes('experience')} onChange={() => toggleNA('experience')} />
-                <span>I don't have work experience yet</span>
+                <input
+                  type="checkbox"
+                  checked={form.not_applicable.includes('experience')}
+                  onChange={() => toggleNA('experience')}
+                />
+                <span>I don&apos;t have work experience yet</span>
               </label>
-              <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <input type="checkbox" checked={form.not_applicable.includes('education')} onChange={() => toggleNA('education')} />
-                <span>I have no formal education to add</span>
+
+              <label>
+                Application contact email
+                <input
+                  type="email"
+                  value={form.application_email}
+                  onChange={field('application_email')}
+                  placeholder="you@example.com"
+                />
               </label>
-              <label>Application email<span>The address used when you apply. No inbox access, just a contact email.</span><input type="email" value={form.application_email} onChange={field('application_email')} placeholder="you@example.com" /></label>
+
               <label>How much control should your agent have?</label>
               <div className="mode-cards">
                 {MODES.map((m) => (
@@ -354,49 +541,54 @@ export function SetupWizard({ onFinish, onSkip, required = false }: { onFinish: 
                     tabIndex={0}
                     aria-pressed={form.application_mode === m.value}
                     onClick={() => setForm((f) => ({ ...f, application_mode: m.value }))}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setForm((f) => ({ ...f, application_mode: m.value })); } }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setForm((f) => ({ ...f, application_mode: m.value }));
+                      }
+                    }}
                   >
                     <strong>{m.label}</strong>
                     <span>{m.desc}</span>
                   </div>
                 ))}
               </div>
-              <label>Daily application target<input type="number" min={1} max={50} value={form.daily_target} onChange={field('daily_target')} /></label>
             </div>
           )}
 
-          {step === 5 && (
+          {step === 6 && (
             <div className="form-stack">
-              <div className="ready-card">
-                <div className="ready-check" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none" width="26" height="26"><path d="M5 12.5 L10 17 L19 7" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                </div>
-                <h2>Your agent is ready to work.</h2>
-                <p className="muted">Here’s what we’ll use. You can change anything later.</p>
-                <ul className="ready-list">
-                  <li><span>Name</span><b>{form.full_name || '-'}</b></li>
-                  <li><span>Target roles</span><b>{split(form.target_roles).join(', ') || '-'}</b></li>
-                  <li><span>Arrangement</span><b>{form.remote_types.length ? form.remote_types.join(', ') : '-'}{form.locations ? ` · ${form.locations}` : ''}</b></li>
-                  <li><span>Control</span><b>{modeLabel}</b></li>
-                  <li><span>Daily target</span><b>{form.daily_target || '-'} applications/day</b></li>
-                </ul>
-                <p className="ready-note">Approval mode keeps you in charge. Your agent prepares, you review and release.</p>
-              </div>
+              <h3>Everything looks ready!</h3>
+              <p className="muted">
+                Your profile has been captured. Click Complete below to step into your Jobiest workspace and start discovering matching roles.
+              </p>
             </div>
           )}
         </div>
       )}
 
-      {error ? <div className="auth-error" role="alert" style={{ marginTop: 16 }}>{error}</div> : null}
+      {error ? (
+        <p className="form-status error" role="alert">{error}</p>
+      ) : null}
 
-      <div className="wizard-nav">
-        <button type="button" className="text-button" onClick={back} disabled={step === 0 || saving}>Back</button>
-        <div className="right">
-          {!isLast ? <span className="muted" style={{ fontSize: 13 }}>Step {step + 1} of {STEPS.length}</span> : null}
-          <button type="button" className="btn" onClick={next} disabled={!canProceed(step) || saving || loading}>
-            {isLast ? (saving ? 'Saving…' : 'Finish') : 'Continue'}
-          </button>
-        </div>
+      <div className="wizard-foot">
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={back}
+          disabled={step === 0 || saving}
+        >
+          Back
+        </button>
+
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={next}
+          disabled={!canProceed(step) || saving}
+        >
+          {saving ? 'Saving…' : step === STEPS.length - 1 ? 'Complete Setup →' : 'Continue →'}
+        </button>
       </div>
     </section>
   );

@@ -1,19 +1,21 @@
 'use client';
-import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
+
+import React, { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/site/AppShell';
-import { ErrorState, LoadingState, SuccessState } from '@/components/ui/state-feedback';
+import { ErrorState, LoadingState } from '@/components/ui/state-feedback';
+import { JobTitleAutocomplete } from '@/components/ui/JobTitleAutocomplete';
+import { SkillAutocomplete } from '@/components/ui/SkillAutocomplete';
+import { StrengthAutocomplete } from '@/components/ui/StrengthAutocomplete';
+import { ExperienceBuilder, type StructuredExperience } from '@/components/ui/ExperienceBuilder';
 
-type Experience = { company: string; title: string; description?: string };
 type Education = { institution: string; qualification: string };
 type NaSection = 'experience' | 'education' | 'projects';
 
 type FormFields = {
   full_name: string;
-  roles: string;
   headline: string;
   summary: string;
-  skills: string;
   portfolio: string;
   application_email: string;
 };
@@ -26,6 +28,7 @@ type FieldErrorMap = Partial<
     | 'headline'
     | 'summary'
     | 'skills'
+    | 'strengths'
     | 'links'
     | 'experience'
     | 'education',
@@ -35,10 +38,8 @@ type FieldErrorMap = Partial<
 
 const EMPTY_FORM: FormFields = {
   full_name: '',
-  roles: '',
   headline: '',
   summary: '',
-  skills: '',
   portfolio: '',
   application_email: '',
 };
@@ -47,20 +48,7 @@ const HEADLINE_MAX = 160;
 const SUMMARY_MAX = 3000;
 const TARGET_ROLES_MAX = 20;
 const SKILLS_MAX = 60;
-
-function splitList(value: string): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const raw of value.split(/[,;\n]+/)) {
-    const trimmed = raw.trim();
-    if (!trimmed) continue;
-    const key = trimmed.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(trimmed);
-  }
-  return out;
-}
+const STRENGTHS_MAX = 40;
 
 function normalizePortfolioInput(value: string): string {
   const trimmed = value.trim();
@@ -71,24 +59,24 @@ function normalizePortfolioInput(value: string): string {
   return trimmed;
 }
 
-function isBlankExperience(item: Experience): boolean {
-  return !item.company.trim() && !item.title.trim() && !(item.description ?? '').trim();
-}
-
 function isBlankEducation(item: Education): boolean {
   return !item.institution.trim() && !item.qualification.trim();
 }
 
 export default function ProfilePage() {
   const [form, setForm] = useState<FormFields>(EMPTY_FORM);
-  const [experience, setExperience] = useState<Experience[]>([]);
+  const [targetRoles, setTargetRoles] = useState<string[]>([]);
+  const [skills, setSkills] = useState<string[]>([]);
+  const [strengths, setStrengths] = useState<string[]>([]);
+  const [strengthReflection, setStrengthReflection] = useState('');
+  const [experience, setExperience] = useState<StructuredExperience[]>([]);
   const [education, setEducation] = useState<Education[]>([]);
   const [notApplicable, setNotApplicable] = useState<NaSection[]>([]);
   const [status, setStatus] = useState('');
   const [statusTone, setStatusTone] = useState<'ok' | 'err' | ''>('');
   const [errors, setErrors] = useState<string[]>([]);
   const [fieldErrors, setFieldErrors] = useState<FieldErrorMap>({});
-  const [submittedOnce, setSubmittedOnce] = useState(false);
+  const [, setSubmittedOnce] = useState(false);
   const [busy, setBusy] = useState(false);
   const [profileReady, setProfileReady] = useState(false);
   const [draftRecovered, setDraftRecovered] = useState(false);
@@ -98,21 +86,66 @@ export default function ProfilePage() {
   useEffect(() => {
     let active = true;
     fetch('/api/profile')
-      .then((r) => { if (!r.ok) throw new Error(`Profile request failed (${r.status})`); return r.json(); })
+      .then((r) => {
+        if (!r.ok) throw new Error(`Profile request failed (${r.status})`);
+        return r.json();
+      })
       .then((data) => {
         if (!active) return;
         const profile = data.profile || {};
         const career = data.career || {};
+
         setForm({
           full_name: profile.full_name || '',
-          roles: Array.isArray(profile.target_roles) ? profile.target_roles.join(', ') : '',
           headline: career.headline || '',
           summary: career.summary || '',
-          skills: Array.isArray(career.skills) ? career.skills.join(', ') : '',
           portfolio: career.links?.portfolio || '',
           application_email: profile.application_email || '',
         });
-        setExperience(Array.isArray(career.experience) ? career.experience : []);
+
+        if (Array.isArray(profile.target_roles)) {
+          setTargetRoles(profile.target_roles);
+        } else if (typeof profile.target_roles === 'string' && profile.target_roles) {
+          setTargetRoles(profile.target_roles.split(',').map((s: string) => s.trim()).filter(Boolean));
+        }
+
+        if (Array.isArray(career.skills)) {
+          setSkills(career.skills);
+        } else if (typeof career.skills === 'string' && career.skills) {
+          setSkills(career.skills.split(',').map((s: string) => s.trim()).filter(Boolean));
+        }
+
+        if (Array.isArray(career.strengths)) {
+          setStrengths(career.strengths);
+        }
+        if (typeof career.strength_reflection === 'string') {
+          setStrengthReflection(career.strength_reflection);
+        }
+
+        if (Array.isArray(career.experience)) {
+          setExperience(
+            career.experience.map((e: Record<string, unknown>, idx: number) => ({
+              id: (e.id as string) || `exp_${idx}`,
+              company: (e.company as string) || (e.company_name as string) || '',
+              title: (e.title as string) || (e.job_title as string) || '',
+              location: (e.location as string) || undefined,
+              employment_type: (e.employment_type as string) || 'Full-time',
+              workplace_type: (e.workplace_type as string) || 'Remote',
+              start_month: typeof e.start_month === 'number' ? e.start_month : null,
+              start_year: typeof e.start_year === 'number' ? e.start_year : null,
+              end_month: typeof e.end_month === 'number' ? e.end_month : null,
+              end_year: typeof e.end_year === 'number' ? e.end_year : null,
+              is_current: Boolean(e.is_current),
+              bullets: Array.isArray(e.bullets)
+                ? (e.bullets as string[])
+                : typeof e.description === 'string' && e.description
+                  ? e.description.split('\n').map((s) => s.trim()).filter(Boolean)
+                  : [],
+              description: (e.description as string) || '',
+            })),
+          );
+        }
+
         setEducation(Array.isArray(career.education) ? career.education : []);
         setNotApplicable(
           Array.isArray(career.not_applicable)
@@ -121,23 +154,29 @@ export default function ProfilePage() {
               )
             : [],
         );
-        const key = `jobiest.profile-draft.v1.${data.userId}`;
+
+        const key = `jobiest.profile-draft.v2.${data.userId}`;
         setDraftKey(key);
         try {
           const saved = JSON.parse(sessionStorage.getItem(key) || 'null');
           if (saved && Date.now() - saved.savedAt < 24 * 60 * 60 * 1000) {
-            setForm(saved.form);
-            setExperience(saved.experience);
-            setEducation(saved.education);
-            setNotApplicable(saved.notApplicable);
+            if (saved.form) setForm(saved.form);
+            if (saved.targetRoles) setTargetRoles(saved.targetRoles);
+            if (saved.skills) setSkills(saved.skills);
+            if (saved.strengths) setStrengths(saved.strengths);
+            if (saved.strengthReflection) setStrengthReflection(saved.strengthReflection);
+            if (saved.experience) setExperience(saved.experience);
+            if (saved.education) setEducation(saved.education);
+            if (saved.notApplicable) setNotApplicable(saved.notApplicable);
             setDraftRecovered(true);
           }
-        } catch { /* Ignore an invalid local draft; keep the server profile. */ }
+        } catch {}
         setProfileReady(true);
       })
       .catch(() => {
         if (active) setProfileLoadFailed(true);
       });
+
     return () => {
       active = false;
     };
@@ -145,8 +184,34 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!profileReady || !draftKey) return;
-    try { sessionStorage.setItem(draftKey, JSON.stringify({ savedAt: Date.now(), form, experience, education, notApplicable })); } catch { /* Storage can be unavailable; the server save remains available. */ }
-  }, [profileReady, draftKey, form, experience, education, notApplicable]);
+    try {
+      sessionStorage.setItem(
+        draftKey,
+        JSON.stringify({
+          savedAt: Date.now(),
+          form,
+          targetRoles,
+          skills,
+          strengths,
+          strengthReflection,
+          experience,
+          education,
+          notApplicable,
+        }),
+      );
+    } catch {}
+  }, [
+    profileReady,
+    draftKey,
+    form,
+    targetRoles,
+    skills,
+    strengths,
+    strengthReflection,
+    experience,
+    education,
+    notApplicable,
+  ]);
 
   function clearFieldError(fieldKey: keyof FieldErrorMap) {
     setFieldErrors((prev) => {
@@ -165,15 +230,6 @@ export default function ProfilePage() {
     };
   }
 
-  function addExperience() {
-    setExperience((prev) => [...prev, { company: '', title: '', description: '' }]);
-  }
-
-  function removeExperience(index: number) {
-    setExperience((prev) => prev.filter((_, j) => j !== index));
-    clearFieldError('experience');
-  }
-
   function addEducation() {
     setEducation((prev) => [...prev, { institution: '', qualification: '' }]);
   }
@@ -184,27 +240,37 @@ export default function ProfilePage() {
   }
 
   function buildPayload() {
-    const nonEmptyExp = experience.filter((item) => !isBlankExperience(item));
-    const nonEmptyEdu = education.filter((item) => !isBlankEducation(item));
+    const cleanEdu = education.filter((item) => !isBlankEducation(item));
     const updatedNa = notApplicable.filter((sec) => {
-      if (sec === 'experience' && nonEmptyExp.length > 0) return false;
-      if (sec === 'education' && nonEmptyEdu.length > 0) return false;
+      if (sec === 'experience' && experience.length > 0) return false;
+      if (sec === 'education' && cleanEdu.length > 0) return false;
       return true;
     });
 
     return {
       full_name: form.full_name.trim(),
-      target_roles: splitList(form.roles),
+      target_roles: targetRoles,
       headline: form.headline.trim(),
       summary: form.summary.trim(),
       application_email: form.application_email.trim(),
-      skills: splitList(form.skills),
-      experience: nonEmptyExp.map((item) => ({
+      skills,
+      strengths,
+      strength_reflection: strengthReflection.trim(),
+      experience: experience.map((item) => ({
         company: item.company.trim(),
         title: item.title.trim(),
         description: item.description?.trim() || undefined,
+        location: item.location?.trim() || undefined,
+        employment_type: item.employment_type || undefined,
+        workplace_type: item.workplace_type || undefined,
+        start_month: item.start_month,
+        start_year: item.start_year,
+        end_month: item.end_month,
+        end_year: item.end_year,
+        is_current: item.is_current,
+        bullets: item.bullets || [],
       })),
-      education: nonEmptyEdu.map((item) => ({
+      education: cleanEdu.map((item) => ({
         institution: item.institution.trim(),
         qualification: item.qualification.trim(),
       })),
@@ -224,11 +290,7 @@ export default function ProfilePage() {
     if (payload.target_roles.length < 1) {
       next.target_roles = ['Add at least one target role (for example: Product Designer, Data Analyst).'];
     } else if (payload.target_roles.length > TARGET_ROLES_MAX) {
-      next.target_roles = [`Please list up to ${TARGET_ROLES_MAX} target roles (currently ${payload.target_roles.length}).`];
-    } else if (payload.target_roles.some((r) => r.length < 2)) {
-      next.target_roles = ['Each target role must be at least 2 characters.'];
-    } else if (payload.target_roles.some((r) => r.length > 80)) {
-      next.target_roles = ['Each target role must be 80 characters or fewer.'];
+      next.target_roles = [`Please list up to ${TARGET_ROLES_MAX} target roles.`];
     }
 
     if (payload.application_email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(payload.application_email)) {
@@ -236,9 +298,7 @@ export default function ProfilePage() {
     }
 
     if (payload.headline.length > HEADLINE_MAX) {
-      next.headline = [
-        `Headline is ${payload.headline.length}/${HEADLINE_MAX} characters. Shorten it to ${HEADLINE_MAX} or fewer and move extra details into Professional summary below.`,
-      ];
+      next.headline = [`Headline must be ${HEADLINE_MAX} characters or fewer.`];
     }
 
     if (payload.summary.length > SUMMARY_MAX) {
@@ -246,45 +306,14 @@ export default function ProfilePage() {
     }
 
     if (payload.skills.length > SKILLS_MAX) {
-      next.skills = [`Please list up to ${SKILLS_MAX} skills (currently ${payload.skills.length}).`];
+      next.skills = [`Please list up to ${SKILLS_MAX} skills.`];
     }
 
-    if (payload.links.portfolio) {
-      try {
-        const parsed = new URL(payload.links.portfolio);
-        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-          next.links = ['Portfolio URL must start with https:// or http://.'];
-        }
-      } catch {
-        next.links = ['Enter a valid web link (for example: https://yourportfolio.com) or leave blank.'];
-      }
+    if (payload.strengths.length > STRENGTHS_MAX) {
+      next.strengths = [`Please list up to ${STRENGTHS_MAX} personal strengths.`];
     }
-
-    const expIssues: string[] = [];
-    payload.experience.forEach((item, idx) => {
-      if (!item.company) expIssues.push(`Experience #${idx + 1}: enter the company name (or tap Remove).`);
-      if (!item.title) expIssues.push(`Experience #${idx + 1}: enter your role title (or tap Remove).`);
-    });
-    if (expIssues.length) next.experience = expIssues;
-
-    const eduIssues: string[] = [];
-    payload.education.forEach((item, idx) => {
-      if (!item.institution) eduIssues.push(`Education #${idx + 1}: enter the institution name (or tap Remove).`);
-      if (!item.qualification) eduIssues.push(`Education #${idx + 1}: enter your qualification or degree (or tap Remove).`);
-    });
-    if (eduIssues.length) next.education = eduIssues;
 
     return next;
-  }
-
-  function focusFirstInvalidField() {
-    requestAnimationFrame(() => {
-      const el = document.querySelector<HTMLElement>('.profile-form [aria-invalid="true"]');
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        el.focus({ preventScroll: true });
-      }
-    });
   }
 
   async function save(e: FormEvent<HTMLFormElement>) {
@@ -302,7 +331,6 @@ export default function ProfilePage() {
       setErrors(flat);
       setStatusTone('err');
       setStatus('Please check the highlighted fields above.');
-      focusFirstInvalidField();
       return;
     }
 
@@ -318,27 +346,22 @@ export default function ProfilePage() {
     } catch {
       setBusy(false);
       setStatusTone('err');
-      setStatus('Could not reach Jobiest. Your draft is still on this page; reconnect and try again.');
+      setStatus('Could not reach Jobiest. Reconnect and try again.');
       return;
     }
     setBusy(false);
 
     if (res.status === 401) {
       setStatusTone('err');
-      setStatus('Your session expired. This tab keeps your unsaved draft. Sign in, then return to your profile.');
+      setStatus('Your session expired. Please sign in again.');
       return;
     }
+
     if (res.ok) {
-      // Remove any trailing blank rows from the UI and normalize portfolio URL so UI matches saved state.
-      setExperience(experience.filter((item) => !isBlankExperience(item)));
       setEducation(education.filter((item) => !isBlankEducation(item)));
       setNotApplicable(payload.not_applicable);
-      if (payload.links.portfolio !== form.portfolio) {
-        setForm((prev) => ({ ...prev, portfolio: payload.links.portfolio }));
-      }
-      setSubmittedOnce(false);
       setStatusTone('ok');
-      setStatus('Profile saved.');
+      setStatus('Profile saved successfully.');
       return;
     }
 
@@ -351,7 +374,6 @@ export default function ProfilePage() {
     setErrors(issues);
     setStatusTone('err');
     setStatus(issues.length ? 'Please check the highlighted fields above.' : 'Could not save. Please try again.');
-    focusFirstInvalidField();
   }
 
   function exportProfile() {
@@ -365,37 +387,6 @@ export default function ProfilePage() {
     URL.revokeObjectURL(url);
   }
 
-  async function deleteCareerProfile() {
-    const ok = window.confirm(
-      'Delete your career profile? This removes your headline, summary, skills, experience and education. Your account is not deleted. This cannot be undone.',
-    );
-    if (!ok) return;
-    setBusy(true);
-    const res = await fetch('/api/profile', { method: 'DELETE' });
-    setBusy(false);
-    if (res.ok) {
-      setForm((prev) => ({
-        ...prev,
-        headline: '',
-        summary: '',
-        skills: '',
-        portfolio: '',
-        application_email: '',
-      }));
-      setExperience([]);
-      setEducation([]);
-      setNotApplicable([]);
-      setFieldErrors({});
-      setErrors([]);
-      setStatusTone('ok');
-      setStatus('Career profile cleared.');
-    } else {
-      setStatusTone('err');
-      setStatus('Could not delete. Please try again.');
-    }
-  }
-
-  const parsedRolesCount = splitList(form.roles).length;
   const headlineLen = form.headline.trim().length;
   const summaryLen = form.summary.trim().length;
 
@@ -404,7 +395,7 @@ export default function ProfilePage() {
       <section className="workspace-hero">
         <p className="eyebrow">CAREER PROFILE</p>
         <h1>Your verified career story.</h1>
-        <p>Add only information that is true. Future career tools will use this profile as their factual source.</p>
+        <p>Add only information that is true. Jobiest tools and AI agents use this profile as their factual source.</p>
         <div style={{ marginTop: 14 }}>
           <Link
             className="btn btn-ghost"
@@ -427,255 +418,254 @@ export default function ProfilePage() {
           </Link>
         </div>
       </section>
-      {!profileReady && (profileLoadFailed ? <ErrorState onRetry={() => window.location.reload()}>We couldn’t load your profile. Check your connection or sign in again, then retry. Your saved profile has not been changed.</ErrorState> : <LoadingState label="Loading your profile" detail="Your saved profile is being prepared." />)}
-      {draftRecovered && <p className="form-status ok" role="status">We restored an unsaved draft from this tab. Review it and save to keep your changes.</p>}
 
-      <form className="form-stack profile-form" onSubmit={save} noValidate hidden={!profileReady} aria-busy={!profileReady}>
-        <label>
-          Full name
-          <input
-            name="full_name"
-            value={form.full_name}
-            onChange={update('full_name', 'full_name')}
-            aria-invalid={Boolean(fieldErrors.full_name?.length)}
-            required
-          />
-          {fieldErrors.full_name?.[0] && <small className="field-error-text">{fieldErrors.full_name[0]}</small>}
-        </label>
+      {!profileReady &&
+        (profileLoadFailed ? (
+          <ErrorState onRetry={() => window.location.reload()}>
+            We couldn’t load your profile. Check your connection or sign in again, then retry.
+          </ErrorState>
+        ) : (
+          <LoadingState label="Loading your profile" detail="Your saved profile is being prepared." />
+        ))}
 
-        <label>
-          <span className="field-hint-row">
-            <span>Target roles</span>
-            <small className={parsedRolesCount > TARGET_ROLES_MAX ? 'counter-over' : 'counter-muted'}>
-              {parsedRolesCount}/{TARGET_ROLES_MAX} roles
-            </small>
-          </span>
-          <input
-            name="roles"
-            value={form.roles}
-            onChange={update('roles', 'target_roles')}
-            aria-invalid={Boolean(fieldErrors.target_roles?.length || parsedRolesCount > TARGET_ROLES_MAX)}
-            required
-            placeholder="Comma-separated, e.g. Business Analyst, Operations Associate"
-          />
-          {fieldErrors.target_roles?.[0] && <small className="field-error-text">{fieldErrors.target_roles[0]}</small>}
-        </label>
+      {draftRecovered && (
+        <p className="form-status ok" role="status">
+          We restored an unsaved draft from this tab. Review it and save to keep your changes.
+        </p>
+      )}
 
-        <label>
-          Application email
-          <input
-            name="application_email"
-            type="email"
-            value={form.application_email}
-            onChange={update('application_email', 'application_email')}
-            aria-invalid={Boolean(fieldErrors.application_email?.length)}
-            placeholder="The email used when you apply (optional)"
-          />
-          {fieldErrors.application_email?.[0] && (
-            <small className="field-error-text">{fieldErrors.application_email[0]}</small>
-          )}
-        </label>
+      {status && (
+        <p className={`form-status ${statusTone}`} role="status">
+          {status}
+        </p>
+      )}
 
-        <label>
-          <span className="field-hint-row">
-            <span>Headline</span>
-            <small className={headlineLen > HEADLINE_MAX ? 'counter-over' : 'counter-muted'}>
-              {headlineLen}/{HEADLINE_MAX}
-            </small>
-          </span>
-          <input
-            name="headline"
-            value={form.headline}
-            onChange={update('headline', 'headline')}
-            aria-invalid={Boolean(fieldErrors.headline?.length || headlineLen > HEADLINE_MAX)}
-            placeholder="Short title, e.g. BSc Economics Graduate & Junior Data Analyst"
-          />
-          {(fieldErrors.headline?.[0] || headlineLen > HEADLINE_MAX) && (
-            <small className="field-error-text">
-              {fieldErrors.headline?.[0] ??
-                `Headline is ${headlineLen}/${HEADLINE_MAX} characters. Shorten it to ${HEADLINE_MAX} or fewer and use Professional summary below for extra details.`}
-            </small>
-          )}
-        </label>
-
-        <label>
-          <span className="field-hint-row">
-            <span>Professional summary</span>
-            <small className={summaryLen > SUMMARY_MAX ? 'counter-over' : 'counter-muted'}>
-              {summaryLen}/{SUMMARY_MAX}
-            </small>
-          </span>
-          <textarea
-            name="summary"
-            rows={4}
-            value={form.summary}
-            onChange={update('summary', 'summary')}
-            aria-invalid={Boolean(fieldErrors.summary?.length || summaryLen > SUMMARY_MAX)}
-          />
-          {fieldErrors.summary?.[0] && <small className="field-error-text">{fieldErrors.summary[0]}</small>}
-        </label>
-
-        <label>
-          Skills
-          <input
-            name="skills"
-            value={form.skills}
-            onChange={update('skills', 'skills')}
-            aria-invalid={Boolean(fieldErrors.skills?.length)}
-            placeholder="Comma-separated, e.g. Excel, SQL, Customer Research"
-          />
-          {fieldErrors.skills?.[0] && <small className="field-error-text">{fieldErrors.skills[0]}</small>}
-        </label>
-
-        <label>
-          Portfolio URL
-          <input
-            name="portfolio"
-            type="text"
-            inputMode="url"
-            value={form.portfolio}
-            onChange={update('portfolio', 'links')}
-            onBlur={() =>
-              setForm((prev) => ({
-                ...prev,
-                portfolio: normalizePortfolioInput(prev.portfolio),
-              }))
-            }
-            aria-invalid={Boolean(fieldErrors.links?.length)}
-            placeholder="https://..."
-          />
-          {fieldErrors.links?.[0] && <small className="field-error-text">{fieldErrors.links[0]}</small>}
-        </label>
-
-        <section>
-          <div className="section-title">
-            <h2>Experience</h2>
-            <button type="button" className="text-button" onClick={addExperience}>Add experience</button>
-          </div>
-          {experience.length === 0 && (
-            <p className="repeat-empty-hint">No work experience added yet (optional).</p>
-          )}
-          {experience.map((item, i) => {
-            const partial = !isBlankExperience(item);
-            const companyMissing = submittedOnce && partial && !item.company.trim();
-            const titleMissing = submittedOnce && partial && !item.title.trim();
-            return (
-              <div className="repeat-row" key={i}>
-                <div className="repeat-row-header">
-                  <span>Experience #{i + 1}</span>
-                  <button
-                    type="button"
-                    className="text-button danger"
-                    onClick={() => removeExperience(i)}
-                    aria-label={`Remove experience ${i + 1}`}
-                  >
-                    Remove
-                  </button>
-                </div>
-                <input
-                  placeholder="Company"
-                  value={item.company}
-                  aria-invalid={companyMissing}
-                  onChange={(e) => {
-                    clearFieldError('experience');
-                    setExperience(experience.map((v, j) => (j === i ? { ...v, company: e.target.value } : v)));
-                  }}
-                />
-                <input
-                  placeholder="Role title"
-                  value={item.title}
-                  aria-invalid={titleMissing}
-                  onChange={(e) => {
-                    clearFieldError('experience');
-                    setExperience(experience.map((v, j) => (j === i ? { ...v, title: e.target.value } : v)));
-                  }}
-                />
-                <textarea
-                  placeholder="What did you do?"
-                  value={item.description || ''}
-                  onChange={(e) => {
-                    clearFieldError('experience');
-                    setExperience(experience.map((v, j) => (j === i ? { ...v, description: e.target.value } : v)));
-                  }}
-                />
-              </div>
-            );
-          })}
-          {fieldErrors.experience?.map((msg, idx) => (
-            <small key={idx} className="field-error-text">{msg}</small>
-          ))}
-        </section>
-
-        <section>
-          <div className="section-title">
-            <h2>Education</h2>
-            <button type="button" className="text-button" onClick={addEducation}>Add education</button>
-          </div>
-          {education.length === 0 && (
-            <p className="repeat-empty-hint">No education entries added yet (optional).</p>
-          )}
-          {education.map((item, i) => {
-            const partial = !isBlankEducation(item);
-            const instMissing = submittedOnce && partial && !item.institution.trim();
-            const qualMissing = submittedOnce && partial && !item.qualification.trim();
-            return (
-              <div className="repeat-row two" key={i}>
-                <div className="repeat-row-header">
-                  <span>Education #{i + 1}</span>
-                  <button
-                    type="button"
-                    className="text-button danger"
-                    onClick={() => removeEducation(i)}
-                    aria-label={`Remove education ${i + 1}`}
-                  >
-                    Remove
-                  </button>
-                </div>
-                <input
-                  placeholder="Institution"
-                  value={item.institution}
-                  aria-invalid={instMissing}
-                  onChange={(e) => {
-                    clearFieldError('education');
-                    setEducation(education.map((v, j) => (j === i ? { ...v, institution: e.target.value } : v)));
-                  }}
-                />
-                <input
-                  placeholder="Qualification"
-                  value={item.qualification}
-                  aria-invalid={qualMissing}
-                  onChange={(e) => {
-                    clearFieldError('education');
-                    setEducation(education.map((v, j) => (j === i ? { ...v, qualification: e.target.value } : v)));
-                  }}
-                />
-              </div>
-            );
-          })}
-          {fieldErrors.education?.map((msg, idx) => (
-            <small key={idx} className="field-error-text">{msg}</small>
-          ))}
-        </section>
-
-        {errors.length > 0 && (
-          <ul className="form-errors" role="alert">
-            {errors.map((msg, i) => (
-              <li key={i}>{msg}</li>
+      {errors.length > 0 && (
+        <div className="rounded-xl border border-red-500/30 bg-red-950/40 p-4 text-xs text-red-300">
+          <p className="font-semibold mb-1">Please correct the following:</p>
+          <ul className="list-disc list-inside space-y-0.5">
+            {errors.map((err, i) => (
+              <li key={i}>{err}</li>
             ))}
           </ul>
-        )}
+        </div>
+      )}
 
-        <div className="form-actions">
-          <button className="btn" disabled={busy}>{busy ? 'Saving...' : 'Save profile'}</button>
-          <button type="button" className="text-button" onClick={exportProfile} disabled={busy}>
-            Export profile (JSON)
-          </button>
-          <button type="button" className="text-button danger" onClick={deleteCareerProfile} disabled={busy}>
-            Delete career profile
-          </button>
+      <form className="form-stack profile-form space-y-8" onSubmit={save} noValidate hidden={!profileReady} aria-busy={!profileReady}>
+        {/* Core Identity */}
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 sm:p-6 space-y-4">
+          <h2 className="text-base font-bold text-white border-b border-zinc-800 pb-2">1. Identity & Contact</h2>
+
+          <label className="block space-y-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-300">Full Name</span>
+            <input
+              name="full_name"
+              value={form.full_name}
+              onChange={update('full_name', 'full_name')}
+              aria-invalid={Boolean(fieldErrors.full_name?.length)}
+              required
+              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 p-2.5 text-sm text-zinc-100"
+            />
+            {fieldErrors.full_name?.[0] && <small className="field-error-text text-red-400">{fieldErrors.full_name[0]}</small>}
+          </label>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wider text-zinc-300">Target Roles</span>
+              <span className="text-[11px] text-zinc-500">{targetRoles.length}/{TARGET_ROLES_MAX} roles</span>
+            </div>
+            <JobTitleAutocomplete
+              value={targetRoles}
+              onChange={(next) => {
+                setTargetRoles(next);
+                clearFieldError('target_roles');
+              }}
+              placeholder="Search and select roles (e.g. Frontend Developer, Data Analyst)..."
+            />
+            {fieldErrors.target_roles?.[0] && <small className="field-error-text text-red-400">{fieldErrors.target_roles[0]}</small>}
+          </div>
+
+          <label className="block space-y-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-300">Application Contact Email</span>
+            <input
+              name="application_email"
+              type="email"
+              value={form.application_email}
+              onChange={update('application_email', 'application_email')}
+              placeholder="alex@career.com (optional)"
+              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 p-2.5 text-sm text-zinc-100"
+            />
+          </label>
+
+          <label className="block space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-zinc-300">Headline</span>
+              <span className="text-[11px] text-zinc-500">{headlineLen}/{HEADLINE_MAX}</span>
+            </div>
+            <input
+              name="headline"
+              value={form.headline}
+              onChange={update('headline', 'headline')}
+              maxLength={HEADLINE_MAX}
+              placeholder="e.g. BSc Economics Graduate & Junior Data Analyst"
+              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 p-2.5 text-sm text-zinc-100"
+            />
+          </label>
+
+          <label className="block space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-zinc-300">Professional Summary</span>
+              <span className="text-[11px] text-zinc-500">{summaryLen}/{SUMMARY_MAX}</span>
+            </div>
+            <textarea
+              name="summary"
+              rows={4}
+              value={form.summary}
+              onChange={update('summary', 'summary')}
+              maxLength={SUMMARY_MAX}
+              placeholder="Summarize your professional background, core competencies, and career objectives..."
+              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 p-2.5 text-sm text-zinc-100"
+            />
+          </label>
+
+          <label className="block space-y-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-300">Portfolio or Website URL</span>
+            <input
+              name="portfolio"
+              type="text"
+              value={form.portfolio}
+              onChange={update('portfolio', 'links')}
+              onBlur={() => setForm((prev) => ({ ...prev, portfolio: normalizePortfolioInput(prev.portfolio) }))}
+              placeholder="https://..."
+              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 p-2.5 text-sm text-zinc-100"
+            />
+          </label>
         </div>
 
-        {status && (statusTone === 'ok' ? <SuccessState title="Profile saved">Your verified career story is ready for job matching and application tailoring.</SuccessState> : <p className={`form-status${statusTone === 'err' ? ' err' : ''}`} role="alert" aria-live="assertive">{status}{status.includes('Sign in') && <> <a href="/login?next=%2Fprofile">Sign in</a></>}</p>)}
+        {/* Section 2: Professional Skills */}
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 sm:p-6 space-y-4">
+          <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+            <div>
+              <h2 className="text-base font-bold text-white">2. Professional Skills</h2>
+              <p className="text-xs text-zinc-400">Add technical and job-specific capabilities.</p>
+            </div>
+            <span className="text-xs font-semibold text-[#10b981]">{skills.length} selected</span>
+          </div>
+
+          <SkillAutocomplete
+            value={skills}
+            onChange={(next) => {
+              setSkills(next);
+              clearFieldError('skills');
+            }}
+          />
+          {fieldErrors.skills?.[0] && <small className="field-error-text text-red-400">{fieldErrors.skills[0]}</small>}
+        </div>
+
+        {/* Section 3: Personal Strengths */}
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 sm:p-6 space-y-4">
+          <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+            <div>
+              <h2 className="text-base font-bold text-white">3. Personal Strengths & Qualities</h2>
+              <p className="text-xs text-zinc-400">Describe how you think, execute, and collaborate with teams.</p>
+            </div>
+            <span className="text-xs font-semibold text-purple-400">{strengths.length} selected</span>
+          </div>
+
+          <StrengthAutocomplete
+            value={strengths}
+            onChange={(next) => {
+              setStrengths(next);
+              clearFieldError('strengths');
+            }}
+            reflection={strengthReflection}
+            onReflectionChange={setStrengthReflection}
+            showReflection={true}
+          />
+          {fieldErrors.strengths?.[0] && <small className="field-error-text text-red-400">{fieldErrors.strengths[0]}</small>}
+        </div>
+
+        {/* Section 4: Professional Experience */}
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 sm:p-6 space-y-4">
+          <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+            <div>
+              <h2 className="text-base font-bold text-white">4. Professional Experience</h2>
+              <p className="text-xs text-zinc-400">Employment history, timeline, and structured bullet points.</p>
+            </div>
+            <span className="text-xs font-semibold text-zinc-400">{experience.length} roles</span>
+          </div>
+
+          <ExperienceBuilder experiences={experience} onChange={setExperience} />
+        </div>
+
+        {/* Section 5: Education */}
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 sm:p-6 space-y-4">
+          <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+            <h2 className="text-base font-bold text-white">5. Education & Credentials</h2>
+            <button type="button" onClick={addEducation} className="text-xs text-[#10b981] font-semibold">
+              + Add Education
+            </button>
+          </div>
+
+          {education.length === 0 && <p className="text-xs text-zinc-500">No education entries added yet.</p>}
+
+          <div className="space-y-3">
+            {education.map((item, i) => (
+              <div key={i} className="rounded-xl border border-zinc-800 bg-zinc-950 p-3 sm:p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-zinc-400">Education #{i + 1}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeEducation(i)}
+                    className="text-xs text-red-400 hover:text-red-300"
+                  >
+                    Remove
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input
+                    placeholder="Institution"
+                    value={item.institution}
+                    onChange={(e) => {
+                      clearFieldError('education');
+                      setEducation(education.map((v, j) => (j === i ? { ...v, institution: e.target.value } : v)));
+                    }}
+                    className="rounded-lg border border-zinc-700 bg-zinc-900 p-2 text-xs text-zinc-100"
+                  />
+                  <input
+                    placeholder="Degree / Qualification"
+                    value={item.qualification}
+                    onChange={(e) => {
+                      clearFieldError('education');
+                      setEducation(education.map((v, j) => (j === i ? { ...v, qualification: e.target.value } : v)));
+                    }}
+                    className="rounded-lg border border-zinc-700 bg-zinc-900 p-2 text-xs text-zinc-100"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Submit & Secondary Actions */}
+        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-zinc-800 pt-6">
+          <div className="flex items-center gap-2">
+            <button
+              type="submit"
+              disabled={busy}
+              className="rounded-xl bg-[#10b981] px-6 py-2.5 text-sm font-bold text-zinc-950 shadow-lg shadow-[#10b981]/20 hover:bg-[#059669] disabled:opacity-50"
+            >
+              {busy ? 'Saving...' : 'Save Profile'}
+            </button>
+            <button
+              type="button"
+              onClick={exportProfile}
+              className="rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800"
+            >
+              Export JSON
+            </button>
+          </div>
+        </div>
       </form>
     </AppShell>
   );
