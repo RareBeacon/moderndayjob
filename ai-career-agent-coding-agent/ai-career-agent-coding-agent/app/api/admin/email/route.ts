@@ -10,6 +10,7 @@ import {
   getEmailInfrastructureStatus,
   inspectDomainEmailDns,
   isStalwartAdminConfigured,
+  prewarmDynamicEmailConfig,
   provisionStalwartMailbox,
   verifySmtpConnection,
 } from '@/lib/email/transport';
@@ -63,6 +64,7 @@ export async function GET(req: Request) {
 
   try {
     const { user, admin } = await requireAdminPermission('can_view_security', req);
+    await prewarmDynamicEmailConfig();
     const [infrastructure, dnsChecks] = await Promise.all([
       Promise.resolve(getEmailInfrastructureStatus()),
       inspectDomainEmailDns('jobiest.com'),

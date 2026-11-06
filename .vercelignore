@@ -1,0 +1,15 @@
+# Root Vercel Deployment Ignore Configuration
+# Prevents non-runtime files from inflating Vercel build payload and function traces.
+
+tests/
+test-results/
+playwright/
+playwright-report/
+docs/
+ops/
+.zap/
+tested-30-resume-documents/
+SECURITY_AUDIT.md
+AGENTS.md
+*.log
+*.bak

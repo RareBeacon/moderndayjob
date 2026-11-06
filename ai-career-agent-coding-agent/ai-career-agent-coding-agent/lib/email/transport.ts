@@ -61,6 +61,44 @@ const runtimeStats: Record<EmailProviderId, ProviderRuntimeStats> = {
 
 let totalFailovers = 0;
 
+interface DynamicResendConfig {
+  apiKey: string;
+  from: string;
+  cachedAt: number;
+}
+let cachedDynamicResendConfig: DynamicResendConfig | null = null;
+const DYNAMIC_CONFIG_TTL_MS = 60_000;
+
+export async function prewarmDynamicEmailConfig(): Promise<void> {
+  const envKey = readEnvString('RESEND_API_KEY');
+  if (envKey) return;
+
+  const now = Date.now();
+  if (cachedDynamicResendConfig && now - cachedDynamicResendConfig.cachedAt < DYNAMIC_CONFIG_TTL_MS) {
+    return;
+  }
+
+  try {
+    const { supabaseAdmin } = await import('@/lib/supabase');
+    const { data } = await supabaseAdmin
+      .from('app_config')
+      .select('value')
+      .eq('key', 'email_transport')
+      .maybeSingle();
+
+    const val = data?.value as Record<string, unknown> | null;
+    if (typeof val?.resend_api_key === 'string' && val.resend_api_key.trim()) {
+      cachedDynamicResendConfig = {
+        apiKey: val.resend_api_key.trim(),
+        from: typeof val?.resend_from === 'string' && val.resend_from.trim() ? val.resend_from.trim() : '',
+        cachedAt: now,
+      };
+    }
+  } catch {
+    // Non-blocking fallback if database config read fails
+  }
+}
+
 function readEnvString(key: keyof typeof env, fallback = ''): string {
   const raw = (env as Record<string, unknown> | undefined)?.[key];
   return typeof raw === 'string' ? raw.trim() : fallback;
@@ -106,7 +144,7 @@ export function isProviderConfigured(provider: EmailProviderId): boolean {
     return Boolean(readEnvString('BREVO_API_KEY'));
   }
   if (provider === 'resend') {
-    return Boolean(readEnvString('RESEND_API_KEY'));
+    return Boolean(readEnvString('RESEND_API_KEY')) || Boolean(cachedDynamicResendConfig?.apiKey);
   }
   return false;
 }
@@ -254,8 +292,12 @@ async function sendViaBrevo(opts: TransactionalEmailOptions): Promise<string | u
 }
 
 async function sendViaResend(opts: TransactionalEmailOptions): Promise<string | undefined> {
-  const apiKey = readEnvString('RESEND_API_KEY');
-  const from = resolveDefaultFrom('resend', opts.from);
+  const apiKey = readEnvString('RESEND_API_KEY') || cachedDynamicResendConfig?.apiKey;
+  if (!apiKey) {
+    throw new Error('RESEND_API_KEY_MISSING');
+  }
+  const defaultFrom = cachedDynamicResendConfig?.from || undefined;
+  const from = resolveDefaultFrom('resend', opts.from || defaultFrom);
   const recipients = Array.isArray(opts.to) ? opts.to : [opts.to];
 
   const res = await fetch('https://api.resend.com/emails', {
@@ -290,6 +332,9 @@ async function sendViaResend(opts: TransactionalEmailOptions): Promise<string | 
 export async function sendTransactionalEmail(
   opts: TransactionalEmailOptions,
 ): Promise<TransactionalEmailResult> {
+  if (!readEnvString('RESEND_API_KEY')) {
+    await prewarmDynamicEmailConfig();
+  }
   const chain = resolveProviderChain(opts.preferredProvider);
   if (chain.length === 0) {
     console.info('[email] No email transport configured; skipping send:', opts.subject);
