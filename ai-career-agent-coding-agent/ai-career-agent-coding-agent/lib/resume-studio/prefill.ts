@@ -18,7 +18,20 @@ export interface ProfileMemory {
     headline?: string | null;
     summary?: string | null;
     skills?: string[] | null;
-    experience?: Array<{ company?: string | null; title?: string | null; description?: string | null }> | null;
+    strengths?: string[] | null;
+    experience?: Array<{
+      company?: string | null;
+      title?: string | null;
+      description?: string | null;
+      bullets?: string[] | null;
+      start_month?: number | null;
+      start_year?: number | null;
+      end_month?: number | null;
+      end_year?: number | null;
+      is_current?: boolean | null;
+      location?: string | null;
+      employment_type?: string | null;
+    }> | null;
     education?: Array<{ institution?: string | null; qualification?: string | null }> | null;
     projects?: Array<{ name?: string | null; description?: string | null; technologies?: string[] | null; url?: string | null }> | null;
     links?: { website?: string | null; linkedin?: string | null; github?: string | null } | null;
@@ -50,15 +63,23 @@ export function draftFromMemory(memory?: ProfileMemory | null): StudioDraft {
   draft.personal.linkedin = memory.career?.links?.linkedin ?? '';
   draft.personal.github = memory.career?.links?.github ?? '';
   draft.skills = (memory.career?.skills ?? []).map((name, index) => ({ name, category: 'Profile', priority: index + 1 }));
-  draft.experiences = (memory.career?.experience ?? []).map((e, index) => ({
-    id: newId(`exp-${index}`),
-    company: e.company ?? '',
-    role: e.title ?? '',
-    roughNotes: e.description ?? '',
-    tools: [],
-    impact: '',
-    bullets: e.description ? [e.description] : [],
-  }));
+  draft.experiences = (memory.career?.experience ?? []).map((e, index) => {
+    const rawBullets = Array.isArray(e.bullets) && e.bullets.length > 0
+      ? e.bullets.map((b) => String(b).trim()).filter(Boolean)
+      : e.description
+        ? e.description.split('\n').map((s) => s.trim()).filter(Boolean)
+        : [];
+
+    return {
+      id: newId(`exp-${index}`),
+      company: e.company ?? '',
+      role: e.title ?? '',
+      roughNotes: e.description ?? '',
+      tools: [],
+      impact: '',
+      bullets: rawBullets,
+    };
+  });
   draft.education = (memory.career?.education ?? []).map((e, index) => ({
     id: newId(`edu-${index}`),
     institution: e.institution ?? '',

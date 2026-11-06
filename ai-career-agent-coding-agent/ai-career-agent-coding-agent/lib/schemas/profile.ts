@@ -126,11 +126,31 @@ export const profileSchema = z.object({
       .max(60, 'Skills: please list up to 60 skills.')
       .default([]),
   ),
+  strengths: z.preprocess(
+    cleanStringList,
+    z
+      .array(
+        z
+          .string()
+          .trim()
+          .min(1, 'Strength cannot be empty.')
+          .max(80, 'Each strength must be 80 characters or fewer.'),
+      )
+      .max(40, 'Personal strengths: please list up to 40 strengths.')
+      .default([]),
+  ),
+  strength_reflection: z
+    .string()
+    .trim()
+    .max(2000, 'Strength reflection must be 2,000 characters or fewer.')
+    .optional()
+    .default(''),
   experience: z.preprocess(
     stripEmptyExperienceRows,
     z
       .array(
         z.object({
+          id: z.string().optional(),
           company: z
             .string()
             .trim()
@@ -144,8 +164,17 @@ export const profileSchema = z.object({
           description: z
             .string()
             .trim()
-            .max(1500, 'Experience: description must be 1,500 characters or fewer.')
+            .max(3000, 'Experience: description must be 3,000 characters or fewer.')
             .optional(),
+          location: z.string().trim().max(120).optional().nullable(),
+          employment_type: z.string().trim().max(60).optional().nullable(),
+          workplace_type: z.string().trim().max(60).optional().nullable(),
+          start_month: z.number().int().min(1).max(12).optional().nullable(),
+          start_year: z.number().int().min(1950).max(2100).optional().nullable(),
+          end_month: z.number().int().min(1).max(12).optional().nullable(),
+          end_year: z.number().int().min(1950).max(2100).optional().nullable(),
+          is_current: z.boolean().optional().default(false),
+          bullets: z.array(z.string().trim().min(1).max(1000)).optional().default([]),
         }),
       )
       .max(20, 'Experience: you can list up to 20 roles.')

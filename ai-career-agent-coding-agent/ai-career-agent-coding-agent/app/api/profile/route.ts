@@ -19,7 +19,7 @@ export async function GET(req: Request) {
       .single(),
     supabaseAdmin
       .from('career_profiles')
-      .select('headline,summary,skills,experience,education,projects,links,not_applicable')
+      .select('headline,summary,skills,strengths,strength_reflection,experience,education,projects,links,not_applicable')
       .eq('user_id', user.id)
       .maybeSingle(),
   ]);
@@ -62,6 +62,8 @@ export async function PUT(request: Request) {
         headline: body.headline || null,
         summary: body.summary || null,
         skills: body.skills,
+        strengths: body.strengths,
+        strength_reflection: body.strength_reflection || null,
         experience: body.experience,
         education: body.education,
         links: body.links,
@@ -71,6 +73,57 @@ export async function PUT(request: Request) {
       { onConflict: 'user_id' },
     );
   if (careerError) return NextResponse.json({ error: 'CAREER_PROFILE_UPDATE_FAILED' }, { status: 500 });
+
+  // Sync relational tables defensively in background
+  if (Array.isArray(body.experience)) {
+    try {
+      const expTable = supabaseAdmin.from('professional_experiences') as any;
+      if (expTable && typeof expTable.delete === 'function') {
+        await expTable.delete().eq('user_id', user.id);
+        if (body.experience.length > 0 && typeof expTable.insert === 'function') {
+          const rows = body.experience.map((exp, idx) => ({
+            user_id: user.id,
+            company_name: exp.company,
+            job_title: exp.title,
+            location: exp.location || null,
+            employment_type: exp.employment_type || 'Full-time',
+            workplace_type: exp.workplace_type || 'Remote',
+            start_month: exp.start_month ?? null,
+            start_year: exp.start_year ?? null,
+            end_month: exp.end_month ?? null,
+            end_year: exp.end_year ?? null,
+            is_current: exp.is_current ?? false,
+            description: exp.description || null,
+            bullets: exp.bullets || [],
+            display_order: idx,
+          }));
+          await expTable.insert(rows);
+        }
+      }
+    } catch (e) {
+      console.warn('[profile] Syncing professional_experiences:', e);
+    }
+  }
+
+  if (Array.isArray(body.strengths)) {
+    try {
+      const strTable = supabaseAdmin.from('user_personal_strengths') as any;
+      if (strTable && typeof strTable.delete === 'function') {
+        await strTable.delete().eq('user_id', user.id);
+        if (body.strengths.length > 0 && typeof strTable.insert === 'function') {
+          const sRows = body.strengths.map((str, idx) => ({
+            user_id: user.id,
+            custom_strength_name: str,
+            display_order: idx,
+            reflection: body.strength_reflection || null,
+          }));
+          await strTable.insert(sRows);
+        }
+      }
+    } catch (e) {
+      console.warn('[profile] Syncing user_personal_strengths:', e);
+    }
+  }
 
   return NextResponse.json({ ok: true });
 }
