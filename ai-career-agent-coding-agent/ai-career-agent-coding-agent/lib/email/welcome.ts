@@ -25,7 +25,21 @@ export async function sendWelcomeEmailOnce(
       .maybeSingle();
     if (error || !data) return; // already sent, or marker write failed
     const fullName = (data as { full_name: string | null }).full_name ?? undefined;
-    void sendWelcomeEmail(email, fullName).catch(() => {});
+    const res = await sendWelcomeEmail(email, fullName).catch((err) => {
+      console.warn('[email:welcome] sendWelcomeEmail failed', { userId, email, err });
+      return { ok: false, error: String(err?.message ?? err) };
+    });
+    if (!res || !res.ok) {
+      console.warn('[email:welcome] Welcome email not delivered; releasing marker for retry', {
+        userId,
+        email,
+        error: res?.error,
+      });
+      await supabaseAdmin
+        .from('profiles')
+        .update({ welcome_email_sent_at: null })
+        .eq('user_id', userId);
+    }
   } catch {
     // never break the caller
   }
