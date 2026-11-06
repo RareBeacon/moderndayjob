@@ -1,0 +1,22 @@
+# Vercel Deployment Ignore Configuration
+# Prevents non-runtime files and test suites from being uploaded to Vercel build containers
+# and prevents extraneous files from inflating Function Storage bundle traces.
+
+tests/
+test-results/
+playwright/
+playwright-report/
+playwright.e2e.config.ts
+vitest.config.ts
+coverage/
+docs/
+ops/
+.zap/
+tested-30-resume-documents/
+SECURITY_AUDIT.md
+AGENTS.md
+supabase/migrations/
+supabase/snippets/
+*.log
+*.bak
+*.tsbuildinfo
