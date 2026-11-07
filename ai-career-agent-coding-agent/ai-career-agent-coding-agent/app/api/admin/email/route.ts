@@ -56,6 +56,10 @@ const postSchema = z.discriminatedUnion('action', [
     quotaGb: z.coerce.number().int().min(1).max(10).default(2),
     password: z.string().trim().min(12).max(128).optional().or(z.literal('')),
   }),
+  z.object({
+    action: z.literal('dispatch_welcome'),
+    userId: z.string().uuid(),
+  }),
 ]);
 
 export async function GET(req: Request) {
@@ -65,6 +69,24 @@ export async function GET(req: Request) {
   try {
     const { user, admin } = await requireAdminPermission('can_view_security', req);
     await prewarmDynamicEmailConfig();
+
+    let pendingWelcomeUsers: Array<{ user_id: string; full_name: string | null; email: string | null; created_at: string }> = [];
+    try {
+      const { supabaseAdmin } = await import('@/lib/supabase');
+      const { data } = await supabaseAdmin
+        .from('profiles')
+        .select('user_id, full_name, email, created_at')
+        .is('welcome_email_sent_at', null)
+        .not('email', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (Array.isArray(data)) {
+        pendingWelcomeUsers = data;
+      }
+    } catch {
+      // Non-blocking in test or disconnected environments
+    }
+
     const [infrastructure, dnsChecks] = await Promise.all([
       Promise.resolve(getEmailInfrastructureStatus()),
       inspectDomainEmailDns('jobiest.com'),
@@ -79,6 +101,7 @@ export async function GET(req: Request) {
       },
       infrastructure,
       dnsChecks,
+      pendingWelcomeUsers,
       stalwartApiConnected: isStalwartAdminConfigured(),
       mailboxes: CORE_JOBIEST_MAILBOXES,
       webmailUrl: 'https://webmail.jobiest.com',
@@ -155,6 +178,24 @@ export async function POST(req: Request) {
         ok: true,
         mailbox: mailboxRes,
       });
+    }
+
+    if (parsed.data.action === 'dispatch_welcome') {
+      const { dispatchWelcomeEmailForUser } = await import('@/lib/email/welcome');
+      const res = await dispatchWelcomeEmailForUser(parsed.data.userId);
+
+      await appendAdminAuditLog({
+        actorUserId: admin.userId,
+        actorRole: admin.role,
+        action: 'EMAIL_DISPATCH_WELCOME',
+        targetType: 'user',
+        targetId: parsed.data.userId,
+        afterState: { ok: res.ok, email: res.email, error: res.error },
+        reason: `Admin triggered welcome email dispatch for ${res.email ?? parsed.data.userId}`,
+        req,
+      });
+
+      return Response.json(res);
     }
 
     // Rule #13 safety guard: never send diagnostic emails to external customer addresses.
