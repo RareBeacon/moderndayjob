@@ -23,6 +23,12 @@ interface Props {
     providers: EmailProviderStatus[];
   };
   initialDnsChecks: DomainDnsCheckItem[];
+  pendingWelcomeUsers?: Array<{
+    user_id: string;
+    full_name: string | null;
+    email: string | null;
+    created_at: string;
+  }>;
   mailboxes: readonly MailboxInfo[] | MailboxInfo[];
   webmailUrl: string;
   mailAdminUrl: string;
@@ -34,12 +40,16 @@ export function EmailInfraClient({
   stalwartApiConnected,
   initialInfrastructure,
   initialDnsChecks,
+  pendingWelcomeUsers,
   mailboxes,
   webmailUrl,
   mailAdminUrl,
 }: Props) {
   const [infra, setInfra] = useState(initialInfrastructure);
   const [dnsChecks, setDnsChecks] = useState(initialDnsChecks);
+  const [welcomeUsers, setWelcomeUsers] = useState(pendingWelcomeUsers || []);
+  const [dispatchingId, setDispatchingId] = useState<string | null>(null);
+  const [dispatchResult, setDispatchResult] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const [smtpCheck, setSmtpCheck] = useState<{
@@ -124,9 +134,33 @@ export function EmailInfraClient({
         const json = await res.json();
         if (json.infrastructure) setInfra(json.infrastructure);
         if (json.dnsChecks) setDnsChecks(json.dnsChecks);
+        if (json.pendingWelcomeUsers) setWelcomeUsers(json.pendingWelcomeUsers);
       }
     } finally {
       setRefreshing(false);
+    }
+  }
+
+  async function handleDispatchWelcome(userId: string) {
+    setDispatchingId(userId);
+    setDispatchResult(null);
+    try {
+      const res = await fetch('/api/admin/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'dispatch_welcome', userId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        setDispatchResult(`Welcome email successfully sent to ${data.email}!`);
+        setWelcomeUsers((prev) => prev.filter((u) => u.user_id !== userId));
+      } else {
+        setDispatchResult(`Dispatch failed: ${data.error || 'Server error'}`);
+      }
+    } catch (err) {
+      setDispatchResult(`Dispatch error: ${err instanceof Error ? err.message : 'Network error'}`);
+    } finally {
+      setDispatchingId(null);
     }
   }
 
@@ -640,6 +674,81 @@ export function EmailInfraClient({
                   {mailboxState.copied ? 'Copied Staff Login Card!' : 'Copy Staff Login Card'}
                 </button>
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Verified Users Pending Welcome Email */}
+      {isOwner && (
+        <div className="panel" style={{ padding: 18 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+            <h2 style={{ fontSize: 17, margin: 0 }}>
+              4. Verified User Welcome Emails Pending Dispatch ({welcomeUsers.length})
+            </h2>
+            <span
+              className="ad-chip"
+              style={{
+                background: welcomeUsers.length > 0 ? 'rgba(245, 158, 11, 0.16)' : 'rgba(16, 185, 129, 0.14)',
+                color: welcomeUsers.length > 0 ? '#b45309' : '#047857',
+              }}
+            >
+              {welcomeUsers.length > 0 ? `${welcomeUsers.length} PENDING` : 'ALL WELCOME EMAILS SENT'}
+            </span>
+          </div>
+          <p style={{ fontSize: 13, opacity: 0.8, margin: '0 0 14px' }}>
+            Single-writer welcome email delivery (<code>profiles.welcome_email_sent_at</code>). If an account signed up during an external provider outage, trigger their branded welcome message below.
+          </p>
+
+          {dispatchResult && (
+            <div
+              style={{
+                padding: 10,
+                borderRadius: 8,
+                fontSize: 12.5,
+                marginBottom: 12,
+                background: dispatchResult.includes('successfully') ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+              }}
+            >
+              {dispatchResult}
+            </div>
+          )}
+
+          {welcomeUsers.length === 0 ? (
+            <p style={{ fontSize: 12.5, color: '#10b981', margin: 0 }}>
+              All verified users have received their welcome emails.
+            </p>
+          ) : (
+            <div className="ad-scroll">
+              <table className="ad-table">
+                <thead>
+                  <tr>
+                    <th>Customer Name</th>
+                    <th>Email Address</th>
+                    <th>Signed Up (UTC)</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {welcomeUsers.map((u) => (
+                    <tr key={u.user_id}>
+                      <td><strong>{u.full_name || 'Anonymous User'}</strong></td>
+                      <td className="ad-mono">{u.email}</td>
+                      <td style={{ fontSize: 12 }}>{new Date(u.created_at).toLocaleString()}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          disabled={dispatchingId === u.user_id}
+                          onClick={() => handleDispatchWelcome(u.user_id)}
+                        >
+                          {dispatchingId === u.user_id ? 'Dispatching...' : 'Send Welcome Email'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

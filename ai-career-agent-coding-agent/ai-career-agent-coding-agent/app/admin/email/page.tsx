@@ -39,9 +39,16 @@ export default async function AdminEmailInfrastructurePage() {
     return <AdminForbidden />;
   }
 
-  const [infrastructure, dnsChecks] = await Promise.all([
+  const [infrastructure, dnsChecks, pendingWelcomeRes] = await Promise.all([
     Promise.resolve(getEmailInfrastructureStatus()),
     inspectDomainEmailDns('jobiest.com'),
+    supabaseAdmin
+      .from('profiles')
+      .select('user_id, full_name, email, created_at')
+      .is('welcome_email_sent_at', null)
+      .not('email', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(10),
   ]);
 
   return (
@@ -58,6 +65,7 @@ export default async function AdminEmailInfrastructurePage() {
         stalwartApiConnected={isStalwartAdminConfigured()}
         initialInfrastructure={infrastructure}
         initialDnsChecks={dnsChecks}
+        pendingWelcomeUsers={pendingWelcomeRes.data || []}
         mailboxes={CORE_JOBIEST_MAILBOXES}
         webmailUrl="https://webmail.jobiest.com"
         mailAdminUrl="https://mail.jobiest.com"

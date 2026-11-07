@@ -44,3 +44,42 @@ export async function sendWelcomeEmailOnce(
     // never break the caller
   }
 }
+
+/**
+ * Manually dispatches a welcome email for a user whose welcome marker is null
+ * or requires re-triggering (e.g. from the admin control panel).
+ */
+export async function dispatchWelcomeEmailForUser(
+  userId: string,
+): Promise<{ ok: boolean; email?: string; error?: string }> {
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('user_id, email, full_name, welcome_email_sent_at')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (!profile || !profile.email) {
+    return { ok: false, error: 'PROFILE_OR_EMAIL_NOT_FOUND' };
+  }
+
+  // Clear marker first to allow retry if it was in an uncertain state
+  await supabaseAdmin
+    .from('profiles')
+    .update({ welcome_email_sent_at: null })
+    .eq('user_id', userId);
+
+  await sendWelcomeEmailOnce(profile.user_id, profile.email);
+
+  const { data: verified } = await supabaseAdmin
+    .from('profiles')
+    .select('welcome_email_sent_at')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  const sent = Boolean(verified?.welcome_email_sent_at);
+  return {
+    ok: sent,
+    email: profile.email,
+    error: sent ? undefined : 'DISPATCH_REVERTED_CHECK_TRANSPORT',
+  };
+}
